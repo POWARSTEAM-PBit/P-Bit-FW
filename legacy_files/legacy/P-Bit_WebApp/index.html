@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <title>Dashboard Ambiental P-Bit</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link href="https://fonts.googleapis.com/css2?family=Roboto&display=swap" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <style>
+    body {
+      font-family: 'Roboto', sans-serif;
+      background-color: #eefaf6;
+      margin: 0;
+      padding: 0;
+    }
+    header {
+      background-color: #50B1F9;
+      color: white;
+      padding: 1rem;
+      text-align: center;
+    }
+    nav {
+      display: flex;
+      justify-content: space-around;
+      background-color: #67C9FA;
+      padding: 0.5rem;
+    }
+    nav a {
+      color: white;
+      text-decoration: none;
+      font-weight: bold;
+    }
+    nav a.active {
+      border-bottom: 3px solid #FFFF00;
+    }
+    section {
+      padding: 1rem;
+    }
+    .tab-content {
+      display: none;
+    }
+    .tab-content.active {
+      display: block;
+    }
+    .log {
+      background-color: white;
+      padding: 1rem;
+      margin-top: 1rem;
+      border-radius: 8px;
+    }
+    #disconnectBtn, #connectBtn, #reconnectBtn {
+      background-color: #50B1F9;
+      color: white;
+      border: none;
+      padding: 0.5rem 1rem;
+      border-radius: 5px;
+      cursor: pointer;
+      margin-right: 0.5rem;
+    }
+    #disconnectBtn:hover, #connectBtn:hover, #reconnectBtn:hover {
+      background-color: #337BFF;
+    }
+    #connectBtn:disabled, #disconnectBtn:disabled, #reconnectBtn:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+    .card-container {
+      display: flex;
+      justify-content: space-around;
+      margin: 1rem 0;
+    }
+    .card {
+      background: white;
+      padding: 1rem;
+      border-radius: 12px;
+      box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+      width: 45%;
+      text-align: center;
+    }
+    .card h3 {
+      margin: 0;
+    }
+    .charts-container {
+      display: grid;
+      grid-template-columns: repeat(2, 40vw);
+      grid-template-rows: 40vh 40vh;
+      gap: 1rem;
+      justify-content: center;
+    }
+    canvas {
+      background: white;
+      border-radius: 12px;
+      padding: 0.5rem;
+      width: 100% !important;
+      height: 100% !important;
+    }
+    canvas:hover {
+      cursor: pointer;
+      transform: scale(1.01);
+      transition: transform 0.2s;
+    }
+    #modalContainer {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0,0,0,0.5);
+      display: none;
+      justify-content: center;
+      align-items: center;
+    }
+    #modalChart {
+      background: white;
+      padding: 1rem;
+      border-radius: 10px;
+      width: 90%;
+      height: 80%;
+    }
+    #reconexionMensaje {
+      color: #FF9900;
+      margin-top: 0.5rem;
+      font-size: 0.95rem;
+    }
+  </style>
+</head>
+<body>
+  <header>
+    🌱 Dashboard Ambiental P-Bit
+  </header>
+
+  <div style="text-align:center; background:#f0f0f0; padding:0.5rem;">
+    <div id="estado">🔴 Desconectado</div>
+    <div id="reloj">⌚ Hora local: --:-- | 📅 Fecha: --/--/----</div>
+    <div id="reconexionMensaje" style="display:none;">⏳ Intentando reconectar con el P-Bit...</div>
+  </div>
+
+  <nav>
+    <a href="#" class="active" onclick="mostrarPestaña('sensores')">Sensores</a>
+    <a href="#" onclick="mostrarPestaña('graficas')">Gráficas</a>
+    <a href="#" onclick="mostrarPestaña('observaciones')">Observaciones</a>
+    <a href="#" onclick="mostrarPestaña('exportar')">Exportar</a>
+  </nav>
+
+  <section id="sensores" class="tab-content active">
+    <h2>📡 Datos en vivo</h2>
+    <label>⏱ Intervalo de muestreo (segundos): <input id="intervaloInput" type="number" min="1" max="300" value="10" style="width: 60px;"> </label>
+    <br><br>
+    <button id="connectBtn" onclick="conectar()">🔗 Conectar P-Bit</button>
+    <button id="reconnectBtn" onclick="forzarReconexion()">🔄 Reconectar</button>
+    <button id="disconnectBtn" onclick="desconectar()">❌ Desconectar</button>
+    <div class="card-container">
+      <div class="card">
+        <h3>🌡️ Temperatura</h3>
+        <p id="tempActual">NaN</p>
+      </div>
+      <div class="card">
+        <h3>💧 Humedad</h3>
+        <p id="humActual">NaN</p>
+      </div>
+    </div>
+    <div class="log">
+      <strong>📋 Log de conexión:</strong>
+      <label>
+        <input type="checkbox" checked onchange="autoScrollEnabled = this.checked"> Autoscroll del log
+      </label>
+      <button onclick="exportarLogEventos()">📎 Exportar log</button>
+      <div id="logContainer" style="height: 150px; overflow-y: auto; border: 1px solid #ccc; padding: 8px; background: #111; color: #0f0;"></div>
+    </div>
+  </section>
+
+  <section id="graficas" class="tab-content">
+    <h2>📈 Gráficas</h2>
+    <div class="charts-container">
+      <canvas id="grafTemp" height="200"></canvas>
+      <canvas id="grafHum" height="200"></canvas>
+    </div>
+    <br>
+    <button onclick="exportarDatosSensor()">📄 Exportar datos sensores (CSV)</button>
+  </section>
+
+  <section id="observaciones" class="tab-content">
+    <h2>📝 Observaciones</h2>
+    <textarea style="width:100%; height:150px;"></textarea>
+    <br><button>Guardar observación</button>
+  </section>
+
+  <section id="exportar" class="tab-content">
+    <h2>📄 Exportar Datos</h2>
+    <button onclick="exportarLogEventos()">📆 Descargar Log de Conexión</button>
+    <button onclick="exportarDatosSensor()">📄 Descargar Datos Sensores</button>
+  </section>
+
+  <div id="modalContainer" onclick="cerrarModal()">
+    <canvas id="modalChart"></canvas>
+  </div>
+
+  <script>
+    function mostrarPestaña(id) {
+      document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
+      document.querySelectorAll('nav a').forEach(link => link.classList.remove('active'));
+      document.getElementById(id).classList.add('active');
+      document.querySelector(`nav a[onclick*='${id}']`).classList.add('active');
+    }
+  </script>
+  <script src="scripts.js"></script>
+</body>
+</html>
