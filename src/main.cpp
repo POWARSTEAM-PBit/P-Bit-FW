@@ -1,298 +1,266 @@
-#include <BLEDevice.h>
-#include <BLEUtils.h>
-#include <BLEServer.h>
 #include <Arduino.h>
-#include <esp_system.h>
-#include <string.h>
+#include <Wire.h>
+#include <LiquidCrystal_PCF8574.h>
+#include <DHT.h>
+#include <OneWire.h>
+#include <DallasTemperature.h>
 
-#define SERVICE_UUID "4fafc201-1fb5-459e-8fcc-c5c9c331914b"
-#define CHARACTERISTIC_UUID "beb5483e-36e1-4688-b7f5-ea07361b26a8"
-#define REQUEST_MSG 0x01
-#define REPLY_MSG 0x02
-#define MAC_ADDR_LEN 6
-#define ERR_UNK_MAC 1
-#define ERR_INVALID_LEN 2
-#define NUM_SENSORS 5  // Total number of sensors
+#include <esp_system.h>     // esp_read_mac()
+#include <NimBLEDevice.h>
 
-// Sensor types
-#define SENSOR_TYPE_TEMPERATURE 0x01
-#define SENSOR_TYPE_HUMIDITY    0x02
-#define SENSOR_TYPE_PRESSURE    0x03
-#define SENSOR_TYPE_LIGHT       0x04
-#define SENSOR_TYPE_BATTERY     0x05
+// ---------------- Pins (change only if your board is different) ----------------
+constexpr uint8_t PIN_DHT      = 4;   // DHT11 data
+constexpr uint8_t PIN_LDR      = 39;  // ADC1 (SENSOR_VN)
+constexpr uint8_t PIN_MIC      = 36;  // ADC1 (SENSOR_VP)
+constexpr uint8_t PIN_ONEWIRE  = 32;  // DS18B20 data (optional)
+constexpr uint8_t I2C_SDA      = 21;
+constexpr uint8_t I2C_SCL      = 22;
 
-// Global pointer to characteristic for sending responses
-BLECharacteristic *pCharacteristic;
-uint8_t device_mac[MAC_ADDR_LEN];
+#define DHT_TYPE DHT11        // change to DHT22 if needed
 
-bool compare_mac_addr(uint8_t * received_mac) {
-    return memcmp(received_mac, device_mac, MAC_ADDR_LEN) == 0;
+// ---------------- Web Bluetooth UUIDs (must match your web) ----------------
+static const char* NEW_SERVICE_UUID = "4fafc201-1fb5-459e-8fcc-c5c9c331914b";
+static const char* NEW_CHAR_UUID    = "beb5483e-36e1-4688-b7f5-ea07361b26a8";
+
+// Legacy (send compact JSON over Temperature characteristic)
+static const uint16_t LEGACY_SERVICE_UUID16 = 0x181A; // Environmental Sensing
+static const uint16_t LEGACY_CHAR_UUID16    = 0x2A6E; // Temperature
+
+// ---------------- Globals ----------------
+DHT dht(PIN_DHT, DHT_TYPE);
+OneWire oneWire(PIN_ONEWIRE);
+DallasTemperature ds18b20(&oneWire);
+
+// Use pointer so we can construct LCD ONCE with the probed I2C address.
+LiquidCrystal_PCF8574* lcd = nullptr;
+
+NimBLECharacteristic* pNewChar    = nullptr;
+NimBLECharacteristic* pLegacyChar = nullptr;
+
+bool     clientConnected = false;
+uint32_t lastPushMs = 0;
+uint32_t lastLcdMs  = 0;
+
+// cached sensor values
+float v_temp = NAN, v_hum = NAN, v_ldr = NAN, v_mic = NAN, v_batt = 100.0f;
+
+// ---------------- Helpers ----------------
+
+// Probe LCD address (0x27/0x3F), then construct LCD once
+void initLCD() {
+  auto probe = [](uint8_t addr)->bool {
+    Wire.beginTransmission(addr);
+    return Wire.endTransmission() == 0;
+  };
+  uint8_t addr = probe(0x27) ? 0x27 : (probe(0x3F) ? 0x3F : 0x27);
+
+  lcd = new LiquidCrystal_PCF8574(addr);
+  lcd->begin(16, 2);
+  lcd->setBacklight(255);
+
+  lcd->clear();
+  lcd->setCursor(0,0); lcd->print(" P-BIT  ");
+  lcd->setCursor(8,0); lcd->print("BLE:... ");
+  lcd->setCursor(0,1); lcd->print("LCD @0x"); lcd->print(addr, HEX);
 }
 
-// Generate random sensor value based on sensor type
-uint16_t generateSensorValue(uint8_t sensor_type) {
-    switch(sensor_type) {
-        case SENSOR_TYPE_TEMPERATURE:
-            return random(150, 350);  // 15.0 to 35.0 degrees (scaled by 10)
-        case SENSOR_TYPE_HUMIDITY:
-            return random(300, 800);  // 30% to 80% humidity (scaled by 10)
-        case SENSOR_TYPE_PRESSURE:
-            return random(9800, 10200); // 98.0 to 102.0 kPa (scaled by 100)
-        case SENSOR_TYPE_LIGHT:
-            return random(0, 1000);   // 0 to 1000 lux
-        case SENSOR_TYPE_BATTERY:
-            return random(0, 100);    // 0% to 100% battery
-        default:
-            return random(0, 65535);  // Random 16-bit value
-    }
+// Average ADC to reduce noise
+int readADC(uint8_t pin, int samples = 16) {
+  if (pin >= 34) pinMode(pin, INPUT);
+  uint32_t sum = 0;
+  for (int i = 0; i < samples; i++) {
+    sum += analogRead(pin);
+    delayMicroseconds(200);
+  }
+  return sum / samples; // 0..4095
 }
 
-/***
- * Reply packet format:
- * Byte 0: REPLY_MSG (0x02)
- * Byte 1: error_code (0=success, 1=unknown MAC, 2=invalid length)
- * If error_code == 0 (success), for each sensor:
- *   Byte N: sensor_type
- *   Bytes N+1, N+2: sensor_value (16-bit, little endian)
- * Total success packet: 2 + (3 * NUM_SENSORS) = 17 bytes
- ***/
-void send_reply(int error_code)
-{
-    const int packet_size = 2 + (3 * NUM_SENSORS);
-    uint8_t reply_msg[packet_size];  // Message type + error code + (type + 2-byte value) * NUM_SENSORS
-    int reply_length = 2;  // Default length for error replies
-    
-    reply_msg[0] = REPLY_MSG;
-    reply_msg[1] = error_code;
-    
-    // If no error, add all sensor data
-    if (error_code == 0) {
-        Serial.println("Generating all sensor data...");
-        
-        const char* sensor_names[] = {"", "Temperature", "Humidity", "Pressure", "Light", "Battery"};
-        uint8_t sensor_types[] = {SENSOR_TYPE_TEMPERATURE, SENSOR_TYPE_HUMIDITY, 
-                                 SENSOR_TYPE_PRESSURE, SENSOR_TYPE_LIGHT, SENSOR_TYPE_BATTERY};
-        
-        int byte_index = 2;  // Start after message type and error code
-        
-        // Add all sensors to the packet
-        for (int i = 0; i < NUM_SENSORS; i++) {
-            uint8_t sensor_type = sensor_types[i];
-            uint16_t sensor_value = generateSensorValue(sensor_type);
-            
-            // Add sensor type
-            reply_msg[byte_index] = sensor_type;
-            byte_index++;
-            
-            // Add sensor value (little endian)
-            reply_msg[byte_index] = sensor_value & 0xFF;        // Low byte
-            reply_msg[byte_index + 1] = (sensor_value >> 8) & 0xFF; // High byte
-            byte_index += 2;
-            
-            // Log each sensor
-            Serial.printf("Sensor %d: Type=%d (%s), Value=%d (0x%04X)\n", 
-                         i+1, sensor_type, sensor_names[sensor_type], sensor_value, sensor_value);
-        }
-        
-        reply_length = byte_index;
-        Serial.printf("Total sensors in packet: %d\n", NUM_SENSORS);
-    } else {
-        Serial.printf("Sending error reply: %d\n", error_code);
-    }
-    
-    std::string reply_string((char*)reply_msg, reply_length);
-    pCharacteristic->setValue(reply_string);
-    pCharacteristic->notify();
-    
-    Serial.printf("Reply sent: %d bytes\n", reply_length);
-    
-    // Print raw packet bytes for debugging
-    Serial.print("Raw packet: ");
-    for (int i = 0; i < reply_length; i++) {
-        Serial.printf("0x%02X ", reply_msg[i]);
-    }
-    Serial.println();
+// Build 17-byte packet: [0x02,0x00,(id,u16LE)*5]
+// ids: 1=temp(0.1C), 2=hum(0.1%), 3=ldr(raw), 4=mic(raw), 5=batt(%)
+std::string pack17() {
+  uint8_t buf[17]; memset(buf, 0, sizeof(buf));
+  buf[0] = 0x02; buf[1] = 0x00;
+
+  auto put = [&](int idx, uint8_t id, uint16_t val) {
+    int base = 2 + idx * 3;
+    buf[base]   = id;
+    buf[base+1] = val & 0xFF;
+    buf[base+2] = (val >> 8) & 0xFF;
+  };
+
+  uint16_t t10  = isnan(v_temp) ? 0 : (uint16_t)lroundf(v_temp * 10.0f);
+  uint16_t h10  = isnan(v_hum)  ? 0 : (uint16_t)lroundf(v_hum  * 10.0f);
+  uint16_t lraw = isnan(v_ldr)  ? 0 : (uint16_t)lroundf(v_ldr);
+  uint16_t mraw = isnan(v_mic)  ? 0 : (uint16_t)lroundf(v_mic);
+  uint16_t bat  = isnan(v_batt) ? 0 : (uint16_t)lroundf(v_batt);
+
+  put(0, 1, t10);
+  put(1, 2, h10);
+  put(2, 3, lraw);
+  put(3, 4, mraw);
+  put(4, 5, bat);
+
+  return std::string((char*)buf, sizeof(buf));
 }
 
-class MyCallbacks : public BLECharacteristicCallbacks
-{
-    private:
-        int packet_count;
-        unsigned long last_request_time;
+// Compact JSON for legacy characteristic
+String makeJson() {
+  String s = "{";
+  if (!isnan(v_temp)) s += "\"temp\":" + String(v_temp,1) + ",";
+  if (!isnan(v_hum))  s += "\"hum\":"  + String(v_hum,1)  + ",";
+  if (!isnan(v_ldr))  s += "\"ldr\":"  + String((int)v_ldr) + ",";
+  if (!isnan(v_mic))  s += "\"mic\":"  + String((int)v_mic) + ",";
+  if (!isnan(v_batt)) s += "\"batt\":" + String((int)v_batt) + ",";
+  if (s[s.length()-1] == ',') s.remove(s.length()-1);
+  s += "}";
+  return s;
+}
 
-    public:
-        MyCallbacks() {
-            packet_count = 0;
-            last_request_time = 0;
-        }
-        
-        void onWrite(BLECharacteristic *pCharacteristic)
-        {
-            std::string value = pCharacteristic->getValue();
-            size_t msg_len = value.length();
-            uint8_t mac_addr[MAC_ADDR_LEN];
-            char msg_type;
-            size_t i;
-            int error_code = 0;
-            
-            // Update statistics
-            packet_count++;
-            last_request_time = millis();
+// Read all sensors
+void readSensors() {
+  // DHT
+  float h = dht.readHumidity();
+  float t = dht.readTemperature();
+  if (!isnan(h)) v_hum = h;
+  if (!isnan(t)) v_temp = t;
 
-            printf("%d\n", msg_len);
-            
-            if (msg_len > 0)
-            {
-                msg_type = value[0];
-                if (msg_type == REQUEST_MSG)
-                {
-                    logRequest(msg_len);
-                    
-                    if (msg_len != MAC_ADDR_LEN + 1)
-                    {
-                        printf("Invalid packet\n");
-                        error_code = ERR_INVALID_LEN;
-                    }
-                    else
-                    {
-                        for (i = 1; i < msg_len; i++)
-                        {
-                            mac_addr[i - 1] = value[i];
-                        }
-                        
-                        // MAC checking is commented out - always accept valid length packets
-                        // if (!compare_mac_addr(mac_addr))
-                        // {
-                        //     printf("Invalid mac addr in the pkt\n");
-                        //     error_code = ERR_UNK_MAC;
-                        //     logMacMismatch(mac_addr);
-                        // }
-                        // else
-                        // {
-                        //     logMacMatch();
-                        // }
-                    }
+  // DS18B20 (if present) overrides temperature
+  ds18b20.requestTemperatures();
+  float t2 = ds18b20.getTempCByIndex(0);
+  if (t2 != DEVICE_DISCONNECTED_C && t2 > -100 && t2 < 120) v_temp = t2;
 
-                    send_reply(error_code);
-                }
-            }
-        }
-        
-        // Custom method to log request details
-        void logRequest(size_t length) 
-        {
-            Serial.printf("[%lu] Request #%d - Length: %d bytes\n", 
-                        millis(), packet_count, length);
-        }
-        
-        // Custom method to log MAC mismatches
-        void logMacMismatch(uint8_t* received_mac) {
-            Serial.print("MAC Mismatch - Received: ");
-            printMac(received_mac);
-            Serial.print(", Expected: ");
-            printMac(device_mac);
-        }
-        
-        // Custom method to log successful MAC matches
-        void logMacMatch() {
-            Serial.printf("[%lu] ✓ MAC Address verified successfully!\n", millis());
-        }
-        
-        // Helper method to print MAC addresses
-        void printMac(uint8_t* mac) {
-            for (int i = 0; i < MAC_ADDR_LEN; i++) {
-                Serial.printf("%02X", mac[i]);
-                if (i < MAC_ADDR_LEN - 1) Serial.print(":");
-            }
-            Serial.println();
-        }
-        
-        // Method to get statistics
-        void printStats() {
-            Serial.printf("=== Statistics ===\n");
-            Serial.printf("Total packets: %d\n", packet_count);
-            Serial.printf("Last request: %lu ms ago\n", 
-                        millis() - last_request_time);
-            Serial.printf("Uptime: %lu ms\n", millis());
-        }
-        
-        // Method to reset statistics
-        void resetStats() {
-            packet_count = 0;
-            last_request_time = 0;
-            Serial.println("Statistics reset");
-        }
-        
-        // Method to check if device is active
-        bool isRecentActivity(unsigned long timeout_ms = 30000) {
-            return (millis() - last_request_time) < timeout_ms;
-        }
-        
-        // Method to validate packet format (could be extended for other message types)
-        bool validatePacket(const std::string& value) {
-            if (value.length() == 0) return false;
-            
-            char msg_type = value[0];
-            switch (msg_type) {
-                case REQUEST_MSG:
-                    return value.length() == MAC_ADDR_LEN + 1;
-                case REPLY_MSG:
-                    return value.length() == 2;
-                default:
-                    return false;
-            }
-        }
+  // ADC raw
+  v_ldr = readADC(PIN_LDR);
+  v_mic = readADC(PIN_MIC);
+
+  // Battery placeholder
+  v_batt = 100.0f;
+}
+
+// Update LCD (top: BLE state; bottom: values toggle every 2s)
+void updateLCD() {
+  if (!lcd) return;
+
+  lcd->setCursor(0,0);
+  lcd->print(" P-BIT  ");
+  lcd->setCursor(8,0);
+  lcd->print(clientConnected ? "BLE:Conn" : "BLE:Adv ");
+
+  static bool flip = false;
+  if (millis() - lastLcdMs > 2000) { flip = !flip; lastLcdMs = millis(); }
+
+  char line[17];
+  if (!flip) {
+    snprintf(line, sizeof(line), "T:%4.1f H:%4.1f",
+             isnan(v_temp)?0:v_temp, isnan(v_hum)?0:v_hum);
+  } else {
+    snprintf(line, sizeof(line), "L:%4d M:%4d",
+             (int)(isnan(v_ldr)?0:v_ldr), (int)(isnan(v_mic)?0:v_mic));
+  }
+  lcd->setCursor(0,1);
+  lcd->print(line);
+  for (int i = strlen(line); i < 16; i++) lcd->print(' ');
+}
+
+// Notify both characteristics
+void notifyAll() {
+  if (pNewChar) {
+    std::string pkt = pack17();
+    pNewChar->setValue(pkt);
+    pNewChar->notify();
+  }
+  if (pLegacyChar) {
+    String js = makeJson();
+    pLegacyChar->setValue((uint8_t*)js.c_str(), js.length());
+    pLegacyChar->notify();
+  }
+}
+
+// ---------------- BLE callbacks ----------------
+class ServerCB : public NimBLEServerCallbacks {
+  void onConnect(NimBLEServer*) override { clientConnected = true; }
+  void onDisconnect(NimBLEServer*) override {
+    clientConnected = false;
+    NimBLEDevice::startAdvertising();
+  }
 };
 
-// Global instance
-MyCallbacks* myCallbacks;
+class NewCharCB : public NimBLECharacteristicCallbacks {
+  void onWrite(NimBLECharacteristic* c) override {
+    std::string v = c->getValue();
+    if (!v.empty() && (uint8_t)v[0] == 0x01) {
+      // Web requests an instant packet
+      readSensors();
+      notifyAll();
+    }
+  }
+};
 
+// ---------------- setup / loop ----------------
 void setup() {
-    Serial.begin(115200);
-    Serial.println("Starting BLE work!");
-    
-    // Initialize random seed
-    randomSeed(analogRead(0) + millis());
-    
-    esp_read_mac(device_mac, ESP_MAC_WIFI_STA);
-    
-    BLEDevice::init("Long name works now");
-    BLEServer *pServer = BLEDevice::createServer();
-    BLEService *pService = pServer->createService(SERVICE_UUID);
-    
-    pCharacteristic = pService->createCharacteristic(
-        CHARACTERISTIC_UUID,
-        BLECharacteristic::PROPERTY_READ |
-        BLECharacteristic::PROPERTY_WRITE |
-        BLECharacteristic::PROPERTY_NOTIFY
-    );
-    
-    pCharacteristic->setValue("Hello World says Neil");
-    
-    // Create instance and set callbacks
-    myCallbacks = new MyCallbacks();
-    pCharacteristic->setCallbacks(myCallbacks);
-    
-    pService->start();
-    
-    BLEAdvertising *pAdvertising = BLEDevice::getAdvertising();
-    pAdvertising->addServiceUUID(SERVICE_UUID);
-    pAdvertising->setScanResponse(true);
-    pAdvertising->setMinPreferred(0x06);
-    pAdvertising->setMinPreferred(0x12);
-    
-    BLEDevice::startAdvertising();
-    Serial.println("Characteristic defined! Now you can read/write it in your phone!");
+  Serial.begin(115200);
+  delay(200);
+  Serial.println("\n[BOOT] setup start");
+
+  Wire.begin(I2C_SDA, I2C_SCL);
+  Serial.println("[BOOT] I2C OK");
+
+  initLCD();
+  Serial.println("[BOOT] LCD OK");
+
+  dht.begin();
+  ds18b20.begin();
+  Serial.println("[BOOT] Sensors OK");
+
+  uint8_t mac[6]; esp_read_mac(mac, ESP_MAC_BT);
+  char devName[20];
+  snprintf(devName, sizeof(devName), "PBIT-%02X%02X", mac[4], mac[5]);
+  Serial.printf("[BOOT] DevName: %s\n", devName);
+
+  NimBLEDevice::init(devName);
+  NimBLEDevice::setPower(ESP_PWR_LVL_P9);
+  Serial.println("[BOOT] NimBLE init OK");
+
+  NimBLEServer* pServer = NimBLEDevice::createServer();
+  pServer->setCallbacks(new ServerCB());
+  Serial.println("[BOOT] Server OK");
+
+  // New protocol (binary 17B)
+  NimBLEService* newSvc = pServer->createService(NEW_SERVICE_UUID);
+  pNewChar = newSvc->createCharacteristic(
+      NEW_CHAR_UUID, NIMBLE_PROPERTY::NOTIFY | NIMBLE_PROPERTY::WRITE);
+  pNewChar->setCallbacks(new NewCharCB());
+  newSvc->start();
+  Serial.println("[BOOT] New service OK");
+
+  // Legacy protocol (JSON over 0x2A6E)
+  NimBLEService* legSvc = pServer->createService(NimBLEUUID(LEGACY_SERVICE_UUID16));
+  pLegacyChar = legSvc->createCharacteristic(
+      NimBLEUUID(LEGACY_CHAR_UUID16), NIMBLE_PROPERTY::NOTIFY);
+  legSvc->start();
+  Serial.println("[BOOT] Legacy service OK");
+
+  // Advertise both services
+  NimBLEAdvertising* adv = NimBLEDevice::getAdvertising();
+  adv->addServiceUUID(NEW_SERVICE_UUID);
+  adv->addServiceUUID(NimBLEUUID(LEGACY_SERVICE_UUID16));
+  adv->setScanResponse(true);
+  adv->start();
+  Serial.println("[BOOT] Advertising started");
+
+  if (lcd) {
+    lcd->setCursor(0,1);
+    lcd->print("Ready: "); lcd->print(devName);
+  }
 }
 
 void loop() {
-    static unsigned long last_stats = 0;
-    
-    // Print stats every 30 seconds
-    if (millis() - last_stats > 30000) {
-        myCallbacks->printStats();
-        last_stats = millis();
-    }
-    
-    delay(2000);
+  uint32_t now = millis();
+  if (now - lastPushMs > 1000) {
+    lastPushMs = now;
+    readSensors();
+    notifyAll();
+  }
+  updateLCD();
+  delay(20);
 }
