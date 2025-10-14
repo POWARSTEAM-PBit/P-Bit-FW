@@ -1,18 +1,19 @@
 /******************************************************
- * Project: P-Bit Display 2025 (Soft Edition)
+ * Project: P-Bit Display 2025 (Soft COLOR Theme)
  * Author: Anssar Almashama
  * Description:
  *   Full startup sequence and sensor dashboard for the
  *   POWAR STEAM P-Bit device.
  *
  *   Sequence:
- *   1️⃣ Logo Screen  → beige background (can be white)
+ *   1️⃣ Logo Screen  → white background (with logo)
  *   2️⃣ Neon Screen  → black background, green "P-Bit"
  *   3️⃣ Sensor Screens → Temperature, Humidity, Light,
  *                         Soil Moisture, Soil Temp, Sound
  ******************************************************/
 
 #include <TFT_eSPI.h>              // TFT display library
+#include "logo.h"                  // Include logo bitmap (160x128) for splash screen
 #include <OneWire.h>               // For DS18B20 temperature sensor
 #include <DallasTemperature.h>     // DS18B20 management
 #include <ESP32RotaryEncoder.h>    // Rotary encoder input
@@ -31,8 +32,6 @@ DallasTemperature sensors(&oneWire);
 RotaryEncoder rotaryEncoder(ENCODER_A, ENCODER_B, ENCODER_SW, -1);
 
 // ==== Color Palette ====
-// NOTE: This beige color can be changed to white if preferred.
-#define COLOR_BEIGE      tft.color565(252, 249, 234)
 #define COLOR_HUMIDITY   tft.color565(186, 223, 219)
 #define COLOR_LIGHT      tft.color565(248, 247, 186)
 #define COLOR_TEMP       tft.color565(245, 210, 210)
@@ -65,10 +64,10 @@ void setup() {
   Serial.begin(115200);
   tft.begin();
   tft.setRotation(1);
+  
   sensors.begin();
   pinMode(BUZZER_PIN, OUTPUT);
 
-  // Rotary encoder initialization
   rotaryEncoder.setAcceleration(0);
   rotaryEncoder.setBoundaries(0, 5, false);
   rotaryEncoder.reset();
@@ -87,13 +86,8 @@ void setup() {
 void loop() {
   rotaryEncoder.loop();
 
-  // Check encoder rotation
-  if (rotaryEncoder.isEncoderButtonClicked()) {
-    // Optional: handle button press if needed
-  }
-
   if (rotaryEncoder.isEncoderValueChanged()) {
-    beepSwitch(); // Short beep for feedback
+    beepSwitch(); // Short beep
     screen = rotaryEncoder.readEncoder();
 
     switch (screen) {
@@ -113,35 +107,36 @@ void loop() {
 
 // ---- Logo Screen ----
 void showLogoScreen() {
-  tft.fillScreen(COLOR_BEIGE);
-  // Draw logo at center (assuming 128x128 logo) -NEEDS TO BE UPDATED
-  // 🔹 Insert logo drawing here after image converted it to .h
-  // e.g. tft.pushImage(x, y, width, height, logoBitmap);
 
-  delay(1000); // Display logo for 1 second
+  tft.fillScreen(TFT_WHITE);
 
-  // Startup ascending tone (chime)
+  // Center the logo
+  int x = (tft.width()  - LOGO_W) / 2;
+  int y = (tft.height() - LOGO_H) / 2;
+  tft.pushImage(x, y, LOGO_W, LOGO_H, logoBitmaphorizontal_view);
+
+  delay(800);  // short hold
+
+  // Startup ascending tone
   startupTone();
 
-  // Fast fade-out effect (simple screen clear for performance)
+  // Quick fade-out effect (simple black wipe)
   for (int i = 0; i < 3; i++) {
-    tft.fillScreen(COLOR_BEIGE);
-    delay(100);
+    delay(80);
     tft.fillScreen(TFT_BLACK);
-    delay(100);
   }
-  tft.fillScreen(TFT_BLACK);
 }
 
 // ---- Splash Screen ("P-Bit") ----
 void showSplashScreen() {
   tft.fillScreen(TFT_BLACK);
   tft.setTextColor(COLOR_NEON);
-  tft.setTextFont(7);  // Digital-clock style font
-  tft.setTextSize(1);
-  tft.setCursor(40, 60);
+  tft.setTextFont(4);  
+  tft.setTextSize(2);
+  tft.setCursor((tft.width() / 2) - 40, (tft.height() / 2) - 10);
   tft.print("P-Bit");
-  delay(1000);
+  delay(700);
+  tft.fillScreen(TFT_BLACK);
 }
 
 // ---- Temperature ----
@@ -154,7 +149,7 @@ void drawTemperature() {
   tft.setTextFont(2);
   tft.setTextSize(2);
   tft.setCursor(10, 10);
-  tft.print("🌡 Temperature");
+  tft.print("Temperature");
 
   tft.setTextSize(4);
   tft.setCursor(20, 60);
@@ -172,11 +167,11 @@ void drawHumidity() {
   tft.setTextFont(2);
   tft.setTextSize(2);
   tft.setCursor(10, 10);
-  tft.print("💧 Humidity");
+  tft.print("Humidity");
 
   tft.setTextSize(4);
   tft.setCursor(40, 60);
-  tft.print("45.2 %"); // Placeholder
+  tft.print("45.2 %");
 }
 
 // ---- Light ----
@@ -186,11 +181,11 @@ void drawLight() {
   tft.setTextFont(2);
   tft.setTextSize(2);
   tft.setCursor(10, 10);
-  tft.print("🔆 Light");
+  tft.print("Light");
 
   tft.setTextSize(4);
   tft.setCursor(50, 60);
-  tft.print("820 lx"); // Placeholder
+  tft.print("820 lx");
 }
 
 // ---- Soil Moisture ----
@@ -200,11 +195,11 @@ void drawSoilMoisture() {
   tft.setTextFont(2);
   tft.setTextSize(2);
   tft.setCursor(10, 10);
-  tft.print("🌱 Soil Moisture");
+  tft.print("Soil Moisture");
 
   tft.setTextSize(4);
   tft.setCursor(40, 60);
-  tft.print("67 %"); // Placeholder
+  tft.print("67 %");
 }
 
 // ---- Soil Temperature ----
@@ -214,11 +209,11 @@ void drawSoilTemp() {
   tft.setTextFont(2);
   tft.setTextSize(2);
   tft.setCursor(10, 10);
-  tft.print("🌿🌡 Soil Temp");
+  tft.print("Soil Temp");
 
   tft.setTextSize(4);
   tft.setCursor(30, 60);
-  tft.print("26.8 C"); // Placeholder
+  tft.print("26.8 C");
 }
 
 // ---- Sound ----
@@ -228,25 +223,23 @@ void drawSound() {
   tft.setTextFont(2);
   tft.setTextSize(2);
   tft.setCursor(10, 10);
-  tft.print("🔊 Sound");
+  tft.print("Sound");
 
   tft.setTextSize(4);
   tft.setCursor(40, 60);
-  tft.print("54 %"); // Placeholder
+  tft.print("54 %");
 }
 
 /* ======================================================
  *                 SOUND FUNCTIONS
  * ====================================================*/
 
-// Short beep on screen switch
 void beepSwitch() {
   tone(BUZZER_PIN, 1200, 80);
   delay(100);
   noTone(BUZZER_PIN);
 }
 
-// Startup ascending chime
 void startupTone() {
   for (int freq = 800; freq < 1500; freq += 50) {
     tone(BUZZER_PIN, freq, 30);
