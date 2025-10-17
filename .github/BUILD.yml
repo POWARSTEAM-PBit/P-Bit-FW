@@ -3,7 +3,7 @@ name: Build and Release Firmware
 on:
   push:
     branches:
-      - 'feature/*'
+      - '**'
   workflow_dispatch:
 
 jobs:
