@@ -5,14 +5,25 @@
 
 TFT_eSPI tft = TFT_eSPI();
 
-typedef enum {
-    SCREEN_1,
-    SCREEN_2,
-    SCREEN_3
-} Screen;
-
 Screen active_screen = SCREEN_1;
 unsigned long last_update = 0;
+
+
+const char* quotes[] = {
+    "Keep it simple.",
+    "Make it work, make it right, make it fast.",
+    "Stay curious.",
+    "Code. Debug. Repeat.",
+    "Dream big. Code bigger.",
+    "Be the change you debug.",
+    "Every bug is a lesson.",
+    "Perfection is iteration.",
+    "Think twice, code once.",
+    "Simplicity is power."
+};
+
+constexpr size_t QUOTE_COUNT = sizeof(quotes) / sizeof(quotes[0]);
+
 
 void init_tft_display() {
     tft.init();
@@ -28,60 +39,58 @@ void clear_screen() {
 }
 
 void switch_screen(void *param) {
-    while (1) {
-        unsigned long now = millis();
+    Screen last_drawn = SCREEN_1;
 
-        if ((now - last_update) > 2000) {
-            last_update = now;
+    while (1) {
+        if (active_screen != last_drawn) {
             clear_screen();
+            last_drawn = active_screen;
 
             switch (active_screen) {
                 case SCREEN_1:
-                    // TODO: Implement SCREEN_1 display logic
-                    // Cool gradient background
-    for (int y = 0; y < tft.height(); y++) {
-        uint8_t r = map(y, 0, tft.height(), 0, 255);
-        uint8_t g = map(y, 0, tft.height(), 50, 200);
-        uint8_t b = map(y, 0, tft.height(), 100, 255);
-        uint16_t color = tft.color565(r, g, b);
-        tft.drawFastHLine(0, y, tft.width(), color);
-    }
-
-    // Stylized logo / text overlay
-    tft.setTextColor(TFT_WHITE, TFT_BLACK);
-    tft.drawString("P-BIT", tft.width() / 2, tft.height() / 2 - 20, 6);
-
-    tft.setTextColor(TFT_YELLOW, TFT_BLACK);
-    tft.drawString("Firmware", tft.width() / 2, tft.height() / 2 + 20, 2);
-
-    // Decorative circles
-    tft.fillCircle(20, 20, 10, TFT_RED);
-    tft.fillCircle(tft.width() - 20, tft.height() - 20, 10, TFT_BLUE);
-    break;
+                    tft.fillScreen(TFT_BLACK);
+                    tft.setTextColor(TFT_GREEN, TFT_BLACK);
+                    tft.drawString("Screen 1", 64, 40, 4);
+                    tft.drawString("Gradient Mode", 64, 80, 2);
+                    break;
 
                 case SCREEN_2:
-                    // TODO: Implement SCREEN_2 display logic
                     tft.setTextColor(TFT_CYAN, TFT_BLACK);
                     tft.fillRect(20, 30, 100, 60, TFT_CYAN);
-                    tft.drawString("Rectangle", 64, 110, 2);
+                    tft.drawString("Screen 2", 64, 110, 2);
                     break;
 
                 case SCREEN_3:
-                    // TODO: Implement SCREEN_3 display logic
                     tft.fillCircle(80, 60, 30, TFT_RED);
                     tft.setTextColor(TFT_WHITE, TFT_BLACK);
-                    tft.drawString("Circle", 64, 110, 2);
+                    tft.drawString("Screen 3", 64, 110, 2);
                     break;
+                case SCREEN_4:
+                    tft.setTextColor(TFT_YELLOW, TFT_BLACK);
+                    tft.drawString("QOTD", 64, 20, 4);
 
-                default:
-                    // Optionally handle unexpected values
+                    // Pick random quote
+                    const char* q = quotes[random(QUOTE_COUNT)];
+                    tft.setTextColor(TFT_WHITE, TFT_BLACK);
+                    tft.setTextDatum(TC_DATUM);
+
+                    // Display centered multi-line text
+                    int y = 60;
+                    int lineHeight = 20;
+                    String quoteStr(q);
+
+                    // Split long quotes manually if desired
+                    if (quoteStr.length() > 20) {
+                        tft.drawString(quoteStr.substring(0, 20), tft.width() / 2, y, 2);
+                        tft.drawString(quoteStr.substring(20), tft.width() / 2, y + lineHeight, 2);
+                    } else {
+                        tft.drawString(quoteStr, tft.width() / 2, y + 10, 2);
+                    }
                     break;
             }
-
-            // Cycle to next screen
-            active_screen = (Screen)((active_screen + 1) % 3);
         }
 
-        vTaskDelay(pdMS_TO_TICKS(100)); // Yield to other tasks, avoid busy wait
+        vTaskDelay(pdMS_TO_TICKS(100)); // check every 100ms
     }
 }
+

@@ -2,6 +2,7 @@
 #include <esp_system.h>     // esp_read_mac()
 #include <NimBLEDevice.h>
 #include "io.h"
+#include "hw.h"
 
 // ================= CONSTANTS =================
 constexpr int DATA_PACKET_LEN = 17;
@@ -94,10 +95,14 @@ class NewCharCB : public NimBLECharacteristicCallbacks {
 
 void notifyAll() {
     Reading received;
-    if (xQueueReceive(reading_queue, &received, pdMS_TO_TICKS(1000)) == pdTRUE) {
-        Serial.printf("Humidity: %.1f %% | Temp: %.1f °C | LDR: %.0f | Mic: %.0f | Batt: %.1f %%\n",
-                      received.humidity, received.temperature,
-                      received.ldr, received.mic, received.batt);
+
+    // Drain the entire queue
+    while (xQueueReceive(reading_queue, &received, 0) == pdTRUE) {
+        Serial.printf(
+            "Humidity: %.1f %% | Temp: %.1f °C | LDR: %.0f | Mic: %.0f | Batt: %.1f %%\n",
+            received.humidity, received.temperature,
+            received.ldr, received.mic, received.batt
+        );
 
         std::string pkt = assm_pkt(received);
         String js = makeJson(received);
@@ -111,18 +116,16 @@ void notifyAll() {
             pLegacyChar->setValue((uint8_t*)js.c_str(), js.length());
             pLegacyChar->notify();
         }
+
+        // Small delay to let BLE notifications transmit properly
+        vTaskDelay(pdMS_TO_TICKS(30));
     }
 }
 
 
 void init_ble() {
-    uint8_t mac[6];
-    esp_read_mac(mac, ESP_MAC_BT);
-    char devName[20];
-    snprintf(devName, sizeof(devName), "PBIT-%02X%02X", mac[4], mac[5]);
-    Serial.printf("[BOOT] DevName: %s\n", devName);
 
-    NimBLEDevice::init(devName);
+    NimBLEDevice::init(dev_name);
     NimBLEDevice::setPower(ESP_PWR_LVL_P9);
 
     NimBLEServer *pServer = NimBLEDevice::createServer();

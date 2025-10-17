@@ -5,6 +5,7 @@
 #include <DallasTemperature.h>
 #include <OneWire.h>
 #include "io.h"
+#include "hw.h"
 
 #define DHT_TYPE DHT11        // change to DHT22 if needed
 constexpr uint8_t PIN_DHT = 4;   // DHT11 data
@@ -17,15 +18,6 @@ DHT dht(PIN_DHT, DHT_TYPE);
 OneWire oneWire(PIN_ONEWIRE);
 DallasTemperature ds18b20(&oneWire);
 
-int readADC(uint8_t pin, int samples = 16) {
-  if (pin >= 34) pinMode(pin, INPUT);
-  uint32_t sum = 0;
-  for (int i = 0; i < samples; i++) {
-    sum += analogRead(pin);
-    delayMicroseconds(200);
-  }
-  return sum / samples; // 0..4095
-}
 
 void read_sensors(Reading &r) {
 

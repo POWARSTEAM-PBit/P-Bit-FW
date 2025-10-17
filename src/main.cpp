@@ -3,15 +3,21 @@
 #include "io.h"
 #include "queue.h"
 #include "ble.h"
+#include "rotary.h"
+#include "hw.h"
 
 #define SERIAL_BAUD_RATE 115200
 
 
 void setup() {
     Serial.begin(SERIAL_BAUD_RATE);
+    set_devicename();
     init_tft_display();
     init_queue();
+    set_devicename();
     init_ble();
+    init_rotary();
+    
 
     // Create FreeRTOS task for screen switching
     xTaskCreate(
@@ -34,11 +40,8 @@ void setup() {
 
 void loop() {
     // Nothing needed here, all handled by FreeRTOS task
-    Reading received;
-    if (xQueueReceive(reading_queue, &received, pdMS_TO_TICKS(1000))) {
-        Serial.printf("Humidity: %.1f %% | Temp: %.1f °C | LDR: %.0f | Mic: %.0f | Batt: %.1f %%\n",
-                      received.humidity, received.temperature,
-                      received.ldr, received.mic, received.batt);
-    }
+
+    rotaryEncoder.loop();
+
     delay(1000); // Just to keep loop alive
 }
