@@ -3,7 +3,8 @@ name: Build and Release Firmware
 on:
   push:
     branches:
-      - '**'
+      - '*'
+      - '*/*'
   workflow_dispatch:
 
 jobs:
@@ -33,7 +34,7 @@ jobs:
           BIN_PATH=$(find .pio/build -name "firmware.bin" | head -n 1)
           echo "bin_path=$BIN_PATH" >> $GITHUB_OUTPUT
 
-      - name: Upload artifact (for debugging / access)
+      - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
           name: firmware-bin
