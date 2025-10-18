@@ -1,6 +1,7 @@
 #pragma once
 
 typedef enum {
+    START,
     SCREEN_1,
     SCREEN_2,
     SCREEN_3,

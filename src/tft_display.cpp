@@ -6,31 +6,36 @@
 #include "hw.h"
 #include "misc.h"
 #include "ble.h"
+#include "logo.h"
 
 TFT_eSPI tft = TFT_eSPI();
 
-Screen active_screen = SCREEN_1;
+Screen active_screen = START;
 unsigned long last_update = 0;
-
 
 void init_tft_display() {
     tft.init();
     tft.setRotation(1);
-    tft.fillScreen(TFT_BLACK);
+    tft.fillScreen(TFT_WHITE);
+
+    // Center the logo
+    int x = (tft.width() - LOGO_W) / 2;
+    int y = (tft.height() - LOGO_H) / 2;
+    tft.pushImage(x, y, LOGO_W, LOGO_H, logoBitmaphorizontal_view);
 }
 
 void clear_screen() {
     tft.fillScreen(TFT_BLACK);
 }
 
-void switch_screen(void * param) {
-    Screen last_drawn = SCREEN_1;
+void switch_screen(void *param) {
+    Screen last_drawn = START;
     Reading current_reading;
     uint32_t last_sensor_update = 0;
     constexpr uint32_t SENSOR_UPDATE_INTERVAL_MS = 1000;
     bool screen_changed = false;
     bool sensor_ready = false;
-    const char * q = nullptr;
+    const char *q = nullptr;
 
     while (1) {
         screen_changed = (active_screen != last_drawn);
@@ -54,7 +59,17 @@ void switch_screen(void * param) {
             tft.setTextDatum(TC_DATUM);
 
             switch (active_screen) {
-                case SCREEN_1:
+                // -------------------- START SCREEN --------------------
+                case START: {
+                    tft.fillScreen(TFT_WHITE);
+                    int x = (tft.width() - LOGO_W) / 2;
+                    int y = (tft.height() - LOGO_H) / 2;
+                    tft.pushImage(x, y, LOGO_W, LOGO_H, logoBitmaphorizontal_view);
+                    break;
+                }
+
+                // -------------------- ENVIRONMENT SCREEN --------------------
+                case SCREEN_1: {
                     if (screen_changed) {
                         tft.setTextColor(TFT_CYAN, TFT_BLACK);
                         tft.drawString("Environment Data", cx, 10, 2);
@@ -73,7 +88,10 @@ void switch_screen(void * param) {
                         tft.setTextPadding(0);
                     }
                     break;
-                case SCREEN_2:
+                }
+
+                // -------------------- LIGHT & SOUND SCREEN --------------------
+                case SCREEN_2: {
                     if (screen_changed) {
                         tft.setTextColor(TFT_YELLOW, TFT_BLACK);
                         tft.drawString("Light & Sound", cx, 10, 2);
@@ -90,45 +108,46 @@ void switch_screen(void * param) {
                         tft.setTextPadding(0);
                     }
                     break;
-                case SCREEN_3:
-    if (screen_changed) {
-        tft.setTextColor(TFT_GREEN, TFT_BLACK);
-        tft.drawString("System Info", cx, 10, 2);
-        tft.setTextDatum(TL_DATUM); // top-left origin for inline text
-        tft.setTextColor(TFT_WHITE, TFT_BLACK);
-    }
+                }
 
-    if (sensor_ready) {
-        int x = 70;                // ← shifted right for better centering (adjust as needed)
-        int y = 40;                // starting Y position below title
-        int line_h = 18;           // vertical spacing between lines
+                // -------------------- SYSTEM INFO SCREEN --------------------
+                case SCREEN_3: {
+                    if (screen_changed) {
+                        tft.setTextColor(TFT_GREEN, TFT_BLACK);
+                        tft.drawString("System Info", cx, 10, 2);
+                        tft.setTextDatum(TL_DATUM);
+                        tft.setTextColor(TFT_WHITE, TFT_BLACK);
+                    }
 
-        // Clear only the info area (so title stays visible)
-        tft.fillRect(0, y, tft.width(), tft.height() - y, TFT_BLACK);
+                    if (sensor_ready) {
+                        int x = 60;     // shifted right for better centering
+                        int y = 50;     // starting Y position below title
+                        int line_h = 20;
 
-        // Battery
-        tft.setTextColor(TFT_WHITE, TFT_BLACK);
-        tft.drawString("Battery: " + String(current_reading.batt, 1) + " %", x, y, 1);
+                        // Clear only text area (keep title)
+                        tft.fillRect(0, y, tft.width(), tft.height() - y, TFT_BLACK);
 
-        // Device
-        y += line_h;
-        tft.drawString("Device: " + String(dev_name), x, y, 1);
+                        // Battery
+                        tft.setTextColor(TFT_WHITE, TFT_BLACK);
+                        tft.drawString("Battery: " + String(current_reading.batt, 1) + " %", x, y, 1);
 
-        // BLE status
-        y += line_h;
-        tft.setTextColor(clientConnected ? TFT_GREEN : TFT_RED, TFT_BLACK);
-        tft.drawString(String("BLE: ") + (clientConnected ? "CONNECTED" : "DISCONNECTED"), x, y, 1);
+                        // Device
+                        y += line_h;
+                        tft.drawString("Device: " + String(dev_name), x, y, 1);
 
-        // Reset color
-        tft.setTextColor(TFT_WHITE, TFT_BLACK);
-    }
-    break;
+                        // BLE status
+                        y += line_h;
+                        tft.setTextColor(clientConnected ? TFT_GREEN : TFT_RED, TFT_BLACK);
+                        tft.drawString(String("BLE: ") + (clientConnected ? "CONNECTED" : "DISCONNECTED"), x, y, 1);
 
+                        // Reset color
+                        tft.setTextColor(TFT_WHITE, TFT_BLACK);
+                    }
+                    break;
+                }
 
-
-
-
-                case SCREEN_4:
+                // -------------------- QUOTE OF THE DAY SCREEN --------------------
+                case SCREEN_4: {
                     if (screen_changed) {
                         tft.setTextDatum(TC_DATUM);
                         tft.setTextColor(TFT_YELLOW, TFT_BLACK);
@@ -146,9 +165,10 @@ void switch_screen(void * param) {
                         }
                     }
                     break;
-            }
-        }
+                }
+            } // end switch
+        } // end if
 
         vTaskDelay(pdMS_TO_TICKS(100));
-    }
+    } // end while
 }
