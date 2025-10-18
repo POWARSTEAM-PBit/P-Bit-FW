@@ -65,27 +65,23 @@ String makeJson(Reading rec_pkt) {
 // ======================================================
 // BLE CALLBACKS
 // ======================================================
+// ---------------- BLE callbacks ----------------
 class ServerCB : public NimBLEServerCallbacks {
-    void onConnect(NimBLEServer* pServer) {
-        clientConnected = true;
-        Serial.println("[BLE] Client connected");
-    }
-
-    void onDisconnect(NimBLEServer* pServer) {
-        clientConnected = false;
-        Serial.println("[BLE] Client disconnected");
-        NimBLEDevice::startAdvertising();
-    }
+  void onConnect(NimBLEServer*) override { clientConnected = true; }
+  void onDisconnect(NimBLEServer*) override {
+    clientConnected = false;
+    NimBLEDevice::startAdvertising();
+  }
 };
 
 class NewCharCB : public NimBLECharacteristicCallbacks {
-    void onWrite(NimBLECharacteristic* c) {
-        std::string v = c->getValue();
-        if (!v.empty() && (uint8_t)v[0] == 0x01) {
-            Serial.println("[BLE] Web requested instant packet");
-            notifyAll();
-        }
+  void onWrite(NimBLECharacteristic* c) override {
+    std::string v = c->getValue();
+    if (!v.empty() && (uint8_t)v[0] == 0x01) {
+      // Web requests an instant packet
+      notifyAll();
     }
+  }
 };
 
 
