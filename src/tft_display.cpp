@@ -35,7 +35,7 @@ void switch_screen(void *param) {
     constexpr uint32_t SENSOR_UPDATE_INTERVAL_MS = 1000;
     bool screen_changed = false;
     bool sensor_ready = false;
-    const char *q = nullptr;
+    const char * q = nullptr;
 
     while (1) {
         screen_changed = (active_screen != last_drawn);
@@ -59,7 +59,6 @@ void switch_screen(void *param) {
             tft.setTextDatum(TC_DATUM);
 
             switch (active_screen) {
-                // -------------------- START SCREEN --------------------
                 case START: {
                     tft.fillScreen(TFT_WHITE);
                     int x = (tft.width() - LOGO_W) / 2;
@@ -68,7 +67,6 @@ void switch_screen(void *param) {
                     break;
                 }
 
-                // -------------------- ENVIRONMENT SCREEN --------------------
                 case SCREEN_1: {
                     if (screen_changed) {
                         tft.setTextColor(TFT_CYAN, TFT_BLACK);
@@ -90,7 +88,6 @@ void switch_screen(void *param) {
                     break;
                 }
 
-                // -------------------- LIGHT & SOUND SCREEN --------------------
                 case SCREEN_2: {
                     if (screen_changed) {
                         tft.setTextColor(TFT_YELLOW, TFT_BLACK);
@@ -110,7 +107,6 @@ void switch_screen(void *param) {
                     break;
                 }
 
-                // -------------------- SYSTEM INFO SCREEN --------------------
                 case SCREEN_3: {
                     if (screen_changed) {
                         tft.setTextColor(TFT_GREEN, TFT_BLACK);
@@ -146,7 +142,6 @@ void switch_screen(void *param) {
                     break;
                 }
 
-                // -------------------- QUOTE OF THE DAY SCREEN --------------------
                 case SCREEN_4: {
                     if (screen_changed) {
                         tft.setTextDatum(TC_DATUM);
@@ -166,9 +161,9 @@ void switch_screen(void *param) {
                     }
                     break;
                 }
-            } // end switch
-        } // end if
+            }
+        }
 
         vTaskDelay(pdMS_TO_TICKS(100));
-    } // end while
+    }
 }

@@ -33,5 +33,5 @@ void loop() {
     rotaryEncoder.loop();
     notifyAll();
 
-    delay(20000); // Just to keep loop alive
+    delay(2000); // Just to keep loop alive
 }
