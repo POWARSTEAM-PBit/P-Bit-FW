@@ -4,7 +4,7 @@
 #include "io.h"
 #include "hw.h"
 
-// ================= CONSTANTS =================
+
 constexpr int DATA_PACKET_LEN = 17;
 
 constexpr char NEW_SERVICE_UUID[] = "4fafc201-1fb5-459e-8fcc-c5c9c331914b";
@@ -13,7 +13,7 @@ constexpr char NEW_CHAR_UUID[]    = "beb5483e-36e1-4688-b7f5-ea07361b26a8";
 constexpr uint16_t LEGACY_SERVICE_UUID16 = 0x181A; // Environmental Sensing
 constexpr uint16_t LEGACY_CHAR_UUID16    = 0x2A6E; // Temperature
 
-// ================= GLOBALS =================
+
 NimBLECharacteristic *pNewChar    = nullptr;
 NimBLECharacteristic *pLegacyChar = nullptr;
 
@@ -21,11 +21,7 @@ bool clientConnected = false;
 
 void notifyAll();
 
-extern QueueHandle_t reading_queue;
 
-// ======================================================
-// Packet and JSON builders
-// ======================================================
 std::string assm_pkt(Reading rec_pkt) {
     uint8_t buf[DATA_PACKET_LEN];
     memset(buf, 0, sizeof(buf));
