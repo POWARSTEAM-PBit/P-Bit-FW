@@ -5,6 +5,7 @@
 #include "io.h"
 #include "hw.h"
 #include "misc.h"
+#include "ble.h"
 
 TFT_eSPI tft = TFT_eSPI();
 
@@ -90,22 +91,43 @@ void switch_screen(void * param) {
                     }
                     break;
                 case SCREEN_3:
-                    if (screen_changed) {
-                        tft.setTextColor(TFT_GREEN, TFT_BLACK);
-                        tft.drawString("System Info", cx, 10, 2);
-                        tft.setTextDatum(MC_DATUM);
-                        tft.setTextColor(TFT_WHITE, TFT_BLACK);
-                        tft.drawString("Battery:", cx, cy - line - 8, 1);
-                        tft.drawString("Device:", cx, cy + line - 8, 1);
-                    }
+    if (screen_changed) {
+        tft.setTextColor(TFT_GREEN, TFT_BLACK);
+        tft.drawString("System Info", cx, 10, 2);
+        tft.setTextDatum(TL_DATUM); // top-left origin for inline text
+        tft.setTextColor(TFT_WHITE, TFT_BLACK);
+    }
 
-                    if (sensor_ready) {
-                        tft.setTextPadding(80);
-                        tft.drawString(String(current_reading.batt, 1) + " %", cx, cy - line + 8, 1);
-                        tft.drawString(String(dev_name), cx, cy + line + 8, 1);
-                        tft.setTextPadding(0);
-                    }
-                    break;
+    if (sensor_ready) {
+        int x = 70;                // ← shifted right for better centering (adjust as needed)
+        int y = 40;                // starting Y position below title
+        int line_h = 18;           // vertical spacing between lines
+
+        // Clear only the info area (so title stays visible)
+        tft.fillRect(0, y, tft.width(), tft.height() - y, TFT_BLACK);
+
+        // Battery
+        tft.setTextColor(TFT_WHITE, TFT_BLACK);
+        tft.drawString("Battery: " + String(current_reading.batt, 1) + " %", x, y, 1);
+
+        // Device
+        y += line_h;
+        tft.drawString("Device: " + String(dev_name), x, y, 1);
+
+        // BLE status
+        y += line_h;
+        tft.setTextColor(clientConnected ? TFT_GREEN : TFT_RED, TFT_BLACK);
+        tft.drawString(String("BLE: ") + (clientConnected ? "CONNECTED" : "DISCONNECTED"), x, y, 1);
+
+        // Reset color
+        tft.setTextColor(TFT_WHITE, TFT_BLACK);
+    }
+    break;
+
+
+
+
+
                 case SCREEN_4:
                     if (screen_changed) {
                         tft.setTextDatum(TC_DATUM);
