@@ -1,10 +1,9 @@
 name: Build and Release Firmware
 
 on:
-  push:
+  pull_request:
     branches:
-      - '*'
-      - '*/*'
+      - main
   workflow_dispatch:
 
 jobs:

@@ -1,5 +1,5 @@
 #include <Arduino.h>
-#include <esp_system.h>  // for esp_read_mac()
+#include <esp_system.h>
 #include "hw.h"
 
 uint8_t mac[MAC_LEN];

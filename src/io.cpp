@@ -1,5 +1,4 @@
 #include <Arduino.h>
-#include "queue.h"
 #include "config.h"
 #include <DHT.h>
 #include <DallasTemperature.h>
@@ -41,20 +40,4 @@ void read_sensors(Reading &r) {
 
     // Battery placeholder (if no ADC pin for battery voltage)
     r.batt = 100.0f;
-}
-
-void io_rec(void *param) {
-    Reading new_reading;
-
-    while (1) {
-        read_sensors(new_reading);
-
-        if (!isnan(new_reading.temperature) && !isnan(new_reading.humidity)) {
-            xQueueSend(reading_queue, &new_reading, portMAX_DELAY);
-        } else {
-            Serial.println("Sensor read failed (NaN values)");
-        }
-
-        vTaskDelay(SENSOR_READ_INTERVAL);
-    }
 }

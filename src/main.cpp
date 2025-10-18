@@ -1,7 +1,6 @@
 #include <Arduino.h>
 #include "tft_display.h"
 #include "io.h"
-#include "queue.h"
 #include "ble.h"
 #include "rotary.h"
 #include "hw.h"
@@ -13,7 +12,6 @@ void setup() {
     Serial.begin(SERIAL_BAUD_RATE);
     set_devicename();
     init_tft_display();
-    init_queue();
     set_devicename();
     init_ble();
     init_rotary();
@@ -23,14 +21,6 @@ void setup() {
     xTaskCreate(
         switch_screen,   // Task function
         "SwitchScreen",  // Name
-        4096,            // Stack size (bytes)
-        NULL,            // Parameters
-        1,               // Priority (Arduino usually runs at priority 1)
-        NULL             // Task handle (not used)
-    );
-    xTaskCreate(
-        io_rec,   // Task function
-        "IOReading",  // Name
         4096,            // Stack size (bytes)
         NULL,            // Parameters
         1,               // Priority (Arduino usually runs at priority 1)

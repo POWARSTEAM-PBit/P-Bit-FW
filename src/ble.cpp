@@ -96,29 +96,18 @@ class NewCharCB : public NimBLECharacteristicCallbacks {
 void notifyAll() {
     Reading received;
 
-    // Drain the entire queue
-    while (xQueueReceive(reading_queue, &received, 0) == pdTRUE) {
-        Serial.printf(
-            "Humidity: %.1f %% | Temp: %.1f °C | LDR: %.0f | Mic: %.0f | Batt: %.1f %%\n",
-            received.humidity, received.temperature,
-            received.ldr, received.mic, received.batt
-        );
+    read_sensors(received);
+    std::string pkt = assm_pkt(received);
+    String js = makeJson(received);
 
-        std::string pkt = assm_pkt(received);
-        String js = makeJson(received);
+    if (pNewChar) {
+        pNewChar->setValue(pkt);
+        pNewChar->notify();
+    }
 
-        if (pNewChar) {
-            pNewChar->setValue(pkt);
-            pNewChar->notify();
-        }
-
-        if (pLegacyChar) {
-            pLegacyChar->setValue((uint8_t*)js.c_str(), js.length());
-            pLegacyChar->notify();
-        }
-
-        // Small delay to let BLE notifications transmit properly
-        vTaskDelay(pdMS_TO_TICKS(30));
+    if (pLegacyChar) {
+        pLegacyChar->setValue((uint8_t*)js.c_str(), js.length());
+        pLegacyChar->notify();
     }
 }
 

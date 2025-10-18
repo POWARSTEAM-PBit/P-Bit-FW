@@ -10,4 +10,4 @@ typedef struct {
     float batt;
 } Reading;
 
-void io_rec(void *param);
+void read_sensors(Reading &r);
