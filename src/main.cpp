@@ -32,6 +32,7 @@ void loop() {
     // Nothing needed here, all handled by FreeRTOS task
 
     rotaryEncoder.loop();
+    notifyAll();
 
     delay(1000); // Just to keep loop alive
 }

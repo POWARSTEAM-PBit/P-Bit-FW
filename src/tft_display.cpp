@@ -16,9 +16,6 @@ void init_tft_display() {
     tft.init();
     tft.setRotation(1);
     tft.fillScreen(TFT_BLACK);
-    tft.setTextColor(TFT_GREEN, TFT_BLACK);
-    tft.setTextDatum(MC_DATUM);
-    tft.drawString("TFT LCD Ready", tft.width() / 2, tft.height() / 2, 2);
 }
 
 void clear_screen() {
