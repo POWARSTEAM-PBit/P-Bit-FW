@@ -11,6 +11,9 @@ typedef enum {
 
 extern Screen active_screen;
 
+/**
+ * @brief Initialize the TFT display
+ */
 void init_tft_display();
 
 /**

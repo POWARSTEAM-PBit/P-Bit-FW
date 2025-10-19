@@ -6,11 +6,17 @@
 
 RotaryEncoder rotaryEncoder(DI_ENCODER_A, DI_ENCODER_B, DI_ENCODER_SW, DO_ENCODER_VCC);
 
+/**
+ * @brief Callback function for rotary encoder knob turn
+ */
 void knobCallback(uint8_t value) {
     active_screen = static_cast<Screen>(value);
     Serial.printf("[Rotary] Switched to screen %d\n", active_screen);
 }
 
+/**
+ * @brief Callback function for rotary encoder button press
+ */
 void buttonCallback(unsigned long duration) {
     if (active_screen == TIMER_SCREEN) {
         if (!userTimerRunning) {

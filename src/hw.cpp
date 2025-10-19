@@ -23,5 +23,5 @@ int readADC(uint8_t pin) {
         delayMicroseconds(200);
     }
     
-    return sum / samples; // 0..4095
+    return sum / samples;
 }

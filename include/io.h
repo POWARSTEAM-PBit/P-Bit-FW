@@ -10,4 +10,7 @@ typedef struct {
     float batt;
 } Reading;
 
+/**
+ * @brief Read sensor data and populate the Reading struct
+ */
 void read_sensors(Reading &r);

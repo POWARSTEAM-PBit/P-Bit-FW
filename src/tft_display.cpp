@@ -124,10 +124,6 @@ void switch_screen(void *param) {
                         // Clear only text area (keep title)
                         tft.fillRect(0, y, tft.width(), tft.height() - y, TFT_BLACK);
 
-                        // Battery
-                        tft.setTextColor(TFT_WHITE, TFT_BLACK);
-                        tft.drawString("Battery: " + String(current_reading.batt, 1) + " %", x, y, 1);
-
                         // Device
                         y += line_h;
                         tft.drawString("Device: " + String(dev_name), x, y, 1);
