@@ -7,10 +7,11 @@
 #include "misc.h"
 #include "ble.h"
 #include "logo.h"
+#include "timer.h"
 
 TFT_eSPI tft = TFT_eSPI();
 
-Screen active_screen = START;
+Screen active_screen = BOOT_SCREEN;
 unsigned long last_update = 0;
 
 void init_tft_display() {
@@ -29,7 +30,7 @@ void clear_screen() {
 }
 
 void switch_screen(void *param) {
-    Screen last_drawn = START;
+    Screen last_drawn = BOOT_SCREEN;
     Reading current_reading;
     uint32_t last_sensor_update = 0;
     constexpr uint32_t SENSOR_UPDATE_INTERVAL_MS = 1000;
@@ -59,7 +60,7 @@ void switch_screen(void *param) {
             tft.setTextDatum(TC_DATUM);
 
             switch (active_screen) {
-                case START: {
+                case BOOT_SCREEN: {
                     tft.fillScreen(TFT_WHITE);
                     int x = (tft.width() - LOGO_W) / 2;
                     int y = (tft.height() - LOGO_H) / 2;
@@ -161,6 +162,40 @@ void switch_screen(void *param) {
                     }
                     break;
                 }
+                case TIMER_SCREEN: {
+                    if (screen_changed) {
+                        tft.fillScreen(TFT_BLACK);
+                        tft.setTextDatum(TC_DATUM);
+                        tft.setTextColor(TFT_YELLOW, TFT_BLACK);
+                        tft.drawString("Timer", cx, 10, 2);
+                        tft.setTextDatum(MC_DATUM);
+                        tft.setTextColor(TFT_WHITE, TFT_BLACK);
+                        tft.drawString("Press knob to start", cx, cy, 2);
+                    }
+
+                    if (userTimerRunning || userTimerElapsed > 0) {
+                        TimeHMS t;
+                        getTimeHMS(t);  // Fill 't' by reference
+
+                        // Format time as HH:MM:SS
+                        char timeStr[9]; // 8 chars + null
+                        snprintf(timeStr, sizeof(timeStr), "%02d:%02d:%02d", t.hours, t.minutes, t.seconds);
+
+                        // Clear previous time area
+                        tft.fillRect(0, cy + 20, tft.width(), 40, TFT_BLACK);
+                        tft.setTextDatum(MC_DATUM);
+
+                        if (userTimerRunning) {
+                            tft.setTextColor(TFT_CYAN, TFT_BLACK);
+                            tft.drawString(timeStr, cx, cy + 30, 4);  // bigger font size, adjust as needed
+                        } else {
+                            tft.setTextColor(TFT_GREEN, TFT_BLACK);
+                            tft.drawString("Final: " + String(timeStr), cx, cy + 30, 4);
+                        }
+                    }
+                    break;
+}
+
             }
         }
 
