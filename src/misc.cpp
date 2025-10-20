@@ -1,7 +1,7 @@
 #include "misc.h"
 #include <Arduino.h>
 
-static const char *quotes[] = {
+static const char * quotes[] = {
     "Keep it simple.",
     "Make it work, make it right, make it fast.",
     "Stay curious.",

@@ -9,4 +9,7 @@ constexpr int8_t  DO_ENCODER_VCC = -1;
 
 extern RotaryEncoder rotaryEncoder;
 
+/**
+ * @brief Initialize the rotary encoder
+ */
 void init_rotary();

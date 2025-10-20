@@ -7,9 +7,7 @@ char dev_name[MAX_DEVICE_NAME_LEN];
 
 void set_devicename() {
     esp_read_mac(mac, ESP_MAC_BT);
-    // Make sure MAC has been read first
     snprintf(dev_name, sizeof(dev_name), "PBIT-%02X%02X", mac[4], mac[5]);
-    Serial.printf("[BOOT] DevName: %s\n", dev_name);
 }
 
 int readADC(uint8_t pin) {
@@ -25,5 +23,5 @@ int readADC(uint8_t pin) {
         delayMicroseconds(200);
     }
     
-    return sum / samples; // 0..4095
+    return sum / samples;
 }

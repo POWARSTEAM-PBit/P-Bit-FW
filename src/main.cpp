@@ -16,8 +16,6 @@ void setup() {
     init_ble();
     init_rotary();
     
-
-    // Create FreeRTOS task for screen switching
     xTaskCreate(
         switch_screen,   // Task function
         "SwitchScreen",  // Name
