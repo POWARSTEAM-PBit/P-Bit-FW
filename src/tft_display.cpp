@@ -29,6 +29,28 @@ void clear_screen() {
     tft.fillScreen(TFT_BLACK);
 }
 
+// Helper function to draw a card/panel
+void drawCard(int x, int y, int w, int h, uint16_t borderColor) {
+    tft.drawRoundRect(x, y, w, h, 6, borderColor);
+    tft.drawRoundRect(x + 1, y + 1, w - 2, h - 2, 5, borderColor);
+}
+
+// Helper function to draw a water drop icon
+void drawWaterDrop(int x, int y, uint16_t color) {
+    // Draw water drop shape (bigger)
+    tft.fillCircle(x, y + 5, 7, color);
+    tft.fillTriangle(x - 6, y + 5, x + 6, y + 5, x, y - 7, color);
+}
+
+// Helper function to draw header with underline
+void drawHeader(const char* title, uint16_t color) {
+    int cx = tft.width() / 2;
+    tft.setTextDatum(TC_DATUM);
+    tft.setTextColor(color, TFT_BLACK);
+    tft.drawString(title, cx, 8, 4);
+    tft.drawFastHLine(20, 32, tft.width() - 40, color);
+}
+
 void switch_screen(void *param) {
     Screen last_drawn = BOOT_SCREEN;
     Reading current_reading;
@@ -37,6 +59,7 @@ void switch_screen(void *param) {
     bool screen_changed = false;
     bool sensor_ready = false;
     const char * q = nullptr;
+    uint32_t last_timer_second = 0;  // Track last displayed second
 
     while (1) {
         screen_changed = (active_screen != last_drawn);
@@ -47,17 +70,22 @@ void switch_screen(void *param) {
             last_sensor_update = millis();
         }
 
-        if (screen_changed || sensor_ready) {
+        // Check if timer screen needs update
+        bool timer_needs_update = false;
+        if (active_screen == TIMER_SCREEN && (userTimerRunning || userTimerElapsed > 0)) {
+            uint32_t current_timer_second = userTimerRunning ? 
+                (millis() - userTimerStart) / 1000 : userTimerElapsed / 1000;
+            timer_needs_update = (current_timer_second != last_timer_second);
+        }
+
+        if (screen_changed || sensor_ready || timer_needs_update) {
             int cx = tft.width() / 2;
             int cy = tft.height() / 2;
-            int line = 18;
 
             if (screen_changed) {
                 clear_screen();
                 last_drawn = active_screen;
             }
-
-            tft.setTextDatum(TC_DATUM);
 
             switch (active_screen) {
                 case BOOT_SCREEN: {
@@ -70,128 +98,159 @@ void switch_screen(void *param) {
 
                 case SCREEN_1: {
                     if (screen_changed) {
-                        tft.setTextColor(TFT_CYAN, TFT_BLACK);
-                        tft.drawString("Environment Data", cx, 10, 2);
-                        tft.setTextColor(TFT_WHITE, TFT_BLACK);
-                        tft.setTextDatum(MC_DATUM);
-                        tft.drawString("Temperature:", cx, cy - line - 8, 1);
-                        tft.drawString("Humidity:", cx, cy + line - 8, 1);
+                        drawHeader("Environment", TFT_CYAN);
+                        
+                        // Temperature card
+                        drawCard(10, 45, tft.width() - 20, 35, TFT_DARKGREY);
+                        tft.setTextDatum(ML_DATUM);
+                        tft.setTextColor(TFT_LIGHTGREY, TFT_BLACK);
+                        tft.drawString("TEMPERATURE", 20, 55, 2);
+                        
+                        // Humidity card
+                        drawCard(10, 90, tft.width() - 20, 35, TFT_DARKGREY);
+                        tft.setTextDatum(ML_DATUM);
+                        tft.setTextColor(TFT_LIGHTGREY, TFT_BLACK);
+                        tft.drawString("HUMIDITY", 20, 100, 2);
                     }
 
                     if (sensor_ready) {
-                        tft.setTextDatum(MC_DATUM);
+                        // Temperature value
+                        tft.fillRect(12, 63, tft.width() - 24, 15, TFT_BLACK);
+                        tft.setTextDatum(ML_DATUM);
                         tft.setTextColor(TFT_WHITE, TFT_BLACK);
-                        tft.setTextPadding(80);
-                        tft.drawString(String(current_reading.temperature, 1) + " °C", cx, cy - line + 8, 1);
-                        tft.drawString(String(current_reading.humidity, 1) + " %", cx, cy + line + 8, 1);
-                        tft.setTextPadding(0);
+                        tft.drawString(String(current_reading.temperature, 1) + " °C", 20, 70, 4);
+                        
+                        // Humidity value with water drop icon
+                        tft.fillRect(12, 108, tft.width() - 24, 15, TFT_BLACK);
+                        tft.setTextDatum(ML_DATUM);
+                        tft.setTextColor(TFT_WHITE, TFT_BLACK);
+                        String humidityStr = String(current_reading.humidity, 1) + " %";
+                        tft.drawString(humidityStr, 20, 115, 4);
+                        
+                        // Draw water drop icon next to humidity value
+                        int textWidth = tft.textWidth(humidityStr, 4);
+                        drawWaterDrop(30 + textWidth, 115, TFT_CYAN);
                     }
                     break;
                 }
 
                 case SCREEN_2: {
                     if (screen_changed) {
-                        tft.setTextColor(TFT_YELLOW, TFT_BLACK);
-                        tft.drawString("Light & Sound", cx, 10, 2);
-                        tft.setTextDatum(MC_DATUM);
-                        tft.setTextColor(TFT_WHITE, TFT_BLACK);
-                        tft.drawString("LDR:", cx, cy - line - 8, 1);
-                        tft.drawString("Mic:", cx, cy + line - 8, 1);
+                        drawHeader("Light & Sound", TFT_YELLOW);
+                        
+                        // LDR card
+                        drawCard(10, 45, tft.width() - 20, 35, TFT_DARKGREY);
+                        tft.setTextDatum(ML_DATUM);
+                        tft.setTextColor(TFT_LIGHTGREY, TFT_BLACK);
+                        tft.drawString("LIGHT SENSOR", 20, 55, 2);
+                        
+                        // Mic card
+                        drawCard(10, 90, tft.width() - 20, 35, TFT_DARKGREY);
+                        tft.setTextDatum(ML_DATUM);
+                        tft.setTextColor(TFT_LIGHTGREY, TFT_BLACK);
+                        tft.drawString("MICROPHONE", 20, 100, 2);
                     }
 
                     if (sensor_ready) {
-                        tft.setTextPadding(80);
-                        tft.drawString(String((int)current_reading.ldr), cx, cy - line + 8, 1);
-                        tft.drawString(String((int)current_reading.mic), cx, cy + line + 8, 1);
-                        tft.setTextPadding(0);
+                        // LDR value
+                        tft.fillRect(12, 63, tft.width() - 24, 15, TFT_BLACK);
+                        tft.setTextDatum(ML_DATUM);
+                        tft.setTextColor(TFT_WHITE, TFT_BLACK);
+                        tft.drawString(String((int)current_reading.ldr), 20, 70, 4);
+                        
+                        // Mic value
+                        tft.fillRect(12, 108, tft.width() - 24, 15, TFT_BLACK);
+                        tft.setTextDatum(ML_DATUM);
+                        tft.setTextColor(TFT_WHITE, TFT_BLACK);
+                        tft.drawString(String((int)current_reading.mic), 20, 115, 4);
                     }
                     break;
                 }
 
                 case SCREEN_3: {
                     if (screen_changed) {
-                        tft.setTextColor(TFT_GREEN, TFT_BLACK);
-                        tft.drawString("System Info", cx, 10, 2);
-                        tft.setTextDatum(TL_DATUM);
-                        tft.setTextColor(TFT_WHITE, TFT_BLACK);
+                        drawHeader("System Info", TFT_GREEN);
                     }
 
                     if (sensor_ready) {
-                        int x = 60;     // shifted right for better centering
-                        int y = 50;     // starting Y position below title
-                        int line_h = 20;
+                        // Main info card
+                        tft.fillRect(0, 45, tft.width(), tft.height() - 45, TFT_BLACK);
+                        drawCard(10, 50, tft.width() - 20, 75, TFT_DARKGREY);
+                        
+                        int x = 20;
+                        int y = 60;
+                        int line_h = 22;
 
-                        // Clear only text area (keep title)
-                        tft.fillRect(0, y, tft.width(), tft.height() - y, TFT_BLACK);
-
-                        // Device
-                        y += line_h;
-                        tft.drawString("Device: " + String(dev_name), x, y, 1);
-
-                        // BLE status
-                        y += line_h;
-                        tft.setTextColor(clientConnected ? TFT_GREEN : TFT_RED, TFT_BLACK);
-                        tft.drawString(String("BLE: ") + (clientConnected ? "CONNECTED" : "DISCONNECTED"), x, y, 1);
-
-                        // Reset color
+                        // Device name with icon
+                        tft.setTextDatum(TL_DATUM);
+                        tft.setTextColor(TFT_LIGHTGREY, TFT_BLACK);
+                        tft.drawString("DEVICE", x, y, 2);
                         tft.setTextColor(TFT_WHITE, TFT_BLACK);
-                    }
-                    break;
-                }
+                        tft.drawString(String(dev_name), x, y + 14, 2);
 
-                case SCREEN_4: {
-                    if (screen_changed) {
-                        tft.setTextDatum(TC_DATUM);
-                        tft.setTextColor(TFT_YELLOW, TFT_BLACK);
-                        tft.drawString("Quote of the Day", cx, 10, 2);
-                        tft.setTextDatum(MC_DATUM);
-                        tft.setTextColor(TFT_WHITE, TFT_BLACK);
+                        // BLE status with colored indicator
+                        y += line_h + 18;
+                        tft.setTextColor(TFT_LIGHTGREY, TFT_BLACK);
+                        tft.drawString("BLE", x, y, 2);
+                        
+                        // Status indicator dot and status text on same line
+                        uint16_t statusColor = client_connected ? TFT_GREEN : TFT_RED;
+                        int statusX = x + 70; // bring closer to label
+                        tft.fillCircle(statusX, y + 7, 4, statusColor);
 
-                        q = get_qotd();
-                        String quoteStr(q);
-                        if (quoteStr.length() > 25) {
-                            tft.drawString(quoteStr.substring(0, 25), cx, cy - 10, 1);
-                            tft.drawString(quoteStr.substring(25), cx, cy + 10, 1);
-                        } else {
-                            tft.drawString(quoteStr, cx, cy, 1);
+                        // Adjust spacing dynamically depending on text length
+                        tft.setTextColor(statusColor, TFT_BLACK);
+                        String statusText = client_connected ? "CONNECTED" : "DISCONNECTED";
+
+                        // Calculate text width and align so it stays centered in card area
+                        int textWidth = tft.textWidth(statusText, 2);
+                        int textX = statusX + 10;  // small offset after the dot
+                        if (textX + textWidth > tft.width() - 15) {
+                            textX = tft.width() - textWidth - 15; // keep inside card margin
                         }
+
+                        tft.drawString(statusText, textX, y, 2);
+
                     }
                     break;
                 }
+                
                 case TIMER_SCREEN: {
                     if (screen_changed) {
-                        tft.fillScreen(TFT_BLACK);
-                        tft.setTextDatum(TC_DATUM);
-                        tft.setTextColor(TFT_YELLOW, TFT_BLACK);
-                        tft.drawString("Timer", cx, 10, 2);
-                        tft.setTextDatum(MC_DATUM);
-                        tft.setTextColor(TFT_WHITE, TFT_BLACK);
-                        tft.drawString("Press knob to start", cx, cy, 2);
+                        drawHeader("Timer", TFT_ORANGE);
+                        
+                        if (!userTimerRunning && userTimerElapsed == 0) {
+                            tft.setTextDatum(MC_DATUM);
+                            tft.setTextColor(TFT_DARKGREY, TFT_BLACK);
+                            tft.drawString("Press knob to start", cx, cy + 20, 2);
+                        }
                     }
 
                     if (userTimerRunning || userTimerElapsed > 0) {
-                        TimeHMS t;
-                        getTimeHMS(t);  // Fill 't' by reference
-
-                        // Format time as HH:MM:SS
-                        char timeStr[9]; // 8 chars + null
-                        snprintf(timeStr, sizeof(timeStr), "%02d:%02d:%02d", t.hours, t.minutes, t.seconds);
-
-                        // Clear previous time area
-                        tft.fillRect(0, cy + 20, tft.width(), 40, TFT_BLACK);
+                        const char * time = getTimeHMS();
+                        
+                        // Timer display card
+                        tft.fillRect(0, 50, tft.width(), 75, TFT_BLACK);
+                        drawCard(15, 55, tft.width() - 30, 65, userTimerRunning ? TFT_CYAN : TFT_GREEN);
+                        
                         tft.setTextDatum(MC_DATUM);
-
+                        
                         if (userTimerRunning) {
+                            // Running state
+                            tft.setTextColor(TFT_DARKGREY, TFT_BLACK);
+                            tft.drawString("ELAPSED", cx, 65, 2);
                             tft.setTextColor(TFT_CYAN, TFT_BLACK);
-                            tft.drawString(timeStr, cx, cy + 30, 4);  // bigger font size, adjust as needed
+                            tft.drawString(time, cx, 95, 4);
                         } else {
+                            // Stopped state
+                            tft.setTextColor(TFT_DARKGREY, TFT_BLACK);
+                            tft.drawString("FINAL TIME", cx, 65, 2);
                             tft.setTextColor(TFT_GREEN, TFT_BLACK);
-                            tft.drawString("Final: " + String(timeStr), cx, cy + 30, 4);
+                            tft.drawString(time, cx, 95, 4);
                         }
                     }
                     break;
-}
-
+                }
             }
         }
 

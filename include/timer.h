@@ -24,4 +24,4 @@ void stopUserTimer();
 /**
  * @brief Receive the elapsed time in hours, minutes, and seconds.
  */
-void getTimeHMS(TimeHMS &t);
+char * getTimeHMS();

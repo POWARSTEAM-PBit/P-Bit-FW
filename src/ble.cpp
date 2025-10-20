@@ -11,13 +11,13 @@ constexpr char NEW_SERVICE_UUID[] = "4fafc201-1fb5-459e-8fcc-c5c9c331914b";
 constexpr char NEW_CHAR_UUID[]    = "beb5483e-36e1-4688-b7f5-ea07361b26a8";
 
 constexpr uint16_t LEGACY_SERVICE_UUID16 = 0x181A; // Environmental Sensing
-constexpr uint16_t LEGACY_CHAR_UUID16    = 0x2A6E; // Temperature
+constexpr uint16_t LEGACY_CHAR_UUID16 = 0x2A6E; // Temperature
 
 
-NimBLECharacteristic *pNewChar    = nullptr;
-NimBLECharacteristic *pLegacyChar = nullptr;
+NimBLECharacteristic * pNewChar    = nullptr;
+NimBLECharacteristic * pLegacyChar = nullptr;
 
-bool clientConnected = false;
+bool client_connected = false;
 
 void notifyAll();
 
@@ -67,9 +67,9 @@ String makeJson(Reading rec_pkt) {
 // ======================================================
 // ---------------- BLE callbacks ----------------
 class ServerCB : public NimBLEServerCallbacks {
-  void onConnect(NimBLEServer*) override { clientConnected = true; }
+  void onConnect(NimBLEServer*) override { client_connected = true; }
   void onDisconnect(NimBLEServer*) override {
-    clientConnected = false;
+    client_connected = false;
     NimBLEDevice::startAdvertising();
   }
 };

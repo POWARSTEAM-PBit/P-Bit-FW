@@ -5,7 +5,6 @@ typedef enum {
     SCREEN_1,
     SCREEN_2,
     SCREEN_3,
-    SCREEN_4,
     TIMER_SCREEN
 } Screen;
 

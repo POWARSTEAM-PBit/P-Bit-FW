@@ -1,6 +1,6 @@
 #pragma once
 
-extern bool clientConnected;
+extern bool client_connected;
 
 /**
  * @brief Initialize BLE services and characteristics
