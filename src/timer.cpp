@@ -24,7 +24,7 @@ void stopUserTimer() {
 
 char * getTimeHMS() {
     static char timeStr[TIME_STR_MAX];
-    uint16_t totalSeconds;
+    uint32_t totalSeconds;
 
     if (userTimerRunning) {
         totalSeconds = (millis() - userTimerStart) / 1000;

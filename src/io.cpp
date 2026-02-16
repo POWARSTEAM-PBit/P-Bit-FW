@@ -17,11 +17,20 @@ DHT dht(PIN_DHT, DHT_TYPE);
 OneWire oneWire(PIN_ONEWIRE);
 DallasTemperature ds18b20(&oneWire);
 
+static bool io_initialized = false;
+static Reading cached_reading{};
+static unsigned long last_sensor_read_ms = 0;
+static constexpr unsigned long SENSOR_READ_INTERVAL_MS = pdTICKS_TO_MS(SENSOR_READ_INTERVAL);
 
-void read_sensors(Reading &r) {
+void init_io() {
+    if (io_initialized) return;
 
     dht.begin();
     ds18b20.begin();
+    io_initialized = true;
+}
+
+void read_sensors(Reading &r) {
     
     // DHT
     r.humidity = dht.readHumidity();
@@ -40,4 +49,20 @@ void read_sensors(Reading &r) {
 
     // Battery placeholder (if no ADC pin for battery voltage)
     r.batt = 100.0f;
+}
+
+void get_sensor_reading(Reading &r, bool forceRefresh) {
+    if (!io_initialized) {
+        init_io();
+    }
+
+    const unsigned long now = millis();
+    const bool stale = !last_sensor_read_ms || (now - last_sensor_read_ms >= SENSOR_READ_INTERVAL_MS);
+
+    if (forceRefresh || stale) {
+        read_sensors(cached_reading);
+        last_sensor_read_ms = now;
+    }
+
+    r = cached_reading;
 }
