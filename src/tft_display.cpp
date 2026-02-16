@@ -13,7 +13,6 @@
 TFT_eSPI tft = TFT_eSPI();
 
 volatile Screen active_screen = BOOT_SCREEN;
-unsigned long last_update = 0;
 
 void init_tft_display() {
     tft.init();
@@ -59,7 +58,6 @@ void switch_screen(void *param) {
     constexpr uint32_t SENSOR_UPDATE_INTERVAL_MS = pdTICKS_TO_MS(SENSOR_READ_INTERVAL);
     bool screen_changed = false;
     bool sensor_ready = false;
-    const char * q = nullptr;
     uint32_t last_timer_second = 0;  // Track last displayed second
 
     while (1) {
@@ -67,7 +65,7 @@ void switch_screen(void *param) {
         sensor_ready = (millis() - last_sensor_update > SENSOR_UPDATE_INTERVAL_MS);
 
         if (sensor_ready) {
-            read_sensors(current_reading);
+            get_sensor_reading(current_reading, screen_changed);
             last_sensor_update = millis();
         }
 
@@ -77,6 +75,7 @@ void switch_screen(void *param) {
             uint32_t current_timer_second = userTimerRunning ? 
                 (millis() - userTimerStart) / 1000 : userTimerElapsed / 1000;
             timer_needs_update = (current_timer_second != last_timer_second);
+            last_timer_second = current_timer_second;
         }
 
         if (screen_changed || sensor_ready || timer_needs_update) {

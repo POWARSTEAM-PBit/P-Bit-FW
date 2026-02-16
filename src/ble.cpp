@@ -86,9 +86,13 @@ class NewCharCB : public NimBLECharacteristicCallbacks {
 
 
 void notifyAll() {
+    if (!client_connected) {
+        return;
+    }
+
     Reading received;
 
-    read_sensors(received);
+    get_sensor_reading(received);
     std::string pkt = assm_pkt(received);
     String js = makeJson(received);
 
