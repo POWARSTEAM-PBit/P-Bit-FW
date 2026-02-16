@@ -11,6 +11,11 @@ typedef struct {
 } Reading;
 
 /**
+ * @brief Initialize sensor interfaces.
+ */
+void init_io();
+
+/**
  * @brief Read sensor data and populate the Reading struct
  */
 void read_sensors(Reading &r);

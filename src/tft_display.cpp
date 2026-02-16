@@ -8,10 +8,11 @@
 #include "ble.h"
 #include "logo.h"
 #include "timer.h"
+#include "config.h"
 
 TFT_eSPI tft = TFT_eSPI();
 
-Screen active_screen = BOOT_SCREEN;
+volatile Screen active_screen = BOOT_SCREEN;
 unsigned long last_update = 0;
 
 void init_tft_display() {
@@ -55,7 +56,7 @@ void switch_screen(void *param) {
     Screen last_drawn = BOOT_SCREEN;
     Reading current_reading;
     uint32_t last_sensor_update = 0;
-    constexpr uint32_t SENSOR_UPDATE_INTERVAL_MS = 1000;
+    constexpr uint32_t SENSOR_UPDATE_INTERVAL_MS = pdTICKS_TO_MS(SENSOR_READ_INTERVAL);
     bool screen_changed = false;
     bool sensor_ready = false;
     const char * q = nullptr;

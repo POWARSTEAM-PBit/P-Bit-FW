@@ -17,11 +17,12 @@ DHT dht(PIN_DHT, DHT_TYPE);
 OneWire oneWire(PIN_ONEWIRE);
 DallasTemperature ds18b20(&oneWire);
 
-
-void read_sensors(Reading &r) {
-
+void init_io() {
     dht.begin();
     ds18b20.begin();
+}
+
+void read_sensors(Reading &r) {
     
     // DHT
     r.humidity = dht.readHumidity();

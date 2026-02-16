@@ -8,7 +8,7 @@ typedef enum {
     TIMER_SCREEN
 } Screen;
 
-extern Screen active_screen;
+extern volatile Screen active_screen;
 
 /**
  * @brief Initialize the TFT display

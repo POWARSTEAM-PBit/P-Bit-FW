@@ -35,13 +35,13 @@ std::string assm_pkt(Reading rec_pkt) {
         buf[base + 2] = (val >> 8) & 0xFF;
     };
 
-    uint16_t t10  = isnan(rec_pkt.temperature) ? 0 : (uint16_t)lroundf(rec_pkt.temperature * 10.0f);
+    int16_t t10s  = isnan(rec_pkt.temperature) ? 0 : (int16_t)lroundf(rec_pkt.temperature * 10.0f);
     uint16_t h10  = isnan(rec_pkt.humidity)    ? 0 : (uint16_t)lroundf(rec_pkt.humidity * 10.0f);
     uint16_t lraw = isnan(rec_pkt.ldr)         ? 0 : (uint16_t)lroundf(rec_pkt.ldr);
     uint16_t mraw = isnan(rec_pkt.mic)         ? 0 : (uint16_t)lroundf(rec_pkt.mic);
     uint16_t bat  = isnan(rec_pkt.batt)        ? 0 : (uint16_t)lroundf(rec_pkt.batt);
 
-    put(0, 1, t10);
+    put(0, 1, static_cast<uint16_t>(t10s));
     put(1, 2, h10);
     put(2, 3, lraw);
     put(3, 4, mraw);

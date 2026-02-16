@@ -1,6 +1,7 @@
 #include <Arduino.h>
 #include "tft_display.h"
 #include "io.h"
+#include "config.h"
 #include "ble.h"
 #include "rotary.h"
 #include "hw.h"
@@ -12,7 +13,7 @@ void setup() {
     Serial.begin(SERIAL_BAUD_RATE);
     set_devicename();
     init_tft_display();
-    set_devicename();
+    init_io();
     init_ble();
     init_rotary();
     
@@ -31,5 +32,5 @@ void loop() {
     rotaryEncoder.loop();
     notifyAll();
 
-    delay(2000); // Just to keep loop alive
+    delay(pdTICKS_TO_MS(SENSOR_READ_INTERVAL)); // Keep loop alive and aligned with sensor interval
 }
