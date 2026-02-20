@@ -1,7 +1,17 @@
 {
     "files.associations": {
+        "*.cps": "javascript",
+        "vector": "cpp",
         "compare": "cpp",
         "cstdint": "cpp",
-        "format": "cpp"
+        "format": "cpp",
+        "array": "cpp",
+        "deque": "cpp",
+        "list": "cpp",
+        "string": "cpp",
+        "unordered_map": "cpp",
+        "unordered_set": "cpp",
+        "string_view": "cpp",
+        "initializer_list": "cpp"
     }
 }

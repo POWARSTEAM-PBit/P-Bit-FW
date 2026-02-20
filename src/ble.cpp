@@ -1,7 +1,7 @@
 #include <Arduino.h>
 #include <esp_system.h>     // esp_read_mac()
 #include <NimBLEDevice.h>
-#include "io.h"
+#include "io.h" // <-- ¡CAMBIO 1: AÑADIDO INCLUDE!
 #include "hw.h"
 
 
@@ -86,11 +86,12 @@ class NewCharCB : public NimBLECharacteristicCallbacks {
 
 
 void notifyAll() {
-    Reading received;
+    // Reading received;       // <-- ¡CAMBIO 2: ELIMINADO!
+    // read_sensors(received); // <-- ¡CAMBIO 3: ELIMINADO!
 
-    read_sensors(received);
-    std::string pkt = assm_pkt(received);
-    String js = makeJson(received);
+    // ¡CAMBIO 4: Usar la variable global "global_readings"!
+    std::string pkt = assm_pkt(global_readings);
+    String js = makeJson(global_readings);
 
     if (pNewChar) {
         pNewChar->setValue(pkt);

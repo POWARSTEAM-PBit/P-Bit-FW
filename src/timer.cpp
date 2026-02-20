@@ -5,12 +5,20 @@ bool userTimerRunning = false;
 unsigned long userTimerStart = 0;
 unsigned long userTimerElapsed = 0;
 
-constexpr size_t TIME_STR_MAX = 9;
+volatile bool g_timer_just_reset = false;
+
+// MODIFICACIÓN: Aumentamos el tamaño máximo para M:SS:CC
+constexpr size_t TIME_STR_MAX = 9; 
 
 void startUserTimer() {
-    userTimerStart = millis();
+    if (userTimerElapsed > 0) {
+        userTimerStart = millis() - userTimerElapsed; 
+    } else {
+        userTimerStart = millis();
+    }
     userTimerElapsed = 0;
     userTimerRunning = true;
+    g_timer_just_reset = false; 
     Serial.println("[Timer] Started");
 }
 
@@ -22,21 +30,40 @@ void stopUserTimer() {
     }
 }
 
+/**
+ * @brief Resets the user timer to zero.
+ */
+void resetUserTimer() {
+    userTimerRunning = false;
+    userTimerStart = 0;
+    userTimerElapsed = 0;
+    
+    g_timer_just_reset = true;
+    
+    Serial.println("[Timer] Reset");
+}
+
+
+/**
+ * @brief Returns the current timer value as a formatted string (M:SS:CC).
+ */
 char * getTimeHMS() {
     static char timeStr[TIME_STR_MAX];
-    uint16_t totalSeconds;
+    unsigned long totalMilliseconds;
 
     if (userTimerRunning) {
-        totalSeconds = (millis() - userTimerStart) / 1000;
+        totalMilliseconds = millis() - userTimerStart;
     } else {
-        totalSeconds = userTimerElapsed / 1000;
+        totalMilliseconds = userTimerElapsed;
     }
+    
+    // 1. Calcular Minutos, Segundos, Centésimas
+    unsigned int minutes = (totalMilliseconds / 60000);
+    unsigned int seconds = (totalMilliseconds / 1000) % 60;
+    unsigned int centiseconds = (totalMilliseconds % 1000) / 10; 
 
-    int hours = totalSeconds / 3600;
-    int minutes = (totalSeconds % 3600) / 60;
-    int seconds = totalSeconds % 60;
-
-    snprintf(timeStr, sizeof(timeStr), "%02d:%02d:%02d", hours, minutes, seconds);
-
+    // 2. Formatear la cadena: M:SS:CC
+    snprintf(timeStr, TIME_STR_MAX, "%u:%.02u:%.02u", minutes, seconds, centiseconds);
+    
     return timeStr;
 }

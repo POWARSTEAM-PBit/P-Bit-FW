@@ -1,22 +1,24 @@
 #pragma once
+#include <Arduino.h>
 
-typedef enum {
+// --- ENUM DE PANTALLAS ---
+// (Asegúrate de que este enum esté aquí o en un config.h global)
+enum Screen {
     BOOT_SCREEN,
-    SCREEN_1,
-    SCREEN_2,
-    SCREEN_3,
-    TIMER_SCREEN
-} Screen;
+    TEMP_SCREEN,
+    HUMIDITY_SCREEN,
+    LIGHT_SCREEN,
+    SOUND_SCREEN,
+    SOIL_SCREEN,
+    DS18B20_SCREEN,
+    SYSTEM_SCREEN,
+    TIMER_SCREEN,
+    TEST_SCREEN 
+};
 
 extern Screen active_screen;
 
-/**
- * @brief Initialize the TFT display
- */
+// --- TAREA PRINCIPAL DE PANTALLA ---
 void init_tft_display();
-
-/**
- * @brief The following thread automatically switches screen
- * when the rotary nob is turned.
- */
 void switch_screen(void *param);
+void clear_screen();
