@@ -5,15 +5,15 @@
 #include "tft_display.h" 
 #include "timer.h"      
 #include "led_control.h"
-#include "io.h"         
-#include "ui_test.h"    
+#include "io.h"
 
 // DECLARACIONES EXTERNAS REQUERIDAS
-extern volatile unsigned long g_last_activity_ms; 
-extern bool g_peripherals_sleeping;             
-extern bool g_is_fahrenheit;                    
-extern volatile bool g_sensor_data_ready;        
-extern bool g_sound_enabled; 
+extern volatile unsigned long g_last_activity_ms;
+extern bool g_peripherals_sleeping;
+extern bool g_is_fahrenheit;
+extern volatile bool g_sensor_data_ready;
+extern bool g_sound_enabled;
+extern volatile bool g_sleep_warning_active; // Para resetear al despertar
 
 // DECLARACIONES EXTERNAS DE LA UI
 #include "ui_widgets.h" 
@@ -28,11 +28,10 @@ RotaryEncoder rotaryEncoder(DI_ENCODER_A, DI_ENCODER_B, DI_ENCODER_SW, DO_ENCODE
 void wakeUpPeripherals() {
     if (g_peripherals_sleeping) {
         Serial.println("[Power] Waking up peripherals (TFT/LED On).");
-        
-        // 🟢 FIX: No usamos TFT_DISPON, solo encendemos la UI
-        
-        // 1. Marcamos que ya no estamos durmiendo
-        g_peripherals_sleeping = false; 
+
+        // 1. Marcamos que ya no estamos durmiendo y cancelamos el aviso pre-sleep
+        g_peripherals_sleeping = false;
+        g_sleep_warning_active = false; // Permite que la tarea de UI reanude el dibujo
         
         // 2. Forzamos la pantalla principal
         active_screen = TEMP_SCREEN; 
@@ -77,7 +76,7 @@ void knobCallback(uint8_t value) {
             set_rgb(0, 0, 255); 
             break;
         case LIGHT_SCREEN:
-            set_rgb(255, 255, 0); 
+            set_rgb(0, 0, 0); // LED apagado: evita incidencia en el LDR
             break;
         case SOUND_SCREEN:
             set_rgb(255, 0, 255); 
@@ -99,9 +98,6 @@ void knobCallback(uint8_t value) {
             } else {
                 set_rgb(0, 0, 255); 
             }
-            break;
-        case TEST_SCREEN:
-            set_rgb(100, 100, 100); 
             break;
         default:
             set_rgb(0, 0, 0); 
@@ -134,7 +130,7 @@ void buttonCallback(unsigned long duration) {
     // ------------------------------------------------
     // LÓGICA DE ALTERNANCIA C/F
     // ------------------------------------------------
-    if (active_screen == TEMP_SCREEN || active_screen == TEST_SCREEN || active_screen == DS18B20_SCREEN) {
+    if (active_screen == TEMP_SCREEN || active_screen == DS18B20_SCREEN) {
         g_is_fahrenheit = !g_is_fahrenheit;
         g_sensor_data_ready = true; 
         return; 
@@ -154,9 +150,9 @@ void buttonCallback(unsigned long duration) {
         if (duration > 1000) { // Pulsación larga = Reset
             resetUserTimer(); 
             
-            set_rgb(255, 0, 255); 
-            delay(150);          
-            set_rgb(0, 0, 255);  
+            set_rgb(255, 0, 255);
+            vTaskDelay(pdMS_TO_TICKS(150));
+            set_rgb(0, 0, 255);
         
         } else { // Pulsación corta = Start/Stop
             if (!userTimerRunning) {
@@ -174,7 +170,7 @@ void init_rotary() {
     rotaryEncoder.setEncoderType(EncoderType::FLOATING);
     
     // FIX: Los límites ahora empiezan en 1 (TEMP_SCREEN) y excluyen BOOT_SCREEN
-    rotaryEncoder.setBoundaries(TEMP_SCREEN, TEST_SCREEN, true); 
+    rotaryEncoder.setBoundaries(TEMP_SCREEN, TIMER_SCREEN, true);
     
     rotaryEncoder.onTurned(&knobCallback);
     rotaryEncoder.onPressed(&buttonCallback); 

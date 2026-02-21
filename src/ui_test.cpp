@@ -23,7 +23,7 @@ void draw_test_screen(bool screen_changed, bool data_changed) { // 🟢 Implemen
     // --- CONSTANTES DE CONFIGURACIÓN DE UI ---
     const int FONT_MAIN_TITLE = 4; // Para títulos
     const int FONT_VALUE = 4;      // Dato Principal
-    const int FONT_UNIT_LABEL = 1; // Etiqueta Celcius/Farenheit
+    const int FONT_UNIT_LABEL = 1; // Etiqueta Celcius/Fahrenheit
     const int FONT_UNIT = 4;       // Símbolo °C / °F
     const int FONT_INSTRUCTION = 2;
     const uint16_t NO_TRANSPARENCY_COLOR = 0x0000; // Sin transparencia
@@ -42,7 +42,7 @@ void draw_test_screen(bool screen_changed, bool data_changed) { // 🟢 Implemen
     if (g_is_fahrenheit) {
         temp_display = temp_c * 1.8 + 32;
         snprintf(unit_symbol, sizeof(unit_symbol), "°F");
-        snprintf(unit_label, sizeof(unit_label), "Farenheit");
+        snprintf(unit_label, sizeof(unit_label), "Fahrenheit");
         snprintf(instruction_text, sizeof(instruction_text), "Push for C");
     } else {
         snprintf(unit_symbol, sizeof(unit_symbol), "°C");
@@ -107,7 +107,7 @@ void draw_test_screen(bool screen_changed, bool data_changed) { // 🟢 Implemen
         tft.setTextColor(TFT_WHITE); 
         tft.drawString(unit_symbol, SYMBOL_X, SYMBOL_Y, FONT_UNIT);
 
-        // 6. Etiqueta de Unidad (Celcius/Farenheit)
+        // 6. Etiqueta de Unidad (Celcius/Fahrenheit)
         tft.setTextDatum(MC_DATUM);
         tft.setTextColor(TFT_DARKGREY); 
         tft.drawString(unit_label, LABEL_CX, LABEL_Y, FONT_UNIT_LABEL);

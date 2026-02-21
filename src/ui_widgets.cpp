@@ -38,15 +38,17 @@ void drawBarGraph(int x, int y, int w, int h, uint16_t color, float value, float
 }
 
 void drawFillTank(int x, int y, int w, int h, uint16_t fixedColor, float value, float minVal, float maxVal) {
-    tft.fillRect(x + 1, y + 1, w - 2, h - 2, TFT_BLACK); // Limpiar interior
+    float normalized = constrain((value - minVal) / (maxVal - minVal), 0.0f, 1.0f);
+    int fill_height  = (int)(normalized * (h - 2));
+    int empty_height = (h - 2) - fill_height;
 
-    float normalized_value = (value - minVal) / (maxVal - minVal);
-    normalized_value = constrain(normalized_value, 0.0f, 1.0f);
-    
-    int fill_height = (int)(normalized_value * (h - 2));
-    int fill_y = y + h - fill_height - 1;
-
-    tft.fillRect(x + 1, fill_y, w - 2, fill_height, fixedColor);
+    // Dibuja directamente los dos segmentos sin pre-limpiar todo a negro:
+    // 1. Zona vacía (arriba) — negro
+    if (empty_height > 0)
+        tft.fillRect(x + 1, y + 1, w - 2, empty_height, TFT_BLACK);
+    // 2. Zona llena (abajo) — color
+    if (fill_height > 0)
+        tft.fillRect(x + 1, y + 1 + empty_height, w - 2, fill_height, fixedColor);
 }
 
 /**

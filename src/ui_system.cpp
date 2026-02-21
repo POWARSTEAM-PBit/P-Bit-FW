@@ -51,7 +51,7 @@ void draw_system_screen(bool screen_changed, bool data_changed) {
         tft.drawString("BLE", x_draw, y_draw, 2);
         
         uint16_t statusColor = client_connected ? TFT_GREEN : TFT_RED;
-        String statusText = client_connected ? "CONNECTED" : "DISCONNECTED";
+        const char* statusText = client_connected ? "CONNECTED" : "DISCONNECTED";
         tft.setTextColor(statusColor, TFT_BLACK);
         tft.drawString(statusText, x_draw + 30, y_draw, 2);
 
@@ -65,7 +65,7 @@ void draw_system_screen(bool screen_changed, bool data_changed) {
         
         tft.setTextDatum(TC_DATUM);
         uint16_t soundColor = g_sound_enabled ? TFT_GREEN : TFT_RED;
-        String soundText = g_sound_enabled ? "Sound: ON (Push)" : "Sound: OFF (Push)";
+        const char* soundText = g_sound_enabled ? "Sound: ON (Push)" : "Sound: OFF (Push)";
         
         tft.setTextColor(soundColor, TFT_BLACK);
         tft.drawString(soundText, cx, footer_y, 1);

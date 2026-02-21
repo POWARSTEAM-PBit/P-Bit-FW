@@ -20,10 +20,14 @@ bool g_is_fahrenheit = false; // Estado C/F
 bool g_sound_enabled = true; // El sonido está activado por defecto
 
 // Variables de gestión de energía
-volatile unsigned long g_last_activity_ms = 0; 
-bool g_peripherals_sleeping = false; 
-const unsigned long LIGHT_SLEEP_TIMEOUT_MS = 60000; // 1 Minuto
-const unsigned long DEEP_SLEEP_TIMEOUT_MS = 600000; // 10 Minutos
+volatile unsigned long g_last_activity_ms = 0;
+bool g_peripherals_sleeping = false;
+const unsigned long LIGHT_SLEEP_TIMEOUT_MS  = 60000;  // 1 Minuto
+const unsigned long DEEP_SLEEP_TIMEOUT_MS   = 600000; // 10 Minutos
+const unsigned long SLEEP_WARNING_MS        = LIGHT_SLEEP_TIMEOUT_MS - 5000; // 55s — aviso previo al sleep
+
+// Flag que congela la tarea de UI durante la secuencia de aviso pre-sleep
+volatile bool g_sleep_warning_active = false;
 
 // --- DECLARACIONES EXTERNAS ---
 extern bool client_connected; // Desde ble.cpp
@@ -124,9 +128,11 @@ void loop() {
         else { Serial.print(t); Serial.println(" C"); }
 
         // Humedad Suelo
-        Serial.print("Humedad Suelo: "); 
-        Serial.print(global_readings.soil_humidity); 
-        Serial.println("%");
+        Serial.print("Humedad Suelo: ");
+        Serial.print(global_readings.soil_humidity);
+        Serial.print("%  (raw ADC: ");
+        Serial.print(analogRead(PIN_SENSOR_HUMEDAD));
+        Serial.println(")");
 
         // Sonido
         Serial.print("Nivel Sonido:  "); 
@@ -137,39 +143,85 @@ void loop() {
     }
 
     // ---------------------------------------------------------
+    // AVISO PRE-SLEEP (últimos 5 segundos antes del Light Sleep)
+    // ---------------------------------------------------------
+    {
+        static bool warning_beeps_done = false;
+        static bool warning_zzz_done   = false;
+
+        // Reiniciar flags cuando hay actividad o no aplican las condiciones de sleep
+        if (inactivity_time < SLEEP_WARNING_MS || client_connected || g_peripherals_sleeping) {
+            warning_beeps_done = false;
+            warning_zzz_done   = false;
+            g_sleep_warning_active = false;
+        }
+
+        if (inactivity_time >= SLEEP_WARNING_MS && !client_connected && !g_peripherals_sleeping) {
+
+            // ONE-SHOT en t=55s: 3 destellos ámbar + 3 pitidos
+            if (!warning_beeps_done) {
+                warning_beeps_done = true;
+                for (int i = 0; i < 3; i++) {
+                    set_rgb(255, 80, 0); // Ámbar
+                    if (g_sound_enabled) play_tone_blocking(700, 80);
+                    else                 vTaskDelay(pdMS_TO_TICKS(80));
+                    set_rgb(0, 0, 0);
+                    vTaskDelay(pdMS_TO_TICKS(250));
+                }
+            }
+
+            // ONE-SHOT en t=58s: congelar UI y mostrar pantalla ZZZ
+            if (inactivity_time >= LIGHT_SLEEP_TIMEOUT_MS - 2000 && !warning_zzz_done) {
+                warning_zzz_done       = true;
+                g_sleep_warning_active = true; // Congela la tarea de UI
+
+                tft.fillScreen(TFT_BLACK);
+                tft.setTextDatum(MC_DATUM);
+                tft.setTextColor(TFT_DARKGREY, TFT_BLACK);
+                tft.drawString("ZZZ", tft.width() / 2, tft.height() / 2 - 14, 4);
+                tft.setTextColor(0x2104, TFT_BLACK); // Gris muy oscuro
+                tft.drawString("sleeping...", tft.width() / 2, tft.height() / 2 + 14, 2);
+            }
+        }
+    }
+
+    // ---------------------------------------------------------
     // 1. CASO DEEP SLEEP (10 Minutos Y SIN BLE)
     // ---------------------------------------------------------
     if (inactivity_time >= DEEP_SLEEP_TIMEOUT_MS && !client_connected) {
         Serial.println("[Power] 10 min inactivity AND BLE disconnected. Entering Deep Sleep.");
-        
-        tft.fillScreen(TFT_BLACK); 
-        tft.writecommand(TFT_DISPOFF); 
-        set_rgb(0, 0, 0); 
 
+        tft.fillScreen(TFT_BLACK);
+        set_rgb(0, 0, 0);
+
+        // Mantener pull-up del botón activo durante el sleep para evitar falsas activaciones
+        esp_sleep_pd_config(ESP_PD_DOMAIN_RTC_PERIPH, ESP_PD_OPTION_ON);
         // Despertar al presionar el botón (Nivel LOW)
-        esp_sleep_enable_ext0_wakeup((gpio_num_t)DI_ENCODER_SW, LOW); 
+        esp_sleep_enable_ext0_wakeup((gpio_num_t)DI_ENCODER_SW, LOW);
         esp_deep_sleep_start();
     }
-    
+
     // ---------------------------------------------------------
-    // 2. CASO LIGHT SLEEP (1 Minuto, CUALQUIER ESTADO BLE)
+    // 2. CASO LIGHT SLEEP (1 Minuto, SIN BLE — igual que Deep Sleep)
     // ---------------------------------------------------------
-    if (inactivity_time >= LIGHT_SLEEP_TIMEOUT_MS) {
-        
+    if (inactivity_time >= LIGHT_SLEEP_TIMEOUT_MS && !client_connected) {
+
         // Si no estamos ya en modo ahorro, apagamos los periféricos
-        if (!g_peripherals_sleeping) { 
+        if (!g_peripherals_sleeping) {
             Serial.println("[Power] 1 min inactivity. Entering Peripheral Sleep (TFT Black).");
-            
-            tft.fillScreen(TFT_BLACK); 
-            set_rgb(0, 0, 0); 
+
+            tft.fillScreen(TFT_BLACK);
+            set_rgb(0, 0, 0);
 
             g_peripherals_sleeping = true;
         }
 
+        // Mantener pull-up del botón activo durante el sleep para evitar falsas activaciones
+        esp_sleep_pd_config(ESP_PD_DOMAIN_RTC_PERIPH, ESP_PD_OPTION_ON);
         // Entramos en Light Sleep (Ahorro de CPU)
-        esp_sleep_enable_ext0_wakeup((gpio_num_t)DI_ENCODER_SW, LOW); 
+        esp_sleep_enable_ext0_wakeup((gpio_num_t)DI_ENCODER_SW, LOW);
         esp_light_sleep_start();
-        
+
         // ... (Al despertar por el botón, el rotary.cpp ejecutará wakeUpPeripherals()) ...
     }
     

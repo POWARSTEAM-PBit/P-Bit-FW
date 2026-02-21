@@ -47,6 +47,7 @@ void draw_timer_screen(bool screen_changed, bool data_changed, bool timer_needs_
 
     // 3. DIBUJO ESTÁTICO (Título)
     if (screen_changed) {
+        tft.fillScreen(TFT_BLACK);
         drawHeader("Timer", TFT_ORANGE);
     }
     

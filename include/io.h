@@ -6,8 +6,7 @@ typedef struct {
     float temperature; 
     float ldr;
     float mic;
-    float batt;
-    
+
     // --- Sensores Adicionales ---
     float soil_humidity; 
     float temp_ds18b20; 

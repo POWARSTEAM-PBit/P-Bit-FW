@@ -11,21 +11,20 @@
 #include "ui_temp.h"
 #include "ui_humidity.h"
 #include "ui_light.h"
-#include "ui_placeholder.h" 
+#include "ui_sensors.h"
 #include "ui_system.h"
 #include "ui_timer.h"
-#include "ui_test.h"
 // ----------------------------------------------------
 
 // --- VARIABLES GLOBALES DE TFT ---
-Screen active_screen; 
-unsigned long last_update = 0; 
+Screen active_screen;
 
 // --- DECLARACIONES EXTERNAS ---
-extern volatile bool g_sensor_data_ready; 
+extern volatile bool g_sensor_data_ready;
 extern bool userTimerRunning;
 extern volatile bool g_timer_just_reset;
-extern bool g_peripherals_sleeping; // 🟢 FIX: Variable de Sleep
+extern bool g_peripherals_sleeping;
+extern volatile bool g_sleep_warning_active; // Congela el dibujo durante el aviso pre-sleep
 
 
 // --- FUNCIONES DE INICIALIZACIÓN Y LIMPIEZA ---
@@ -57,7 +56,13 @@ void switch_screen(void *param) {
     bool last_sleep_state = g_peripherals_sleeping;
     
     while (1) {
-        
+
+        // Si el aviso pre-sleep está activo, ceder CPU sin dibujar nada
+        if (g_sleep_warning_active) {
+            vTaskDelay(pdMS_TO_TICKS(10));
+            continue;
+        }
+
         bool sensor_data_changed = g_sensor_data_ready;
         bool timer_needs_update = false;
         
@@ -94,7 +99,6 @@ void switch_screen(void *param) {
             }
             
             if (screen_changed) {
-                clear_screen();
                 last_drawn = active_screen;
             }
             
@@ -118,15 +122,17 @@ void switch_screen(void *param) {
                     break;
 
                 case SOUND_SCREEN:
-                case SOIL_SCREEN:
-                case DS18B20_SCREEN: 
-                    draw_placeholder_screen(screen_changed, sensor_data_changed); 
+                    draw_sound_screen(screen_changed, sensor_data_changed);
                     break;
 
-                case TEST_SCREEN: 
-                    draw_test_screen(screen_changed, sensor_data_changed); 
+                case SOIL_SCREEN:
+                    draw_soil_screen(screen_changed, sensor_data_changed);
                     break;
-                
+
+                case DS18B20_SCREEN:
+                    draw_ds18_screen(screen_changed, sensor_data_changed);
+                    break;
+
                 case SYSTEM_SCREEN: 
                     draw_system_screen(screen_changed, sensor_data_changed);
                     break;

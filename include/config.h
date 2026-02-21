@@ -5,4 +5,4 @@
 /**
  * @brief Interval for reading sensor data
  */
-constexpr TickType_t SENSOR_READ_INTERVAL = pdMS_TO_TICKS(1000); // 1 segundono v
+constexpr TickType_t SENSOR_READ_INTERVAL = pdMS_TO_TICKS(1000); // 1 segundo

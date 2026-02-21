@@ -29,18 +29,18 @@ void draw_temp_screen(bool screen_changed, bool data_changed) { // 🟢 IMPLEMEN
     float temp_display = temp_c; 
     
     // 🟢 FASE IVa: Buffers estáticos (Reemplaza String)
-    char unit_text[10];
-    char instruction_text[12];
-    char tempStr[8]; 
-    
+    char unit_text[12];        // "Celsius" o "Fahrenheit"
+    char instruction_text[12]; // "Push > C" o "Push > F"
+    char tempStr[8];
+
     // LÓGICA DE CONVERSIÓN
     if (g_is_fahrenheit) {
         temp_display = temp_c * 1.8 + 32;
-        snprintf(unit_text, sizeof(unit_text), "Farenheit");
-        snprintf(instruction_text, sizeof(instruction_text), "Push for Celcius");
+        snprintf(unit_text, sizeof(unit_text), "Fahrenheit");
+        snprintf(instruction_text, sizeof(instruction_text), "Push > C");
     } else {
-        snprintf(unit_text, sizeof(unit_text), "Celcius");
-        snprintf(instruction_text, sizeof(instruction_text), "Push for Farenheit");
+        snprintf(unit_text, sizeof(unit_text), "Celsius");
+        snprintf(instruction_text, sizeof(instruction_text), "Push > F");
     }
 
     uint16_t tempColor = getTempColor(temp_c); 
@@ -72,28 +72,26 @@ void draw_temp_screen(bool screen_changed, bool data_changed) { // 🟢 IMPLEMEN
 
     // 🟢 FASE IVb: ACTUALIZACIÓN DINÁMICA - Si hay cambio de datos O cambio de pantalla
     if (data_changed || screen_changed) {
-        
-        // 1. Área del Dato Principal - Limpieza localizada antes de escribir
-        tft.fillRect(FIRST_THIRD_CX - 50, 30, 100, 100, TFT_BLACK); 
-        
-        // 3. Instrucción Dinámica
-        tft.setTextDatum(TC_DATUM); 
-        tft.setTextColor(TFT_DARKGREY, TFT_BLACK); 
-        tft.drawString(instruction_text, FIRST_THIRD_CX, 40, 1); 
 
+        // 3. Instrucción Dinámica — sin fillRect: strings de igual longitud, setTextColor limpia solo
+        tft.setTextDatum(TC_DATUM);
+        tft.setTextColor(TFT_DARKGREY, TFT_BLACK);
+        tft.drawString(instruction_text, FIRST_THIRD_CX, 40, 1);
 
-        // 4. Valor Numérico GRANDE
-        tft.setTextDatum(MC_DATUM); 
+        // 4. Valor Numérico GRANDE — fillRect mínimo (solo el área del número, ancho variable)
+        tft.fillRect(0, VALUE_Y - 26, BAR_X - 2, 52, TFT_BLACK);
+        tft.setTextDatum(MC_DATUM);
         tft.setTextColor(tempColor, TFT_BLACK);
 
         // 🟢 FASE IVa: Formatear valor (snprintf)
         snprintf(tempStr, sizeof(tempStr), "%.1f", temp_display); 
         tft.drawString(tempStr, FIRST_THIRD_CX, VALUE_Y, FONT_VALUE); 
         
-        // 5. Unidad (Celcius / Farenheit)
-        tft.setTextDatum(TC_DATUM); 
-        tft.setTextColor(TFT_LIGHTGREY, TFT_BLACK); 
-        tft.drawString(unit_text, FIRST_THIRD_CX, UNIT_Y+15, FONT_UNIT); 
+        // 5. Unidad (Celsius / Fahrenheit) — fillRect porque "Fahrenheit" > "Celsius"
+        tft.fillRect(0, UNIT_Y + 13, BAR_X - 2, 18, TFT_BLACK);
+        tft.setTextDatum(TC_DATUM);
+        tft.setTextColor(TFT_LIGHTGREY, TFT_BLACK);
+        tft.drawString(unit_text, FIRST_THIRD_CX, UNIT_Y+15, FONT_UNIT);
 
         // 6. Dibuja el interior del Bar Graph Vertical (Elemento costoso pero necesario)
         drawFillTank(BAR_X, BAR_Y, BAR_W, BAR_H, tempColor, temp_c, 0, 50); 
