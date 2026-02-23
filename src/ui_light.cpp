@@ -4,6 +4,7 @@
 #include "tft_display.h"
 #include "io.h"
 #include "ui_widgets.h"
+#include "languages.h"
 #include <TFT_eSPI.h>
 #include <Arduino.h>
 #include <stdio.h>
@@ -32,19 +33,19 @@ void draw_light_screen(bool screen_changed, bool data_changed) {
     uint16_t categoryColor;
 
     if (lux < 10.0f) {
-        categoryText  = "DARK";
+        categoryText  = L(ST_DARK);
         categoryColor = TFT_DARKGREY;
     } else if (lux < 100.0f) {
-        categoryText  = "DIM";
+        categoryText  = L(ST_DIM);
         categoryColor = TFT_CYAN;
     } else if (lux < 500.0f) {
-        categoryText  = "INDOOR";
+        categoryText  = L(ST_INDOOR);
         categoryColor = TFT_GREEN;
     } else if (lux < 2000.0f) {
-        categoryText  = "BRIGHT";
+        categoryText  = L(ST_BRIGHT);
         categoryColor = TFT_YELLOW;
     } else {
-        categoryText  = "SUNLIGHT";
+        categoryText  = L(ST_SUNLIGHT);
         categoryColor = TFT_ORANGE;
     }
 
@@ -56,12 +57,12 @@ void draw_light_screen(bool screen_changed, bool data_changed) {
 
     // --- Layout (pantalla 128x160) ---
     const int cx         = tft.width() / 2;
-    const int VALUE_Y    = 57;
+    const int VALUE_Y    = 65;
     const int BAR_X      = 20;
-    const int BAR_Y      = 85;
+    const int BAR_Y      = 93;
     const int BAR_W      = tft.width() - 40;
-    const int BAR_H      = 18;
-    const int CATEGORY_Y = 109;
+    const int BAR_H      = 14;
+    const int CATEGORY_Y = 118;
 
     char luxStr[10];
     snprintf(luxStr, sizeof(luxStr), "%.0f", lux);
@@ -70,16 +71,27 @@ void draw_light_screen(bool screen_changed, bool data_changed) {
 
     if (screen_changed) {
         tft.fillScreen(BACKGROUND_COLOR);
-        drawHeader("Light (Lux)", TFT_WHITE);
+        drawHeader(L(TIT_LIGHT), TFT_YELLOW);
     }
+
+    // Salida temprana si el valor no cambió — evita fillRects innecesarios que causan flickering.
+    static int last_lux_drawn = -1;
+    if (!screen_changed && (int)roundf(lux) == last_lux_drawn) return;
+    last_lux_drawn = (int)roundf(lux);
 
     if (data_changed || screen_changed) {
 
         // Valor numérico grande — limpiar zona antes de dibujar (evita ghosting)
         tft.fillRect(0, VALUE_Y - 26, tft.width(), 52, BACKGROUND_COLOR);
-        tft.setTextDatum(MC_DATUM);
+        int numW  = tft.textWidth(luxStr, FONT_VALUE);
+        int unitW = tft.textWidth("lux", 2);
+        int startX = cx - (numW + unitW) / 2;
+        int topY   = VALUE_Y - 24;
+        tft.setTextDatum(TL_DATUM);
         tft.setTextColor(TFT_WHITE, BACKGROUND_COLOR);
-        tft.drawString(luxStr, cx, VALUE_Y, FONT_VALUE);
+        tft.drawString(luxStr, startX, topY, FONT_VALUE);
+        tft.setTextColor(TFT_DARKGREY, BACKGROUND_COLOR);
+        tft.drawString("lux", startX + numW, topY, 2);
 
         // Barra logarítmica (color = categoría activa)
         drawBarGraph(BAR_X, BAR_Y, BAR_W, BAR_H, categoryColor, log_pct, 0.0f, 100.0f);

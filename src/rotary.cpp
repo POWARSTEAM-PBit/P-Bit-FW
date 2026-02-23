@@ -1,9 +1,12 @@
 // rotary.cpp
 #include <Arduino.h>
 #include <ESP32RotaryEncoder.h>
+#include <Preferences.h>
+#include <esp_system.h>
 #include "rotary.h"
-#include "tft_display.h" 
-#include "timer.h"      
+#include "config.h"
+#include "tft_display.h"
+#include "timer.h"
 #include "led_control.h"
 #include "io.h"
 
@@ -59,8 +62,9 @@ void knobCallback(uint8_t value) {
     g_last_activity_ms = millis(); 
     wakeUpPeripherals();           
     
+    if (value < TEMP_SCREEN || value > TIMER_SCREEN) return;
     active_screen = static_cast<Screen>(value);
-    Serial.printf("[Rotary] Switched to screen %d\n", active_screen);
+    DPRINT("[Rotary] Switched to screen %d\n", (int)active_screen);
 
     // FIX: Sonido "clic" suave (800Hz, 15ms)
     if (g_sound_enabled) {
@@ -113,18 +117,33 @@ void buttonCallback(unsigned long duration) {
     wakeUpPeripherals();           
     
     // ------------------------------------------------
-    // Lógica de Mute en SYSTEM_SCREEN
+    // Lógica de Mute / Cambio de idioma en SYSTEM_SCREEN
     // ------------------------------------------------
     if (active_screen == SYSTEM_SCREEN) {
-        g_sound_enabled = !g_sound_enabled; // Alternar Mute
-        g_sensor_data_ready = true; // Forzar redibujo
-        
-        if (g_sound_enabled) {
-            beep(1200, 70); 
+        if (duration > 2000) {
+            // Pulsación larga (>2s): borrar preferencia de idioma y reiniciar
+            Preferences prefs;
+            prefs.begin("pbit", false);
+            prefs.remove("lang");
+            prefs.end();
+            g_sleep_warning_active = true; // Congelar tarea de UI para que no sobreimprima
+            tft.fillScreen(TFT_BLACK);
+            tft.setTextDatum(MC_DATUM);
+            tft.setTextColor(TFT_YELLOW, TFT_BLACK);
+            tft.drawString("Reiniciando...", tft.width() / 2, tft.height() / 2, 2);
+            vTaskDelay(pdMS_TO_TICKS(1500));
+            esp_restart();
         } else {
-            beep(800, 70); 
+            // Pulsación corta: alternar mute
+            g_sound_enabled = !g_sound_enabled;
+            g_sensor_data_ready = true;
+            if (g_sound_enabled) {
+                beep(1200, 70);
+            } else {
+                beep(800, 70);
+            }
         }
-        return; 
+        return;
     }
 
     // ------------------------------------------------

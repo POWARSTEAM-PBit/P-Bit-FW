@@ -1,10 +1,6 @@
 #pragma once
 #include <Arduino.h>
 
-// 🟢 FIX: Declarar la variable global del pin Y del canal
-extern const int BUZZER_PIN; 
-extern const int BUZZER_CHANNEL; 
-
 // --- Prototipos de Funciones ---
 void init_leds_and_buzzer();
 void set_rgb(uint8_t r, uint8_t g, uint8_t b);

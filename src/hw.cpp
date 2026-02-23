@@ -3,6 +3,7 @@
 #include <OneWire.h>
 #include <DallasTemperature.h>
 #include "hw.h"
+#include "config.h"
 
 // --- VARIABLES GLOBALES ---
 uint8_t mac[MAC_LEN];
@@ -19,18 +20,22 @@ void init_hw() {
     pinMode(PIN_SENSOR_SONIDO, INPUT);
     pinMode(PIN_SENSOR_HUMEDAD, INPUT);
 
-    // 2. Atenuación ADC — solo para micrófono y LDR (no para sensor de suelo,
-    //    cuya calibración usa los valores del firmware original sin atenuación explícita).
-    analogSetPinAttenuation(PIN_SENSOR_SONIDO, ADC_11db);
-    analogSetPinAttenuation(PIN_LDR_SIGNAL,    ADC_11db);
+    // 2. Forzar atenuación 11dB en pines ADC → rango completo 0–3.3V (0–4095).
+    //    Sin esto el ESP32 puede quedar en 0dB (~0–0.8V) y saturar/recortar la señal.
+    analogSetPinAttenuation(PIN_SENSOR_SONIDO,   ADC_11db);
+    analogSetPinAttenuation(PIN_SENSOR_HUMEDAD,  ADC_11db);
+    analogSetPinAttenuation(PIN_LDR_SIGNAL,      ADC_11db);
 
     // 3. Inicializar sensor DS18B20
-    // ORDEN CRÍTICO (igual que el firmware original que funcionaba):
-    //   sensors.begin() PRIMERO → la librería OneWire configura el pin internamente.
-    //   pinMode(INPUT_PULLUP) DESPUÉS → activa pull-up para mantener bus HIGH en reposo.
+    // ORDEN CORRECTO:
+    //   pinMode(INPUT_PULLUP) PRIMERO → pin en modo digital con pull-up activo,
+    //   bus 1-Wire queda HIGH antes de que sensors.begin() haga el escaneo.
+    //   delay(10ms) → tiempo para que el bus se estabilice a HIGH antes del escaneo.
+    //   sensors.begin() DESPUÉS → la librería escanea con el bus ya estable.
+    pinMode(PIN_TEMP_DS18B20, INPUT_PULLUP);
+    delay(10);
     sensors.begin();
     sensors.setResolution(9);
-    pinMode(PIN_TEMP_DS18B20, INPUT_PULLUP);
     Serial.printf("[DS18B20] init: %d dispositivo(s) en bus\n", sensors.getDeviceCount());
 }
 
@@ -68,20 +73,29 @@ int read_sound_level() {
 }
 
 int read_soil_moisture() {
-    // Misma estructura que el firmware original (analogRead sin atenuación explícita).
-    // Calibración original a 10-bit: seco=895, mojado=470 → escalado a 12-bit (*4):
-    //   SOIL_DRY = 3580  (~2.89V en seco)
-    //   SOIL_WET = 1880  (~1.52V en agua)
-    // *** Si los valores del Serial siguen siendo ~600, el sensor tiene problema de VCC.
-    //     Ajusta SOIL_DRY y SOIL_WET con los raw reales que leas en el Serial.
-    const int SOIL_DRY = 3580;
-    const int SOIL_WET = 1880;
+    // Sensor: Capacitive Soil Moisture Sensor V2.
+    // Lógica inversa: más húmedo → voltaje más bajo → ADC más bajo.
+    //
+    // *** CALIBRACIÓN — ajusta con los valores reales de tu sensor:
+    //     1. Deja el sensor en aire seco → anota el raw del Serial → SOIL_DRY
+    //     2. Sumerge el sensor en agua  → anota el raw del Serial → SOIL_WET
+    //
+    // Valores medidos en P-Bit (versión anterior, 3.3V sensor, atenuación 11dB):
+    //   Seco  raw ≈ 3408  (~2746mV — correcto para Capacitive V2 a 3.3V)
+    //   Mojado raw ≈ 1904 (~1534mV — delta de 1504 cuentas, buena dinámica)
+    const int SOIL_DRY = 3408; // Valor medido en seco
+    const int SOIL_WET = 1904; // Valor medido sumergido en agua
 
     int raw = analogRead(PIN_SENSOR_HUMEDAD);
-    Serial.printf("[Soil] raw=%d  V=%.0fmV\n", raw, (raw / 4095.0f) * 3300.0f);
 
-    int percent = constrain(map(raw, SOIL_DRY, SOIL_WET, 0, 100), 0, 100);
-    return percent;
+    int percent = map(raw, SOIL_DRY, SOIL_WET, 0, 100);
+
+    // EMA moderada (0.80/0.20): con 1504 cuentas de rango el ruido es <1% por cuenta.
+    static float ema = -1.0f;
+    int clamped = constrain(percent, 0, 100);
+    if (ema < 0.0f) ema = (float)clamped;
+    ema = 0.80f * ema + 0.20f * (float)clamped;
+    return (int)ema;
 }
 
 float read_ds18b20_temp() {
@@ -91,7 +105,7 @@ float read_ds18b20_temp() {
     if (sensors.getDeviceCount() == 0) {
         sensors.begin();
         if (sensors.getDeviceCount() == 0) {
-            Serial.println("[DS18B20] Sin dispositivos en bus (GPIO33/J4)");
+            DPRINTLN("[DS18B20] Sin dispositivos en bus (GPIO33/J4)");
             return -999.0f;
         }
         sensors.setResolution(9);
@@ -101,13 +115,9 @@ float read_ds18b20_temp() {
     sensors.requestTemperatures();
     float tempC = sensors.getTempCByIndex(0);
 
-    if (tempC == DEVICE_DISCONNECTED_C) {
+    if (tempC == DEVICE_DISCONNECTED_C || tempC < -55.0f || tempC > 125.0f) {
         return -999.0f;
     }
     return tempC;
 }
 
-// Función auxiliar (si la necesitas para io.cpp)
-int readADC(uint8_t pin) {
-    return analogRead(pin);
-}

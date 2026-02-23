@@ -3,19 +3,19 @@
 #include "hw.h" 
 
 // --- Definición de Pines ---
-const int RGB_R_PIN = 5;
-const int RGB_G_PIN = 17;
-const int RGB_B_PIN = 16;
-const int BUZZER_PIN = 18; // Definición
+constexpr int RGB_R_PIN = 5;
+constexpr int RGB_G_PIN = 17;
+constexpr int RGB_B_PIN = 16;
+constexpr int BUZZER_PIN = 18;
 // ---------------------------------
 
 // --- Canales PWM (ledc) ---
-const int RGB_R_CHANNEL = 0;
-const int RGB_G_CHANNEL = 1;
-const int RGB_B_CHANNEL = 2;
-const int BUZZER_CHANNEL = 3; // 🟢 FIX: Definición del canal del Buzzer
-const int PWM_FREQ = 5000;
-const int BUZZER_RESOLUTION = 8;
+constexpr int RGB_R_CHANNEL = 0;
+constexpr int RGB_G_CHANNEL = 1;
+constexpr int RGB_B_CHANNEL = 2;
+constexpr int BUZZER_CHANNEL = 3;
+constexpr int PWM_FREQ = 5000;
+constexpr int BUZZER_RESOLUTION = 8;
 // ---------------------------------
 
 unsigned long buzzer_stop_time = 0;

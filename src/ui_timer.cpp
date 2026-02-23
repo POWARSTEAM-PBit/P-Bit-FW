@@ -4,6 +4,7 @@
 #include "ui_timer.h"
 #include "ui_widgets.h" // Para tft, drawHeader, drawCard, drawTimerCardContent
 #include "timer.h"      // Para estados del timer y getTimeHMS()
+#include "languages.h"  // Para L()
 
 // Declaraciones externas de estado del timer
 extern bool userTimerRunning;
@@ -19,27 +20,26 @@ void draw_timer_screen(bool screen_changed, bool data_changed, bool timer_needs_
 
     // Variable estática para rastrear el último estado dibujado
     static uint16_t last_drawn_state = 0; // 0=READY, 1=RUNNING, 2=PAUSED
-    
+
     // 1. DETERMINAR EL ESTADO ACTUAL Y COLORES
     uint16_t current_timer_state = 0; // 0=READY
     uint16_t borderColor = TFT_BLUE;
     uint16_t newColor = TFT_BLUE;
-    const char * stateText = "READY";
-    // 🟢 NUEVO (Problema 4): Texto de instrucción
-    const char * instructionText = "Push-Start";
-    
+    const char * stateText = L(ST_TIMER_RDY);
+    const char * instructionText = L(ST_PUSH_START);
+
     if (userTimerRunning) {
         current_timer_state = 1; // RUNNING
         borderColor = TFT_GREEN;
         newColor = TFT_GREEN;
-        stateText = "RUNNING";
-        instructionText = "Push-Pause"; // Instrucción cuando está corriendo
+        stateText = L(ST_TIMER_RUN);
+        instructionText = L(ST_PUSH_PAUSE);
     } else if (userTimerElapsed > 0) {
         current_timer_state = 2; // PAUSED
         borderColor = TFT_YELLOW;
         newColor = TFT_YELLOW;
-        stateText = "PAUSED";
-        instructionText = "Hold-Reset / Push-Run"; // Instrucción cuando está en pausa
+        stateText = L(ST_TIMER_PAU);
+        instructionText = L(ST_PUSH_RESET);
     }
 
     // 2. DETECTAR CAMBIO VISUAL DE ESTADO
@@ -48,7 +48,7 @@ void draw_timer_screen(bool screen_changed, bool data_changed, bool timer_needs_
     // 3. DIBUJO ESTÁTICO (Título)
     if (screen_changed) {
         tft.fillScreen(TFT_BLACK);
-        drawHeader("Timer", TFT_ORANGE);
+        drawHeader(L(TIT_TIMER), TFT_BLUE);
     }
     
     // 4. DIBUJO SEMI-ESTÁTICO (Marco, Estado E INSTRUCCIONES)

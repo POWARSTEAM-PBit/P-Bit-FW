@@ -19,32 +19,41 @@ Reading global_readings;
 volatile bool g_sensor_data_ready = false;
 
 DHT dht(PIN_DHT, DHT_TYPE);
-const uint32_t SLOW_SENSOR_INTERVAL_MS = pdTICKS_TO_MS(SENSOR_READ_INTERVAL);
+
+// Forward declarations (funciones internas a este módulo)
+static void read_fast_sensors(Reading &r);
+static void read_slow_sensors(Reading &r);
 
 void sensor_reading_task(void *param) {
    Serial.println("[IO] Tarea de Lectura iniciada.");
    dht.begin();
 
-   // Inicializar DS18B20 a -999 para que la pantalla muestre "No sensor"
-   // mientras no se haya completado la primera lectura lenta.
+   // Inicializar sensores a valores centinela para que la pantalla muestre "---"
+   // o "No sensor" mientras no se haya completado la primera lectura lenta (~1 s).
    global_readings.temp_ds18b20 = -999.0f;
+   global_readings.temperature  = NAN;
+   global_readings.humidity     = NAN;
 
    uint32_t last_slow_read_ms = 0;
 
    while (1) {
       uint32_t current_ms = millis();
-      if (current_ms - last_slow_read_ms >= SLOW_SENSOR_INTERVAL_MS) {
+      if (current_ms - last_slow_read_ms >= SENSOR_READ_INTERVAL_MS) {
          last_slow_read_ms = current_ms;
          read_slow_sensors(global_readings); 
       }
       read_fast_sensors(global_readings);
       g_sensor_data_ready = true;
       notifyAll();
+#ifdef FIRMWARE_DEBUG
+      static bool _hwm_reported = false;
+      if (!_hwm_reported) { _hwm_reported = true; DPRINT("[Stack] SensorTask HWM: %u words\n", uxTaskGetStackHighWaterMark(NULL)); }
+#endif
       vTaskDelay(pdMS_TO_TICKS(100));
    }
 }
 
-void read_fast_sensors(Reading &r) {
+static void read_fast_sensors(Reading &r) {
     // --- LDR (R7=10kΩ pull-up a +3V3, LDR03 pull-down a GND, C4=1µF filtro HW) ---
     // Lógica: luz intensa → ADC bajo | oscuridad → ADC alto
     float ldr_raw = analogRead(PIN_LDR_SIGNAL);
@@ -71,7 +80,7 @@ void read_fast_sensors(Reading &r) {
     r.soil_humidity = read_soil_moisture();
 }
 
-void read_slow_sensors(Reading &r) {
+static void read_slow_sensors(Reading &r) {
    // DHT Local
    float h = dht.readHumidity();
    float t = dht.readTemperature(); 

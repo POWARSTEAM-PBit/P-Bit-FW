@@ -5,69 +5,92 @@
 #include "ui_widgets.h" // Para tft, drawHeader, drawCard
 #include "hw.h"         // Para dev_name
 #include "ble.h"        // Para client_connected
+#include "languages.h"  // Para L() y g_language
+#include <stdio.h>      // Para snprintf
 
 // DECLARACIONES EXTERNAS
 extern bool client_connected;
-extern bool g_sound_enabled; 
+extern bool g_sound_enabled;
 extern char dev_name[];
-extern TFT_eSPI tft; // Aseguramos que tft esté disponible
+extern TFT_eSPI tft;
+
+// Códigos de idioma para mostrar en la fila LAN
+static const char* const LANG_CODES[] = { "ESP", "CAT", "ENG" };
 
 void draw_system_screen(bool screen_changed, bool data_changed) {
-    
-    // 1. Dibujo Estático (Solo si la pantalla cambió)
+
+    const int x_draw  = 20;
+    const int x_val   = x_draw + 30; // x de los valores (alineado en las cuatro filas)
+    const int y_dev   = 43;  // fila DEVICE
+    const int y_up    = 58;  // fila UPTIME
+    const int y_ble   = 73;  // fila BLE
+    const int y_lang  = 88;  // fila LANG (nueva)
+
+    // 1. Estático — solo cuando cambia la pantalla
     if (screen_changed) {
         tft.fillScreen(TFT_BLACK);
-        drawHeader("System Info", TFT_GREEN);
-        
-        // El marco (Tarjeta) va de Y=40 a Y=110
-        drawCard(10, 40, tft.width() - 20, 70, TFT_DARKGREY);
-    }
+        drawHeader(L(TIT_SYS), TFT_GREEN);
+        drawCard(10, 38, tft.width() - 20, 67, TFT_DARKGREY); // y=38..105
 
-    // 2. Dibujo Dinámico (Si la pantalla cambió O los datos cambiaron)
-    if (screen_changed || data_changed) {
-        
-        // 🟢 FIX: Ajustamos la limpieza para que quepa DENTRO del marco.
-        // (Y=41 a Y=109). Deja 1px de margen interno.
-        tft.fillRect(11, 41, tft.width() - 22, 68, TFT_BLACK);
-
-        // (Mantenemos tu diseño y coordenadas de texto)
-        int x_draw = 20; 
-        int y_draw = 45; 
-        int line_h = 22;
-        int textX_Offset = 50; 
-        
         tft.setTextDatum(TL_DATUM);
-        
-        // --- DEVICE NAME ---
+
+        // Etiquetas estáticas de las cuatro filas
         tft.setTextColor(TFT_LIGHTGREY, TFT_BLACK);
-        tft.drawString("DEVICE", x_draw, y_draw, 2);
+        tft.drawString("DEV",  x_draw, y_dev,  2);
+        tft.drawString("UP",   x_draw, y_up,   2);
+        tft.drawString("BLE",  x_draw, y_ble,  2);
+        tft.drawString("LAN",  x_draw, y_lang, 2);
+
+        // DEVICE nombre (siempre estático)
+        tft.setTextColor(TFT_YELLOW, TFT_BLACK);
+        tft.drawString(String(dev_name), x_val, y_dev, 2);
+
+        // LANG — estático (no cambia sin reinicio)
         tft.setTextColor(TFT_WHITE, TFT_BLACK);
-        tft.drawString(String(dev_name), x_draw, y_draw + 15, 2);
-        
-        y_draw += line_h + 18;
-        
-        // --- BLE STATUS ---
-        tft.setTextColor(TFT_LIGHTGREY, TFT_BLACK);
-        tft.drawString("BLE", x_draw, y_draw, 2);
-        
-        uint16_t statusColor = client_connected ? TFT_GREEN : TFT_RED;
-        const char* statusText = client_connected ? "CONNECTED" : "DISCONNECTED";
-        tft.setTextColor(statusColor, TFT_BLACK);
-        tft.drawString(statusText, x_draw + 30, y_draw, 2);
-
-
-        // --- PIE DE PÁGINA (Mute) ---
-        int cx = tft.width() / 2;
-        int footer_y = tft.height() - 15;
-        
-        // Limpiar el área del pie de página
-        tft.fillRect(0, footer_y, tft.width(), 20, TFT_BLACK); 
-        
-        tft.setTextDatum(TC_DATUM);
-        uint16_t soundColor = g_sound_enabled ? TFT_GREEN : TFT_RED;
-        const char* soundText = g_sound_enabled ? "Sound: ON (Push)" : "Sound: OFF (Push)";
-        
-        tft.setTextColor(soundColor, TFT_BLACK);
-        tft.drawString(soundText, cx, footer_y, 1);
+        tft.drawString(LANG_CODES[(uint8_t)g_language], x_val, y_lang, 2);
     }
+
+    // Salida temprana si ningún dato dinámico cambió
+    uint32_t uptime_s = millis() / 1000;
+    static uint32_t last_uptime_s      = UINT32_MAX;
+    static bool     last_ble_connected = false;
+    static bool     last_sound_enabled = true;
+    if (!screen_changed
+        && client_connected == last_ble_connected
+        && g_sound_enabled  == last_sound_enabled
+        && uptime_s         == last_uptime_s) return;
+    last_ble_connected = client_connected;
+    last_sound_enabled = g_sound_enabled;
+    last_uptime_s      = uptime_s;
+
+    // 2. Dinámico — zona de valores (clear mínimo por fila)
+    tft.setTextDatum(TL_DATUM);
+    const int clear_w = tft.width() - x_val - 11; // hasta el borde interior del card
+
+    // --- UPTIME ---
+    char uptimeStr[12];
+    uint32_t h = uptime_s / 3600;
+    uint32_t m = (uptime_s % 3600) / 60;
+    uint32_t s = uptime_s % 60;
+    snprintf(uptimeStr, sizeof(uptimeStr), "%02u:%02u:%02u", h, m, s);
+    tft.fillRect(x_val, y_up, clear_w, 16, TFT_BLACK);
+    tft.setTextColor(TFT_CYAN, TFT_BLACK);
+    tft.drawString(uptimeStr, x_val, y_up, 2);
+
+    // --- BLE STATUS ---
+    tft.fillRect(x_val, y_ble, clear_w, 16, TFT_BLACK);
+    uint16_t statusColor = client_connected ? TFT_GREEN : TFT_RED;
+    const char* statusText = client_connected ? L(ST_CONNECTED) : L(ST_DISCONN);
+    tft.setTextColor(statusColor, TFT_BLACK);
+    tft.drawString(statusText, x_val, y_ble, 2);
+
+    // --- PIE DE PÁGINA (Mute) ---
+    int cx = tft.width() / 2;
+    int footer_y = tft.height() - 10;
+    tft.fillRect(0, footer_y, tft.width(), 16, TFT_BLACK);
+    tft.setTextDatum(TC_DATUM);
+    uint16_t soundColor = g_sound_enabled ? TFT_GREEN : TFT_RED;
+    const char* soundText = g_sound_enabled ? L(ST_SND_ON) : L(ST_SND_OFF);
+    tft.setTextColor(soundColor, TFT_BLACK);
+    tft.drawString(soundText, cx, footer_y, 1);
 }

@@ -26,7 +26,6 @@ extern char dev_name[MAX_DEVICE_NAME_LEN];
 // --- DECLARACIONES DE FUNCIONES ---
 
 void set_devicename();
-int readADC(uint8_t pin); // Mantengo esta por compatibilidad si la usas en io.cpp
 
 /**
  * @brief Inicializa pines de hardware y sensores (OneWire, LDR, etc).

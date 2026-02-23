@@ -12,6 +12,7 @@
 #include <esp_sleep.h> // Para Light/Deep Sleep
 #include "ui_widgets.h" // Para tft
 #include "ui_boot.h"    // Para la secuencia de arranque
+#include "lang_select.h" // Para selección de idioma
 
 #define SERIAL_BAUD_RATE 115200
 
@@ -31,11 +32,6 @@ volatile bool g_sleep_warning_active = false;
 
 // --- DECLARACIONES EXTERNAS ---
 extern bool client_connected; // Desde ble.cpp
-// IMPORTANTE: Accedemos a los datos globales para no bloquear el loop con lecturas lentas
-extern Reading global_readings; 
-
-// Variable para el timer de debug en el loop
-static unsigned long last_debug_time = 0; 
 
 void setup() {
     Serial.begin(SERIAL_BAUD_RATE);
@@ -47,17 +43,13 @@ void setup() {
     set_devicename();
     init_tft_display();
     init_ble();
-    init_rotary();
     init_leds_and_buzzer();
-    
-    // 🛑 CORRECCIÓN CRÍTICA: Usamos init_hw() en lugar de init_sensors()
-    // Esto inicializa los pines correctos definidos en hw.cpp y evita el error "undefined reference"
-    init_hw(); 
+    init_hw();
 
     // ---------------------------------------------------------
     // LÓGICA DE ARRANQUE SILENCIOSO (Evita animación al despertar)
     // ---------------------------------------------------------
-    
+
     esp_sleep_wakeup_cause_t wakeup_reason;
     wakeup_reason = esp_sleep_get_wakeup_cause();
 
@@ -65,18 +57,22 @@ void setup() {
     {
         case ESP_SLEEP_WAKEUP_EXT0 : // Despertar por Botón (GPIO 13)
             Serial.println("[Power] Waking up from Deep Sleep (Button).");
-            g_peripherals_sleeping = false; 
+            loadLanguage();           // Cargar idioma desde NVS sin mostrar menú
+            g_peripherals_sleeping = false;
             active_screen = TEMP_SCREEN;
             break;
-            
+
         default : // Encendido normal (Power On)
             Serial.println("[Power] Cold Boot detected. Running boot sequence.");
-            run_boot_sequence(); 
-            active_screen = TEMP_SCREEN; 
+            run_boot_sequence();
+            active_screen = TEMP_SCREEN;
+            showLanguageMenu();       // Siempre en cold boot — usa rotaryEncoder internamente
             break;
     }
     // ---------------------------------------------------------
 
+    // init_rotary() reconfigura el encoder con límites y callbacks para la app principal
+    init_rotary();
 
     // --- FreeRTOS Tasks ---
 
@@ -109,38 +105,6 @@ void loop() {
     loop_buzzer(); 
     
     unsigned long inactivity_time = millis() - g_last_activity_ms;
-
-    // ---------------------------------------------------------
-    // 0. DEBUG SENSORS (Imprimir cada 2 segundos si no está durmiendo)
-    // ---------------------------------------------------------
-    if (!g_peripherals_sleeping && (millis() - last_debug_time > 2000)) {
-        last_debug_time = millis();
-        
-        Serial.println("\n--- [PRUEBA DE SENSORES (RAM)] ---");
-        
-        // 🟢 OPTIMIZACIÓN: Leemos de la estructura global (RAM) en lugar del sensor físico.
-        // Esto evita que el loop se congele esperando al DS18B20 y los pitidos suenen lentos.
-        
-        // Temperatura
-        float t = global_readings.temp_ds18b20;
-        Serial.print("Temp DS18B20: "); 
-        if(t == -999.0) Serial.println("ERROR / DESCONECTADO");
-        else { Serial.print(t); Serial.println(" C"); }
-
-        // Humedad Suelo
-        Serial.print("Humedad Suelo: ");
-        Serial.print(global_readings.soil_humidity);
-        Serial.print("%  (raw ADC: ");
-        Serial.print(analogRead(PIN_SENSOR_HUMEDAD));
-        Serial.println(")");
-
-        // Sonido
-        Serial.print("Nivel Sonido:  "); 
-        Serial.print(global_readings.mic); 
-        Serial.println("%");
-        
-        Serial.println("----------------------------");
-    }
 
     // ---------------------------------------------------------
     // AVISO PRE-SLEEP (últimos 5 segundos antes del Light Sleep)
@@ -177,9 +141,9 @@ void loop() {
 
                 tft.fillScreen(TFT_BLACK);
                 tft.setTextDatum(MC_DATUM);
-                tft.setTextColor(TFT_DARKGREY, TFT_BLACK);
+                tft.setTextColor(TFT_CYAN, TFT_BLACK);
                 tft.drawString("ZZZ", tft.width() / 2, tft.height() / 2 - 14, 4);
-                tft.setTextColor(0x2104, TFT_BLACK); // Gris muy oscuro
+                tft.setTextColor(TFT_DARKCYAN, TFT_BLACK);
                 tft.drawString("sleeping...", tft.width() / 2, tft.height() / 2 + 14, 2);
             }
         }

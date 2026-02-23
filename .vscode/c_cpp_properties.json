@@ -10,6 +10,7 @@
             "includePath": [
                 "C:/POWAR-GIT/P-Bit-FW - edit/include",
                 "C:/POWAR-GIT/P-Bit-FW - edit/src",
+                "C:/.platformio/packages/framework-arduinoespressif32/libraries/Preferences/src",
                 "C:/POWAR-GIT/P-Bit-FW - edit/.pio/libdeps/esp32dev/ESP32RotaryEncoder/src",
                 "C:/POWAR-GIT/P-Bit-FW - edit/.pio/libdeps/esp32dev/DallasTemperature",
                 "C:/POWAR-GIT/P-Bit-FW - edit/.pio/libdeps/esp32dev/OneWire",
@@ -234,7 +235,6 @@
                 "C:/.platformio/packages/framework-arduinoespressif32/libraries/I2S/src",
                 "C:/.platformio/packages/framework-arduinoespressif32/libraries/Insights/src",
                 "C:/.platformio/packages/framework-arduinoespressif32/libraries/NetBIOS/src",
-                "C:/.platformio/packages/framework-arduinoespressif32/libraries/Preferences/src",
                 "C:/.platformio/packages/framework-arduinoespressif32/libraries/RainMaker/src",
                 "C:/.platformio/packages/framework-arduinoespressif32/libraries/SD/src",
                 "C:/.platformio/packages/framework-arduinoespressif32/libraries/SD_MMC/src",
@@ -254,6 +254,7 @@
                 "path": [
                     "C:/POWAR-GIT/P-Bit-FW - edit/include",
                     "C:/POWAR-GIT/P-Bit-FW - edit/src",
+                    "C:/.platformio/packages/framework-arduinoespressif32/libraries/Preferences/src",
                     "C:/POWAR-GIT/P-Bit-FW - edit/.pio/libdeps/esp32dev/ESP32RotaryEncoder/src",
                     "C:/POWAR-GIT/P-Bit-FW - edit/.pio/libdeps/esp32dev/DallasTemperature",
                     "C:/POWAR-GIT/P-Bit-FW - edit/.pio/libdeps/esp32dev/OneWire",
@@ -478,7 +479,6 @@
                     "C:/.platformio/packages/framework-arduinoespressif32/libraries/I2S/src",
                     "C:/.platformio/packages/framework-arduinoespressif32/libraries/Insights/src",
                     "C:/.platformio/packages/framework-arduinoespressif32/libraries/NetBIOS/src",
-                    "C:/.platformio/packages/framework-arduinoespressif32/libraries/Preferences/src",
                     "C:/.platformio/packages/framework-arduinoespressif32/libraries/RainMaker/src",
                     "C:/.platformio/packages/framework-arduinoespressif32/libraries/SD/src",
                     "C:/.platformio/packages/framework-arduinoespressif32/libraries/SD_MMC/src",

@@ -1,11 +1,5 @@
 #pragma once
 
-struct TimeHMS {
-    uint8_t hours;
-    uint8_t minutes;
-    uint8_t seconds;
-};
-
 extern bool userTimerRunning;
 extern unsigned long userTimerStart;
 extern unsigned long userTimerElapsed;
@@ -14,8 +8,6 @@ extern unsigned long userTimerElapsed;
  * @brief Bandera 'volatile' para avisar a la pantalla que el timer se acaba de resetear.
  */
 extern volatile bool g_timer_just_reset;
-
-// (La bandera g_timer_is_resetting se ha eliminado)
 
 /**
  * @brief Start the user timer.

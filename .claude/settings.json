@@ -1,7 +1,10 @@
 {
   "permissions": {
     "allow": [
-      "Read(//c/POWAR-GIT/**)"
+      "Read(//c/POWAR-GIT/**)",
+      "Read(//c/Users/Pablo Z/.platformio/penv/Scripts//**)",
+      "Read(//c/Users/powar/**)",
+      "Read(//c/Users//**)"
     ]
   }
 }

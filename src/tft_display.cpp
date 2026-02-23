@@ -11,7 +11,9 @@
 #include "ui_temp.h"
 #include "ui_humidity.h"
 #include "ui_light.h"
-#include "ui_sensors.h"
+#include "ui_sound.h"
+#include "ui_soil.h"
+#include "ui_ds18.h"
 #include "ui_system.h"
 #include "ui_timer.h"
 // ----------------------------------------------------
@@ -35,11 +37,6 @@ void init_tft_display() {
     tft.fillScreen(TFT_BLACK); 
 }
 
-void clear_screen() {
-    tft.fillScreen(TFT_BLACK);
-}
-
-
 // --- TAREA PRINCIPAL DE PANTALLA (FreeRTOS) ---
 
 void switch_screen(void *param) {
@@ -57,18 +54,22 @@ void switch_screen(void *param) {
     
     while (1) {
 
-        // Si el aviso pre-sleep está activo, ceder CPU sin dibujar nada
+        // Detectar si acabamos de despertar — evaluado ANTES del guard de sleep_warning
+        // para no perder la señal si g_sleep_warning_active sigue activo un ciclo más tras el wake.
+        bool just_woke_up = (last_sleep_state == true) && (g_peripherals_sleeping == false);
+
+        // Si el aviso pre-sleep está activo, ceder CPU sin dibujar nada.
+        // last_sleep_state NO se actualiza aquí para no perder la señal de wake.
         if (g_sleep_warning_active) {
             vTaskDelay(pdMS_TO_TICKS(10));
             continue;
         }
 
+        // Solo actualizar last_sleep_state cuando realmente podemos procesar el evento
+        last_sleep_state = g_peripherals_sleeping;
+
         bool sensor_data_changed = g_sensor_data_ready;
         bool timer_needs_update = false;
-        
-        // 🟢 FIX (Problema 2: Título Faltante): Detectar si acabamos de despertar
-        bool just_woke_up = (last_sleep_state == true) && (g_peripherals_sleeping == false);
-        last_sleep_state = g_peripherals_sleeping; // Actualizar estado de sleep
         
         
         // El cronómetro se actualiza a 100Hz (10ms) para fluidez.
@@ -148,6 +149,10 @@ void switch_screen(void *param) {
 
         } // fin del if(screen_changed...)
 
-        vTaskDelay(pdMS_TO_TICKS(1)); 
+#ifdef FIRMWARE_DEBUG
+        static bool _hwm_reported = false;
+        if (!_hwm_reported) { _hwm_reported = true; DPRINT("[Stack] DisplayTask HWM: %u words\n", uxTaskGetStackHighWaterMark(NULL)); }
+#endif
+        vTaskDelay(pdMS_TO_TICKS(1));
     }
 }

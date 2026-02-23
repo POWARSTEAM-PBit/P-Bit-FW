@@ -23,10 +23,19 @@ void drawCard(int x, int y, int w, int h, uint16_t color) {
 
 void drawHeader(const char* title, uint16_t color) {
     int cx = tft.width() / 2;
+    tft.setFreeFont(&FreeSans9pt7b); // Soporta Latin-1 (ó, é, ñ, à, etc.)
     tft.setTextDatum(TC_DATUM);
     tft.setTextColor(color, TFT_BLACK);
-    tft.drawString(title, cx, 8, 4);
+    tft.drawString(title, cx, 10);
+    tft.setTextFont(2);              // Restaurar font 2 para el resto de la pantalla
     tft.drawFastHLine(20, 32, tft.width() - 40, color);
+}
+
+// Dibuja str usando bigFont si cabe en maxW px; si no, usa smallFont.
+// Respeta el setTextDatum() previo del llamador.
+void drawStringFit(const char* str, int x, int y, uint8_t bigFont, uint8_t smallFont, int maxW) {
+    uint8_t font = (tft.textWidth(str, bigFont) <= maxW) ? bigFont : smallFont;
+    tft.drawString(str, x, y, font);
 }
 
 void drawBarGraph(int x, int y, int w, int h, uint16_t color, float value, float minVal, float maxVal) {
@@ -37,18 +46,24 @@ void drawBarGraph(int x, int y, int w, int h, uint16_t color, float value, float
     tft.fillRect(x + 2 + fill_w, y + 2, (w - 4) - fill_w, h - 4, TFT_BLACK);
 }
 
-void drawFillTank(int x, int y, int w, int h, uint16_t fixedColor, float value, float minVal, float maxVal) {
+void drawFillTank(int x, int y, int w, int h, uint16_t fixedColor, float value, float minVal, float maxVal, int radius) {
     float normalized = constrain((value - minVal) / (maxVal - minVal), 0.0f, 1.0f);
     int fill_height  = (int)(normalized * (h - 2));
     int empty_height = (h - 2) - fill_height;
 
-    // Dibuja directamente los dos segmentos sin pre-limpiar todo a negro:
     // 1. Zona vacía (arriba) — negro
     if (empty_height > 0)
         tft.fillRect(x + 1, y + 1, w - 2, empty_height, TFT_BLACK);
-    // 2. Zona llena (abajo) — color
-    if (fill_height > 0)
-        tft.fillRect(x + 1, y + 1 + empty_height, w - 2, fill_height, fixedColor);
+    // 2. Zona llena (abajo) — color, con esquinas redondeadas si radius > 0
+    if (fill_height > 0) {
+        int r = radius;
+        if (r > fill_height / 2) r = fill_height / 2;
+        if (r > (w - 2) / 2)    r = (w - 2) / 2;
+        if (r > 0)
+            tft.fillRoundRect(x + 1, y + 1 + empty_height, w - 2, fill_height, r, fixedColor);
+        else
+            tft.fillRect(x + 1, y + 1 + empty_height, w - 2, fill_height, fixedColor);
+    }
 }
 
 /**
@@ -72,7 +87,7 @@ void drawTimerCardContent(int cx, int cy, uint16_t borderColor, uint16_t newColo
     // 3. Dibujar Estado
     tft.setTextDatum(MC_DATUM);
     tft.setTextColor(TFT_DARKGREY, TFT_BLACK);
-    tft.drawString(stateText, cx, 65, 2);
+    tft.drawString(stateText, cx, 70, 2);
 
     // 4. Dibujar Tiempo
     tft.setTextColor(newColor, TFT_BLACK);

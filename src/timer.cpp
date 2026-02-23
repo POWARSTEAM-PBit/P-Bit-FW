@@ -7,8 +7,8 @@ unsigned long userTimerElapsed = 0;
 
 volatile bool g_timer_just_reset = false;
 
-// MODIFICACIÓN: Aumentamos el tamaño máximo para M:SS:CC
-constexpr size_t TIME_STR_MAX = 9; 
+// Formato M:SS:CC — máximo "9999:59:99" = 10 chars + '\0' = 11 bytes. 12 con margen.
+constexpr size_t TIME_STR_MAX = 12;
 
 void startUserTimer() {
     if (userTimerElapsed > 0) {

@@ -12,8 +12,7 @@ enum Screen {
     SOIL_SCREEN,
     DS18B20_SCREEN,
     SYSTEM_SCREEN,
-    TIMER_SCREEN,
-    TEST_SCREEN 
+    TIMER_SCREEN
 };
 
 extern Screen active_screen;
@@ -21,4 +20,3 @@ extern Screen active_screen;
 // --- TAREA PRINCIPAL DE PANTALLA ---
 void init_tft_display();
 void switch_screen(void *param);
-void clear_screen();
