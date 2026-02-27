@@ -1128,7 +1128,7 @@ const GFXglyph Roboto_Bold18pt8bGlyphs[] PROGMEM = {
   { 10672,  17,  33,  20,    2,  -25 },   // 0xFE
   { 10743,  18,  32,  18,    0,  -24 } }; // 0xFF
 
-const GFXfont Roboto_Bold18pt8b PROGMEM = {
+extern const GFXfont Roboto_Bold18pt8b PROGMEM = {
   (uint8_t  *)Roboto_Bold18pt8bBitmaps,
   (GFXglyph *)Roboto_Bold18pt8bGlyphs,
   0x20, 0xFF, 41 };
