@@ -5,6 +5,7 @@
 #include "io.h"
 #include "ui_widgets.h"
 #include "languages.h"
+#include "fonts.h"      // GFXfont Inter (Latin-1: á é í ó ú ñ à è ç...)
 #include <TFT_eSPI.h>
 #include <Arduino.h>
 #include <stdio.h>
@@ -22,8 +23,7 @@ extern void drawHeader(const char* title, uint16_t color);
  */
 void draw_light_screen(bool screen_changed, bool data_changed) {
 
-    const int FONT_VALUE    = 7;
-    const int FONT_CATEGORY = 2;
+    // OLD (sin Latin-1): const int FONT_VALUE = 7; const int FONT_CATEGORY = 2;
     const uint16_t BACKGROUND_COLOR = TFT_BLACK;
 
     float lux = global_readings.ldr;
@@ -83,15 +83,23 @@ void draw_light_screen(bool screen_changed, bool data_changed) {
 
         // Valor numérico grande — limpiar zona antes de dibujar (evita ghosting)
         tft.fillRect(0, VALUE_Y - 26, tft.width(), 52, BACKGROUND_COLOR);
-        int numW  = tft.textWidth(luxStr, FONT_VALUE);
-        int unitW = tft.textWidth("lux", 2);
+        // OLD: int numW = tft.textWidth(luxStr, 7); int unitW = tft.textWidth("lux", 2);
+        tft.setFreeFont(FONT_VALUE);
+        int numW  = tft.textWidth(luxStr);
+        tft.setFreeFont(FONT_BODY);
+        int unitW = tft.textWidth("lux");
         int startX = cx - (numW + unitW) / 2;
         int topY   = VALUE_Y - 24;
         tft.setTextDatum(TL_DATUM);
+        // OLD: tft.drawString(luxStr, startX, topY, 7);
+        tft.setFreeFont(FONT_VALUE);
         tft.setTextColor(TFT_WHITE, BACKGROUND_COLOR);
-        tft.drawString(luxStr, startX, topY, FONT_VALUE);
+        tft.drawString(luxStr, startX, topY);
+        // OLD: tft.drawString("lux", startX + numW, topY, 2);
+        tft.setFreeFont(FONT_BODY);
         tft.setTextColor(TFT_DARKGREY, BACKGROUND_COLOR);
-        tft.drawString("lux", startX + numW, topY, 2);
+        tft.drawString("lux", startX + numW, topY);
+        tft.setTextFont(0); // liberar GFXfont
 
         // Barra logarítmica (color = categoría activa)
         drawBarGraph(BAR_X, BAR_Y, BAR_W, BAR_H, categoryColor, log_pct, 0.0f, 100.0f);
@@ -99,7 +107,10 @@ void draw_light_screen(bool screen_changed, bool data_changed) {
         // Categoría educativa — limpiar zona antes de dibujar (evita ghosting)
         tft.fillRect(0, CATEGORY_Y - 9, tft.width(), 18, BACKGROUND_COLOR);
         tft.setTextDatum(MC_DATUM);
+        // OLD: tft.drawString(categoryText, cx, CATEGORY_Y, 2);
+        tft.setFreeFont(FONT_BODY);
         tft.setTextColor(categoryColor, BACKGROUND_COLOR);
-        tft.drawString(categoryText, cx, CATEGORY_Y, FONT_CATEGORY);
+        tft.drawString(categoryText, cx, CATEGORY_Y);
+        tft.setTextFont(0); // liberar GFXfont
     }
 }

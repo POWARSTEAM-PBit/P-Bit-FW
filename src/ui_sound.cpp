@@ -6,6 +6,7 @@
 #include "io.h"
 #include "ui_widgets.h"
 #include "languages.h"
+#include "fonts.h"      // GFXfont Inter (Latin-1: á é í ó ú ñ à è ç...)
 #include <TFT_eSPI.h>
 #include <Arduino.h>
 #include <stdio.h>
@@ -20,8 +21,7 @@ extern void drawHeader(const char* title, uint16_t color);
 // =============================================================
 void draw_sound_screen(bool screen_changed, bool data_changed) {
 
-    const int FONT_VALUE    = 7;
-    const int FONT_CATEGORY = 2;
+    // OLD (sin Latin-1): const int FONT_VALUE = 7; const int FONT_CATEGORY = 2;
     const uint16_t TITLE_COLOR      = TFT_MAGENTA;
     const uint16_t BACKGROUND_COLOR = TFT_BLACK;
 
@@ -64,21 +64,32 @@ void draw_sound_screen(bool screen_changed, bool data_changed) {
 
     if (data_changed || screen_changed) {
         tft.fillRect(0, VALUE_Y - 26, tft.width(), 52, BACKGROUND_COLOR);
-        int numW  = tft.textWidth(levelStr, FONT_VALUE);
-        int unitW = tft.textWidth("%", 2);
+        // OLD: int numW = tft.textWidth(levelStr, 7); int unitW = tft.textWidth("%", 2);
+        tft.setFreeFont(FONT_VALUE);
+        int numW  = tft.textWidth(levelStr);
+        tft.setFreeFont(FONT_BODY);
+        int unitW = tft.textWidth("%");
         int startX = cx - (numW + unitW) / 2;
         int topY   = VALUE_Y - 24;
         tft.setTextDatum(TL_DATUM);
+        // OLD: tft.drawString(levelStr, startX, topY, 7);
+        tft.setFreeFont(FONT_VALUE);
         tft.setTextColor(categoryColor, BACKGROUND_COLOR);
-        tft.drawString(levelStr, startX, topY, FONT_VALUE);
+        tft.drawString(levelStr, startX, topY);
+        // OLD: tft.drawString("%", startX + numW, topY, 2);
+        tft.setFreeFont(FONT_BODY);
         tft.setTextColor(TFT_DARKGREY, BACKGROUND_COLOR);
-        tft.drawString("%", startX + numW, topY, 2);
+        tft.drawString("%", startX + numW, topY);
+        tft.setTextFont(0); // liberar GFXfont
 
         drawBarGraph(BAR_X, BAR_Y, BAR_W, BAR_H, categoryColor, level, 0.0f, 100.0f);
 
         tft.fillRect(0, CATEGORY_Y - 9, tft.width(), 18, BACKGROUND_COLOR);
         tft.setTextDatum(MC_DATUM);
+        // OLD: tft.drawString(categoryText, cx, CATEGORY_Y, 2);
+        tft.setFreeFont(FONT_BODY);
         tft.setTextColor(categoryColor, BACKGROUND_COLOR);
-        tft.drawString(categoryText, cx, CATEGORY_Y, FONT_CATEGORY);
+        tft.drawString(categoryText, cx, CATEGORY_Y);
+        tft.setTextFont(0); // liberar GFXfont
     }
 }

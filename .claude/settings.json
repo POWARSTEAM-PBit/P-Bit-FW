@@ -4,7 +4,9 @@
       "Read(//c/POWAR-GIT/**)",
       "Read(//c/Users/Pablo Z/.platformio/penv/Scripts//**)",
       "Read(//c/Users/powar/**)",
-      "Read(//c/Users//**)"
+      "Read(//c/Users//**)",
+      "Bash(pio run:*)",
+      "Bash(py -3 -m platformio run)"
     ]
   }
 }

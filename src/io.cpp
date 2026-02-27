@@ -15,6 +15,21 @@
 #define LUX_CALIBRATION_GAMMA   1.4 
 #define ADC_SATURATION_THRESHOLD 4050 
 
+// ⚠️ NOTA CRÍTICA DE SINCRONIZACIÓN (io.cpp):
+// `global_readings` es compartida entre:
+//   - sensor_reading_task() [Core 0] — ESCRIBE constantemente
+//   - notifyAll() (llamada desde sensor_reading_task) — LEE y SERIALIZA
+//   - UI (src/tft_display.cpp, src/ui_*.cpp) [Core 1] — LEE para mostrar datos
+//   - BLE callbacks (src/ble.cpp) [contexto BLE] — LEE
+//
+// ⚠️ RIESGO: Sin mutex/copia local, existe condición de carrera (race condition)
+// al leer valores parcialmente actualizados o durante serialización BLE.
+// 
+// 🔧 TODO FUTURO: Considerar:
+//   1. Proteger acceso con portENTER_CRITICAL() / portEXIT_CRITICAL()
+//   2. Hacer copia atómica local antes de serializar en notifyAll()
+//   3. Usar std::atomic<> para lectura sin-bloqueo de campos individuales
+//
 Reading global_readings;
 volatile bool g_sensor_data_ready = false;
 

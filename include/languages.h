@@ -70,6 +70,12 @@ enum LangKey : uint8_t {
     ST_PUSH_PAUSE,
     ST_PUSH_RESET,
 
+    // Menú de idioma — nombres dinámicos y título
+    MENU_TITLE,
+    LANG_ES_NAME,
+    LANG_CAT_NAME,
+    LANG_EN_NAME,
+
     LANG_KEY_COUNT  // Centinela — debe ser el último
 };
 

@@ -25,7 +25,7 @@ Screen active_screen;
 extern volatile bool g_sensor_data_ready;
 extern bool userTimerRunning;
 extern volatile bool g_timer_just_reset;
-extern bool g_peripherals_sleeping;
+extern volatile bool g_peripherals_sleeping;
 extern volatile bool g_sleep_warning_active; // Congela el dibujo durante el aviso pre-sleep
 
 

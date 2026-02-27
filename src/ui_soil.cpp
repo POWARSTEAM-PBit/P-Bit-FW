@@ -6,6 +6,7 @@
 #include "io.h"
 #include "ui_widgets.h"
 #include "languages.h"
+#include "fonts.h"      // GFXfont Inter (Latin-1: á é í ó ú ñ à è ç...)
 #include <TFT_eSPI.h>
 #include <Arduino.h>
 #include <stdio.h>
@@ -18,8 +19,7 @@ extern Reading global_readings;
 // =============================================================
 void draw_soil_screen(bool screen_changed, bool data_changed) {
 
-    const int FONT_VALUE    = 7;
-    const int FONT_CATEGORY = 2;
+    // OLD (sin Latin-1): const int FONT_VALUE = 7; const int FONT_CATEGORY = 2;
     const uint16_t TITLE_COLOR      = TFT_GREEN;
     const uint16_t BACKGROUND_COLOR = TFT_BLACK;
 
@@ -67,25 +67,34 @@ void draw_soil_screen(bool screen_changed, bool data_changed) {
         drawFillTank(BAR_X, BAR_Y, BAR_W, BAR_H, tankColor, soil, 0.0f, 100.0f, 3);
         tft.drawRoundRect(BAR_X, BAR_Y, BAR_W, BAR_H, 3, TFT_DARKGREY);
 
-        // Número + "%" — entero en font 7, símbolo en font 4, mismo topY (estilo temperatura)
+        // Número + "%" — entero en FONT_VALUE, símbolo en FONT_BODY, mismo topY
+        // OLD: int intW = tft.textWidth(soilStr, 7); int unitW = tft.textWidth("%", 4);
         const char* unitStr = "%";
-        int intW  = tft.textWidth(soilStr, FONT_VALUE);
-        int unitW = tft.textWidth(unitStr, 4);
+        tft.setFreeFont(FONT_VALUE);
+        int intW  = tft.textWidth(soilStr);
+        tft.setFreeFont(FONT_BODY);
+        int unitW = tft.textWidth(unitStr);
         int startX = FIRST_THIRD_CX - (intW + unitW) / 2;
         tft.fillRect(0, topY - 2, BAR_X - 1, 52, BACKGROUND_COLOR);
         tft.setTextDatum(TL_DATUM);
+        // OLD: tft.drawString(soilStr, startX, topY, 7);
+        tft.setFreeFont(FONT_VALUE);
         tft.setTextColor(TFT_WHITE, BACKGROUND_COLOR);
-        tft.drawString(soilStr, startX, topY, FONT_VALUE);
+        tft.drawString(soilStr, startX, topY);
+        // OLD: tft.drawString(unitStr, startX + intW, topY, 4);
+        tft.setFreeFont(FONT_BODY);
         tft.setTextColor(TITLE_COLOR, BACKGROUND_COLOR);
-        tft.drawString(unitStr, startX + intW, topY, 4);
+        tft.drawString(unitStr, startX + intW, topY);
+        tft.setTextFont(0); // liberar GFXfont
 
         // Categoría — centrada en panel izquierdo, debajo del número
-        // FreeSans9pt7b para soportar ÓPTIMO, HÚMEDO con ortografía correcta
+        // OLD (FreeSans9pt7b — sustituida por Inter Body, mismo soporte Latin-1):
+        // tft.setFreeFont(&FreeSans9pt7b);  tft.setTextFont(2);
         tft.fillRect(0, topY + 50, BAR_X - 1, tft.height() - (topY + 50), BACKGROUND_COLOR);
-        tft.setFreeFont(&FreeSans9pt7b);
+        tft.setFreeFont(FONT_BODY);
         tft.setTextDatum(TC_DATUM);
         tft.setTextColor(categoryColor, BACKGROUND_COLOR);
         tft.drawString(categoryText, FIRST_THIRD_CX, tft.height() - 14);
-        tft.setTextFont(2);
+        tft.setTextFont(0); // liberar GFXfont
     }
 }

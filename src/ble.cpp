@@ -17,6 +17,10 @@ constexpr uint16_t LEGACY_CHAR_UUID16 = 0x2A6E; // Temperature
 NimBLECharacteristic * pNewChar    = nullptr;
 NimBLECharacteristic * pLegacyChar = nullptr;
 
+// ⚠️ NOTA CRÍTICA: client_connected NO es volatile.
+// Se modifica en callbacks BLE (otro contexto/core) y se lee desde main.cpp (loopCore 0).
+// Riesgo: compiler puede cachear lecturas → inconsistencia entre cores.
+// 🔧 TODO FUTURO: Declarar como `volatile bool` o `std::atomic<bool>` para consistencia.
 bool client_connected = false;
 
 void notifyAll();
@@ -83,8 +87,20 @@ class NewCharCB : public NimBLECharacteristicCallbacks {
 
 
 void notifyAll() {
-    // Reading received;       // <-- ¡CAMBIO 2: ELIMINADO!
-    // read_sensors(received); // <-- ¡CAMBIO 3: ELIMINADO!
+    // ⚠️ SINCRONIZACIÓN CRÍTICA (ble.cpp::notifyAll):
+    // Accedemos a `global_readings` (definida en io.cpp, actualizada desde sensor_reading_task).
+    // Sin protección (mutex/critical section), existe riesgo de race condition al leer
+    // valores parcialmente actualizados durante serialización.
+    // 
+    // 🔧 TODO FUTURO: Considerar hacer copia local snapshot:
+    //   Reading snapshot;
+    //   { portENTER_CRITICAL(); snapshot = global_readings; portEXIT_CRITICAL(); }
+    //   std::string pkt = assm_pkt(snapshot);
+    //   String js = makeJson(snapshot);
+    //
+    // Nota: notifyAll() se llama desde:
+    //   1. sensor_reading_task (Core 0) — lectura segura
+    //   2. NewCharCB::onWrite callback (contexto BLE) — potencial race si coincide con actualización Core 0
 
     // ¡CAMBIO 4: Usar la variable global "global_readings"!
     std::string pkt = assm_pkt(global_readings);

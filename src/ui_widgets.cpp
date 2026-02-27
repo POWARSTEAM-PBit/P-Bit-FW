@@ -2,6 +2,7 @@
 // Implementación de todos los widgets gráficos reutilizables.
 
 #include "ui_widgets.h"
+#include "fonts.h"      // GFXfont Inter (Latin-1: á é í ó ú ñ à è ç...)
 
 // 🟢 FIX CRÍTICO: Definición global del objeto TFT
 // (Esto resuelve el error 'undefined reference to tft')
@@ -23,11 +24,14 @@ void drawCard(int x, int y, int w, int h, uint16_t color) {
 
 void drawHeader(const char* title, uint16_t color) {
     int cx = tft.width() / 2;
-    tft.setFreeFont(&FreeSans9pt7b); // Soporta Latin-1 (ó, é, ñ, à, etc.)
+    // OLD (FreeSans9pt7b — sustituida por Inter SemiBold con mejor diseño):
+    // tft.setFreeFont(&FreeSans9pt7b);
+    // tft.setTextFont(2);  // restauración antigua
+    tft.setFreeFont(FONT_HEADER); // Inter SemiBold 18pt — Latin-1 completo
     tft.setTextDatum(TC_DATUM);
     tft.setTextColor(color, TFT_BLACK);
     tft.drawString(title, cx, 10);
-    tft.setTextFont(2);              // Restaurar font 2 para el resto de la pantalla
+    tft.setTextFont(0);  // liberar GFXfont
     tft.drawFastHLine(20, 32, tft.width() - 40, color);
 }
 
@@ -86,10 +90,15 @@ void drawTimerCardContent(int cx, int cy, uint16_t borderColor, uint16_t newColo
     
     // 3. Dibujar Estado
     tft.setTextDatum(MC_DATUM);
+    // OLD (sin Latin-1): tft.drawString(stateText, cx, 70, 2);
+    tft.setFreeFont(FONT_BODY);
     tft.setTextColor(TFT_DARKGREY, TFT_BLACK);
-    tft.drawString(stateText, cx, 70, 2);
+    tft.drawString(stateText, cx, 70);
 
     // 4. Dibujar Tiempo
+    // OLD (sin Latin-1): tft.drawString(time, cx, 95, 4);
+    tft.setFreeFont(FONT_BODY);
     tft.setTextColor(newColor, TFT_BLACK);
-    tft.drawString(time, cx, 95, 4); 
+    tft.drawString(time, cx, 95);
+    tft.setTextFont(0); // liberar GFXfont
 }

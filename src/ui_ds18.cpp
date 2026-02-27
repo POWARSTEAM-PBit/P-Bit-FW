@@ -6,6 +6,7 @@
 #include "io.h"
 #include "ui_widgets.h"
 #include "languages.h"
+#include "fonts.h"      // GFXfont Inter (Latin-1: á é í ó ú ñ à è ç...)
 #include <TFT_eSPI.h>
 #include <Arduino.h>
 #include <stdio.h>
@@ -20,8 +21,7 @@ extern uint16_t getTempColor(float temp);
 // =============================================================
 void draw_ds18_screen(bool screen_changed, bool data_changed) {
 
-    const int   FONT_VALUE  = 7;
-    const int   FONT_UNIT   = 2;
+    // OLD (sin Latin-1): const int FONT_VALUE = 7; const int FONT_UNIT = 2;
     const uint16_t TITLE_COLOR      = TFT_ORANGE;
     const uint16_t BACKGROUND_COLOR = TFT_BLACK;
 
@@ -53,7 +53,10 @@ void draw_ds18_screen(bool screen_changed, bool data_changed) {
             tft.drawFastHLine(BAR_X + BAR_W + 1, zero_y, 2, TFT_WHITE);
             tft.setTextDatum(TL_DATUM);
             tft.setTextColor(TFT_WHITE, BACKGROUND_COLOR);
-            tft.drawString("0", BAR_X + BAR_W + 3, zero_y - 4, 1);
+            // OLD (sin Latin-1): tft.drawString("0", BAR_X + BAR_W + 3, zero_y - 4, 1);
+            tft.setFreeFont(FONT_SMALL);
+            tft.drawString("0", BAR_X + BAR_W + 3, zero_y - 4);
+            tft.setTextFont(0); // liberar GFXfont
         }
     }
 
@@ -75,10 +78,15 @@ void draw_ds18_screen(bool screen_changed, bool data_changed) {
             // la instrucción "Push > C/F" (y=40) que pudo quedar de cuando el sensor estaba conectado.
             tft.fillRect(0, 33, BAR_X - 2, 102, BACKGROUND_COLOR);
             tft.setTextDatum(MC_DATUM);
+            // OLD (sin Latin-1): tft.drawString(L(ST_NO_SENSOR), ..., 2);
+            tft.setFreeFont(FONT_BODY);
             tft.setTextColor(TFT_RED, BACKGROUND_COLOR);
-            tft.drawString(L(ST_NO_SENSOR), FIRST_THIRD_CX, VALUE_Y - 5, 2);
+            tft.drawString(L(ST_NO_SENSOR), FIRST_THIRD_CX, VALUE_Y - 5);
+            // OLD (sin Latin-1): tft.drawString("Check J4 (GPIO33)", ..., 1);
+            tft.setFreeFont(FONT_SMALL);
             tft.setTextColor(TFT_DARKGREY, BACKGROUND_COLOR);
-            tft.drawString("Check J4 (GPIO33)", FIRST_THIRD_CX, VALUE_Y + 12, 1);
+            tft.drawString("Check J4 (GPIO33)", FIRST_THIRD_CX, VALUE_Y + 12);
+            tft.setTextFont(0); // liberar GFXfont
             // Tanque vacío
             drawFillTank(BAR_X, BAR_Y, BAR_W, BAR_H, TFT_DARKGREY, 0.0f, 0.0f, 50.0f);
         } else {
@@ -87,12 +95,17 @@ void draw_ds18_screen(bool screen_changed, bool data_changed) {
             uint16_t tempColor = (temp_c < 0.0f) ? TFT_CYAN : getTempColor(temp_c);
 
             // Instrucción C/F
+            // OLD (sin Latin-1): tft.drawString(instruction, FIRST_THIRD_CX, 40, 1);
             const char* instruction = g_is_fahrenheit ? L(INSTR_C) : L(INSTR_F);
+            tft.setFreeFont(FONT_SMALL);
             tft.setTextDatum(TC_DATUM);
             tft.setTextColor(TFT_DARKGREY, BACKGROUND_COLOR);
-            tft.drawString(instruction, FIRST_THIRD_CX, 40, 1);
+            tft.drawString(instruction, FIRST_THIRD_CX, 40);
+            tft.setTextFont(0); // liberar GFXfont
 
-            // Valor numérico — entero con font 7, decimal con font 4
+            // Valor numérico — entero con FONT_VALUE, decimal con FONT_BODY
+            // OLD: int intW = tft.textWidth(intStr, 7); int decW = tft.textWidth(decStr, 4);
+            // OLD: tft.drawString(intStr, startX, topY, 7); tft.drawString(decStr, ..., 4);
             char tempStr[8];
             snprintf(tempStr, sizeof(tempStr), "%.1f", temp_display);
             tft.fillRect(0, VALUE_Y - 26, BAR_X - 2, 52, BACKGROUND_COLOR);
@@ -104,21 +117,29 @@ void draw_ds18_screen(bool screen_changed, bool data_changed) {
                 for (int i = 0; i < dot; i++) intStr[i] = tempStr[i];
                 intStr[dot] = '\0';
                 const char* decStr = tempStr + dot;
-                int intW   = tft.textWidth(intStr, FONT_VALUE);
-                int decW   = tft.textWidth(decStr, 4);
+                tft.setFreeFont(FONT_VALUE);
+                int intW   = tft.textWidth(intStr);
+                tft.setFreeFont(FONT_BODY);
+                int decW   = tft.textWidth(decStr);
                 int startX = FIRST_THIRD_CX - (intW + decW) / 2;
                 int topY   = VALUE_Y - 24;
                 tft.setTextDatum(TL_DATUM);
-                tft.drawString(intStr, startX, topY, FONT_VALUE);
-                tft.drawString(decStr, startX + intW, topY, 4);
+                tft.setFreeFont(FONT_VALUE);
+                tft.drawString(intStr, startX, topY);
+                tft.setFreeFont(FONT_BODY);
+                tft.drawString(decStr, startX + intW, topY);
+                tft.setTextFont(0); // liberar GFXfont
             }
 
             // Unidad (no traducida — constante universal)
+            // OLD (sin Latin-1): tft.drawString(unit, FIRST_THIRD_CX, UNIT_Y + 15, 2);
             const char* unit = g_is_fahrenheit ? "Fahrenheit" : "Celsius";
             tft.fillRect(0, UNIT_Y + 13, BAR_X - 2, 18, BACKGROUND_COLOR);
+            tft.setFreeFont(FONT_BODY);
             tft.setTextDatum(TC_DATUM);
             tft.setTextColor(TFT_LIGHTGREY, BACKGROUND_COLOR);
-            tft.drawString(unit, FIRST_THIRD_CX, UNIT_Y + 15, FONT_UNIT);
+            tft.drawString(unit, FIRST_THIRD_CX, UNIT_Y + 15);
+            tft.setTextFont(0); // liberar GFXfont
 
             // Tanque bicolor + línea interna en 0°C
             // Zona positiva en tempColor, zona fría (-55 a 0°C) siempre en azul.

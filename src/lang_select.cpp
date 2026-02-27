@@ -4,6 +4,7 @@
 #include "lang_select.h"
 #include "languages.h"
 #include "ui_widgets.h"  // Para tft
+#include "fonts.h"       // para FONT_BODY, FONT_HEADER
 #include "rotary.h"      // Para DI_ENCODER_A/B/SW y rotaryEncoder
 #include <ESP32RotaryEncoder.h>
 #include <Preferences.h>
@@ -22,9 +23,9 @@ static const char* const STRINGS[LANG_KEY_COUNT][3] = {
 /* TIT_TEMP     */  { "Temperatura",           "Temperatura",          "Temperature"        },
 /* TIT_HUM      */  { "Humedad",               "Humitat",              "Humidity"           },
 /* TIT_LIGHT    */  { "Luz",                   "Llum",                 "Light"              },
-/* TIT_SOUND    */  { "Sonido",                "So",                   "Sound"              },
-/* TIT_SOIL     */  { "Suelo",                 "Sol",                  "Soil"               },
-/* TIT_THERM    */  { "Termometro",            "Termometre",           "Thermometer"        },
+/* TIT_SOUND    */  { "Sonido",                "Soroll",               "Sound"              },
+/* TIT_SOIL     */  { "Suelo",                 "Sòl",                  "Soil"               },
+/* TIT_THERM    */  { "Termómetro",            "Termòmetre",           "Thermometer"        },
 /* TIT_SYS      */  { "Info Sistema",          "Info Sistema",         "System Info"        },
 /* TIT_TIMER    */  { "Temporizador",          "Temporitzador",        "Timer"              },
 
@@ -41,8 +42,8 @@ static const char* const STRINGS[LANG_KEY_COUNT][3] = {
 /* ST_SUNLIGHT  */  { "LUZ SOLAR",             "LLUM SOLAR",           "SUNLIGHT"           },
 
 /* ST_DRY       */  { "SECO",                  "SEC",                  "DRY"                },
-/* ST_OPTIMAL   */  { "OPTIMO",               "OPTIM",                "OPTIMAL"            },
-/* ST_MOIST     */  { "HUMEDO",               "HUMIT",                "MOIST"              },
+/* ST_OPTIMAL   */  { "ÓPTIMO",                "ÒPTIM",                "OPTIMAL"            },
+/* ST_MOIST     */  { "HÚMEDO",                "HUMIT",                "MOIST"              },
 /* ST_SATURATED */  { "SATURADO",              "SATURAT",              "SATURATED"          },
 
 /* ST_MOLD_RISK */  { "Riesgo Moho",           "Risc Floridura",       "Mold Risk"          },
@@ -51,12 +52,12 @@ static const char* const STRINGS[LANG_KEY_COUNT][3] = {
 /* ST_DISCONN   */  { "DESCONECTADO",          "DESCONNECTAT",         "DISCONNECTED"       },
 /* ST_CONNECTED */  { "CONECTADO",             "CONNECTAT",            "CONNECTED"          },
 
-/* ST_SND_ON    */  { "Sonido: ON (Pulsa)",    "So: ON (Prem)",        "Sound: ON (Push)"   },
-/* ST_SND_OFF   */  { "Sonido: OFF (Pulsa)",   "So: OFF (Prem)",       "Sound: OFF (Push)"  },
+/* ST_SND_ON    */  { "Sonido: ON (Pulsa)",    "Soroll: ON (Prem)",    "Sound: ON (Push)"   },
+/* ST_SND_OFF   */  { "Sonido: OFF (Pulsa)",   "Soroll: OFF (Prem)",   "Sound: OFF (Push)"  },
 
 /* INSTR_F      */  { "Pulsa > F",             "Prem > F",             "Push > F"           },
 /* INSTR_C      */  { "Pulsa > C",             "Prem > C",             "Push > C"           },
-/* INSTR_SEL    */  { "Pulsa p. elegir",       "Prem per triar",       "Push to Select"     },
+/* INSTR_SEL    */  { "Pulsa para elegir",    "Prem per triar",       "Push to Select"     },
 
 /* ST_NO_SENSOR */  { "Sin sensor",            "Sense sensor",         "No sensor"          },
 
@@ -67,6 +68,11 @@ static const char* const STRINGS[LANG_KEY_COUNT][3] = {
 /* ST_PUSH_START*/  { "Pulsa-Iniciar",         "Prem-Iniciar",         "Push-Start"         },
 /* ST_PUSH_PAUSE*/  { "Pulsa-Pausar",          "Prem-Pausar",          "Push-Pause"         },
 /* ST_PUSH_RESET*/  { "Mant>Rst|Pulsa>Ini",   "Mant>Rst|Prem>Ini",    "Hold-Rst|Push-Run"  },
+
+/* MENU_TITLE   */  { "Idioma",                "Idioma",               "Language"           },
+/* LANG_ES_NAME */  { "Español",               "Castellà",             "Spanish"            },
+/* LANG_CAT_NAME*/  { "Catalán",               "Català",               "Catalan"            },
+/* LANG_EN_NAME */  { "Inglés",                "Anglès",               "English"            },
 };
 
 // ---------------------------------------------------------------
@@ -96,10 +102,11 @@ void loadLanguage() {
 // Menú interno — helpers privados
 // ---------------------------------------------------------------
 static const Language MENU_LANGS[]  = { LANG_ES, LANG_CAT, LANG_EN };
-static const char* const MENU_NAMES[] = { "Espanol", "Catala", "English" };
+static const LangKey MENU_LANG_NAMES[] = { LANG_ES_NAME, LANG_CAT_NAME, LANG_EN_NAME };
 
 // Dibuja solo las opciones y el texto de instrucción (se llama en cada cambio de selección)
-static void drawMenuOptions(int sel) {
+// Ahora recibe el idioma actual del menú para mostrar TODOS los textos en ese idioma
+static void drawMenuOptions(int sel, Language current_menu_lang) {
     const int cx         = tft.width() / 2;
     const int y_opts[]   = { 40, 64, 88 };
     const int x_cursor   = 12;
@@ -114,12 +121,25 @@ static void drawMenuOptions(int sel) {
         tft.setTextColor(active ? TFT_YELLOW : TFT_BLACK, TFT_BLACK);
         tft.drawString(">", x_cursor, y_opts[i], 2);
 
-        // Nombre del idioma — FreeSans9pt7b para soportar Español, Català
-        tft.setFreeFont(&FreeSans9pt7b);
+        // Nombre del idioma — en el idioma del menú actual (no en inglés)
+        // OLD: tft.drawString(MENU_NAMES[i], cx, y_opts[i]);
+        // Usar fuente Inter (Latin-1) para que los acentos se muestren
+        tft.setFreeFont(FONT_BODY);
         tft.setTextDatum(TC_DATUM);
         tft.setTextColor(active ? TFT_WHITE : TFT_DARKGREY, TFT_BLACK);
-        tft.drawString(MENU_NAMES[i], cx, y_opts[i]);
-        tft.setTextFont(2);  // Restaurar font 2
+        
+        // Guardar idioma global temporalmente
+        Language saved_lang = g_language;
+        g_language = current_menu_lang;
+        
+        // Obtener el nombre del idioma EN EL IDIOMA ACTUAL DEL MENÚ
+        const char* lang_name = L(MENU_LANG_NAMES[i]);
+        tft.drawString(lang_name, cx, y_opts[i]);
+        
+        // Restaurar idioma global
+        g_language = saved_lang;
+        
+        tft.setTextFont(0);  // liberar fuente tras usar GFXfont
     }
 
     // Texto de instrucción en el idioma resaltado
@@ -127,18 +147,39 @@ static void drawMenuOptions(int sel) {
     tft.fillRect(0, y_instr - 2, tft.width(), 16, TFT_BLACK);
     tft.setTextDatum(TC_DATUM);
     tft.setTextColor(TFT_DARKGREY, TFT_BLACK);
-    tft.drawString(STRINGS[INSTR_SEL][(uint8_t)MENU_LANGS[sel]], cx, y_instr, 1);
+    
+    // Guardar idioma global temporalmente para obtener instrucción en el idioma seleccionado
+    Language saved_lang = g_language;
+    g_language = current_menu_lang;
+    const char* instr_text = L(INSTR_SEL);
+    g_language = saved_lang;
+    
+    tft.drawString(instr_text, cx, y_instr, 1);
 }
 
-// Dibuja el menú completo (header + opciones)
-static void drawMenuFull(int sel) {
+// Dibuja el menú completo (header dinámico + opciones)
+// Ahora recibe el idioma actual del menú para mostrar TODOS los textos en ese idioma
+static void drawMenuFull(int sel, Language current_menu_lang) {
     tft.fillScreen(TFT_BLACK);
     const int cx = tft.width() / 2;
     tft.setTextDatum(TC_DATUM);
     tft.setTextColor(TFT_GREEN, TFT_BLACK);
-    tft.drawString("Language", cx, 8, 4);
+    
+    // Guardar idioma global temporalmente
+    Language saved_lang = g_language;
+    g_language = current_menu_lang;
+    
+    // Obtener el título del menú EN EL IDIOMA ACTUAL
+    const char* menu_title = L(MENU_TITLE);
+    tft.setFreeFont(FONT_HEADER);
+    tft.drawString(menu_title, cx, 8, 4);
+    tft.setTextFont(0); // liberar
+    
+    // Restaurar idioma global
+    g_language = saved_lang;
+    
     tft.drawFastHLine(20, 32, tft.width() - 40, TFT_GREEN);
-    drawMenuOptions(sel);
+    drawMenuOptions(sel, current_menu_lang);
 }
 
 // ---------------------------------------------------------------
@@ -166,7 +207,7 @@ void showLanguageMenu() {
 
     int sel      = initial_sel;
     int last_val = initial_sel;
-    drawMenuFull(sel);
+    drawMenuFull(sel, MENU_LANGS[sel]);  // Pasar el idioma actual del menú
 
     bool lastSW = (bool)digitalRead((uint8_t)DI_ENCODER_SW);
 
@@ -177,7 +218,8 @@ void showLanguageMenu() {
         if (val != last_val) {
             last_val = val;
             sel = val;
-            drawMenuOptions(sel);
+            // Redibujar TODO el menú para actualizar título y nombres según el nuevo idioma
+            drawMenuFull(sel, MENU_LANGS[sel]);
         }
 
         // Confirmar con botón (flanco de bajada)

@@ -3,6 +3,7 @@
 #include "tft_display.h"
 #include "io.h"
 #include "languages.h"
+#include "fonts.h"      // GFXfont Inter (Latin-1: á é í ó ú ñ à è ç...)
 #include <TFT_eSPI.h>
 #include <Arduino.h>
 #include <stdio.h>
@@ -15,8 +16,7 @@ extern void drawHeader(const char* title, uint16_t color);
 
 void draw_humidity_screen(bool screen_changed, bool data_changed) {
 
-    const int FONT_VALUE  = 7;
-    const int FONT_STATUS = 2;
+    // OLD (sin Latin-1): const int FONT_VALUE = 7; const int FONT_STATUS = 2;
     const uint16_t HUMIDITY_COLOR   = TFT_CYAN;
     const uint16_t BACKGROUND_COLOR = TFT_BLACK;
 
@@ -53,27 +53,38 @@ void draw_humidity_screen(bool screen_changed, bool data_changed) {
             tft.drawRoundRect(BAR_X, BAR_Y, BAR_W, BAR_H, 3, TFT_DARKGREY);
             tft.fillRect(0, topY - 2, BAR_X - 1, 52, BACKGROUND_COLOR);
             tft.setTextDatum(TC_DATUM);
+            // OLD (sin Latin-1): tft.drawString("---", FIRST_THIRD_CX, topY, 7);
+            tft.setFreeFont(FONT_VALUE);
             tft.setTextColor(TFT_DARKGREY, BACKGROUND_COLOR);
-            tft.drawString("---", FIRST_THIRD_CX, topY, FONT_VALUE);
+            tft.drawString("---", FIRST_THIRD_CX, topY);
+            tft.setTextFont(0); // liberar GFXfont
             tft.fillRect(0, topY + 50, BAR_X - 1, tft.height() - (topY + 50), BACKGROUND_COLOR);
 
         } else {
             drawFillTank(BAR_X, BAR_Y, BAR_W, BAR_H, HUMIDITY_COLOR, hum, 0.0f, 100.0f, 3);
             tft.drawRoundRect(BAR_X, BAR_Y, BAR_W, BAR_H, 3, TFT_DARKGREY);
 
-            // Número + "%" — entero en font 7, símbolo en font 4, mismo topY (estilo temperatura)
+            // Número + "%" — entero en FONT_VALUE, símbolo en FONT_BODY, mismo topY
+            // OLD: int intW = tft.textWidth(humStr, 7); int unitW = tft.textWidth("%", 4);
             char humStr[6];
             snprintf(humStr, sizeof(humStr), "%.0f", hum);
             const char* unitStr = "%";
-            int intW  = tft.textWidth(humStr, FONT_VALUE);
-            int unitW = tft.textWidth(unitStr, 4);
+            tft.setFreeFont(FONT_VALUE);
+            int intW  = tft.textWidth(humStr);
+            tft.setFreeFont(FONT_BODY);
+            int unitW = tft.textWidth(unitStr);
             int startX = FIRST_THIRD_CX - (intW + unitW) / 2;
             tft.fillRect(0, topY - 2, BAR_X - 1, 52, BACKGROUND_COLOR);
             tft.setTextDatum(TL_DATUM);
+            // OLD: tft.drawString(humStr, startX, topY, 7);
+            tft.setFreeFont(FONT_VALUE);
             tft.setTextColor(TFT_WHITE, BACKGROUND_COLOR);
-            tft.drawString(humStr, startX, topY, FONT_VALUE);
+            tft.drawString(humStr, startX, topY);
+            // OLD: tft.drawString(unitStr, startX + intW, topY, 4);
+            tft.setFreeFont(FONT_BODY);
             tft.setTextColor(HUMIDITY_COLOR, BACKGROUND_COLOR);
-            tft.drawString(unitStr, startX + intW, topY, 4);
+            tft.drawString(unitStr, startX + intW, topY);
+            tft.setTextFont(0); // liberar GFXfont
 
             // Estado — centrado en panel izquierdo, debajo del número
             tft.fillRect(0, topY + 50, BAR_X - 1, tft.height() - (topY + 50), BACKGROUND_COLOR);
@@ -82,9 +93,12 @@ void draw_humidity_screen(bool screen_changed, bool data_changed) {
             if      (hum > 70.0) { statusText = L(ST_MOLD_RISK); statusColor = TFT_RED; }
             else if (hum < 30.0) { statusText = L(ST_TOO_DRY);  statusColor = TFT_ORANGE; }
             else                  { statusText = L(ST_OPTIMAL);  statusColor = TFT_GREEN; }
+            // OLD: tft.drawString(statusText, FIRST_THIRD_CX, tft.height() - 14, 2);
+            tft.setFreeFont(FONT_BODY);
             tft.setTextDatum(TC_DATUM);
             tft.setTextColor(statusColor, BACKGROUND_COLOR);
-            tft.drawString(statusText, FIRST_THIRD_CX, tft.height() - 14, FONT_STATUS);
+            tft.drawString(statusText, FIRST_THIRD_CX, tft.height() - 14);
+            tft.setTextFont(0); // liberar GFXfont
         }
     }
 }

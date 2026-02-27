@@ -22,7 +22,7 @@ bool g_sound_enabled = true; // El sonido está activado por defecto
 
 // Variables de gestión de energía
 volatile unsigned long g_last_activity_ms = 0;
-bool g_peripherals_sleeping = false;
+volatile bool g_peripherals_sleeping = false;
 const unsigned long LIGHT_SLEEP_TIMEOUT_MS  = 60000;  // 1 Minuto
 const unsigned long DEEP_SLEEP_TIMEOUT_MS   = 600000; // 10 Minutos
 const unsigned long SLEEP_WARNING_MS        = LIGHT_SLEEP_TIMEOUT_MS - 5000; // 55s — aviso previo al sleep

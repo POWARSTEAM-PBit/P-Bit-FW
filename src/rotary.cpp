@@ -12,7 +12,7 @@
 
 // DECLARACIONES EXTERNAS REQUERIDAS
 extern volatile unsigned long g_last_activity_ms;
-extern bool g_peripherals_sleeping;
+extern volatile bool g_peripherals_sleeping;
 extern bool g_is_fahrenheit;
 extern volatile bool g_sensor_data_ready;
 extern bool g_sound_enabled;

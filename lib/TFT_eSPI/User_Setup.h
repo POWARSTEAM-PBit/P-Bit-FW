@@ -14,6 +14,7 @@
 #define TFT_DC   22
 #define TFT_RST  21
 #define TFT_BL   -1  // no backlight pin
+#define TOUCH_CS -1  // no touch screen pin (elimina warning de TFT_eSPI)
 
 // ==== SPI Frequency ====
 #define SPI_FREQUENCY 27000000
