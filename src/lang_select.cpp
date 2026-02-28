@@ -4,7 +4,7 @@
 #include "lang_select.h"
 #include "languages.h"
 #include "ui_widgets.h"  // Para tft
-#include "fonts.h"       // para FONT_BODY, FONT_HEADER
+#include "fonts.h"       // para FONT_MENU, FONT_HEADER
 #include "rotary.h"      // Para DI_ENCODER_A/B/SW y rotaryEncoder
 #include <ESP32RotaryEncoder.h>
 #include <Preferences.h>
@@ -124,7 +124,7 @@ static void drawMenuOptions(int sel, Language current_menu_lang) {
         // Nombre del idioma — en el idioma del menú actual (no en inglés)
         // OLD: tft.drawString(MENU_NAMES[i], cx, y_opts[i]);
         // Usar fuente Inter (Latin-1) para que los acentos se muestren
-        tft.setFreeFont(FONT_BODY);
+        tft.setFreeFont(FONT_MENU);
         tft.setTextDatum(TC_DATUM);
         tft.setTextColor(active ? TFT_WHITE : TFT_DARKGREY, TFT_BLACK);
         
@@ -172,7 +172,7 @@ static void drawMenuFull(int sel, Language current_menu_lang) {
     // Obtener el título del menú EN EL IDIOMA ACTUAL
     const char* menu_title = L(MENU_TITLE);
     tft.setFreeFont(FONT_HEADER);
-    tft.drawString(menu_title, cx, 8, 4);
+    tft.drawString(menu_title, cx, 8);
     tft.setTextFont(0); // liberar
     
     // Restaurar idioma global

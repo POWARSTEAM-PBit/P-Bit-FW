@@ -37,7 +37,7 @@ void draw_system_screen(bool screen_changed, bool data_changed) {
 
         // Etiquetas estáticas de las cuatro filas
         // OLD (sin Latin-1): tft.drawString("DEV", x_draw, y_dev, 2); ...
-        tft.setFreeFont(FONT_BODY);
+        tft.setFreeFont(FONT_INFO);
         tft.setTextColor(TFT_LIGHTGREY, TFT_BLACK);
         tft.drawString("DEV",  x_draw, y_dev);
         tft.drawString("UP",   x_draw, y_up);
@@ -81,7 +81,7 @@ void draw_system_screen(bool screen_changed, bool data_changed) {
     snprintf(uptimeStr, sizeof(uptimeStr), "%02u:%02u:%02u", h, m, s);
     // OLD (sin Latin-1): tft.drawString(uptimeStr, x_val, y_up, 2);
     tft.fillRect(x_val, y_up, clear_w, 16, TFT_BLACK);
-    tft.setFreeFont(FONT_BODY);
+    tft.setFreeFont(FONT_INFO);
     tft.setTextColor(TFT_CYAN, TFT_BLACK);
     tft.drawString(uptimeStr, x_val, y_up);
 

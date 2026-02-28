@@ -21,5 +21,9 @@
 #include "Roboto_Bold12pt8b.h"
 #include "Roboto_Bold10pt8b.h"
 
+#include "Audiowide-Regulard20pt8b.h"
+#include "Audiowide-Regulard24pt8b.h"
+#include "Audiowide-Regulard26pt8b.h"
+
 // No pongas nada más aquí.
 // Esto fuerza a que los objetos GFXfont se definan en una única TU.
