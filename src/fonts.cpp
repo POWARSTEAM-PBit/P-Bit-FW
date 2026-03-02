@@ -21,6 +21,16 @@
 #include "Roboto_Bold12pt8b.h"
 #include "Roboto_Bold10pt8b.h"
 
+#include "Inter_Regular24pt8b.h"
+#include "Inter_Regular12pt8b.h"
+#include "Inter_Regular9pt8b.h"
+#include "Inter_SemiBold18pt8b.h"
+
+#include "IBMPlexSans_Regular24pt8b.h"
+#include "IBMPlexSans_Regular12pt8b.h"
+#include "IBMPlexSans_Regular9pt8b.h"
+#include "IBMPlexSans_SemiBold18pt8b.h"
+
 #include "Audiowide-Regulard20pt8b.h"
 #include "Audiowide-Regulard24pt8b.h"
 #include "Audiowide-Regulard26pt8b.h"

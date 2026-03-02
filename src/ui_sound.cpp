@@ -7,12 +7,13 @@
 #include "ui_widgets.h"
 #include "languages.h"
 #include "fonts.h"      // GFXfont Inter (Latin-1: á é í ó ú ñ à è ç...)
+#include "layout.h"
 #include <TFT_eSPI.h>
 #include <Arduino.h>
 #include <stdio.h>
 
 extern TFT_eSPI tft;
-extern Reading global_readings;
+extern Reading g_ui_readings_snapshot;
 extern void drawBarGraph(int x, int y, int w, int h, uint16_t color, float value, float minVal, float maxVal);
 extern void drawHeader(const char* title, uint16_t color);
 
@@ -25,7 +26,7 @@ void draw_sound_screen(bool screen_changed, bool data_changed) {
     const uint16_t TITLE_COLOR      = TFT_MAGENTA;
     const uint16_t BACKGROUND_COLOR = TFT_BLACK;
 
-    float level = (float)global_readings.mic;
+    float level = (float)g_ui_readings_snapshot.mic;
 
     const char*   categoryText;
     uint16_t      categoryColor;
@@ -42,12 +43,6 @@ void draw_sound_screen(bool screen_changed, bool data_changed) {
     }
 
     const int cx         = tft.width() / 2;
-    const int VALUE_Y    = 65;
-    const int BAR_X      = 20;
-    const int BAR_Y      = 93;
-    const int BAR_W      = tft.width() - 40;
-    const int BAR_H      = 14;
-    const int CATEGORY_Y = 118;
 
     char levelStr[5];
     snprintf(levelStr, sizeof(levelStr), "%.0f", level);
@@ -57,39 +52,49 @@ void draw_sound_screen(bool screen_changed, bool data_changed) {
         drawHeader(L(TIT_SOUND), TITLE_COLOR);
     }
 
-    // Salida temprana si el valor no cambió — evita fillRects innecesarios que causan flickering.
     static int last_sound_drawn = -1;
-    if (!screen_changed && (int)roundf(level) == last_sound_drawn) return;
-    last_sound_drawn = (int)roundf(level);
+    static int last_category_id = -1;
+    int level_rounded = (int)roundf(level);
+    int category_id =
+        (level < 15.0f) ? 0 :
+        (level < 40.0f) ? 1 :
+        (level < 70.0f) ? 2 :
+        (level < 88.0f) ? 3 : 4;
+    bool value_changed = screen_changed || (level_rounded != last_sound_drawn);
+    bool category_changed = screen_changed || (category_id != last_category_id);
+    if (!value_changed && !category_changed) return;
+    last_sound_drawn = level_rounded;
+    last_category_id = category_id;
 
     if (data_changed || screen_changed) {
-        tft.fillRect(0, VALUE_Y - 26, tft.width(), 52, BACKGROUND_COLOR);
-        // OLD: int numW = tft.textWidth(levelStr, 7); int unitW = tft.textWidth("%", 2);
-        tft.setFreeFont(FONT_VALUE);
-        int numW  = tft.textWidth(levelStr);
-        tft.setFreeFont(FONT_BODY);
-        int unitW = tft.textWidth("%");
-        int startX = cx - (numW + unitW) / 2;
-        int topY   = VALUE_Y - 24;
-        tft.setTextDatum(TL_DATUM);
-        // OLD: tft.drawString(levelStr, startX, topY, 7);
-        tft.setFreeFont(FONT_VALUE);
-        tft.setTextColor(categoryColor, BACKGROUND_COLOR);
-        tft.drawString(levelStr, startX, topY);
-        // OLD: tft.drawString("%", startX + numW, topY, 2);
-        tft.setFreeFont(FONT_BODY);
-        tft.setTextColor(TFT_DARKGREY, BACKGROUND_COLOR);
-        tft.drawString("%", startX + numW, topY);
-        tft.setTextFont(0); // liberar GFXfont
+        if (value_changed) {
+            tft.fillRect(0, LB_VALUE_TOP - 4, tft.width(), 52, BACKGROUND_COLOR);
+            tft.setFreeFont(FONT_VALUE);
+            int numW  = tft.textWidth(levelStr);
+            tft.setFreeFont(FONT_BODY);
+            int unitW = tft.textWidth("%");
+            int startX = cx - (numW + unitW) / 2;
+            tft.setTextDatum(TL_DATUM);
+            tft.setFreeFont(FONT_VALUE);
+            tft.setTextColor(categoryColor, BACKGROUND_COLOR);
+            tft.drawString(levelStr, startX, LB_VALUE_TOP);
+            tft.setFreeFont(FONT_BODY);
+            tft.setTextColor(TFT_DARKGREY, BACKGROUND_COLOR);
+            tft.drawString("%", startX + numW, LB_VALUE_TOP);
+            tft.setTextFont(0); // liberar GFXfont
+        }
 
-        drawBarGraph(BAR_X, BAR_Y, BAR_W, BAR_H, categoryColor, level, 0.0f, 100.0f);
+        if (value_changed || category_changed) {
+            drawBarGraph(LB_BAR_X, LB_BAR_Y, LB_BAR_W, LB_BAR_H, categoryColor, level, 0.0f, 100.0f);
+        }
 
-        tft.fillRect(0, CATEGORY_Y - 9, tft.width(), 18, BACKGROUND_COLOR);
-        tft.setTextDatum(MC_DATUM);
-        // OLD: tft.drawString(categoryText, cx, CATEGORY_Y, 2);
-        tft.setFreeFont(FONT_BODY);
-        tft.setTextColor(categoryColor, BACKGROUND_COLOR);
-        tft.drawString(categoryText, cx, CATEGORY_Y);
-        tft.setTextFont(0); // liberar GFXfont
+        if (category_changed) {
+            tft.fillRect(0, LB_CATEGORY_Y - 8, tft.width(), 16, BACKGROUND_COLOR);
+            tft.setTextDatum(MC_DATUM);
+            tft.setFreeFont(FONT_BODY);
+            tft.setTextColor(categoryColor, BACKGROUND_COLOR);
+            tft.drawString(categoryText, cx, LB_CATEGORY_Y);
+            tft.setTextFont(0); // liberar GFXfont
+        }
     }
 }

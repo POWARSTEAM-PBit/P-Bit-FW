@@ -7,12 +7,13 @@
 #include "ui_widgets.h"
 #include "languages.h"
 #include "fonts.h"      // GFXfont Inter (Latin-1: á é í ó ú ñ à è ç...)
+#include "layout.h"
 #include <TFT_eSPI.h>
 #include <Arduino.h>
 #include <stdio.h>
 
 extern TFT_eSPI tft;
-extern Reading global_readings;
+extern Reading g_ui_readings_snapshot;
 
 // =============================================================
 // SOIL_SCREEN — tanque vertical + valor
@@ -23,16 +24,9 @@ void draw_soil_screen(bool screen_changed, bool data_changed) {
     const uint16_t TITLE_COLOR      = TFT_GREEN;
     const uint16_t BACKGROUND_COLOR = TFT_BLACK;
 
-    // Layout idéntico a Temp/DS18 — centro del panel izquierdo y tanque derecho
-    const int FIRST_THIRD_CX = tft.width() / 3 + 10;  // 63
-    const int VALUE_Y = tft.height() / 2 + 15;          // 79
-    const int topY    = VALUE_Y - 24;                    // 55 — top de font 7
-    const int BAR_X   = 120;
-    const int BAR_Y   = 40;
-    const int BAR_W   = 30;
-    const int BAR_H   = 80;
+    // Coordenadas definidas en layout.h (Familia A)
 
-    float soil = (float)global_readings.soil_humidity;
+    float soil = (float)g_ui_readings_snapshot.soil_humidity;
 
     const char*   categoryText;
     uint16_t      tankColor;
@@ -54,47 +48,55 @@ void draw_soil_screen(bool screen_changed, bool data_changed) {
     if (screen_changed) {
         tft.fillScreen(BACKGROUND_COLOR);
         drawHeader(L(TIT_SOIL), TITLE_COLOR);
-        tft.drawRoundRect(BAR_X, BAR_Y, BAR_W, BAR_H, 3, TFT_DARKGREY);
+        tft.drawRoundRect(LA_TANK_X, LA_TANK_Y, LA_TANK_W, LA_TANK_H, 3, TFT_DARKGREY);
     }
 
-    // Salida temprana si el valor no cambió
     static int last_soil_drawn = -1;
-    if (!screen_changed && (int)roundf(soil) == last_soil_drawn) return;
-    last_soil_drawn = (int)roundf(soil);
+    static int last_category_id = -1;
+    int soil_rounded = (int)roundf(soil);
+    int category_id =
+        (soil < 20.0f) ? 0 :
+        (soil < 55.0f) ? 1 :
+        (soil < 80.0f) ? 2 : 3;
+    bool value_changed = screen_changed || (soil_rounded != last_soil_drawn);
+    bool category_changed = screen_changed || (category_id != last_category_id);
+    if (!value_changed && !category_changed) return;
+    last_soil_drawn = soil_rounded;
+    last_category_id = category_id;
 
     // --- Dinámicos ---
     if (data_changed || screen_changed) {
-        drawFillTank(BAR_X, BAR_Y, BAR_W, BAR_H, tankColor, soil, 0.0f, 100.0f, 3);
-        tft.drawRoundRect(BAR_X, BAR_Y, BAR_W, BAR_H, 3, TFT_DARKGREY);
+        if (value_changed || category_changed) {
+            drawFillTank(LA_TANK_X, LA_TANK_Y, LA_TANK_W, LA_TANK_H, tankColor, soil, 0.0f, 100.0f, 3);
+            tft.drawRoundRect(LA_TANK_X, LA_TANK_Y, LA_TANK_W, LA_TANK_H, 3, TFT_DARKGREY);
+        }
 
-        // Número + "%" — entero en FONT_VALUE, símbolo en FONT_BODY, mismo topY
-        // OLD: int intW = tft.textWidth(soilStr, 7); int unitW = tft.textWidth("%", 4);
         const char* unitStr = "%";
-        tft.setFreeFont(FONT_VALUE);
-        int intW  = tft.textWidth(soilStr);
-        tft.setFreeFont(FONT_BODY);
-        int unitW = tft.textWidth(unitStr);
-        int startX = FIRST_THIRD_CX - (intW + unitW) / 2;
-        tft.fillRect(0, topY - 2, BAR_X - 1, 52, BACKGROUND_COLOR);
-        tft.setTextDatum(TL_DATUM);
-        // OLD: tft.drawString(soilStr, startX, topY, 7);
-        tft.setFreeFont(FONT_VALUE);
-        tft.setTextColor(TFT_WHITE, BACKGROUND_COLOR);
-        tft.drawString(soilStr, startX, topY);
-        // OLD: tft.drawString(unitStr, startX + intW, topY, 4);
-        tft.setFreeFont(FONT_BODY);
-        tft.setTextColor(TITLE_COLOR, BACKGROUND_COLOR);
-        tft.drawString(unitStr, startX + intW, topY);
-        tft.setTextFont(0); // liberar GFXfont
+        if (value_changed) {
+            tft.setFreeFont(FONT_VALUE);
+            int intW  = tft.textWidth(soilStr);
+            tft.setFreeFont(FONT_BODY);
+            int unitW = tft.textWidth(unitStr);
+            int startX = LA_LEFT_CX - (intW + unitW) / 2;
+            tft.fillRect(0, LA_VALUE_TOP - 4, LA_TANK_X - 1, 52, BACKGROUND_COLOR);
+            tft.setTextDatum(TL_DATUM);
+            tft.setFreeFont(FONT_VALUE);
+            tft.setTextColor(TFT_WHITE, BACKGROUND_COLOR);
+            tft.drawString(soilStr, startX, LA_VALUE_TOP);
+            tft.setFreeFont(FONT_BODY);
+            tft.setTextColor(TITLE_COLOR, BACKGROUND_COLOR);
+            tft.drawString(unitStr, startX + intW, LA_VALUE_TOP);
+            tft.setTextFont(0); // liberar GFXfont
+        }
 
         // Categoría — centrada en panel izquierdo, debajo del número
-        // OLD (FreeSans9pt7b — sustituida por Inter Body, mismo soporte Latin-1):
-        // tft.setFreeFont(&FreeSans9pt7b);  tft.setTextFont(2);
-        tft.fillRect(0, topY + 50, BAR_X - 1, tft.height() - (topY + 50), BACKGROUND_COLOR);
-        tft.setFreeFont(FONT_BODY);
-        tft.setTextDatum(TC_DATUM);
-        tft.setTextColor(categoryColor, BACKGROUND_COLOR);
-        tft.drawString(categoryText, FIRST_THIRD_CX, tft.height() - 14);
-        tft.setTextFont(0); // liberar GFXfont
+        if (category_changed) {
+            tft.fillRect(0, LA_CATEGORY_Y - 8, LA_TANK_X - 1, tft.height() - (LA_CATEGORY_Y - 8), BACKGROUND_COLOR);
+            tft.setFreeFont(FONT_BODY);
+            tft.setTextDatum(TC_DATUM);
+            tft.setTextColor(categoryColor, BACKGROUND_COLOR);
+            tft.drawString(categoryText, LA_LEFT_CX, LA_CATEGORY_Y);
+            tft.setTextFont(0); // liberar GFXfont
+        }
     }
 }

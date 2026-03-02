@@ -3,6 +3,7 @@
 #include <ESP32RotaryEncoder.h>
 #include <Preferences.h>
 #include <esp_system.h>
+#include <esp_timer.h>
 #include "rotary.h"
 #include "config.h"
 #include "tft_display.h"
@@ -18,9 +19,13 @@ extern volatile bool g_sensor_data_ready;
 extern bool g_sound_enabled;
 extern volatile bool g_sleep_warning_active; // Para resetear al despertar
 
-// DECLARACIONES EXTERNAS DE LA UI
-#include "ui_widgets.h" 
-extern TFT_eSPI tft;    
+static bool isRestorableScreen(Screen screen) {
+    return screen >= TEMP_SCREEN && screen <= TIMER_SCREEN;
+}
+
+static unsigned long now_ms() {
+    return (unsigned long)(esp_timer_get_time() / 1000ULL);
+}
 
 
 RotaryEncoder rotaryEncoder(DI_ENCODER_A, DI_ENCODER_B, DI_ENCODER_SW, DO_ENCODER_VCC);
@@ -35,9 +40,14 @@ void wakeUpPeripherals() {
         // 1. Marcamos que ya no estamos durmiendo y cancelamos el aviso pre-sleep
         g_peripherals_sleeping = false;
         g_sleep_warning_active = false; // Permite que la tarea de UI reanude el dibujo
+        g_ui_overlay_state = UI_OVERLAY_NONE;
         
-        // 2. Forzamos la pantalla principal
-        active_screen = TEMP_SCREEN; 
+        // 2. Restaurar la última pantalla útil o usar TEMP como fallback
+        if (isRestorableScreen((Screen)g_last_active_screen_before_sleep)) {
+            active_screen = (Screen)g_last_active_screen_before_sleep;
+        } else {
+            active_screen = TEMP_SCREEN;
+        }
         
         // 🟢 FIX CRÍTICO (Soluciona Título Faltante):
         // Forzamos un redibujo completo (incluyendo estáticos)
@@ -46,9 +56,10 @@ void wakeUpPeripherals() {
         // tft_display.cpp lo usará junto con g_peripherals_sleeping=false 
         // para forzar el redibujo).
         g_sensor_data_ready = true; 
+        g_ui_force_full_redraw = true;
         
         // 3. Reiniciamos el timer de actividad
-        g_last_activity_ms = millis();
+        g_last_activity_ms = now_ms();
         
         vTaskDelay(pdMS_TO_TICKS(50)); 
     }
@@ -59,7 +70,7 @@ void wakeUpPeripherals() {
  * @brief Callback function for rotary encoder knob turn
  */
 void knobCallback(uint8_t value) {
-    g_last_activity_ms = millis(); 
+    g_last_activity_ms = now_ms(); 
     wakeUpPeripherals();           
     
     if (value < TEMP_SCREEN || value > TIMER_SCREEN) return;
@@ -113,7 +124,7 @@ void knobCallback(uint8_t value) {
  * @brief Callback llamado DESPUÉS de SOLTAR el botón.
  */
 void buttonCallback(unsigned long duration) {
-    g_last_activity_ms = millis(); 
+    g_last_activity_ms = now_ms(); 
     wakeUpPeripherals();           
     
     // ------------------------------------------------
@@ -127,10 +138,7 @@ void buttonCallback(unsigned long duration) {
             prefs.remove("lang");
             prefs.end();
             g_sleep_warning_active = true; // Congelar tarea de UI para que no sobreimprima
-            tft.fillScreen(TFT_BLACK);
-            tft.setTextDatum(MC_DATUM);
-            tft.setTextColor(TFT_YELLOW, TFT_BLACK);
-            tft.drawString("Reiniciando...", tft.width() / 2, tft.height() / 2, 2);
+            g_ui_overlay_state = UI_OVERLAY_RESTARTING;
             vTaskDelay(pdMS_TO_TICKS(1500));
             esp_restart();
         } else {

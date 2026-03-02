@@ -20,31 +20,31 @@ Language g_language = LANG_ES;
 // ---------------------------------------------------------------
 static const char* const STRINGS[LANG_KEY_COUNT][3] = {
 //                              ES (0)                    CAT (1)                  EN (2)
-/* TIT_TEMP     */  { "Temperatura",           "Temperatura",          "Temperature"        },
-/* TIT_HUM      */  { "Humedad",               "Humitat",              "Humidity"           },
-/* TIT_LIGHT    */  { "Luz",                   "Llum",                 "Light"              },
-/* TIT_SOUND    */  { "Sonido",                "Soroll",               "Sound"              },
-/* TIT_SOIL     */  { "Suelo",                 "Sòl",                  "Soil"               },
-/* TIT_THERM    */  { "Termómetro",            "Termòmetre",           "Thermometer"        },
-/* TIT_SYS      */  { "Info Sistema",          "Info Sistema",         "System Info"        },
-/* TIT_TIMER    */  { "Temporizador",          "Temporitzador",        "Timer"              },
+/* TIT_TEMP     */  { "TEMPERATURA",           "TEMPERATURA",          "TEMPERATURE"        },
+/* TIT_HUM      */  { "HUMEDAD",               "HUMITAT",              "HUMIDITY"           },
+/* TIT_LIGHT    */  { "LUZ",                   "LLUM",                 "LIGHT"              },
+/* TIT_SOUND    */  { "SONIDO",                "SOROLL",               "SOUND"              },
+/* TIT_SOIL     */  { "SUELO",                 "SÒL",                  "SOIL"               },
+/* TIT_THERM    */  { "TERMÓMETRO",            "TERMÒMETRE",           "THERMOMETER"        },
+/* TIT_SYS      */  { "INFO SISTEMA",          "INFO SISTEMA",         "SYSTEM INFO"        },
+/* TIT_TIMER    */  { "TEMPORIZADOR",          "TEMPORITZADOR",        "TIMER"              },
 
-/* ST_SILENT    */  { "SILENCIO",              "SILENCI",              "SILENT"             },
-/* ST_QUIET     */  { "TRANQUILO",             "TRANQUIL",             "QUIET"              },
-/* ST_NORMAL    */  { "NORMAL",                "NORMAL",               "NORMAL"             },
-/* ST_LOUD      */  { "RUIDOSO",               "FORT",                 "LOUD"               },
-/* ST_VERY_LOUD */  { "MUY RUIDOSO",           "MOLT FORT",            "VERY LOUD"          },
+/* ST_SILENT    */  { "Silencio",              "Silenci",              "Silent"             },
+/* ST_QUIET     */  { "Tranquilo",             "Tranquil",             "Quiet"              },
+/* ST_NORMAL    */  { "Normal",                "Normal",               "Normal"             },
+/* ST_LOUD      */  { "Ruidoso",               "Fort",                 "Loud"               },
+/* ST_VERY_LOUD */  { "Muy ruidoso",           "Molt fort",            "Very loud"          },
 
-/* ST_DARK      */  { "OSCURO",                "FOSC",                 "DARK"               },
-/* ST_DIM       */  { "TENUE",                 "PENOMBRA",             "DIM"                },
-/* ST_INDOOR    */  { "INTERIOR",              "INTERIOR",             "INDOOR"             },
-/* ST_BRIGHT    */  { "BRILLANTE",             "BRILLANT",             "BRIGHT"             },
-/* ST_SUNLIGHT  */  { "LUZ SOLAR",             "LLUM SOLAR",           "SUNLIGHT"           },
+/* ST_DARK      */  { "Oscuro",                "Fosc",                 "Dark"               },
+/* ST_DIM       */  { "Tenue",                 "Penombra",             "Dim"                },
+/* ST_INDOOR    */  { "Interior",              "Interior",             "Indoor"             },
+/* ST_BRIGHT    */  { "Brillante",             "Brillant",             "Bright"             },
+/* ST_SUNLIGHT  */  { "Luz solar",             "Llum solar",           "Sunlight"           },
 
-/* ST_DRY       */  { "SECO",                  "SEC",                  "DRY"                },
-/* ST_OPTIMAL   */  { "ÓPTIMO",                "ÒPTIM",                "OPTIMAL"            },
-/* ST_MOIST     */  { "HÚMEDO",                "HUMIT",                "MOIST"              },
-/* ST_SATURATED */  { "SATURADO",              "SATURAT",              "SATURATED"          },
+/* ST_DRY       */  { "Seco",                  "Sec",                  "Dry"                },
+/* ST_OPTIMAL   */  { "Óptimo",                "Òptim",                "Optimal"            },
+/* ST_MOIST     */  { "Húmedo",                "Humit",                "Moist"              },
+/* ST_SATURATED */  { "Saturado",              "Saturat",              "Saturated"          },
 
 /* ST_MOLD_RISK */  { "Riesgo Moho",           "Risc Floridura",       "Mold Risk"          },
 /* ST_TOO_DRY   */  { "Muy Seco",              "Massa Sec",            "Too Dry"            },
@@ -65,9 +65,9 @@ static const char* const STRINGS[LANG_KEY_COUNT][3] = {
 /* ST_TIMER_RUN */  { "CORRIENDO",             "EN CURS",              "RUNNING"            },
 /* ST_TIMER_PAU */  { "PAUSADO",               "PAUSAT",               "PAUSED"             },
 
-/* ST_PUSH_START*/  { "Pulsa-Iniciar",         "Prem-Iniciar",         "Push-Start"         },
-/* ST_PUSH_PAUSE*/  { "Pulsa-Pausar",          "Prem-Pausar",          "Push-Pause"         },
-/* ST_PUSH_RESET*/  { "Mant>Rst|Pulsa>Ini",   "Mant>Rst|Prem>Ini",    "Hold-Rst|Push-Run"  },
+/* ST_PUSH_START*/  { "Pulsa > Iniciar",       "Prem > Iniciar",       "Push > Start"       },
+/* ST_PUSH_PAUSE*/  { "Pulsa > Pausar",        "Prem > Pausar",        "Push > Pause"       },
+/* ST_PUSH_RESET*/  { "Mant > Rst | Pulsa > Ini",   "Mant > Rst | Prem > Ini",    "Hold > Rst | Push > Run"  },
 
 /* MENU_TITLE   */  { "Idioma",                "Idioma",               "Language"           },
 /* LANG_ES_NAME */  { "Español",               "Castellà",             "Spanish"            },
@@ -146,8 +146,8 @@ static void drawMenuOptions(int sel, Language current_menu_lang) {
     const int y_instr = 116;
     tft.fillRect(0, y_instr - 2, tft.width(), 16, TFT_BLACK);
     tft.setTextDatum(TC_DATUM);
-    tft.setTextColor(TFT_DARKGREY, TFT_BLACK);
-    
+    tft.setTextColor(TFT_CYAN, TFT_BLACK);
+
     // Guardar idioma global temporalmente para obtener instrucción en el idioma seleccionado
     Language saved_lang = g_language;
     g_language = current_menu_lang;

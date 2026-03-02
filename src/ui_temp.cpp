@@ -4,6 +4,7 @@
 #include "io.h"
 #include "languages.h"
 #include "fonts.h"      // GFXfont Inter (Latin-1: á é í ó ú ñ à è ç...)
+#include "layout.h"
 #include <TFT_eSPI.h>
 #include <Arduino.h>
 #include <stdio.h>       // Necesario para snprintf()
@@ -11,7 +12,7 @@
 extern TFT_eSPI tft;
 extern uint16_t getTempColor(float temp);
 extern bool g_is_fahrenheit;
-extern Reading global_readings;
+extern Reading g_ui_readings_snapshot;
 extern void drawFillTank(int x, int y, int w, int h, uint16_t fixedColor, float value, float minVal, float maxVal, int radius = 0);
 extern void drawHeader(const char* title, uint16_t color);
 
@@ -26,7 +27,7 @@ void draw_temp_screen(bool screen_changed, bool data_changed) { // 🟢 IMPLEMEN
     const uint16_t COLOR_TITLE = TFT_RED;
     
     // Coordenadas y variables
-    float temp_c  = global_readings.temperature;
+    float temp_c  = g_ui_readings_snapshot.temperature;
     bool  no_dht  = isnan(temp_c);
     float temp_display = temp_c;
     
@@ -46,14 +47,7 @@ void draw_temp_screen(bool screen_changed, bool data_changed) { // 🟢 IMPLEMEN
 
     uint16_t tempColor = no_dht ? TFT_DARKGREY : getTempColor(temp_c);
 
-    // --- Definiciones de Widget ---
-    const int FIRST_THIRD_CX = tft.width() / 3 + 10;
-    const int VALUE_Y = tft.height() / 2 + 15; 
-    const int UNIT_Y = VALUE_Y + 20; 
-    const int BAR_X = tft.width() - 40; 
-    const int BAR_Y = 40;
-    const int BAR_W = 30;
-    const int BAR_H = 80;
+    // Coordenadas definidas en layout.h (Familia A)
     
     // -----------------------------------------------------------
     
@@ -69,14 +63,14 @@ void draw_temp_screen(bool screen_changed, bool data_changed) { // 🟢 IMPLEMEN
         drawHeader(L(TIT_TEMP), COLOR_TITLE);
 
         // Dibuja el contorno del Tanque (Estático)
-        tft.drawRoundRect(BAR_X, BAR_Y, BAR_W, BAR_H, 3, TFT_DARKGREY);
+        tft.drawRoundRect(LA_TANK_X, LA_TANK_Y, LA_TANK_W, LA_TANK_H, 3, TFT_DARKGREY);
     }
 
     // 🟢 FASE IVb: ACTUALIZACIÓN DINÁMICA - Si hay cambio de datos O cambio de pantalla
     if (data_changed || screen_changed) {
 
         // Zona del número — limpiar siempre antes de dibujar
-        tft.fillRect(0, VALUE_Y - 26, BAR_X - 2, 52, TFT_BLACK);
+        tft.fillRect(0, LA_VALUE_TOP - 4, LA_TANK_X - 2, 52, TFT_BLACK);
         tft.setTextDatum(MC_DATUM);
 
         if (no_dht) {
@@ -84,17 +78,17 @@ void draw_temp_screen(bool screen_changed, bool data_changed) { // 🟢 IMPLEMEN
             // OLD (sin Latin-1): tft.drawString("---", FIRST_THIRD_CX, VALUE_Y, 7);
             tft.setFreeFont(FONT_VALUE);
             tft.setTextColor(TFT_DARKGREY, TFT_BLACK);
-            tft.drawString("---", FIRST_THIRD_CX, VALUE_Y);
+            tft.drawString("---", LA_LEFT_CX, LA_VALUE_TOP);
             tft.setTextFont(0); // liberar GFXfont
-            tft.fillRect(0, UNIT_Y + 13, BAR_X - 2, 18, TFT_BLACK);
-            tft.fillRect(BAR_X + 1, BAR_Y + 1, BAR_W - 2, BAR_H - 2, TFT_BLACK);
+            tft.fillRect(LA_TANK_X + 1, LA_TANK_Y + 1, LA_TANK_W - 2, LA_TANK_H - 2, TFT_BLACK);
         } else {
-            // 3. Instrucción C/F
-            // OLD (sin Latin-1): tft.drawString(instruction_text, FIRST_THIRD_CX, 40, 1);
+            // 3. Instrucción C/F — clearRect antes para evitar ghost al cambiar C↔F
+            // h=14: cubre y=34..47 y empalma con el fillRect del valor que empieza en y=46
+            tft.fillRect(0, LA_HINT_Y, LA_TANK_X - 2, 14, TFT_BLACK);
             tft.setFreeFont(FONT_SMALL);
             tft.setTextDatum(TC_DATUM);
             tft.setTextColor(TFT_DARKGREY, TFT_BLACK);
-            tft.drawString(instruction_text, FIRST_THIRD_CX, 40);
+            tft.drawString(instruction_text, LA_LEFT_CX, LA_HINT_Y);
             tft.setTextFont(0); // liberar GFXfont
 
             // 4. Valor numérico — entero con FONT_VALUE, decimal con FONT_BODY
@@ -113,8 +107,8 @@ void draw_temp_screen(bool screen_changed, bool data_changed) { // 🟢 IMPLEMEN
                 int intW   = tft.textWidth(intStr);
                 tft.setFreeFont(FONT_BODY);
                 int decW   = tft.textWidth(decStr);
-                int startX = FIRST_THIRD_CX - (intW + decW) / 2;
-                int topY   = VALUE_Y - 24;
+                int startX = LA_LEFT_CX - (intW + decW) / 2;
+                int topY   = LA_VALUE_TOP;
                 tft.setTextDatum(TL_DATUM);
                 tft.setFreeFont(FONT_VALUE);
                 tft.drawString(intStr, startX, topY);
@@ -125,15 +119,15 @@ void draw_temp_screen(bool screen_changed, bool data_changed) { // 🟢 IMPLEMEN
 
             // 5. Unidad (Celsius / Fahrenheit)
             // OLD (sin Latin-1): tft.drawString(unit_text, FIRST_THIRD_CX, UNIT_Y+15, 2);
-            tft.fillRect(0, UNIT_Y + 13, BAR_X - 2, 18, TFT_BLACK);
+            tft.fillRect(0, LA_CATEGORY_Y - 2, LA_TANK_X - 2, 14, TFT_BLACK);
             tft.setFreeFont(FONT_BODY);
             tft.setTextDatum(TC_DATUM);
             tft.setTextColor(TFT_LIGHTGREY, TFT_BLACK);
-            tft.drawString(unit_text, FIRST_THIRD_CX, UNIT_Y+15);
+            tft.drawString(unit_text, LA_LEFT_CX, LA_CATEGORY_Y);
             tft.setTextFont(0); // liberar GFXfont
 
             // 6. Tanque de temperatura
-            drawFillTank(BAR_X, BAR_Y, BAR_W, BAR_H, tempColor, temp_c, 0, 50);
+            drawFillTank(LA_TANK_X, LA_TANK_Y, LA_TANK_W, LA_TANK_H, tempColor, temp_c, 0, 50);
         }
     }
 }

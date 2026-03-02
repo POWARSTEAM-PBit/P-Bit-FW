@@ -20,6 +20,10 @@
 
 // --- VARIABLES GLOBALES DE TFT ---
 Screen active_screen;
+Reading g_ui_readings_snapshot;
+volatile UiOverlayState g_ui_overlay_state = UI_OVERLAY_NONE;
+volatile bool g_ui_force_full_redraw = false;
+volatile Screen g_last_active_screen_before_sleep = TEMP_SCREEN;
 
 // --- DECLARACIONES EXTERNAS ---
 extern volatile bool g_sensor_data_ready;
@@ -27,6 +31,30 @@ extern bool userTimerRunning;
 extern volatile bool g_timer_just_reset;
 extern volatile bool g_peripherals_sleeping;
 extern volatile bool g_sleep_warning_active; // Congela el dibujo durante el aviso pre-sleep
+
+static bool is_restorable_screen(Screen screen) {
+    return screen >= TEMP_SCREEN && screen <= TIMER_SCREEN;
+}
+
+static void draw_sleep_warning_overlay() {
+    tft.fillScreen(TFT_BLACK);
+    tft.setTextDatum(MC_DATUM);
+    tft.setTextColor(TFT_CYAN, TFT_BLACK);
+    tft.drawString("ZZZ", tft.width() / 2, tft.height() / 2 - 14, 4);
+    tft.setTextColor(TFT_DARKCYAN, TFT_BLACK);
+    tft.drawString("sleeping...", tft.width() / 2, tft.height() / 2 + 14, 2);
+}
+
+static void draw_restarting_overlay() {
+    tft.fillScreen(TFT_BLACK);
+    tft.setTextDatum(MC_DATUM);
+    tft.setTextColor(TFT_YELLOW, TFT_BLACK);
+    tft.drawString("Reiniciando...", tft.width() / 2, tft.height() / 2, 2);
+}
+
+static void draw_blackout_overlay() {
+    tft.fillScreen(TFT_BLACK);
+}
 
 
 // --- FUNCIONES DE INICIALIZACIÓN Y LIMPIEZA ---
@@ -46,11 +74,11 @@ void switch_screen(void *param) {
     Screen last_drawn = BOOT_SCREEN; 
     
     unsigned long last_timer_update_ms = 0;
-    
-    static uint16_t last_drawn_timer_state = 0; 
+    unsigned long last_system_update_ms = 0;
     
     // 🟢 FIX: Variable para rastrear el estado de sleep anterior
     bool last_sleep_state = g_peripherals_sleeping;
+    UiOverlayState last_overlay_state = UI_OVERLAY_NONE;
     
     while (1) {
 
@@ -58,19 +86,46 @@ void switch_screen(void *param) {
         // para no perder la señal si g_sleep_warning_active sigue activo un ciclo más tras el wake.
         bool just_woke_up = (last_sleep_state == true) && (g_peripherals_sleeping == false);
 
-        // Si el aviso pre-sleep está activo, ceder CPU sin dibujar nada.
-        // last_sleep_state NO se actualiza aquí para no perder la señal de wake.
-        if (g_sleep_warning_active) {
-            vTaskDelay(pdMS_TO_TICKS(10));
-            continue;
-        }
-
         // Solo actualizar last_sleep_state cuando realmente podemos procesar el evento
         last_sleep_state = g_peripherals_sleeping;
 
         bool sensor_data_changed = g_sensor_data_ready;
         bool timer_needs_update = false;
-        
+        bool system_needs_update = false;
+        UiOverlayState overlay_state = g_ui_overlay_state;
+        bool force_redraw = false;
+
+        if (g_ui_force_full_redraw) {
+            force_redraw = true;
+            g_ui_force_full_redraw = false;
+        }
+
+        if (overlay_state != UI_OVERLAY_NONE) {
+            if (overlay_state != last_overlay_state || just_woke_up) {
+                switch (overlay_state) {
+                    case UI_OVERLAY_SLEEP_WARNING:
+                        draw_sleep_warning_overlay();
+                        break;
+                    case UI_OVERLAY_RESTARTING:
+                        draw_restarting_overlay();
+                        break;
+                    case UI_OVERLAY_BLACKOUT:
+                        draw_blackout_overlay();
+                        break;
+                    default:
+                        break;
+                }
+            }
+            last_overlay_state = overlay_state;
+            vTaskDelay(pdMS_TO_TICKS(10));
+            continue;
+        }
+
+        if (last_overlay_state != UI_OVERLAY_NONE) {
+            force_redraw = true;
+        }
+        last_overlay_state = UI_OVERLAY_NONE;
+
         
         // El cronómetro se actualiza a 100Hz (10ms) para fluidez.
         if (millis() - last_timer_update_ms >= 10) {
@@ -78,11 +133,20 @@ void switch_screen(void *param) {
             last_timer_update_ms = millis();
         }
 
+        if (active_screen == SYSTEM_SCREEN && millis() - last_system_update_ms >= 100) {
+            system_needs_update = true;
+            last_system_update_ms = millis();
+        }
+
         if (last_drawn != active_screen) {
             screen_changed = true;
             if (active_screen != BOOT_SCREEN) sensor_data_changed = true; 
         } else {
             screen_changed = false;
+        }
+        if (force_redraw) {
+            screen_changed = true;
+            sensor_data_changed = true;
         }
 
         if (g_timer_just_reset) timer_needs_update = true;
@@ -92,15 +156,26 @@ void switch_screen(void *param) {
         // ------------------------------------------------------------------
         
         // 🟢 FIX: Forzar redibujo completo si acabamos de despertar
-        if (screen_changed || sensor_data_changed || just_woke_up || (active_screen == TIMER_SCREEN && (timer_needs_update || g_timer_just_reset))) {
+        if (screen_changed
+            || sensor_data_changed
+            || just_woke_up
+            || (active_screen == TIMER_SCREEN && (timer_needs_update || g_timer_just_reset))
+            || (active_screen == SYSTEM_SCREEN && system_needs_update)) {
             
             // Si acabamos de despertar, forzamos 'screen_changed' para redibujar estáticos
             if (just_woke_up) {
                 screen_changed = true; 
+                if (!is_restorable_screen(active_screen)) {
+                    active_screen = TEMP_SCREEN;
+                }
             }
             
             if (screen_changed) {
                 last_drawn = active_screen;
+            }
+
+            if (sensor_data_changed || screen_changed || just_woke_up) {
+                g_ui_readings_snapshot = global_readings;
             }
             
             // --- ENRUTADOR DE UI ---
@@ -153,6 +228,6 @@ void switch_screen(void *param) {
         static bool _hwm_reported = false;
         if (!_hwm_reported) { _hwm_reported = true; DPRINT("[Stack] DisplayTask HWM: %u words\n", uxTaskGetStackHighWaterMark(NULL)); }
 #endif
-        vTaskDelay(pdMS_TO_TICKS(1));
+        vTaskDelay(pdMS_TO_TICKS(5));
     }
 }

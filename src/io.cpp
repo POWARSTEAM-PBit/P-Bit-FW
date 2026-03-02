@@ -38,6 +38,8 @@ DHT dht(PIN_DHT, DHT_TYPE);
 // Forward declarations (funciones internas a este módulo)
 static void read_fast_sensors(Reading &r);
 static void read_slow_sensors(Reading &r);
+static uint8_t dht_temp_fail_count = 0;
+static uint8_t dht_hum_fail_count = 0;
 
 void sensor_reading_task(void *param) {
    Serial.println("[IO] Tarea de Lectura iniciada.");
@@ -99,8 +101,20 @@ static void read_slow_sensors(Reading &r) {
    // DHT Local
    float h = dht.readHumidity();
    float t = dht.readTemperature(); 
-   if (!isnan(h) && h >= 0 && h <= 100) r.humidity = h;
-   if (!isnan(t) && t >= -20 && t <= 80) r.temperature = t;
+   if (!isnan(h) && h >= 0 && h <= 100) {
+      r.humidity = h;
+      dht_hum_fail_count = 0;
+   } else {
+      if (dht_hum_fail_count < 2) dht_hum_fail_count++;
+      if (dht_hum_fail_count >= 2) r.humidity = NAN;
+   }
+   if (!isnan(t) && t >= -20 && t <= 80) {
+      r.temperature = t;
+      dht_temp_fail_count = 0;
+   } else {
+      if (dht_temp_fail_count < 2) dht_temp_fail_count++;
+      if (dht_temp_fail_count >= 2) r.temperature = NAN;
+   }
 
    // DS18B20: siempre actualizar — la pantalla maneja -999 como "No sensor"
    r.temp_ds18b20 = read_ds18b20_temp();

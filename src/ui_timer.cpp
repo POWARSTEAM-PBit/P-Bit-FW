@@ -5,6 +5,9 @@
 #include "ui_widgets.h" // Para tft, drawHeader, drawCard, drawTimerCardContent
 #include "timer.h"      // Para estados del timer y getTimeHMS()
 #include "languages.h"  // Para L()
+#include "fonts.h"      // GFXfont
+#include "layout.h"
+#include <cstring>
 
 // Declaraciones externas de estado del timer
 extern bool userTimerRunning;
@@ -53,31 +56,41 @@ void draw_timer_screen(bool screen_changed, bool data_changed, bool timer_needs_
     
     // 4. DIBUJO SEMI-ESTÁTICO (Marco, Estado E INSTRUCCIONES)
     if (state_changed_visually) {
-        
-        // 🟢 NUEVO: Dibujar las instrucciones (Problema 4)
-        // Limpiar el área de instrucciones (entre el Header (Y=32) y la Tarjeta (Y=55))
-        tft.fillRect(0, 35, tft.width(), 18, TFT_BLACK); 
-        tft.setTextDatum(TC_DATUM);
-        tft.setTextColor(TFT_DARKGREY, TFT_BLACK);
-        tft.drawString(instructionText, cx, 40, 1); // Y=40
-        
-        // Dibuja el marco, el texto de estado y el tiempo (resuelve recuadro cortado)
+
+        // Dibujar el card primero — su fillRect interno limpia y=42..117
         drawTimerCardContent(cx, cy, borderColor, newColor, stateText, getTimeHMS());
 
+        // Dibujar la instrucción DESPUÉS del card para que no sea borrada por su fillRect
+        // Limpiar zona de instrucción (y=33..47, hasta el fillRect del card que empieza en LT_CARD_Y-2=48)
+        tft.fillRect(0, 33, tft.width(), 15, TFT_BLACK);
+        tft.setTextDatum(TC_DATUM);
+        tft.setTextColor(TFT_DARKGREY, TFT_BLACK);
+        tft.setFreeFont(FONT_SMALL);
+        tft.drawString(instructionText, cx, LT_HINT_Y);
+        tft.setTextFont(0);
+
         // Actualizar el último estado dibujado
-        last_drawn_state = current_timer_state; 
+        last_drawn_state = current_timer_state;
     }
-    
-    // 5. DIBUJO DINÁMICO (Tiempo) - Se ejecuta 100 veces por segundo.
-    if (timer_needs_update && !state_changed_visually) { 
+
+    // 5. DIBUJO DINÁMICO (Tiempo) - Se ejecuta frecuentemente.
+    if (timer_needs_update && !state_changed_visually) {
 
         const char * time = getTimeHMS();
-        
-        // 🟢 FIX (Problema 3): Eliminamos el fillRect que causaba el flickeo.
-        // tft.fillRect(cx - 35, 88, 70, 20, TFT_BLACK); // 🔴 ELIMINADO
-        
+
+        // Cache: solo redibujar si el string cambió — evita fillRect+drawString innecesarios
+        // (GFXfont no limpia el fondo, así que el fillRect previo causaba flickering constante)
+        static char last_time_str[16] = "";
+        if (strcmp(time, last_time_str) == 0) return;
+        strncpy(last_time_str, time, sizeof(last_time_str) - 1);
+
+        // Limpiar zona del tiempo (GFXfont no limpia el fondo automáticamente)
+        tft.fillRect(LT_CARD_X + 3, LT_TIME_Y - 12, LT_CARD_W - 6, 24, TFT_BLACK);
+
         tft.setTextDatum(MC_DATUM);
-        tft.setTextColor(newColor, TFT_BLACK); // El fondo negro sobrescribe
-        tft.drawString(time, cx, 95, 4); 
+        tft.setTextColor(newColor, TFT_BLACK);
+        tft.setFreeFont(FONT_TIMER);
+        tft.drawString(time, cx, LT_TIME_Y);
+        tft.setTextFont(0);
     }
 }

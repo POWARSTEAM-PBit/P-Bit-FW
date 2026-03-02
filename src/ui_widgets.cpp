@@ -3,6 +3,7 @@
 
 #include "ui_widgets.h"
 #include "fonts.h"      // GFXfont Inter (Latin-1: á é í ó ú ñ à è ç...)
+#include "layout.h"
 
 // 🟢 FIX CRÍTICO: Definición global del objeto TFT
 // (Esto resuelve el error 'undefined reference to tft')
@@ -30,9 +31,9 @@ void drawHeader(const char* title, uint16_t color) {
     tft.setFreeFont(FONT_HEADER); // Inter SemiBold 18pt — Latin-1 completo
     tft.setTextDatum(TC_DATUM);
     tft.setTextColor(color, TFT_BLACK);
-    tft.drawString(title, cx, 10);
+    tft.drawString(title, cx, L_HEADER_Y);
     tft.setTextFont(0);  // liberar GFXfont
-    tft.drawFastHLine(20, 32, tft.width() - 40, color);
+    tft.drawFastHLine(L_MARGIN_SIDE, L_HEADER_LINE, tft.width() - (L_MARGIN_SIDE * 2), color);
 }
 
 // Dibuja str usando bigFont si cabe en maxW px; si no, usa smallFont.
@@ -75,30 +76,22 @@ void drawFillTank(int x, int y, int w, int h, uint16_t fixedColor, float value, 
  */
 void drawTimerCardContent(int cx, int cy, uint16_t borderColor, uint16_t newColor, const char* stateText, const char* time) {
     
-    // Dimensiones de la Tarjeta
-    const int CARD_X = 15;
-    const int CARD_Y = 55;
-    const int CARD_W = tft.width() - 30;
-    const int CARD_H = 65;
-    
     // 1. Limpieza Localizada para evitar el corte
-    tft.fillRect(10, 50, tft.width() - 20, 75, TFT_BLACK); 
-    
+    tft.fillRect(10, LT_CARD_Y - 2, tft.width() - 20, LT_CARD_H + 4, TFT_BLACK);
+
     // 2. Dibujar el Marco y el fondo interior
-    tft.fillRect(CARD_X + 3, CARD_Y + 3, CARD_W - 6, CARD_H - 6, TFT_BLACK); 
-    drawCard(CARD_X, CARD_Y, CARD_W, CARD_H, borderColor);
+    tft.fillRect(LT_CARD_X + 3, LT_CARD_Y + 3, LT_CARD_W - 6, LT_CARD_H - 6, TFT_BLACK);
+    drawCard(LT_CARD_X, LT_CARD_Y, LT_CARD_W, LT_CARD_H, borderColor);
     
     // 3. Dibujar Estado
     tft.setTextDatum(MC_DATUM);
-    // OLD (sin Latin-1): tft.drawString(stateText, cx, 70, 2);
     tft.setFreeFont(FONT_BODY);
     tft.setTextColor(TFT_DARKGREY, TFT_BLACK);
-    tft.drawString(stateText, cx, 70);
+    tft.drawString(stateText, cx, LT_STATE_Y);
 
     // 4. Dibujar Tiempo
-    // OLD (sin Latin-1): tft.drawString(time, cx, 95, 4);
-    tft.setFreeFont(FONT_BODY);
+    tft.setFreeFont(FONT_TIMER);
     tft.setTextColor(newColor, TFT_BLACK);
-    tft.drawString(time, cx, 95);
+    tft.drawString(time, cx, LT_TIME_Y);
     tft.setTextFont(0); // liberar GFXfont
 }
