@@ -31,6 +31,20 @@
 #include "IBMPlexSans_Regular9pt8b.h"
 #include "IBMPlexSans_SemiBold18pt8b.h"
 
+#include "IBMPlexMono-Regular-12pt8b.h"
+#include "IBMPlexMono-Regular-20pt8b.h"
+#include "IBMPlexMono-Regular-24pt8b.h"
+#include "IBMPlexMono-SemiBold-12pt8b.h"
+#include "IBMPlexMono-SemiBold-20pt8b.h"
+#include "IBMPlexMono-SemiBold-24pt8b.h"
+
+#include "RobotoMono-Regular-12pt8b.h"
+#include "RobotoMono-Regular-20pt8b.h"
+#include "RobotoMono-Regular-24pt8b.h"
+#include "RobotoMono-Medium-12pt8b.h"
+#include "RobotoMono-Medium-20pt8b.h"
+#include "RobotoMono-Medium-24pt8b.h"
+
 #include "Audiowide-Regulard20pt8b.h"
 #include "Audiowide-Regulard24pt8b.h"
 #include "Audiowide-Regulard26pt8b.h"

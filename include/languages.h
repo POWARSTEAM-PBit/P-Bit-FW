@@ -57,6 +57,10 @@ enum LangKey : uint8_t {
     INSTR_C,
     INSTR_SEL,      // Menú de idioma
 
+    // Subtítulos auxiliares Familia A
+    SUB_AIR_REL,
+    SUB_SOIL_MOIST,
+
     // Error sensor
     ST_NO_SENSOR,
 

@@ -15,6 +15,33 @@ extern unsigned long userTimerStart;
 extern unsigned long userTimerElapsed;
 extern volatile bool g_timer_just_reset;
 
+static void draw_timer_value_sprite(const char* time, uint16_t color, bool force_redraw = false) {
+    static TFT_eSprite timerSprite = TFT_eSprite(&tft);
+    static bool sprite_ready = false;
+    static char last_time_str[16] = "";
+
+    if (!sprite_ready) {
+        timerSprite.setColorDepth(16);
+        timerSprite.createSprite(LT_CARD_W - 6, 28);
+        sprite_ready = true;
+    }
+
+    if (!force_redraw && strcmp(time, last_time_str) == 0) {
+        return;
+    }
+
+    strncpy(last_time_str, time, sizeof(last_time_str) - 1);
+    last_time_str[sizeof(last_time_str) - 1] = '\0';
+
+    timerSprite.fillSprite(TFT_BLACK);
+    timerSprite.setTextDatum(MC_DATUM);
+    timerSprite.setTextColor(color, TFT_BLACK);
+    timerSprite.setFreeFont(FONT_TIMER);
+    timerSprite.drawString(time, timerSprite.width() / 2, timerSprite.height() / 2 + 1);
+    timerSprite.setTextFont(0);
+    timerSprite.pushSprite(LT_CARD_X + 3, LT_TIME_Y - 14);
+}
+
 // 🟢 FIX: La implementación debe aceptar los 3 argumentos
 void draw_timer_screen(bool screen_changed, bool data_changed, bool timer_needs_update) {
     
@@ -59,6 +86,7 @@ void draw_timer_screen(bool screen_changed, bool data_changed, bool timer_needs_
 
         // Dibujar el card primero — su fillRect interno limpia y=42..117
         drawTimerCardContent(cx, cy, borderColor, newColor, stateText, getTimeHMS());
+        draw_timer_value_sprite(getTimeHMS(), newColor, true);
 
         // Dibujar la instrucción DESPUÉS del card para que no sea borrada por su fillRect
         // Limpiar zona de instrucción (y=33..47, hasta el fillRect del card que empieza en LT_CARD_Y-2=48)
@@ -77,20 +105,6 @@ void draw_timer_screen(bool screen_changed, bool data_changed, bool timer_needs_
     if (timer_needs_update && !state_changed_visually) {
 
         const char * time = getTimeHMS();
-
-        // Cache: solo redibujar si el string cambió — evita fillRect+drawString innecesarios
-        // (GFXfont no limpia el fondo, así que el fillRect previo causaba flickering constante)
-        static char last_time_str[16] = "";
-        if (strcmp(time, last_time_str) == 0) return;
-        strncpy(last_time_str, time, sizeof(last_time_str) - 1);
-
-        // Limpiar zona del tiempo (GFXfont no limpia el fondo automáticamente)
-        tft.fillRect(LT_CARD_X + 3, LT_TIME_Y - 12, LT_CARD_W - 6, 24, TFT_BLACK);
-
-        tft.setTextDatum(MC_DATUM);
-        tft.setTextColor(newColor, TFT_BLACK);
-        tft.setFreeFont(FONT_TIMER);
-        tft.drawString(time, cx, LT_TIME_Y);
-        tft.setTextFont(0);
+        draw_timer_value_sprite(time, newColor, false);
     }
 }

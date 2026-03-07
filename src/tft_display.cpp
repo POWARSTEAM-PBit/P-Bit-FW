@@ -29,12 +29,6 @@ volatile Screen g_last_active_screen_before_sleep = TEMP_SCREEN;
 extern volatile bool g_sensor_data_ready;
 extern bool userTimerRunning;
 extern volatile bool g_timer_just_reset;
-extern volatile bool g_peripherals_sleeping;
-extern volatile bool g_sleep_warning_active; // Congela el dibujo durante el aviso pre-sleep
-
-static bool is_restorable_screen(Screen screen) {
-    return screen >= TEMP_SCREEN && screen <= TIMER_SCREEN;
-}
 
 static void draw_sleep_warning_overlay() {
     tft.fillScreen(TFT_BLACK);
@@ -75,20 +69,9 @@ void switch_screen(void *param) {
     
     unsigned long last_timer_update_ms = 0;
     unsigned long last_system_update_ms = 0;
-    
-    // 🟢 FIX: Variable para rastrear el estado de sleep anterior
-    bool last_sleep_state = g_peripherals_sleeping;
     UiOverlayState last_overlay_state = UI_OVERLAY_NONE;
     
     while (1) {
-
-        // Detectar si acabamos de despertar — evaluado ANTES del guard de sleep_warning
-        // para no perder la señal si g_sleep_warning_active sigue activo un ciclo más tras el wake.
-        bool just_woke_up = (last_sleep_state == true) && (g_peripherals_sleeping == false);
-
-        // Solo actualizar last_sleep_state cuando realmente podemos procesar el evento
-        last_sleep_state = g_peripherals_sleeping;
-
         bool sensor_data_changed = g_sensor_data_ready;
         bool timer_needs_update = false;
         bool system_needs_update = false;
@@ -101,7 +84,7 @@ void switch_screen(void *param) {
         }
 
         if (overlay_state != UI_OVERLAY_NONE) {
-            if (overlay_state != last_overlay_state || just_woke_up) {
+            if (overlay_state != last_overlay_state) {
                 switch (overlay_state) {
                     case UI_OVERLAY_SLEEP_WARNING:
                         draw_sleep_warning_overlay();
@@ -127,8 +110,9 @@ void switch_screen(void *param) {
         last_overlay_state = UI_OVERLAY_NONE;
 
         
-        // El cronómetro se actualiza a 100Hz (10ms) para fluidez.
-        if (millis() - last_timer_update_ms >= 10) {
+        // El cronómetro se actualiza a 50Hz (20ms) para reducir flicker
+        // sin perder sensación de fluidez.
+        if (millis() - last_timer_update_ms >= 20) {
             timer_needs_update = true;
             last_timer_update_ms = millis();
         }
@@ -155,26 +139,15 @@ void switch_screen(void *param) {
         // LÓGICA DE DIBUJO CENTRAL
         // ------------------------------------------------------------------
         
-        // 🟢 FIX: Forzar redibujo completo si acabamos de despertar
         if (screen_changed
             || sensor_data_changed
-            || just_woke_up
             || (active_screen == TIMER_SCREEN && (timer_needs_update || g_timer_just_reset))
             || (active_screen == SYSTEM_SCREEN && system_needs_update)) {
-            
-            // Si acabamos de despertar, forzamos 'screen_changed' para redibujar estáticos
-            if (just_woke_up) {
-                screen_changed = true; 
-                if (!is_restorable_screen(active_screen)) {
-                    active_screen = TEMP_SCREEN;
-                }
-            }
-            
             if (screen_changed) {
                 last_drawn = active_screen;
             }
 
-            if (sensor_data_changed || screen_changed || just_woke_up) {
+            if (sensor_data_changed || screen_changed) {
                 g_ui_readings_snapshot = global_readings;
             }
             

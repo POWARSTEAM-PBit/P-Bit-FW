@@ -59,6 +59,9 @@ static const char* const STRINGS[LANG_KEY_COUNT][3] = {
 /* INSTR_C      */  { "Pulsa > C",             "Prem > C",             "Push > C"           },
 /* INSTR_SEL    */  { "Pulsa para elegir",    "Prem per triar",       "Push to Select"     },
 
+/* SUB_AIR_REL  */  { "Relativa del aire",     "Relativa de l'aire",   "Relative humidity"  },
+/* SUB_SOIL_MOIST*/ { "Humedad",               "Humitat",              "Moisture"           },
+
 /* ST_NO_SENSOR */  { "Sin sensor",            "Sense sensor",         "No sensor"          },
 
 /* ST_TIMER_RDY */  { "LISTO",                 "LLEST",                "READY"              },

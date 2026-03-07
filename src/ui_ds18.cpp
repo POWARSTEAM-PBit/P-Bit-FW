@@ -89,7 +89,7 @@ void draw_ds18_screen(bool screen_changed, bool data_changed) {
 
             // Instrucción C/F — clearRect antes para evitar ghost al cambiar C↔F
             const char* instruction = g_is_fahrenheit ? L(INSTR_C) : L(INSTR_F);
-            tft.fillRect(0, LA_HINT_Y, LA_TANK_X - 2, 10, BACKGROUND_COLOR);
+            tft.fillRect(0, LA_HINT_Y - 2, LA_TANK_X - 2, 14, BACKGROUND_COLOR);
             tft.setFreeFont(FONT_SMALL);
             tft.setTextDatum(TC_DATUM);
             tft.setTextColor(TFT_DARKGREY, BACKGROUND_COLOR);
@@ -101,7 +101,7 @@ void draw_ds18_screen(bool screen_changed, bool data_changed) {
             // OLD: tft.drawString(intStr, startX, topY, 7); tft.drawString(decStr, ..., 4);
             char tempStr[8];
             snprintf(tempStr, sizeof(tempStr), "%.1f", temp_display);
-            tft.fillRect(0, LA_VALUE_TOP - 4, LA_TANK_X - 2, 52, BACKGROUND_COLOR);
+            tft.fillRect(0, LA_VALUE_TOP - 1, LA_TANK_X - 2, 42, BACKGROUND_COLOR);
             tft.setTextColor(tempColor, BACKGROUND_COLOR);
             {
                 int dot = 0;
@@ -127,7 +127,7 @@ void draw_ds18_screen(bool screen_changed, bool data_changed) {
             // Unidad (no traducida — constante universal)
             // OLD (sin Latin-1): tft.drawString(unit, FIRST_THIRD_CX, UNIT_Y + 15, 2);
             const char* unit = g_is_fahrenheit ? "Fahrenheit" : "Celsius";
-            tft.fillRect(0, LA_CATEGORY_Y - 2, LA_TANK_X - 2, 14, BACKGROUND_COLOR);
+            tft.fillRect(0, LA_CATEGORY_Y - 6, LA_TANK_X - 2, 20, BACKGROUND_COLOR);
             tft.setFreeFont(FONT_BODY);
             tft.setTextDatum(TC_DATUM);
             tft.setTextColor(TFT_LIGHTGREY, BACKGROUND_COLOR);

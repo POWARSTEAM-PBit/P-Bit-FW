@@ -49,6 +49,13 @@ void draw_soil_screen(bool screen_changed, bool data_changed) {
         tft.fillScreen(BACKGROUND_COLOR);
         drawHeader(L(TIT_SOIL), TITLE_COLOR);
         tft.drawRoundRect(LA_TANK_X, LA_TANK_Y, LA_TANK_W, LA_TANK_H, 3, TFT_DARKGREY);
+
+        tft.fillRect(0, LA_HINT_Y, LA_TANK_X - 2, 14, BACKGROUND_COLOR);
+        tft.setFreeFont(FONT_SMALL);
+        tft.setTextDatum(TC_DATUM);
+        tft.setTextColor(TFT_DARKGREY, BACKGROUND_COLOR);
+        tft.drawString(L(SUB_SOIL_MOIST), LA_LEFT_CX, LA_HINT_Y);
+        tft.setTextFont(0);
     }
 
     static int last_soil_drawn = -1;
@@ -78,7 +85,7 @@ void draw_soil_screen(bool screen_changed, bool data_changed) {
             tft.setFreeFont(FONT_BODY);
             int unitW = tft.textWidth(unitStr);
             int startX = LA_LEFT_CX - (intW + unitW) / 2;
-            tft.fillRect(0, LA_VALUE_TOP - 4, LA_TANK_X - 1, 52, BACKGROUND_COLOR);
+            tft.fillRect(0, LA_VALUE_TOP - 1, LA_TANK_X - 1, 42, BACKGROUND_COLOR);
             tft.setTextDatum(TL_DATUM);
             tft.setFreeFont(FONT_VALUE);
             tft.setTextColor(TFT_WHITE, BACKGROUND_COLOR);
@@ -91,7 +98,7 @@ void draw_soil_screen(bool screen_changed, bool data_changed) {
 
         // Categoría — centrada en panel izquierdo, debajo del número
         if (category_changed) {
-            tft.fillRect(0, LA_CATEGORY_Y - 8, LA_TANK_X - 1, tft.height() - (LA_CATEGORY_Y - 8), BACKGROUND_COLOR);
+            tft.fillRect(0, LA_CATEGORY_Y - 6, LA_TANK_X - 1, 20, BACKGROUND_COLOR);
             tft.setFreeFont(FONT_BODY);
             tft.setTextDatum(TC_DATUM);
             tft.setTextColor(categoryColor, BACKGROUND_COLOR);

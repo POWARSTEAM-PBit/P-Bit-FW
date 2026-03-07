@@ -13,11 +13,9 @@
 
 // DECLARACIONES EXTERNAS REQUERIDAS
 extern volatile unsigned long g_last_activity_ms;
-extern volatile bool g_peripherals_sleeping;
 extern bool g_is_fahrenheit;
 extern volatile bool g_sensor_data_ready;
 extern bool g_sound_enabled;
-extern volatile bool g_sleep_warning_active; // Para resetear al despertar
 
 static bool isRestorableScreen(Screen screen) {
     return screen >= TEMP_SCREEN && screen <= TIMER_SCREEN;
@@ -31,37 +29,24 @@ static unsigned long now_ms() {
 RotaryEncoder rotaryEncoder(DI_ENCODER_A, DI_ENCODER_B, DI_ENCODER_SW, DO_ENCODER_VCC);
 
 /**
- * @brief (Función de Despertar) Enciende los periféricos si estaban dormidos.
+ * @brief Sale del modo IDLE y restaura el contexto visible de la app.
  */
-void wakeUpPeripherals() {
-    if (g_peripherals_sleeping) {
-        Serial.println("[Power] Waking up peripherals (TFT/LED On).");
+static void exitIdleModeIfNeeded() {
+    if (g_power_mode == POWER_IDLE) {
+        Serial.println("[Power] Leaving IDLE mode.");
 
-        // 1. Marcamos que ya no estamos durmiendo y cancelamos el aviso pre-sleep
-        g_peripherals_sleeping = false;
-        g_sleep_warning_active = false; // Permite que la tarea de UI reanude el dibujo
+        g_power_mode = POWER_ACTIVE;
         g_ui_overlay_state = UI_OVERLAY_NONE;
-        
-        // 2. Restaurar la última pantalla útil o usar TEMP como fallback
+
         if (isRestorableScreen((Screen)g_last_active_screen_before_sleep)) {
             active_screen = (Screen)g_last_active_screen_before_sleep;
         } else {
             active_screen = TEMP_SCREEN;
         }
-        
-        // 🟢 FIX CRÍTICO (Soluciona Título Faltante):
-        // Forzamos un redibujo completo (incluyendo estáticos)
-        // al decirle a tft_display que los datos "han cambiado"
-        // (Aunque esto normalmente solo redibuja datos, 
-        // tft_display.cpp lo usará junto con g_peripherals_sleeping=false 
-        // para forzar el redibujo).
-        g_sensor_data_ready = true; 
+
+        g_sensor_data_ready = true;
         g_ui_force_full_redraw = true;
-        
-        // 3. Reiniciamos el timer de actividad
         g_last_activity_ms = now_ms();
-        
-        vTaskDelay(pdMS_TO_TICKS(50)); 
     }
 }
 
@@ -71,7 +56,7 @@ void wakeUpPeripherals() {
  */
 void knobCallback(uint8_t value) {
     g_last_activity_ms = now_ms(); 
-    wakeUpPeripherals();           
+    exitIdleModeIfNeeded();
     
     if (value < TEMP_SCREEN || value > TIMER_SCREEN) return;
     active_screen = static_cast<Screen>(value);
@@ -125,7 +110,7 @@ void knobCallback(uint8_t value) {
  */
 void buttonCallback(unsigned long duration) {
     g_last_activity_ms = now_ms(); 
-    wakeUpPeripherals();           
+    exitIdleModeIfNeeded();
     
     // ------------------------------------------------
     // Lógica de Mute / Cambio de idioma en SYSTEM_SCREEN
@@ -137,7 +122,6 @@ void buttonCallback(unsigned long duration) {
             prefs.begin("pbit", false);
             prefs.remove("lang");
             prefs.end();
-            g_sleep_warning_active = true; // Congelar tarea de UI para que no sobreimprima
             g_ui_overlay_state = UI_OVERLAY_RESTARTING;
             vTaskDelay(pdMS_TO_TICKS(1500));
             esp_restart();
