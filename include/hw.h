@@ -40,9 +40,10 @@ void init_hw();
 int read_sound_level();
 
 /**
- * @brief Lee la humedad del suelo y devuelve porcentaje (0-100) calibrado
+ * @brief Lee la humedad del suelo y devuelve porcentaje (0-100) calibrado.
+ * Devuelve NAN si el pin parece flotante y el sensor probablemente no está conectado.
  */
-int read_soil_moisture();
+float read_soil_moisture();
 
 /**
  * @brief Lee temperatura en °C del sensor DS18B20

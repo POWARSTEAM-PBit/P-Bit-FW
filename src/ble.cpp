@@ -5,7 +5,7 @@
 #include "hw.h"
 
 
-constexpr int DATA_PACKET_LEN = 14;
+constexpr int DATA_PACKET_LEN = 20;
 
 constexpr char NEW_SERVICE_UUID[] = "4fafc201-1fb5-459e-8fcc-c5c9c331914b";
 constexpr char NEW_CHAR_UUID[]    = "beb5483e-36e1-4688-b7f5-ea07361b26a8";
@@ -39,15 +39,19 @@ std::string assm_pkt(const Reading& rec_pkt) {
         buf[base + 2] = (val >> 8) & 0xFF;
     };
 
-    uint16_t t10  = isnan(rec_pkt.temperature) ? 0 : (uint16_t)lroundf(rec_pkt.temperature * 10.0f);
-    uint16_t h10  = isnan(rec_pkt.humidity)    ? 0 : (uint16_t)lroundf(rec_pkt.humidity * 10.0f);
-    uint16_t lraw = isnan(rec_pkt.ldr)         ? 0 : (uint16_t)lroundf(rec_pkt.ldr);
-    uint16_t mraw = isnan(rec_pkt.mic)         ? 0 : (uint16_t)lroundf(rec_pkt.mic);
+    uint16_t t10   = isnan(rec_pkt.temperature)   ? 0 : (uint16_t)lroundf(rec_pkt.temperature * 10.0f);
+    uint16_t h10   = isnan(rec_pkt.humidity)      ? 0 : (uint16_t)lroundf(rec_pkt.humidity * 10.0f);
+    uint16_t lraw  = isnan(rec_pkt.ldr)           ? 0 : (uint16_t)lroundf(rec_pkt.ldr);
+    uint16_t mraw  = isnan(rec_pkt.mic)           ? 0 : (uint16_t)lroundf(rec_pkt.mic);
+    uint16_t soil  = isnan(rec_pkt.soil_humidity) ? 0 : (uint16_t)lroundf(rec_pkt.soil_humidity);
+    uint16_t ds18  = (rec_pkt.temp_ds18b20 < -100.0f) ? 0 : (uint16_t)lroundf(rec_pkt.temp_ds18b20 * 10.0f);
 
     put(0, 1, t10);
     put(1, 2, h10);
     put(2, 3, lraw);
     put(3, 4, mraw);
+    put(4, 5, soil);
+    put(5, 6, ds18);
 
     return std::string((char*)buf, sizeof(buf));
 }
@@ -58,6 +62,8 @@ String makeJson(const Reading& rec_pkt) {
     if (!isnan(rec_pkt.humidity))    s += "\"hum\":"  + String(rec_pkt.humidity, 1)  + ",";
     if (!isnan(rec_pkt.ldr))         s += "\"ldr\":"  + String((int)rec_pkt.ldr) + ",";
     if (!isnan(rec_pkt.mic))         s += "\"mic\":"  + String((int)rec_pkt.mic) + ",";
+    if (!isnan(rec_pkt.soil_humidity)) s += "\"soil\":" + String((int)rec_pkt.soil_humidity) + ",";
+    if (rec_pkt.temp_ds18b20 >= -100.0f) s += "\"ds18\":" + String(rec_pkt.temp_ds18b20, 1) + ",";
     if (s[s.length() - 1] == ',') s.remove(s.length() - 1);
     s += "}";
     return s;

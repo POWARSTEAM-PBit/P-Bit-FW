@@ -131,12 +131,15 @@ static void logBootDiagnostics(esp_sleep_wakeup_cause_t wakeup_reason, esp_reset
     Serial.printf("[Boot] RTC boot counter: %lu\n", (unsigned long)g_rtc_boot_counter);
 }
 
+static void failFastOnTaskCreateError(const char* task_name) {
+    Serial.printf("[RTOS] ERROR: No se pudo crear la tarea %s\n", task_name);
+    delay(200);
+    esp_restart();
+}
+
 void setup() {
     Serial.begin(SERIAL_BAUD_RATE);
     g_rtc_boot_counter++;
-    
-    // Inicializar temporizador de actividad
-    g_last_activity_ms = now_ms();
     
     // Inicialización de módulos
     set_devicename();
@@ -160,6 +163,7 @@ void setup() {
             Serial.println("[Power] Waking up from Deep Sleep (Button).");
             loadLanguage();           // Cargar idioma desde NVS sin mostrar menú
             restorePersistedScreen();
+            g_is_fahrenheit = false;
             g_power_mode = POWER_ACTIVE;
             persistPowerState(POWER_ACTIVE, SLEEP_INTENT_NONE);
             break;
@@ -169,20 +173,27 @@ void setup() {
             run_boot_sequence();
             active_screen = TEMP_SCREEN;
             g_last_active_screen_before_sleep = active_screen;
+            g_is_fahrenheit = false;
             g_power_mode = POWER_ACTIVE;
             persistPowerState(POWER_ACTIVE, SLEEP_INTENT_NONE);
             showLanguageMenu();       // Siempre en cold boot — usa rotaryEncoder internamente
+            g_is_fahrenheit = false;
             break;
     }
     // ---------------------------------------------------------
 
     // init_rotary() reconfigura el encoder con límites y callbacks para la app principal
     init_rotary();
+    g_is_fahrenheit = false;
+
+    // El contador de inactividad empieza cuando la app ya está lista.
+    // Así evitamos que boot + menú de idioma dejen un sleep "pendiente".
+    g_last_activity_ms = now_ms();
 
     // --- FreeRTOS Tasks ---
 
     // Tarea de Pantalla (UI): Núcleo 1
-    xTaskCreatePinnedToCore(
+    BaseType_t ui_task_ok = xTaskCreatePinnedToCore(
         switch_screen,   
         "SwitchScreen",  
         4096,            
@@ -191,9 +202,10 @@ void setup() {
         NULL,            
         1                
     );
+    if (ui_task_ok != pdPASS) failFastOnTaskCreateError("SwitchScreen");
     
     // Tarea de Sensores (Núcleo 0)
-    xTaskCreatePinnedToCore(
+    BaseType_t sensor_task_ok = xTaskCreatePinnedToCore(
         sensor_reading_task, 
         "SensorTask",        
         4096,                
@@ -202,6 +214,7 @@ void setup() {
         NULL,                
         0                    // Asignar al Núcleo 0
     );
+    if (sensor_task_ok != pdPASS) failFastOnTaskCreateError("SensorTask");
 }
 
 void loop() {

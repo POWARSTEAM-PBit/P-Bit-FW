@@ -49,13 +49,19 @@ void set_devicename() {
 int read_sound_level() {
     // GM19767P: señal AC centrada en ~1.65V (LM358 inversor, ganancia 0-20×, bias RV2).
     // Mide amplitud PICO A PICO en 50ms para capturar más ciclos de audio completos.
-    const unsigned long WINDOW_MS = 50;
-    unsigned long t = millis();
+    const uint32_t WINDOW_US = 50000;
+    const uint16_t YIELD_EVERY_SAMPLES = 32;
+    uint32_t t0 = micros();
     int hi = 0, lo = 4095;
-    while (millis() - t < WINDOW_MS) {
+    uint16_t sample_count = 0;
+    while ((uint32_t)(micros() - t0) < WINDOW_US) {
         int s = analogRead(PIN_SENSOR_SONIDO);
         if (s > hi) hi = s;
         if (s < lo) lo = s;
+        if (++sample_count >= YIELD_EVERY_SAMPLES) {
+            sample_count = 0;
+            taskYIELD();
+        }
     }
 
     // PEAK_MAX: valor pico a pico que equivale al 100%.
@@ -72,7 +78,7 @@ int read_sound_level() {
     return (int)ema;
 }
 
-int read_soil_moisture() {
+float read_soil_moisture() {
     // Sensor: Capacitive Soil Moisture Sensor V2.
     // Lógica inversa: más húmedo → voltaje más bajo → ADC más bajo.
     //
@@ -85,17 +91,41 @@ int read_soil_moisture() {
     //   Mojado raw ≈ 1904 (~1534mV — delta de 1504 cuentas, buena dinámica)
     const int SOIL_DRY = 3408; // Valor medido en seco
     const int SOIL_WET = 1904; // Valor medido sumergido en agua
+    const uint8_t SAMPLE_COUNT = 12;
+    const int DISCONNECT_LOW_THRESHOLD = 80;
+    const int DISCONNECT_AVG_THRESHOLD = 1400;
 
-    int raw = analogRead(PIN_SENSOR_HUMEDAD);
+    int raw_min = 4095;
+    int raw_max = 0;
+    uint32_t raw_sum = 0;
+    for (uint8_t i = 0; i < SAMPLE_COUNT; ++i) {
+        int raw = analogRead(PIN_SENSOR_HUMEDAD);
+        raw_sum += (uint32_t)raw;
+        if (raw < raw_min) raw_min = raw;
+        if (raw > raw_max) raw_max = raw;
+        delayMicroseconds(200);
+    }
 
-    int percent = map(raw, SOIL_DRY, SOIL_WET, 0, 100);
+    int raw_avg = (int)(raw_sum / SAMPLE_COUNT);
+    // GPIO35 no tiene pull-up/down interno. Con el sensor desconectado en esta
+    // placa, el ADC ha mostrado valores flotantes muy por debajo del rango real
+    // del sensor. Usamos un umbral conservador basado en mediciones reales.
+    bool likely_disconnected =
+        raw_avg <= DISCONNECT_LOW_THRESHOLD ||
+        raw_avg < DISCONNECT_AVG_THRESHOLD;
+
+    if (likely_disconnected) {
+        return NAN;
+    }
+
+    int percent = map(raw_avg, SOIL_DRY, SOIL_WET, 0, 100);
 
     // EMA moderada (0.80/0.20): con 1504 cuentas de rango el ruido es <1% por cuenta.
     static float ema = -1.0f;
     int clamped = constrain(percent, 0, 100);
     if (ema < 0.0f) ema = (float)clamped;
     ema = 0.80f * ema + 0.20f * (float)clamped;
-    return (int)ema;
+    return ema;
 }
 
 float read_ds18b20_temp() {

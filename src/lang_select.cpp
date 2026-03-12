@@ -229,6 +229,9 @@ void showLanguageMenu() {
         bool sw = (bool)digitalRead((uint8_t)DI_ENCODER_SW);
         if (lastSW == true && sw == false) {
             delay(50); // anti-rebote
+            while ((bool)digitalRead((uint8_t)DI_ENCODER_SW) == false) {
+                delay(5);
+            }
             break;
         }
         lastSW = sw;

@@ -46,6 +46,7 @@ void draw_temp_screen(bool screen_changed, bool data_changed) { // 🟢 IMPLEMEN
     }
 
     uint16_t tempColor = no_dht ? TFT_DARKGREY : getTempColor(temp_c);
+    const int LEFT_PANEL_W = LA_TANK_X - 1;
 
     // Coordenadas definidas en layout.h (Familia A)
     
@@ -71,9 +72,9 @@ void draw_temp_screen(bool screen_changed, bool data_changed) { // 🟢 IMPLEMEN
         if (no_dht) {
             // Limpiar las tres bandas del panel izquierdo por separado para evitar
             // que un borrado de valor pise hint o unidad.
-            tft.fillRect(0, LA_HINT_Y - 2, LA_TANK_X - 2, 14, TFT_BLACK);
-            tft.fillRect(0, LA_VALUE_TOP - 1, LA_TANK_X - 2, 42, TFT_BLACK);
-            tft.fillRect(0, LA_CATEGORY_Y - 6, LA_TANK_X - 2, 20, TFT_BLACK);
+            tft.fillRect(0, LA_HINT_Y - 4, LEFT_PANEL_W, 18, TFT_BLACK);
+            tft.fillRect(0, LA_VALUE_TOP - 1, LEFT_PANEL_W, 46, TFT_BLACK);
+            tft.fillRect(0, LA_CATEGORY_Y - 10, LEFT_PANEL_W, 28, TFT_BLACK);
             tft.setTextDatum(MC_DATUM);
 
             // Sin sensor: "---" en gris + tanque vacío
@@ -84,7 +85,7 @@ void draw_temp_screen(bool screen_changed, bool data_changed) { // 🟢 IMPLEMEN
             tft.fillRect(LA_TANK_X + 1, LA_TANK_Y + 1, LA_TANK_W - 2, LA_TANK_H - 2, TFT_BLACK);
         } else {
             // Banda del hint
-            tft.fillRect(0, LA_HINT_Y, LA_TANK_X - 2, 14, TFT_BLACK);
+            tft.fillRect(0, LA_HINT_Y - 4, LEFT_PANEL_W, 18, TFT_BLACK);
             tft.setFreeFont(FONT_SMALL);
             tft.setTextDatum(TC_DATUM);
             tft.setTextColor(TFT_DARKGREY, TFT_BLACK);
@@ -93,7 +94,7 @@ void draw_temp_screen(bool screen_changed, bool data_changed) { // 🟢 IMPLEMEN
 
             // Banda del valor
             snprintf(tempStr, sizeof(tempStr), "%.1f", temp_display);
-            tft.fillRect(0, LA_VALUE_TOP - 1, LA_TANK_X - 2, 42, TFT_BLACK);
+            tft.fillRect(0, LA_VALUE_TOP - 1, LEFT_PANEL_W, 46, TFT_BLACK);
             tft.setTextColor(tempColor, TFT_BLACK);
             {
                 int dot = 0;
@@ -117,7 +118,7 @@ void draw_temp_screen(bool screen_changed, bool data_changed) { // 🟢 IMPLEMEN
             }
 
             // Banda inferior de unidad
-            tft.fillRect(0, LA_CATEGORY_Y - 6, LA_TANK_X - 2, 20, TFT_BLACK);
+            tft.fillRect(0, LA_CATEGORY_Y - 10, LEFT_PANEL_W, 28, TFT_BLACK);
             tft.setFreeFont(FONT_BODY);
             tft.setTextDatum(TC_DATUM);
             tft.setTextColor(TFT_LIGHTGREY, TFT_BLACK);

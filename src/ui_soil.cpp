@@ -11,6 +11,7 @@
 #include <TFT_eSPI.h>
 #include <Arduino.h>
 #include <stdio.h>
+#include <math.h>
 
 extern TFT_eSPI tft;
 extern Reading g_ui_readings_snapshot;
@@ -23,15 +24,19 @@ void draw_soil_screen(bool screen_changed, bool data_changed) {
     // OLD (sin Latin-1): const int FONT_VALUE = 7; const int FONT_CATEGORY = 2;
     const uint16_t TITLE_COLOR      = TFT_GREEN;
     const uint16_t BACKGROUND_COLOR = TFT_BLACK;
+    const int LEFT_PANEL_W = LA_TANK_X - 1;
 
     // Coordenadas definidas en layout.h (Familia A)
 
     float soil = (float)g_ui_readings_snapshot.soil_humidity;
+    bool no_sensor = isnan(soil);
 
     const char*   categoryText;
     uint16_t      tankColor;
     uint16_t      categoryColor;
-    if (soil < 20.0f) {
+    if (no_sensor) {
+        categoryText = L(ST_NO_SENSOR); tankColor = TFT_DARKGREY; categoryColor = TFT_RED;
+    } else if (soil < 20.0f) {
         categoryText = L(ST_DRY);       tankColor = TFT_ORANGE; categoryColor = TFT_ORANGE;
     } else if (soil < 55.0f) {
         categoryText = L(ST_OPTIMAL);   tankColor = TFT_GREEN;  categoryColor = TFT_GREEN;
@@ -49,19 +54,13 @@ void draw_soil_screen(bool screen_changed, bool data_changed) {
         tft.fillScreen(BACKGROUND_COLOR);
         drawHeader(L(TIT_SOIL), TITLE_COLOR);
         tft.drawRoundRect(LA_TANK_X, LA_TANK_Y, LA_TANK_W, LA_TANK_H, 3, TFT_DARKGREY);
-
-        tft.fillRect(0, LA_HINT_Y, LA_TANK_X - 2, 14, BACKGROUND_COLOR);
-        tft.setFreeFont(FONT_SMALL);
-        tft.setTextDatum(TC_DATUM);
-        tft.setTextColor(TFT_DARKGREY, BACKGROUND_COLOR);
-        tft.drawString(L(SUB_SOIL_MOIST), LA_LEFT_CX, LA_HINT_Y);
-        tft.setTextFont(0);
     }
 
     static int last_soil_drawn = -1;
     static int last_category_id = -1;
-    int soil_rounded = (int)roundf(soil);
+    int soil_rounded = no_sensor ? -9999 : (int)roundf(soil);
     int category_id =
+        no_sensor ? -1 :
         (soil < 20.0f) ? 0 :
         (soil < 55.0f) ? 1 :
         (soil < 80.0f) ? 2 : 3;
@@ -73,37 +72,61 @@ void draw_soil_screen(bool screen_changed, bool data_changed) {
 
     // --- Dinámicos ---
     if (data_changed || screen_changed) {
+        if (screen_changed || value_changed) {
+            tft.fillRect(0, LA_HINT_Y - 4, LEFT_PANEL_W, 18, BACKGROUND_COLOR);
+            if (!no_sensor) {
+                tft.setFreeFont(FONT_SMALL);
+                tft.setTextDatum(TC_DATUM);
+                tft.setTextColor(TFT_DARKGREY, BACKGROUND_COLOR);
+                tft.drawString(L(SUB_SOIL_MOIST), LA_LEFT_CX, LA_HINT_Y);
+                tft.setTextFont(0);
+            }
+        }
+
         if (value_changed || category_changed) {
-            drawFillTank(LA_TANK_X, LA_TANK_Y, LA_TANK_W, LA_TANK_H, tankColor, soil, 0.0f, 100.0f, 3);
+            drawFillTank(LA_TANK_X, LA_TANK_Y, LA_TANK_W, LA_TANK_H, tankColor, no_sensor ? 0.0f : soil, 0.0f, 100.0f, 3);
             tft.drawRoundRect(LA_TANK_X, LA_TANK_Y, LA_TANK_W, LA_TANK_H, 3, TFT_DARKGREY);
         }
 
         const char* unitStr = "%";
         if (value_changed) {
-            tft.setFreeFont(FONT_VALUE);
-            int intW  = tft.textWidth(soilStr);
-            tft.setFreeFont(FONT_BODY);
-            int unitW = tft.textWidth(unitStr);
-            int startX = LA_LEFT_CX - (intW + unitW) / 2;
-            tft.fillRect(0, LA_VALUE_TOP - 1, LA_TANK_X - 1, 42, BACKGROUND_COLOR);
-            tft.setTextDatum(TL_DATUM);
-            tft.setFreeFont(FONT_VALUE);
-            tft.setTextColor(TFT_WHITE, BACKGROUND_COLOR);
-            tft.drawString(soilStr, startX, LA_VALUE_TOP);
-            tft.setFreeFont(FONT_BODY);
-            tft.setTextColor(TITLE_COLOR, BACKGROUND_COLOR);
-            tft.drawString(unitStr, startX + intW, LA_VALUE_TOP);
-            tft.setTextFont(0); // liberar GFXfont
+            tft.fillRect(0, LA_VALUE_TOP - 1, LEFT_PANEL_W, 50, BACKGROUND_COLOR);
+            if (no_sensor) {
+                tft.setTextDatum(MC_DATUM);
+                tft.setFreeFont(FONT_BODY);
+                tft.setTextColor(TFT_RED, BACKGROUND_COLOR);
+                tft.drawString(L(ST_NO_SENSOR), LA_LEFT_CX, LA_VALUE_TOP + 8);
+                tft.setFreeFont(FONT_SMALL);
+                tft.setTextColor(TFT_DARKGREY, BACKGROUND_COLOR);
+                tft.drawString("Check J6 (GPIO35)", LA_LEFT_CX, LA_VALUE_TOP + 24);
+                tft.setTextFont(0);
+            } else {
+                tft.setFreeFont(FONT_VALUE);
+                int intW  = tft.textWidth(soilStr);
+                tft.setFreeFont(FONT_BODY);
+                int unitW = tft.textWidth(unitStr);
+                int startX = LA_LEFT_CX - (intW + unitW) / 2;
+                tft.setTextDatum(TL_DATUM);
+                tft.setFreeFont(FONT_VALUE);
+                tft.setTextColor(TFT_WHITE, BACKGROUND_COLOR);
+                tft.drawString(soilStr, startX, LA_VALUE_TOP);
+                tft.setFreeFont(FONT_BODY);
+                tft.setTextColor(TITLE_COLOR, BACKGROUND_COLOR);
+                tft.drawString(unitStr, startX + intW, LA_VALUE_TOP);
+                tft.setTextFont(0); // liberar GFXfont
+            }
         }
 
         // Categoría — centrada en panel izquierdo, debajo del número
-        if (category_changed) {
-            tft.fillRect(0, LA_CATEGORY_Y - 6, LA_TANK_X - 1, 20, BACKGROUND_COLOR);
-            tft.setFreeFont(FONT_BODY);
-            tft.setTextDatum(TC_DATUM);
-            tft.setTextColor(categoryColor, BACKGROUND_COLOR);
-            tft.drawString(categoryText, LA_LEFT_CX, LA_CATEGORY_Y);
-            tft.setTextFont(0); // liberar GFXfont
+        if (value_changed || category_changed) {
+            tft.fillRect(0, LA_CATEGORY_Y - 10, LEFT_PANEL_W, 28, BACKGROUND_COLOR);
+            if (!no_sensor) {
+                tft.setFreeFont(FONT_BODY);
+                tft.setTextDatum(TC_DATUM);
+                tft.setTextColor(categoryColor, BACKGROUND_COLOR);
+                tft.drawString(categoryText, LA_LEFT_CX, LA_CATEGORY_Y);
+                tft.setTextFont(0); // liberar GFXfont
+            }
         }
     }
 }

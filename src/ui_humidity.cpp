@@ -20,6 +20,7 @@ void draw_humidity_screen(bool screen_changed, bool data_changed) {
     // OLD (sin Latin-1): const int FONT_VALUE = 7; const int FONT_STATUS = 2;
     const uint16_t HUMIDITY_COLOR   = TFT_CYAN;
     const uint16_t BACKGROUND_COLOR = TFT_BLACK;
+    const int LEFT_PANEL_W = LA_TANK_X - 1;
 
     // Coordenadas definidas en layout.h (Familia A)
 
@@ -32,7 +33,7 @@ void draw_humidity_screen(bool screen_changed, bool data_changed) {
         drawHeader(L(TIT_HUM), HUMIDITY_COLOR);
         tft.drawRoundRect(LA_TANK_X, LA_TANK_Y, LA_TANK_W, LA_TANK_H, 3, TFT_DARKGREY);
 
-        tft.fillRect(0, LA_HINT_Y, LA_TANK_X - 2, 14, BACKGROUND_COLOR);
+        tft.fillRect(0, LA_HINT_Y - 4, LEFT_PANEL_W, 18, BACKGROUND_COLOR);
         tft.setFreeFont(FONT_SMALL);
         tft.setTextDatum(TC_DATUM);
         tft.setTextColor(TFT_DARKGREY, BACKGROUND_COLOR);
@@ -52,13 +53,13 @@ void draw_humidity_screen(bool screen_changed, bool data_changed) {
         if (no_dht_h) {
             drawFillTank(LA_TANK_X, LA_TANK_Y, LA_TANK_W, LA_TANK_H, HUMIDITY_COLOR, 0.0f, 0.0f, 100.0f, 3);
             tft.drawRoundRect(LA_TANK_X, LA_TANK_Y, LA_TANK_W, LA_TANK_H, 3, TFT_DARKGREY);
-            tft.fillRect(0, LA_VALUE_TOP - 1, LA_TANK_X - 1, 42, BACKGROUND_COLOR);
+            tft.fillRect(0, LA_VALUE_TOP - 1, LEFT_PANEL_W, 46, BACKGROUND_COLOR);
             tft.setTextDatum(TC_DATUM);
             tft.setFreeFont(FONT_VALUE);
             tft.setTextColor(TFT_DARKGREY, BACKGROUND_COLOR);
             tft.drawString("---", LA_LEFT_CX, LA_VALUE_TOP);
             tft.setTextFont(0); // liberar GFXfont
-            tft.fillRect(0, LA_CATEGORY_Y - 6, LA_TANK_X - 1, 20, BACKGROUND_COLOR);
+            tft.fillRect(0, LA_CATEGORY_Y - 10, LEFT_PANEL_W, 28, BACKGROUND_COLOR);
 
         } else {
             drawFillTank(LA_TANK_X, LA_TANK_Y, LA_TANK_W, LA_TANK_H, HUMIDITY_COLOR, hum, 0.0f, 100.0f, 3);
@@ -74,7 +75,7 @@ void draw_humidity_screen(bool screen_changed, bool data_changed) {
             tft.setFreeFont(FONT_BODY);
             int unitW = tft.textWidth(unitStr);
             int startX = LA_LEFT_CX - (intW + unitW) / 2;
-            tft.fillRect(0, LA_VALUE_TOP - 1, LA_TANK_X - 1, 42, BACKGROUND_COLOR);
+            tft.fillRect(0, LA_VALUE_TOP - 1, LEFT_PANEL_W, 46, BACKGROUND_COLOR);
             tft.setTextDatum(TL_DATUM);
             tft.setFreeFont(FONT_VALUE);
             tft.setTextColor(TFT_WHITE, BACKGROUND_COLOR);
@@ -85,7 +86,7 @@ void draw_humidity_screen(bool screen_changed, bool data_changed) {
             tft.setTextFont(0); // liberar GFXfont
 
             // Estado — centrado en panel izquierdo, debajo del número
-            tft.fillRect(0, LA_CATEGORY_Y - 6, LA_TANK_X - 1, 20, BACKGROUND_COLOR);
+            tft.fillRect(0, LA_CATEGORY_Y - 10, LEFT_PANEL_W, 28, BACKGROUND_COLOR);
             const char* statusText;
             uint16_t statusColor;
             if      (hum > 70.0) { statusText = L(ST_MOLD_RISK); statusColor = TFT_RED; }

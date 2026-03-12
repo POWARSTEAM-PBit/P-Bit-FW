@@ -50,6 +50,7 @@ void sensor_reading_task(void *param) {
    global_readings.temp_ds18b20 = -999.0f;
    global_readings.temperature  = NAN;
    global_readings.humidity     = NAN;
+   global_readings.soil_humidity = NAN;
 
    uint32_t last_slow_read_ms = 0;
 

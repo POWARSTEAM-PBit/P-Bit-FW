@@ -1,53 +1,13 @@
 #include <TFT_eSPI.h>
 
-// todas las fuentes que puedan ser usadas desde fonts.h
-#include "Roboto_Regular20pt8b.h"
-#include "Roboto_Regular18pt8b.h"
-#include "Roboto_Regular24pt8b.h"
-#include "Roboto_Regular12pt8b.h"
-#include "Roboto_Regular10pt8b.h"
-#include "Roboto_Regular9pt8b.h"
-#include "Roboto_Regular8pt8b.h"
+// Fuentes realmente usadas por la UI actual (FONT_* en include/fonts.h)
 #include "Roboto_Regular7pt8b.h"
-#include "Roboto_Regular6pt8b.h"
-
 #include "Roboto_Medium10pt8b.h"
-#include "Roboto_Light9pt8b.h"
-#include "Roboto_Light8pt8b.h"
-#include "Roboto_Light7pt8b.h"
 #include "Roboto_Light6pt8b.h"
-
-#include "Roboto_Bold18pt8b.h"
-#include "Roboto_Bold12pt8b.h"
-#include "Roboto_Bold10pt8b.h"
-
-#include "Inter_Regular24pt8b.h"
-#include "Inter_Regular12pt8b.h"
-#include "Inter_Regular9pt8b.h"
-#include "Inter_SemiBold18pt8b.h"
-
-#include "IBMPlexSans_Regular24pt8b.h"
-#include "IBMPlexSans_Regular12pt8b.h"
 #include "IBMPlexSans_Regular9pt8b.h"
-#include "IBMPlexSans_SemiBold18pt8b.h"
 
 #include "IBMPlexMono-Regular-12pt8b.h"
-#include "IBMPlexMono-Regular-20pt8b.h"
 #include "IBMPlexMono-Regular-24pt8b.h"
-#include "IBMPlexMono-SemiBold-12pt8b.h"
-#include "IBMPlexMono-SemiBold-20pt8b.h"
-#include "IBMPlexMono-SemiBold-24pt8b.h"
-
-#include "RobotoMono-Regular-12pt8b.h"
-#include "RobotoMono-Regular-20pt8b.h"
-#include "RobotoMono-Regular-24pt8b.h"
-#include "RobotoMono-Medium-12pt8b.h"
-#include "RobotoMono-Medium-20pt8b.h"
-#include "RobotoMono-Medium-24pt8b.h"
-
-#include "Audiowide-Regulard20pt8b.h"
-#include "Audiowide-Regulard24pt8b.h"
-#include "Audiowide-Regulard26pt8b.h"
 
 // No pongas nada más aquí.
 // Esto fuerza a que los objetos GFXfont se definan en una única TU.
