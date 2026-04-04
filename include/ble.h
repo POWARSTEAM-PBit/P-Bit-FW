@@ -1,6 +1,7 @@
 #pragma once
+#include <atomic>
 
-extern bool client_connected;
+extern std::atomic<bool> client_connected;
 
 /**
  * @brief Initialize BLE services and characteristics

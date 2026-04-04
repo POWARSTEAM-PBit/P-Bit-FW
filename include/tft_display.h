@@ -2,8 +2,8 @@
 #include <Arduino.h>
 #include "io.h"
 
-// --- ENUM DE PANTALLAS ---
-// (Asegúrate de que este enum esté aquí o en un config.h global)
+// --- Screen enum ---
+// Keep this in sync with the router and the screen modules.
 enum Screen {
     BOOT_SCREEN,
     TEMP_SCREEN,
@@ -23,8 +23,8 @@ enum UiOverlayState {
     UI_OVERLAY_BLACKOUT
 };
 
-// POWER_IDLE representa el reposo visible del producto: UI congelada en "ZZZ",
-// pero con sensores y BLE todavía activos.
+// POWER_IDLE is the visible idle state: the UI is frozen on "ZZZ" while
+// sensors and BLE remain available.
 enum PowerMode {
     POWER_ACTIVE,
     POWER_IDLE
@@ -37,6 +37,6 @@ extern volatile bool g_ui_force_full_redraw;
 extern volatile Screen g_last_active_screen_before_sleep;
 extern volatile PowerMode g_power_mode;
 
-// --- TAREA PRINCIPAL DE PANTALLA ---
+// --- Main UI task ---
 void init_tft_display();
 void switch_screen(void *param);

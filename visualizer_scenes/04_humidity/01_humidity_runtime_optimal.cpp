@@ -1,0 +1,44 @@
+// Scene: humidity_runtime_optimal
+// Source: src/ui_humidity.cpp
+// Variant: runtime / optimal
+tft.fillScreen(TFT_BLACK);
+tft.fillRect(0, 0, 160, 32, TFT_BLACK);
+tft.setTextDatum(TC_DATUM);
+tft.setFreeFont(&Roboto_Medium10pt8b);
+tft.setTextColor(TFT_CYAN, TFT_BLACK);
+tft.drawString("HUMEDAD", 80, 2);
+tft.drawFastHLine(10, 28, 140, TFT_CYAN);
+tft.fillRect(0, 30, 118, 18, TFT_BLACK);
+tft.setFreeFont(&Roboto_Light6pt8b);
+tft.setTextColor(TFT_DARKGREY, TFT_BLACK);
+tft.drawString("Relativa del aire", 60, 34);
+tft.fillRect(0, 49, 118, 46, TFT_BLACK);
+tft.setTextDatum(TL_DATUM);
+tft.setFreeFont(&IBMPlexMono_Regular24pt8b);
+const char* humStr = "56";
+const char* unitStr = "%";
+const int intW = tft.textWidth(humStr);
+tft.setFreeFont(&Roboto_Regular7pt8b);
+const int unitW = tft.textWidth(unitStr);
+const int startX = 60 - (intW + unitW) / 2;
+tft.setFreeFont(&IBMPlexMono_Regular24pt8b);
+tft.setTextColor(TFT_WHITE, TFT_BLACK);
+tft.drawString(humStr, startX, 50);
+tft.setFreeFont(&Roboto_Regular7pt8b);
+tft.setTextColor(TFT_CYAN, TFT_BLACK);
+tft.drawString(unitStr, startX + intW, 50);
+tft.setTextFont(0);
+tft.fillRect(0, 98, 118, 28, TFT_BLACK);
+tft.setTextDatum(TC_DATUM);
+tft.setFreeFont(&Roboto_Regular7pt8b);
+tft.setTextColor(TFT_GREEN, TFT_BLACK);
+tft.drawString("Optimo", 60, 108);
+tft.setTextFont(0);
+tft.drawRoundRect(120, 36, 28, 88, 3, TFT_CYAN);
+tft.fillRect(122, 38, 24, 22, TFT_BLACK);
+tft.fillRect(122, 60, 24, 62, TFT_CYAN);
+tft.setTextDatum(TC_DATUM);
+tft.setFreeFont(&Roboto_Regular7pt8b);
+tft.setTextColor(TFT_GREEN, TFT_BLACK);
+tft.fillCircle(14, 118, 4, TFT_GREEN);
+tft.drawCircle(14, 118, 4, TFT_GREEN);

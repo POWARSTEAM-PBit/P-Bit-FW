@@ -1,8 +1,12 @@
 #pragma once
+#include "languages.h"
 
-// Carga el idioma desde NVS sin mostrar menú (para deep sleep wake).
+// Load the language from NVS without showing the selector again.
 void loadLanguage();
 
-// Muestra el menú de selección de idioma (bloqueante).
-// Siempre aparece en cold boot. Carga el idioma previo como preselección.
+// Save and apply the active language.
+void saveLanguage(Language language);
+
+// Show the blocking boot language selector.
+// It always appears on cold boot and preselects the last saved language.
 void showLanguageMenu();

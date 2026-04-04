@@ -2,18 +2,29 @@
 
 #include <Arduino.h>
 
-// --- Intervalo de lectura de sensores ---
+// --- Sensor read interval ---
 constexpr uint32_t SENSOR_READ_INTERVAL_MS = 1000; // 1 segundo
 
-// --- Gestión de energía ---
-// IDLE es un modo lógico de reposo con BLE y sensores activos.
-constexpr uint32_t IDLE_TIMEOUT_MS = 60000;       // 1 minuto
-// DEEP_SLEEP es el único sleep real del ESP32 durante pruebas.
+// --- Runtime synchronization ---
+// Core tasks share a small set of redraw / overlay flags. The runtime events
+// helpers own the "set / consume" logic so the behavior stays explicit.
+
+// --- Optional runtime features ---
+// Enable the CSV stream used by Arduino Serial Plotter / lab mode.
+// Keep this on during classroom experiments and disable it for quieter production runs.
+#define PBIT_ENABLE_SERIAL_PLOTTER 1
+
+// --- Power management ---
+// IDLE is the product's visible sleep state.
+// On this hardware revision we keep the "ZZZ" overlay because automatic
+// deep sleep blanks the TFT.
+constexpr uint32_t SLEEP_WARNING_MS = 5000;       // 5 segundos
+// Keep the same base timeout for configuration compatibility.
 constexpr uint32_t DEEP_SLEEP_TIMEOUT_MS = 120000; // 2 minutos
 constexpr uint16_t IDLE_BEEP_HZ = 700;
 constexpr uint16_t DEEP_SLEEP_BEEP_HZ = 900;
 
-// --- Debug: descomenta para activar mensajes de diagnóstico por Serial ---
+// --- Debug: uncomment to enable Serial diagnostics ---
 // #define FIRMWARE_DEBUG
 
 #ifdef FIRMWARE_DEBUG

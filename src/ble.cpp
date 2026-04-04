@@ -1,6 +1,7 @@
 #include <Arduino.h>
 #include <esp_system.h>     // esp_read_mac()
 #include <NimBLEDevice.h>
+#include <atomic>
 #include "io.h" // <-- ¡CAMBIO 1: AÑADIDO INCLUDE!
 #include "hw.h"
 
@@ -17,11 +18,7 @@ constexpr uint16_t LEGACY_CHAR_UUID16 = 0x2A6E; // Temperature
 NimBLECharacteristic * pNewChar    = nullptr;
 NimBLECharacteristic * pLegacyChar = nullptr;
 
-// ⚠️ NOTA CRÍTICA: client_connected NO es volatile.
-// Se modifica en callbacks BLE (otro contexto/core) y se lee desde main.cpp (loopCore 0).
-// Riesgo: compiler puede cachear lecturas → inconsistencia entre cores.
-// 🔧 TODO FUTURO: Declarar como `volatile bool` o `std::atomic<bool>` para consistencia.
-bool client_connected = false;
+std::atomic<bool> client_connected{false};
 
 void notifyAll();
 
@@ -32,26 +29,35 @@ std::string assm_pkt(const Reading& rec_pkt) {
     buf[0] = 0x02;
     buf[1] = 0x00;
 
-    auto put = [&](int idx, uint8_t id, uint16_t val) {
+    auto put_u16 = [&](int idx, uint8_t id, uint16_t val) {
         int base = 2 + idx * 3;
         buf[base] = id;
         buf[base + 1] = val & 0xFF;
         buf[base + 2] = (val >> 8) & 0xFF;
     };
 
-    uint16_t t10   = isnan(rec_pkt.temperature)   ? 0 : (uint16_t)lroundf(rec_pkt.temperature * 10.0f);
+    auto put_s16 = [&](int idx, uint8_t id, int16_t val) {
+        int base = 2 + idx * 3;
+        uint16_t raw = (uint16_t)val; // serializar en complemento a dos little-endian
+        buf[base] = id;
+        buf[base + 1] = raw & 0xFF;
+        buf[base + 2] = (raw >> 8) & 0xFF;
+    };
+
+    // IDs 1 (temp) y 6 (ds18) viajan como int16_t x10 para soportar negativos.
+    int16_t  t10   = isnan(rec_pkt.temperature)   ? 0 : (int16_t)lroundf(rec_pkt.temperature * 10.0f);
     uint16_t h10   = isnan(rec_pkt.humidity)      ? 0 : (uint16_t)lroundf(rec_pkt.humidity * 10.0f);
     uint16_t lraw  = isnan(rec_pkt.ldr)           ? 0 : (uint16_t)lroundf(rec_pkt.ldr);
     uint16_t mraw  = isnan(rec_pkt.mic)           ? 0 : (uint16_t)lroundf(rec_pkt.mic);
     uint16_t soil  = isnan(rec_pkt.soil_humidity) ? 0 : (uint16_t)lroundf(rec_pkt.soil_humidity);
-    uint16_t ds18  = (rec_pkt.temp_ds18b20 < -100.0f) ? 0 : (uint16_t)lroundf(rec_pkt.temp_ds18b20 * 10.0f);
+    int16_t  ds18  = (rec_pkt.temp_ds18b20 < -100.0f) ? 0 : (int16_t)lroundf(rec_pkt.temp_ds18b20 * 10.0f);
 
-    put(0, 1, t10);
-    put(1, 2, h10);
-    put(2, 3, lraw);
-    put(3, 4, mraw);
-    put(4, 5, soil);
-    put(5, 6, ds18);
+    put_s16(0, 1, t10);
+    put_u16(1, 2, h10);
+    put_u16(2, 3, lraw);
+    put_u16(3, 4, mraw);
+    put_u16(4, 5, soil);
+    put_s16(5, 6, ds18);
 
     return std::string((char*)buf, sizeof(buf));
 }
@@ -93,24 +99,15 @@ class NewCharCB : public NimBLECharacteristicCallbacks {
 
 
 void notifyAll() {
-    // ⚠️ SINCRONIZACIÓN CRÍTICA (ble.cpp::notifyAll):
-    // Accedemos a `global_readings` (definida en io.cpp, actualizada desde sensor_reading_task).
-    // Sin protección (mutex/critical section), existe riesgo de race condition al leer
-    // valores parcialmente actualizados durante serialización.
-    // 
-    // 🔧 TODO FUTURO: Considerar hacer copia local snapshot:
-    //   Reading snapshot;
-    //   { portENTER_CRITICAL(); snapshot = global_readings; portEXIT_CRITICAL(); }
-    //   std::string pkt = assm_pkt(snapshot);
-    //   String js = makeJson(snapshot);
-    //
-    // Nota: notifyAll() se llama desde:
-    //   1. sensor_reading_task (Core 0) — lectura segura
-    //   2. NewCharCB::onWrite callback (contexto BLE) — potencial race si coincide con actualización Core 0
+    Reading snapshot;
+    
+    // Snapshot seguro usando el spinlock
+    portENTER_CRITICAL(&readings_mux);
+    snapshot = global_readings;
+    portEXIT_CRITICAL(&readings_mux);
 
-    // ¡CAMBIO 4: Usar la variable global "global_readings"!
-    std::string pkt = assm_pkt(global_readings);
-    String js = makeJson(global_readings);
+    std::string pkt = assm_pkt(snapshot);
+    String js = makeJson(snapshot);
 
     if (pNewChar) {
         pNewChar->setValue(pkt);

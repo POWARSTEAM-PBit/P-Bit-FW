@@ -2,55 +2,51 @@
 #include "config.h"
 #include <DHT.h>
 #include "io.h"
-#include "hw.h"  // Usamos hw para leer DS18B20 y otros
+#include "hw.h"  // Reuse the hardware layer for DS18B20 and shared sensor helpers.
 #include "ble.h" 
+#include "alert_engine.h"
+#include "runtime_events.h"
 #include <math.h> 
 
 #define DHT_TYPE DHT11
 
-// Constantes LDR
+// LDR calibration constants.
 #define VCC_SUPPLY_VOLTAGE    3300.0 
 #define REF_RESISTANCE      10000.0 
 #define LUX_CALIBRATION_LOG    1.8 
 #define LUX_CALIBRATION_GAMMA   1.4 
 #define ADC_SATURATION_THRESHOLD 4050 
 
-// ⚠️ NOTA CRÍTICA DE SINCRONIZACIÓN (io.cpp):
-// `global_readings` es compartida entre:
-//   - sensor_reading_task() [Core 0] — ESCRIBE constantemente
-//   - notifyAll() (llamada desde sensor_reading_task) — LEE y SERIALIZA
-//   - UI (src/tft_display.cpp, src/ui_*.cpp) [Core 1] — LEE para mostrar datos
-//   - BLE callbacks (src/ble.cpp) [contexto BLE] — LEE
-//
-// ⚠️ RIESGO: Sin mutex/copia local, existe condición de carrera (race condition)
-// al leer valores parcialmente actualizados o durante serialización BLE.
-// 
-// 🔧 TODO FUTURO: Considerar:
-//   1. Proteger acceso con portENTER_CRITICAL() / portEXIT_CRITICAL()
-//   2. Hacer copia atómica local antes de serializar en notifyAll()
-//   3. Usar std::atomic<> para lectura sin-bloqueo de campos individuales
-//
 Reading global_readings;
 volatile bool g_sensor_data_ready = false;
+portMUX_TYPE readings_mux = portMUX_INITIALIZER_UNLOCKED;
+extern bool g_sound_enabled;
 
 DHT dht(PIN_DHT, DHT_TYPE);
 
-// Forward declarations (funciones internas a este módulo)
+// Internal helpers for the sensor task.
 static void read_fast_sensors(Reading &r);
 static void read_slow_sensors(Reading &r);
 static uint8_t dht_temp_fail_count = 0;
 static uint8_t dht_hum_fail_count = 0;
 
 void sensor_reading_task(void *param) {
-   Serial.println("[IO] Tarea de Lectura iniciada.");
+    Serial.println("[IO] Sensor task started.");
    dht.begin();
 
-   // Inicializar sensores a valores centinela para que la pantalla muestre "---"
-   // o "No sensor" mientras no se haya completado la primera lectura lenta (~1 s).
-   global_readings.temp_ds18b20 = -999.0f;
-   global_readings.temperature  = NAN;
-   global_readings.humidity     = NAN;
-   global_readings.soil_humidity = NAN;
+   Reading local_r;
+    // Start with sentinel values so the UI can show "---" or "No sensor"
+    // until the first slow pass completes.
+   local_r.temp_ds18b20 = -999.0f;
+   local_r.temperature  = NAN;
+   local_r.humidity     = NAN;
+   local_r.soil_humidity = NAN;
+   local_r.ldr = 0.0f;
+   local_r.mic = 0.0f;
+
+   portENTER_CRITICAL(&readings_mux);
+   global_readings = local_r;
+   portEXIT_CRITICAL(&readings_mux);
 
    uint32_t last_slow_read_ms = 0;
 
@@ -58,11 +54,39 @@ void sensor_reading_task(void *param) {
       uint32_t current_ms = millis();
       if (current_ms - last_slow_read_ms >= SENSOR_READ_INTERVAL_MS) {
          last_slow_read_ms = current_ms;
-         read_slow_sensors(global_readings); 
+         read_slow_sensors(local_r); 
       }
-      read_fast_sensors(global_readings);
-      g_sensor_data_ready = true;
-      notifyAll();
+      read_fast_sensors(local_r);
+
+       // Copy the local snapshot to the shared struct inside a critical section.
+       portENTER_CRITICAL(&readings_mux);
+       global_readings = local_r;
+       portEXIT_CRITICAL(&readings_mux);
+
+       // Refresh the shared alert state as soon as the new snapshot is ready.
+       alert_engine_refresh_from_reading(local_r, g_sound_enabled);
+
+       runtime_mark_sensor_data_ready();
+
+      // Skip BLE packet assembly entirely when nobody is connected.
+      if (client_connected.load()) {
+          notifyAll();
+      }
+
+#if PBIT_ENABLE_SERIAL_PLOTTER
+       // --- STEAM / Serial Plotter mode ---
+       // Replace invalid readings with 0.0 so the IDE plotter stays stable.
+      float p_temp = isnan(local_r.temperature) ? 0.0f : local_r.temperature;
+      float p_hum = isnan(local_r.humidity) ? 0.0f : local_r.humidity;
+      float p_ldr = isnan(local_r.ldr) ? 0.0f : local_r.ldr;
+      float p_mic = isnan(local_r.mic) ? 0.0f : local_r.mic;
+      float p_soil = isnan(local_r.soil_humidity) ? 0.0f : local_r.soil_humidity;
+      float p_ds18 = (local_r.temp_ds18b20 < -100.0f) ? 0.0f : local_r.temp_ds18b20;
+
+      Serial.printf("Temp:%.1f, Hum:%.1f, Luz:%.0f, Sonido:%.0f, Suelo:%.0f, DS18:%.1f\n",
+                    p_temp, p_hum, p_ldr, p_mic, p_soil, p_ds18);
+#endif
+
 #ifdef FIRMWARE_DEBUG
       static bool _hwm_reported = false;
       if (!_hwm_reported) { _hwm_reported = true; DPRINT("[Stack] SensorTask HWM: %u words\n", uxTaskGetStackHighWaterMark(NULL)); }
@@ -72,8 +96,8 @@ void sensor_reading_task(void *param) {
 }
 
 static void read_fast_sensors(Reading &r) {
-    // --- LDR (R7=10kΩ pull-up a +3V3, LDR03 pull-down a GND, C4=1µF filtro HW) ---
-    // Lógica: luz intensa → ADC bajo | oscuridad → ADC alto
+    // LDR front-end: 10k pull-up to 3.3V, LDR to GND, with a hardware RC filter.
+    // Logic is inverted: bright light -> lower ADC, darkness -> higher ADC.
     float ldr_raw = analogRead(PIN_LDR_SIGNAL);
     float ldr_new;
     if (ldr_raw >= ADC_SATURATION_THRESHOLD) {
@@ -86,20 +110,21 @@ static void read_fast_sensors(Reading &r) {
         ldr_new = pow(10.0f, (log_r - LUX_CALIBRATION_LOG) / LUX_CALIBRATION_GAMMA);
     }
     ldr_new = constrain(ldr_new, 0.0f, 20000.0f);
+    r.ldr_raw = ldr_raw;
 
-    // EMA software (C4 ya filtra HW): 0.3 nuevo + 0.7 antiguo → suaviza sin retrasar mucho
+    // Software EMA on top of the hardware filter: smooths the reading without lagging too much.
     static float ldr_ema = -1.0f;
-    if (ldr_ema < 0.0f) ldr_ema = ldr_new; // Inicialización en la primera lectura
+    if (ldr_ema < 0.0f) ldr_ema = ldr_new; // Initialize on the first sample.
     ldr_ema = 0.7f * ldr_ema + 0.3f * ldr_new;
     r.ldr = ldr_ema;
 
-    // Delegamos a HW (Limpio y sin duplicados)
+    // Delegate the remaining sensor reads to the hardware layer.
     r.mic = read_sound_level();
     r.soil_humidity = read_soil_moisture();
 }
 
 static void read_slow_sensors(Reading &r) {
-   // DHT Local
+    // Local DHT11 read.
    float h = dht.readHumidity();
    float t = dht.readTemperature(); 
    if (!isnan(h) && h >= 0 && h <= 100) {
@@ -117,6 +142,6 @@ static void read_slow_sensors(Reading &r) {
       if (dht_temp_fail_count >= 2) r.temperature = NAN;
    }
 
-   // DS18B20: siempre actualizar — la pantalla maneja -999 como "No sensor"
+    // Always refresh DS18B20; the UI maps -999 to "No sensor".
    r.temp_ds18b20 = read_ds18b20_temp();
 }

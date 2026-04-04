@@ -10,6 +10,11 @@ constexpr int8_t  DO_ENCODER_VCC = -1;
 extern RotaryEncoder rotaryEncoder;
 
 /**
- * @brief Initialize the rotary encoder
+ * Initialize the rotary encoder, callbacks, and default boundaries.
  */
 void init_rotary();
+
+/**
+ * Handle debounce, short presses on release, and long-press actions while held.
+ */
+void poll_rotary_aux();

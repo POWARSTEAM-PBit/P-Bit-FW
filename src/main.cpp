@@ -1,35 +1,44 @@
 // main.cpp
-// Núcleo principal del P-Bit.
-// Gestiona la inicialización de módulos, las variables globales y la lógica de energía.
+// Main firmware entry point.
+// This file wires startup, global state, task creation, and the power policy.
 
 #include <Arduino.h>
-#include "tft_display.h" // Cabecera principal de la UI
+#include "tft_display.h" // Main UI router
 #include "io.h"         
 #include "ble.h"
 #include "rotary.h"
 #include "hw.h"
 #include "led_control.h" 
-#include <esp_sleep.h> // Para Light/Deep Sleep
+#include <esp_sleep.h> // Sleep modes and wake-up helpers
 #include <esp_system.h>
 #include <esp_timer.h>
 #include <driver/rtc_io.h>
-#include "ui_widgets.h" // Para tft
-#include "ui_boot.h"    // Para la secuencia de arranque
-#include "lang_select.h" // Para selección de idioma
+#include "ui_widgets.h" // Owns the global TFT instance
+#include "ui_boot.h"    // Boot animation and splash flow
+#include "timer.h"
+#include "ui_soil.h"
+#include "ui_temp.h"
+#include "ui_humidity.h"
+#include "ui_ds18.h"
+#include "ui_sound.h"
+#include "ui_light.h"
+#include "ui_system.h"
+#include "lang_select.h" // Cold-boot language selector
 #include "config.h"
+#include "runtime_events.h"
+#include "alert_engine.h"
 
 #define SERIAL_BAUD_RATE 115200
 
-// --- DEFINICIONES DE VARIABLES GLOBALES ---
-bool g_is_fahrenheit = false; // Estado C/F
-bool g_sound_enabled = true; // El sonido está activado por defecto
+// --- GLOBAL STATE ---
+bool g_is_fahrenheit = false; // Shared temperature unit flag
+bool g_sound_enabled; // Loaded from NVS during hardware init
 
-// Variables de gestión de energía
+
+// Power-management state used by the UI router and the rotary driver.
 volatile unsigned long g_last_activity_ms = 0;
 volatile PowerMode g_power_mode = POWER_ACTIVE;
 
-// --- DECLARACIONES EXTERNAS ---
-extern bool client_connected; // Desde ble.cpp
 RTC_DATA_ATTR uint8_t g_rtc_last_active_screen = TEMP_SCREEN;
 RTC_DATA_ATTR uint8_t g_rtc_last_power_mode = POWER_ACTIVE;
 RTC_DATA_ATTR uint8_t g_rtc_last_sleep_intent = 0;
@@ -54,9 +63,20 @@ static unsigned long now_ms() {
     return (unsigned long)(esp_timer_get_time() / 1000ULL);
 }
 
+static bool settings_ui_active() {
+    return soilCalibrationIsActive()
+        || temp_menu_is_active()
+        || humidity_menu_is_active()
+        || ds18_menu_is_active()
+        || sound_menu_is_active()
+        || light_menu_is_active()
+        || system_menu_is_active()
+        || timer_menu_is_active();
+}
+
 static void saveCurrentScreenForSleep() {
     if (isRestorableScreen(active_screen)) {
-        g_last_active_screen_before_sleep = active_screen;
+        runtime_set_last_active_screen_before_sleep(active_screen);
         g_rtc_last_active_screen = static_cast<uint8_t>(active_screen);
     }
 }
@@ -68,7 +88,7 @@ static void persistPowerState(PowerMode mode, SleepIntent intent) {
 
 static void restorePersistedScreen() {
     active_screen = getPersistedSleepScreen();
-    g_last_active_screen_before_sleep = active_screen;
+    runtime_set_last_active_screen_before_sleep(active_screen);
 }
 
 static void playSleepSignal(uint8_t flashes, uint8_t r, uint8_t g, uint8_t b, int tone_hz) {
@@ -91,35 +111,7 @@ static void enterIdleMode() {
 
     g_power_mode = POWER_IDLE;
     persistPowerState(POWER_IDLE, SLEEP_INTENT_IDLE);
-    g_ui_overlay_state = UI_OVERLAY_SLEEP_WARNING;
-}
-
-static void enterDeepSleepMode() {
-    Serial.println("[Power] Entering Deep Sleep.");
-    saveCurrentScreenForSleep();
-    persistPowerState(g_power_mode, SLEEP_INTENT_DEEP_SLEEP);
-    playSleepSignal(3, 255, 0, 0, DEEP_SLEEP_BEEP_HZ);
-    g_ui_overlay_state = UI_OVERLAY_BLACKOUT;
-    vTaskDelay(pdMS_TO_TICKS(40));
-    set_rgb(0, 0, 0);
-
-    // El ST7735 no tiene control de backlight por pin en esta placa.
-    // Para evitar que el panel quede blanco al perder contexto SPI,
-    // lo forzamos a display-off y sleep-in antes del deep sleep.
-    tft.writecommand(0x28); // DISPOFF
-    tft.writecommand(0x10); // SLPIN
-    vTaskDelay(pdMS_TO_TICKS(120));
-
-    // GPIO13 es RTC IO. Lo dejamos alto con pull-up RTC para evitar
-    // wakes espurios o reboots aparentes al entrar en deep sleep.
-    pinMode((uint8_t)DI_ENCODER_SW, INPUT_PULLUP);
-    rtc_gpio_init((gpio_num_t)DI_ENCODER_SW);
-    rtc_gpio_set_direction((gpio_num_t)DI_ENCODER_SW, RTC_GPIO_MODE_INPUT_ONLY);
-    rtc_gpio_pullup_en((gpio_num_t)DI_ENCODER_SW);
-    rtc_gpio_pulldown_dis((gpio_num_t)DI_ENCODER_SW);
-    esp_sleep_pd_config(ESP_PD_DOMAIN_RTC_PERIPH, ESP_PD_OPTION_ON);
-    esp_sleep_enable_ext0_wakeup((gpio_num_t)DI_ENCODER_SW, LOW);
-    esp_deep_sleep_start();
+    runtime_set_ui_overlay(UI_OVERLAY_SLEEP_WARNING);
 }
 
 static void logBootDiagnostics(esp_sleep_wakeup_cause_t wakeup_reason, esp_reset_reason_t reset_reason) {
@@ -141,16 +133,19 @@ void setup() {
     Serial.begin(SERIAL_BAUD_RATE);
     g_rtc_boot_counter++;
     
-    // Inicialización de módulos
+    // Module initialization.
     set_devicename();
     init_tft_display();
     init_ble();
     init_leds_and_buzzer();
+    alert_engine_reset();
     init_hw();
 
-    // ---------------------------------------------------------
-    // LÓGICA DE ARRANQUE SILENCIOSO (Evita animación al despertar)
-    // ---------------------------------------------------------
+    // -----------------------------------------------------------------
+    // Wake source handling.
+    // We keep wake-from-sleep and cold boot separated so the UI can
+    // restore the right state without replaying the full startup flow.
+    // -----------------------------------------------------------------
 
     esp_sleep_wakeup_cause_t wakeup_reason;
     wakeup_reason = esp_sleep_get_wakeup_cause();
@@ -159,40 +154,40 @@ void setup() {
 
     switch(wakeup_reason)
     {
-        case ESP_SLEEP_WAKEUP_EXT0 : // Despertar por Botón (GPIO 13)
+        case ESP_SLEEP_WAKEUP_EXT0 : // Woke up from the encoder button (GPIO 13)
             Serial.println("[Power] Waking up from Deep Sleep (Button).");
-            loadLanguage();           // Cargar idioma desde NVS sin mostrar menú
+            loadLanguage();           // Restore the last language without showing the selector
             restorePersistedScreen();
             g_is_fahrenheit = false;
             g_power_mode = POWER_ACTIVE;
             persistPowerState(POWER_ACTIVE, SLEEP_INTENT_NONE);
             break;
 
-        default : // Encendido normal (Power On)
+        default : // Cold boot / power-on
             Serial.println("[Power] Cold Boot detected. Running boot sequence.");
             run_boot_sequence();
             active_screen = TEMP_SCREEN;
-            g_last_active_screen_before_sleep = active_screen;
+            runtime_set_last_active_screen_before_sleep(active_screen);
             g_is_fahrenheit = false;
             g_power_mode = POWER_ACTIVE;
             persistPowerState(POWER_ACTIVE, SLEEP_INTENT_NONE);
-            showLanguageMenu();       // Siempre en cold boot — usa rotaryEncoder internamente
+            showLanguageMenu();       // Always show the language menu on first boot.
             g_is_fahrenheit = false;
             break;
     }
-    // ---------------------------------------------------------
+    // -----------------------------------------------------------------
 
-    // init_rotary() reconfigura el encoder con límites y callbacks para la app principal
+    // Reconfigure the encoder for the main app after boot/restore flow.
     init_rotary();
     g_is_fahrenheit = false;
 
-    // El contador de inactividad empieza cuando la app ya está lista.
-    // Así evitamos que boot + menú de idioma dejen un sleep "pendiente".
+    // Start the inactivity timer only once the app is fully ready.
+    // This avoids carrying boot/menu time into the sleep scheduler.
     g_last_activity_ms = now_ms();
 
-    // --- FreeRTOS Tasks ---
+    // --- FreeRTOS tasks ---
 
-    // Tarea de Pantalla (UI): Núcleo 1
+    // UI task on core 1.
     BaseType_t ui_task_ok = xTaskCreatePinnedToCore(
         switch_screen,   
         "SwitchScreen",  
@@ -204,32 +199,49 @@ void setup() {
     );
     if (ui_task_ok != pdPASS) failFastOnTaskCreateError("SwitchScreen");
     
-    // Tarea de Sensores (Núcleo 0)
+    // Sensor acquisition task on core 0.
     BaseType_t sensor_task_ok = xTaskCreatePinnedToCore(
         sensor_reading_task, 
         "SensorTask",        
         4096,                
         NULL,                
-        1,                   // Prioridad 1
+        1,                   // Priority 1.
         NULL,                
-        0                    // Asignar al Núcleo 0
+        0                    // Pin to core 0.
     );
     if (sensor_task_ok != pdPASS) failFastOnTaskCreateError("SensorTask");
 }
 
 void loop() {
-    // El loop principal (Núcleo 1) solo gestiona tareas rápidas, debug y energía
+    // The main loop only services fast control tasks, debug, and power policy.
     rotaryEncoder.loop();
+    poll_rotary_aux();
     loop_buzzer(); 
     
     unsigned long inactivity_time = now_ms() - g_last_activity_ms;
 
-    if (g_power_mode == POWER_ACTIVE && inactivity_time >= IDLE_TIMEOUT_MS) {
+    uint32_t sleep_timeout_ms = get_sleep_timeout();
+    bool auto_sleep_enabled = (sleep_timeout_ms > 0);
+    uint32_t idle_timeout_ms = UINT32_MAX;
+    if (auto_sleep_enabled) {
+        idle_timeout_ms = (sleep_timeout_ms > SLEEP_WARNING_MS)
+            ? (sleep_timeout_ms - SLEEP_WARNING_MS)
+            : sleep_timeout_ms;
+    }
+    bool block_sleep = settings_ui_active() || userTimerRunning || !auto_sleep_enabled;
+
+    if (g_power_mode == POWER_ACTIVE && inactivity_time >= idle_timeout_ms && !block_sleep) {
         enterIdleMode();
     }
 
-    if (inactivity_time >= DEEP_SLEEP_TIMEOUT_MS && !client_connected) {
-        enterDeepSleepMode();
+    if (auto_sleep_enabled &&
+        inactivity_time >= sleep_timeout_ms &&
+        !client_connected.load() &&
+        !block_sleep &&
+        g_power_mode != POWER_IDLE) {
+        // This hardware revision blanks the TFT on deep sleep.
+        // Product-wise we keep a visible idle state with ZZZ until the user wakes it.
+        enterIdleMode();
     }
     
     vTaskDelay(pdMS_TO_TICKS(10)); 

@@ -1,5 +1,5 @@
 #pragma once
 #include "tft_display.h"
 
-// Prototipo para la pantalla de inicio (Logo)
+// Public API for the startup logo sequence.
 void run_boot_sequence();
