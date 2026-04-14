@@ -6,7 +6,15 @@
       "Read(//c/Users/powar/**)",
       "Read(//c/Users//**)",
       "Bash(pio run:*)",
-      "Bash(py -3 -m platformio run)"
+      "Bash(py -3 -m platformio run)",
+      "Bash(node -e ':*)",
+      "Bash(~/.platformio/penv/bin/pio run:*)",
+      "Bash(cmd.exe /c \"pio run 2>&1\")",
+      "Bash(cmd.exe /c \"cd \\\\\"c:\\\\\\\\POWAR-GIT\\\\\\\\P-Bit-FW - edit\\\\\" && pio run 2>&1\")",
+      "Bash(cmd.exe /c \"where pio\")",
+      "Bash(cmd.exe /c \"where pio 2>&1 & echo EXIT:%ERRORLEVEL%\")",
+      "Bash(powershell.exe -Command \"cd 'c:\\\\\\\\POWAR-GIT\\\\\\\\P-Bit-FW - edit'; & pio run 2>&1\")",
+      "Bash(powershell.exe -NoProfile -Command \"ls 'C:\\\\Users\\\\Pablo Z\\\\.platformio\\\\penv\\\\Scripts\\\\pio*' 2>&1\")"
     ]
   }
 }

@@ -30,39 +30,30 @@ constexpr size_t LANG_CODES_COUNT = sizeof(LANG_CODES) / sizeof(LANG_CODES[0]);
 const uint32_t SLEEP_OPTIONS[] = { 30000, 60000, 120000, 300000, 600000, 0 };
 const int NUM_SLEEP_OPTIONS = sizeof(SLEEP_OPTIONS) / sizeof(SLEEP_OPTIONS[0]);
 
-static const char* tr(const char* es, const char* cat, const char* en) {
-    switch (g_language) {
-        case LANG_CAT: return cat;
-        case LANG_EN: return en;
-        case LANG_ES:
-        default: return es;
-    }
-}
-
 static void draw_system_header(const char* title, uint16_t color) {
     drawHeader(title, color);
 }
 
 static const char* get_sleep_option_name(int index) {
     switch (index) {
-        case 0: return tr("30 seg", "30 s", "30 sec");
-        case 1: return tr("1 min", "1 min", "1 min");
-        case 2: return tr("2 min", "2 min", "2 min");
-        case 3: return tr("5 min", "5 min", "5 min");
-        case 4: return tr("10 min", "10 min", "10 min");
+        case 0: return L(MENU_SLEEP_30S);
+        case 1: return L(MENU_SLEEP_1M);
+        case 2: return L(MENU_SLEEP_2M);
+        case 3: return L(MENU_SLEEP_5M);
+        case 4: return L(MENU_SLEEP_10M);
         case 5:
         default:
-            return tr("Nunca", "Mai", "Never");
+            return L(MENU_NEVER);
     }
 }
 
 static const char* get_language_name(uint8_t index) {
     switch (index) {
-        case LANG_CAT: return tr("Catalán", "Català", "Catalan");
-        case LANG_EN: return tr("Inglés", "Anglès", "English");
+        case LANG_CAT: return L(LANG_CAT_NAME);
+        case LANG_EN: return L(LANG_EN_NAME);
         case LANG_ES:
         default:
-            return tr("Español", "Castellà", "Spanish");
+            return L(LANG_ES_NAME);
     }
 }
 
@@ -259,7 +250,7 @@ static void draw_system_menu_screen(bool screen_changed) {
 
     if (state_changed) {
         tft.fillScreen(TFT_BLACK);
-        draw_system_header(tr("AJUSTES", "AJUSTOS", "SETTINGS"), TFT_GREEN);
+        draw_system_header(L(MENU_SETTINGS), TFT_GREEN);
         last_menu_index = -1;
         last_sound_value = -1;
         last_sleep_index = -1;
@@ -273,31 +264,31 @@ static void draw_system_menu_screen(bool screen_changed) {
     if (g_sys_menu_state == SYS_MODE_MENU) {
         // Root menu now uses the shared centered-list helper.
         const char* items[] = {
-            tr("Sonido", "Soroll", "Sound"),
-            tr("Reposo", "Repos", "Sleep"),
-            tr("Idioma", "Idioma", "Language"),
-            tr("Reset", "Reset", "Reset"),
-            tr("Salir", "Sortir", "Exit")
+            L(MENU_SOUND),
+            L(MENU_SLEEP),
+            L(MENU_TITLE),
+            L(MENU_RESET),
+            L(MENU_EXIT)
         };
         drawCenteredMenuList(items, 5, g_sys_menu_index, LM_MENU5_Y0, LM_MENU5_GAP);
         drawFooterHint(L(INSTR_SEL), cx, LM_MENU_FOOTER_Y);
         last_menu_index = (int)g_sys_menu_index;
     } else if (g_sys_menu_state == SYS_MODE_EDIT_SOUND) {
-        drawCenteredMenuValueScreen(tr("Sonido", "Soroll", "Sound"),
+        drawCenteredMenuValueScreen(L(MENU_SOUND),
                                     g_sys_sound_enabled ? L(ST_ON) : L(ST_OFF),
                                     g_sys_sound_enabled ? TFT_GREEN : TFT_RED,
                                     MENU_VALUE_FONT_BODY,
                                     L(ST_TURN_PUSH));
         last_sound_value = g_sys_sound_enabled ? 1 : 0;
     } else if (g_sys_menu_state == SYS_MODE_EDIT_SLEEP) {
-        drawCenteredMenuValueScreen(tr("Reposo", "Repos", "Sleep"),
+        drawCenteredMenuValueScreen(L(MENU_SLEEP),
                                     get_sleep_option_name(get_sleep_option_index(g_sys_sleep_ms)),
                                     TFT_WHITE,
                                     MENU_VALUE_FONT_BODY,
                                     L(ST_TURN_PUSH));
         last_sleep_index = get_sleep_option_index(g_sys_sleep_ms);
     } else if (g_sys_menu_state == SYS_MODE_EDIT_LANG) {
-        drawCenteredMenuValueScreen(tr("Idioma", "Idioma", "Language"),
+        drawCenteredMenuValueScreen(L(MENU_TITLE),
                                     get_language_name(g_sys_lang_index),
                                     TFT_WHITE,
                                     MENU_VALUE_FONT_BODY,
@@ -305,36 +296,36 @@ static void draw_system_menu_screen(bool screen_changed) {
         last_lang_index = (int)g_sys_lang_index;
     } else if (g_sys_menu_state == SYS_MODE_CONFIRM_RESET) {
         // Reset confirmation uses the shared binary prompt helper.
-        drawResetChoicePrompt(tr("Reset total", "Reset total", "Full reset"),
-                              tr("Todo vuelve", "Tot torna", "Restore all"),
-                              tr("a fábrica", "de fàbrica", "to defaults"),
-                              tr("NO", "NO", "NO"),
-                              tr("SÍ", "SÍ", "YES"),
+        drawResetChoicePrompt(L(MENU_FULL_RESET),
+                              L(MENU_RESTORE_ALL),
+                              L(MENU_TO_DEFAULTS),
+                              L(MENU_NO),
+                              L(MENU_YES),
                               g_sys_reset_choice,
                               L(ST_TURN_PUSH));
         last_reset_choice = (int)g_sys_reset_choice;
     } else if (g_sys_menu_state == SYS_MODE_SAVED) {
         if (g_sys_saved_kind == 0) {
-            drawCenteredMenuSavedScreen(tr("Guardado", "Desat", "Saved"),
+            drawCenteredMenuSavedScreen(L(MENU_SAVED),
                                         g_sys_sound_enabled ? L(ST_ON) : L(ST_OFF),
                                         g_sys_sound_enabled ? TFT_GREEN : TFT_RED,
                                         MENU_VALUE_FONT_BODY,
                                         L(ST_PUSH_MENU));
         } else if (g_sys_saved_kind == 1) {
-            drawCenteredMenuSavedScreen(tr("Guardado", "Desat", "Saved"),
+            drawCenteredMenuSavedScreen(L(MENU_SAVED),
                                         get_sleep_option_name(get_sleep_option_index(g_sys_sleep_ms)),
                                         TFT_WHITE,
                                         MENU_VALUE_FONT_BODY,
                                         L(ST_PUSH_MENU));
         } else if (g_sys_saved_kind == 2) {
-            drawCenteredMenuSavedScreen(tr("Guardado", "Desat", "Saved"),
+            drawCenteredMenuSavedScreen(L(MENU_SAVED),
                                         get_language_name(g_sys_lang_index),
                                         TFT_WHITE,
                                         MENU_VALUE_FONT_BODY,
                                         L(ST_PUSH_MENU));
         } else {
-            drawCenteredMenuSavedScreen(tr("Guardado", "Desat", "Saved"),
-                                        tr("Reset aplicado", "Reset aplicat", "Reset applied"),
+            drawCenteredMenuSavedScreen(L(MENU_SAVED),
+                                        L(MENU_RESET_DONE),
                                         TFT_WHITE,
                                         MENU_VALUE_FONT_BODY,
                                         L(ST_PUSH_MENU));

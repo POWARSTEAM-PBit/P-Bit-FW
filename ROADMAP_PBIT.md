@@ -34,7 +34,7 @@ Objetivos:
 - Ya existe documentación funcional de alto nivel del firmware actual y su potencial educativo en `PBIT_FUNCIONAMIENTO_ACTUAL.md`.
 - Los manuales largos ya quedaron resincronizados con el firmware real: tiempos de pulsación, menús actuales, alertas, suelo `Muy húmedo`, unidad global compartida `TEMP/DS18`, `Timer v2` con editor directo `HH:MM:SS` y modelo de reposo visible con `ZZZ` ya están alineados en `MANUAL_TECNICO_PBIT.md`, `MANUAL_DE_USUARIO_PBIT.md` y `PBIT_FUNCIONAMIENTO_ACTUAL.md`.
 - Ya quedó contrastado firmware vs hardware con KiCad V3.1: la TFT usa `IO21/IO22` para `RST/DC`, mientras el bus I2C externo de placa vive en `IO26/IO27` (`SDA/SCL`). El firmware actual todavía no inicializa `Wire`, así que un futuro sensor I2C como `SCD41` deberá entrar con `Wire.begin(26, 27)` y no asumir I2C por defecto en `21/22`.
-- La capa de localización quedó un poco más limpia: se eliminó el placeholder muerto `ST_SOIL_THRESH_TODO` del diccionario y de la tabla de idiomas (`include/languages.h`, `src/lang_select.cpp`).
+- La localización quedó prácticamente centralizada en `L(KEY)`: se eliminaron el placeholder muerto `ST_SOIL_THRESH_TODO`, los `tr(...)` dispersos y las funciones locales `tr()` de las pantallas de UI. Añadir un cuarto idioma requiere tocar sobre todo `include/languages.h` y `src/lang_select.cpp`; aun así, conviene asumir que pueden quedar cadenas residuales puntuales en módulos nuevos como la gráfica (`src/ui_temp.cpp`, `src/ui_humidity.cpp`, `src/ui_light.cpp`, `src/ui_sound.cpp`, `src/ui_soil.cpp`, `src/ui_ds18.cpp`, `src/ui_system.cpp`, `include/languages.h`, `src/lang_select.cpp`).
 - `Timer v2` ya está aterrizado sin romper los gestos existentes: cronómetro en `00:00:00`, editor directo `HH:MM:SS` con encoder, layout mas limpio del card, duracion activa centrada debajo del card solo en cuenta regresiva, formato adaptativo `MM:SS:CC` / `HH:MM:SS`, final en rojo y alarma intermitente al terminar cuenta regresiva (`src/timer.cpp`, `include/timer.h`, `src/ui_timer.cpp`, `src/rotary.cpp`, `src/main.cpp`, `src/tft_display.cpp`).
 - El runtime del `Timer` ya recompone mejor el valor grande sobre el card real: la banda del tiempo se limpia primero, el sprite se empuja con negro transparente y el borde se repinta al final para que la caja no quede “cortada” por el fondo del sprite en hardware (`include/layout.h`, `src/ui_timer.cpp`).
 - El layout runtime del `Timer` siguió afinándose en hardware: el card bajó unos píxeles más y el estado acompañó ese ajuste, pero el tiempo grande se mantuvo donde mejor respiraba para abrir aire real arriba y abajo dentro del card (`include/layout.h`).
@@ -43,23 +43,34 @@ Objetivos:
 - Las dos pantallas temporales de calibración tipográfica que se usaron para ajustar el visualizador externo ya cumplieron su función y se retiraron del carrusel del firmware, dejando otra vez el producto centrado solo en las pantallas reales de uso (`include/tft_display.h`, `src/tft_display.cpp`, `src/rotary.cpp`, `src/main.cpp`).
 - El selector de idioma también recibió un ajuste visual conservador: la flecha `>` mantiene la fuente interna `2`, pero baja `2 px` para respirar mejor frente al texto del idioma sin cambiar aún de tamaño ni mover su anclaje X (`src/lang_select.cpp`).
 - El runtime del `Timer` también redujo trabajo por frame: la banda del tiempo ya no obliga a repintar el card completo en cada tick, y el refresco de centésimas se relajó un poco para reducir ghosting sin perder la lectura fina del cronómetro (`src/ui_timer.cpp`, `src/tft_display.cpp`).
+- La pantalla de **Gráfica** ya está integrada en el carrusel como una nueva pantalla de runtime. La v1 actual cubre Temperatura y Humedad, usa buffers circulares para histórico reciente, auto-escala Y con rango mínimo por sensor y render en sprite para reducir parpadeo; hoy la escritura de muestras depende del ciclo lento del `sensor task` (~1 s) y la interacción de usuario se limita a pulsación corta para cambiar de sensor (`include/graph_buffer.h`, `src/graph_buffer.cpp`, `include/ui_graph.h`, `src/ui_graph.cpp`, `src/io.cpp`, `src/tft_display.cpp`, `src/rotary.cpp`, `include/layout.h`, `include/languages.h`, `src/lang_select.cpp`).
 
 ### Parcial
-- La localización no está cerrada del todo: hay diccionario ES/CAT/EN y bastantes textos traducidos, y en esta ronda ya se pasaron más textos auxiliares, estados `ON/OFF`, hints comunes y avisos de sensores al diccionario, pero aún quedan algunas cadenas duras y etiquetas mixtas visibles en varias pantallas (`src/lang_select.cpp`, `src/ui_system.cpp`, `src/ui_temp.cpp`, `src/ui_ds18.cpp`, `src/ui_soil.cpp`, `src/tft_display.cpp`).
+
 - La limpieza visual sigue siendo parcial: hay redraw selectivo, bandas de limpieza más claras, reset prompts homogéneos, resúmenes `Saved` más consistentes y mejor ubicación del indicador mínimo, pero todavía falta una validación final en hardware pixel a pixel.
 - El menú de sonido no es una calibración física real del micrófono; hoy edita umbrales y activa/desactiva alertas (`src/ui_sound.cpp`, `src/hw.cpp`).
 - El `Timer v2` ya existe con cronómetro y editor `HH:MM:SS`, pero todavía no tiene automatizaciones o flujos más ricos para laboratorio/experimentos (`src/rotary.cpp`, `src/timer.cpp`, `src/ui_timer.cpp`).
 - El modelo global de alertas ya existe, pero sigue siendo deliberadamente simple: una alerta principal, contador `+N` y aviso corto. Si el producto crece, todavía podría evolucionar a una cola o política más rica.
 - El framework de menús ya cubre listas, pantallas de valor, prompts de reset y buena parte de los resúmenes `Saved` en `System`, `Temp`, `Humidity`, `Light`, `Sound`, `Soil` y `DS18`, pero aún quedan detalles de contenido específicos por sensor que siguen siendo intencionalmente bespoke.
+- La pantalla de **Gráfica** ya funciona como v1 de producto, pero todavía no participa en el marco común de menús/subestados y sigue necesitando una pasada fina de UX y localización antes de considerarla completamente asentada.
+- Las pantallas temporales `ESTADO LAB`, `SENSOR LAB` y `CLIMA LAB` ya están integradas como banco de pruebas visual con snippets espejo para el visualizador; su estado fino, paletas actuales y pendientes inmediatos se documentan en [LAB_GRAPH_UI_HANDOFF.md](/c:/POWAR-GIT/P-Bit-FW%20-%20edit/LAB_GRAPH_UI_HANDOFF.md).
 
 ### Pendiente
 - Gamificación de alertas: arcoíris rápido y sonido feliz al pasar a estado óptimo.
-- Unificar el texto visible para eliminar las cadenas duras residuales y dejar toda la UX en `L()` / `tr()`.
 - Decidir si el menú de sonido debe seguir como edición de umbrales o si merece una calibración más real del entorno.
 - Documentar el modo laboratorio / `Serial Plotter`.
 - Diseñar una evolución del timer orientada a laboratorio sin romper los gestos actuales.
 - Redefinir la UX visual global de alertas: hoy la lógica global existe, pero la señal visual global se retiró temporalmente porque las posiciones probadas invadían el layout. Hay que decidir una solución realmente segura o dejar las alertas globales solo en RGB/audio.
 - Seguir reduciendo bloques bespoke del contenido de menús solo cuando valga la pena, sin forzar una abstracción peor que el layout específico del sensor.
+- Ejecutar una auditoría visual pixel a pixel de todas las pantallas reales y sus escenas de visualizador para detectar solapes, textos que compiten, zonas de limpieza mal dimensionadas, ghosting y refrescos innecesarios antes de seguir ampliando layouts.
+
+#### Pendientes de refinado de la pantalla Gráfica (v1)
+- Ajuste visual fino de la gráfica en hardware: el usuario confirmó que funciona bien pero quedan pequeños retoques pendientes por definir (posición de etiquetas min/max, grosor de línea, color de grid, contraste general).
+- Añadir Luz y Sonido al buffer circular y hacerlos seleccionables desde la pantalla Gráfica (actualmente solo Temperatura y Humedad).
+- Añadir Suelo y DS18B20 al buffer si se añaden como sensores lentos con la misma cadencia de 1 s.
+- Evaluar si el auto-escalado Y necesita un modo `fijo` (rango absoluto del sensor) además del modo `adaptativo` actual.
+- Considerar mostrar el número exacto de muestras disponibles o el tiempo cubierto como texto de apoyo en la UI.
+- Escena del visualizador externo para la pantalla Gráfica: actualmente no existe ninguna escena canon.
 
 ## Roadmap Paralelo: Visualizador / TFT Workstation
 
@@ -152,12 +163,34 @@ Bloques sugeridos de calibración:
 - Si una desviación aparece solo en el visualizador, priorizar motor / parser / renderizador antes de tocar el snippet.
 - Evitar calibrar a ojo escenas complejas completas cuando aún no existe una prueba mínima que aísle el fallo.
 
+### Siguiente fase recomendada: auditoría visual cruzada
+
+Objetivo:
+- separar con rigor qué problemas pertenecen al firmware real, cuáles al visualizador y cuáles a escenas de calibración débiles o ambiguas.
+
+Estrategia recomendada:
+- validar primero el visualizador como instrumento con escenas mínimas de calibración
+- auditar después las pantallas reales por lotes visuales, no por archivo aislado
+- comparar siempre captura real del P-Bit, captura del visualizador y snippet/código fuente
+
+Lotes iniciales sugeridos:
+- `Temp`, `DS18`, `Timer` y selector de idioma como lote crítico de arranque
+- `Humidity`, `Light`, `Sound` y `Soil` como lote de sensores secundarios
+- `System`, menús, prompts de reset y pantallas `Saved` como lote de estados UI
+- `Graph` como lote separado cuando la v1 de la pantalla ya esté más asentada
+
+Criterio de clasificación:
+- `Firmware`: el mismo fallo aparece en hardware real y en visualizador
+- `Visualizador`: el fallo solo aparece en el visualizador
+- `Escena`: la prueba no aísla bien el problema
+- `Mixto`: hay debilidad en la escena y además un fallo real de motor o firmware
+
 ## Prioridades Reales
 
-1. Cerrar la localización y la limpieza visual.
-2. Mantener estables los menús ya existentes antes de añadir más complejidad.
-3. Resolver solo una iteración nueva por pantalla cuando haya una necesidad clara.
-4. Revisar primero si el sensor admite calibración real o solo umbrales de interpretación.
+1. Mantener estables los menús ya existentes antes de añadir más complejidad.
+2. Resolver solo una iteración nueva por pantalla cuando haya una necesidad clara.
+3. Revisar primero si el sensor admite calibración real o solo umbrales de interpretación.
+4. Consolidar visualmente la pantalla Gráfica actual antes de ampliar sensores o modos.
 5. No volver a planificar como futuro lo que ya está implementado en código.
 
 ## Observaciones

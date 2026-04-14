@@ -25,6 +25,18 @@
 #include "ui_ds18.h"
 #include "ui_system.h"
 #include "ui_timer.h"
+#include "ui_graph.h"
+#if PBIT_ENABLE_GRAPH_LAB
+#include "ui_lab_dash.h"
+#include "ui_lab_focus.h"
+#include "ui_lab_dual.h"
+#include "ui_lab_icon_gallery.h"
+#include "ui_lab_widget_showcase.h"
+#include "ui_lab_icon_sizes.h"
+#include "ui_lab_home_cards.h"
+#include "ui_lab_linear_dash.h"
+#include "ui_lab_icon_test.h"
+#endif
 // ----------------------------------------------------
 
 // --- Global TFT/UI state ---
@@ -81,6 +93,41 @@ static void apply_global_alert_rgb(const GlobalAlertSummary& summary) {
             case SYSTEM_SCREEN:
                 set_rgb(0, 255, 0);
                 break;
+            case GRAPH_SCREEN:
+                set_rgb(0, 80, 80); // Teal neutro para la pantalla de gráfica
+                break;
+#if PBIT_ENABLE_GRAPH_LAB
+            case LAB_DASH_OVERVIEW_SCREEN:
+                set_rgb(90, 90, 140);
+                break;
+            case LAB_SENSOR_FOCUS_SCREEN:
+                set_rgb(0, 110, 130);
+                break;
+            case LAB_DUAL_TH_SCREEN:
+                set_rgb(0, 140, 180);
+                break;
+            case LAB_ICON_SET_A_SCREEN:
+                set_rgb(180, 80, 255);
+                break;
+            case LAB_ICON_SET_B_SCREEN:
+                set_rgb(80, 180, 255);
+                break;
+            case LAB_ICON_SET_C_SCREEN:
+                set_rgb(255, 120, 80);
+                break;
+            case LAB_GAUGE_TEMP_SCREEN:
+                set_rgb(255, 140, 0);
+                break;
+            case LAB_VALUE_MODERN_SCREEN:
+                set_rgb(255, 0, 180);
+                break;
+            case LAB_WIDGET_MIX_SCREEN:
+                set_rgb(0, 200, 255);
+                break;
+            case LAB_ICON_TEST_SCREEN:
+                set_rgb(255, 165, 0);
+                break;
+#endif
             case TIMER_SCREEN:
                 if (userTimerRunning) {
                     set_rgb(0, 255, 0);
@@ -318,9 +365,70 @@ void switch_screen(void *param) {
                     draw_system_screen(screen_changed, sensor_data_changed);
                     break;
                 
-                case TIMER_SCREEN: 
+                case TIMER_SCREEN:
                     draw_timer_screen(screen_changed, sensor_data_changed, timer_needs_update);
                     break;
+
+                case GRAPH_SCREEN:
+                    draw_graph_screen(screen_changed, sensor_data_changed);
+                    break;
+#if PBIT_ENABLE_GRAPH_LAB
+                case LAB_DASH_OVERVIEW_SCREEN:
+                    draw_lab_dash_screen(screen_changed, sensor_data_changed);
+                    break;
+
+                case LAB_SENSOR_FOCUS_SCREEN:
+                    draw_lab_focus_screen(screen_changed, sensor_data_changed);
+                    break;
+
+                case LAB_DUAL_TH_SCREEN:
+                    draw_lab_dual_th_screen(screen_changed, sensor_data_changed);
+                    break;
+
+                case LAB_ICON_SET_A_SCREEN:
+                    draw_lab_icon_set_a_screen(screen_changed, sensor_data_changed);
+                    break;
+
+                case LAB_ICON_SET_B_SCREEN:
+                    draw_lab_icon_set_b_screen(screen_changed, sensor_data_changed);
+                    break;
+
+                case LAB_ICON_SET_C_SCREEN:
+                    draw_lab_icon_set_c_screen(screen_changed, sensor_data_changed);
+                    break;
+
+                case LAB_GAUGE_TEMP_SCREEN:
+                    draw_lab_gauge_temp_screen(screen_changed, sensor_data_changed);
+                    break;
+
+                case LAB_VALUE_MODERN_SCREEN:
+                    draw_lab_value_modern_screen(screen_changed, sensor_data_changed);
+                    break;
+
+                case LAB_WIDGET_MIX_SCREEN:
+                    draw_lab_widget_mix_screen(screen_changed, sensor_data_changed);
+                    break;
+
+                case LAB_ICON_SIZES_ENV_SCREEN:
+                    draw_lab_icon_sizes_env_screen(screen_changed, sensor_data_changed);
+                    break;
+
+                case LAB_ICON_SIZES_EXT_SCREEN:
+                    draw_lab_icon_sizes_ext_screen(screen_changed, sensor_data_changed);
+                    break;
+
+                case LAB_HOME_CARDS_SCREEN:
+                    draw_lab_home_cards_screen(screen_changed, sensor_data_changed);
+                    break;
+
+                case LAB_LINEAR_DASH_SCREEN:
+                    draw_lab_linear_dash_screen(screen_changed, sensor_data_changed);
+                    break;
+
+                case LAB_ICON_TEST_SCREEN:
+                    draw_lab_icon_test_screen(screen_changed, sensor_data_changed);
+                    break;
+#endif
 
             } // fin del switch
             

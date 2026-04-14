@@ -21,15 +21,6 @@ extern void drawHeader(const char* title, uint16_t color);
 
 namespace {
 
-const char* tr(const char* es, const char* cat, const char* en) {
-    switch (g_language) {
-        case LANG_CAT: return cat;
-        case LANG_EN: return en;
-        case LANG_ES:
-        default: return es;
-    }
-}
-
 void format_light_threshold_value(int value, char* out, size_t out_size) {
     if (value >= 10000) {
         snprintf(out, out_size, "< %dk", value / 1000);
@@ -302,24 +293,24 @@ static void draw_light_menu_screen(bool screen_changed) {
     if (g_light_menu_state == LIGHT_MODE_MENU) {
         // Root menu: calibration, display mode, alerts, reset, exit.
         const char* items[] = {
-            tr("Calibración", "Calibració", "Calibration"),
-            tr("Modo display", "Mode display", "Display mode"),
-            tr("Alertas", "Alertes", "Alerts"),
-            tr("Reset", "Reset", "Reset"),
-            tr("Salir", "Sortir", "Exit")
+            L(MENU_CALIBRATION),
+            L(MENU_DISPLAY_MODE),
+            L(MENU_ALERTS),
+            L(MENU_RESET),
+            L(MENU_EXIT)
         };
         drawCenteredMenuList(items, 5, g_light_menu_index, LM_MENU5_Y0, LM_MENU5_GAP);
         drawFooterHint(L(INSTR_SEL), cx, LM_MENU_FOOTER_Y);
         last_menu_index = (int)g_light_menu_index;
     } else if (g_light_menu_state >= LIGHT_MODE_EDIT_DIM && g_light_menu_state <= LIGHT_MODE_EDIT_BRIGHT) {
         // Threshold editing keeps the current value centered and compact.
-        const char* title = tr("Max penumbra", "Max penombra", "Max dim");
+        const char* title = L(MENU_LIGHT_MAX_DIM);
         int value = g_light_dim_max;
         if (g_light_menu_state == LIGHT_MODE_EDIT_INDOOR) {
-            title = tr("Max interior", "Max interior", "Max indoor");
+            title = L(MENU_LIGHT_MAX_INDOOR);
             value = g_light_indoor_max;
         } else if (g_light_menu_state == LIGHT_MODE_EDIT_BRIGHT) {
-            title = tr("Max brillante", "Max brillant", "Max bright");
+            title = L(MENU_LIGHT_MAX_BRIGHT);
             value = g_light_bright_max;
         }
 
@@ -329,7 +320,7 @@ static void draw_light_menu_screen(bool screen_changed) {
         last_edit_value = value;
     } else if (g_light_menu_state == LIGHT_MODE_EDIT_DISPLAY) {
         // Display mode changes how the large value is presented.
-        drawCenteredMenuValueScreen(tr("Modo display", "Mode display", "Display mode"),
+        drawCenteredMenuValueScreen(L(MENU_DISPLAY_MODE),
                                     get_light_display_mode_name(g_light_display_mode),
                                     TFT_WHITE,
                                     MENU_VALUE_FONT_BODY,
@@ -337,24 +328,24 @@ static void draw_light_menu_screen(bool screen_changed) {
         last_display_mode = (int)g_light_display_mode;
     } else if (g_light_menu_state == LIGHT_MODE_EDIT_ALERTS) {
         // Alert toggle mirrors the same ON/OFF interaction used elsewhere.
-        drawCenteredMenuValueScreen(tr("Alertas", "Alertes", "Alerts"),
+        drawCenteredMenuValueScreen(L(MENU_ALERTS),
                                     g_light_alerts_enabled ? L(ST_ON) : L(ST_OFF),
                                     g_light_alerts_enabled ? TFT_GREEN : TFT_RED,
                                     MENU_VALUE_FONT_BODY,
                                     L(ST_TURN_PUSH));
         last_display_mode = (int)g_light_alerts_enabled;
     } else if (g_light_menu_state == LIGHT_MODE_CONFIRM_RESET) {
-        drawResetChoicePrompt(tr("Reset", "Reset", "Reset"),
-                              tr("Valores por defecto", "Valors per defecte", "Default values"),
-                              tr("de luz", "de llum", "for light"),
-                              tr("NO", "NO", "NO"),
-                              tr("SÍ", "SÍ", "YES"),
+        drawResetChoicePrompt(L(MENU_RESET),
+                              L(MENU_DEFAULTS),
+                              L(MENU_RESET_SUB_LIGHT),
+                              L(MENU_NO),
+                              L(MENU_YES),
                               g_light_reset_choice,
                               L(ST_TURN_PUSH));
         last_reset_choice = (int)g_light_reset_choice;
     } else if (g_light_menu_state == LIGHT_MODE_SAVED) {
         // Saved state previews the updated setting before returning.
-        const char* saved_title = tr("Guardado", "Desat", "Saved");
+        const char* saved_title = L(MENU_SAVED);
 
         if (g_light_last_saved_menu_index == 0) {
             char line_buf_1[18];
@@ -362,9 +353,9 @@ static void draw_light_menu_screen(bool screen_changed) {
             char line_buf_3[18];
             const char* lines[3];
             const uint16_t colors[3] = { TFT_CYAN, TFT_GREEN, TFT_YELLOW };
-            snprintf(line_buf_1, sizeof(line_buf_1), "%s < %d", tr("Pen", "Pen", "Dim"), g_light_dim_max);
-            snprintf(line_buf_2, sizeof(line_buf_2), "%s < %d", tr("Int", "Int", "In"), g_light_indoor_max);
-            snprintf(line_buf_3, sizeof(line_buf_3), "%s < %d", tr("Bri", "Bri", "Bri"), g_light_bright_max);
+            snprintf(line_buf_1, sizeof(line_buf_1), "%s < %d", L(MENU_LIGHT_ABR_DIM), g_light_dim_max);
+            snprintf(line_buf_2, sizeof(line_buf_2), "%s < %d", L(MENU_LIGHT_ABR_IN), g_light_indoor_max);
+            snprintf(line_buf_3, sizeof(line_buf_3), "%s < %d", L(MENU_LIGHT_ABR_BRIGHT), g_light_bright_max);
             lines[0] = line_buf_1;
             lines[1] = line_buf_2;
             lines[2] = line_buf_3;
@@ -384,7 +375,7 @@ static void draw_light_menu_screen(bool screen_changed) {
                                         L(ST_PUSH_MENU));
         } else {
             drawCenteredMenuSavedScreen(saved_title,
-                                        tr("Valores por defecto", "Valors per defecte", "Default values"),
+                                        L(MENU_DEFAULTS),
                                         TFT_WHITE,
                                         MENU_VALUE_FONT_BODY,
                                         L(ST_PUSH_MENU));

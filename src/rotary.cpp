@@ -18,6 +18,10 @@
 #include "ui_sound.h"
 #include "ui_light.h"
 #include "ui_system.h"
+#include "ui_graph.h"
+#if PBIT_ENABLE_GRAPH_LAB
+#include "ui_lab_focus.h"
+#endif
 #include "runtime_events.h"
 
 // External state shared with the rest of the firmware.
@@ -45,6 +49,36 @@ unsigned long g_deferred_beep_due_ms = 0;
 int g_deferred_beep_freq_hz = 0;
 int g_deferred_beep_duration_ms = 0;
 
+#if PBIT_ENABLE_GRAPH_LAB
+static bool isHiddenLabScreen(Screen screen) {
+    switch (screen) {
+        case LAB_ICON_SET_A_SCREEN:
+        case LAB_ICON_SET_B_SCREEN:
+        case LAB_ICON_SET_C_SCREEN:
+        case LAB_ICON_SIZES_ENV_SCREEN:
+        case LAB_ICON_SIZES_EXT_SCREEN:
+            return true;
+        default:
+            return false;
+    }
+}
+
+static Screen stepAppScreen(Screen screen, int direction) {
+    int next = (int)screen + direction;
+    if (next > (int)LAST_APP_SCREEN) next = (int)TEMP_SCREEN;
+    if (next < (int)TEMP_SCREEN) next = (int)LAST_APP_SCREEN;
+    return static_cast<Screen>(next);
+}
+
+static Screen resolveVisibleAppScreen(Screen screen, int direction) {
+    Screen candidate = screen;
+    while (isHiddenLabScreen(candidate)) {
+        candidate = stepAppScreen(candidate, direction);
+    }
+    return candidate;
+}
+#endif
+
 static bool is_button_pressed_raw() {
     return digitalRead((uint8_t)DI_ENCODER_SW) == LOW;
 }
@@ -69,7 +103,7 @@ static void service_deferred_beep(unsigned long now_ms_value) {
 } // namespace
 
 static void configure_app_rotary_bounds() {
-    rotaryEncoder.setBoundaries(TEMP_SCREEN, TIMER_SCREEN, true);
+    rotaryEncoder.setBoundaries(TEMP_SCREEN, LAST_APP_SCREEN, true);
     rotaryEncoder.setStepValue(1);
     rotaryEncoder.setEncoderValue((int)active_screen);
 }
@@ -170,7 +204,7 @@ static void play_soil_confirm_beep() {
 }
 
 static bool isRestorableScreen(Screen screen) {
-    return screen >= TEMP_SCREEN && screen <= TIMER_SCREEN;
+    return screen >= TEMP_SCREEN && screen <= LAST_APP_SCREEN;
 }
 
 static unsigned long now_ms() {
@@ -285,8 +319,26 @@ void knobCallback(long value) {
         return;
     }
 
-    if (value < TEMP_SCREEN || value > TIMER_SCREEN) return;
-    active_screen = static_cast<Screen>(value);
+    if (value < TEMP_SCREEN || value > LAST_APP_SCREEN) return;
+
+    Screen requested_screen = static_cast<Screen>(value);
+#if PBIT_ENABLE_GRAPH_LAB
+    int direction = 1;
+    if (active_screen == LAST_APP_SCREEN && requested_screen == TEMP_SCREEN) {
+        direction = 1;
+    } else if (active_screen == TEMP_SCREEN && requested_screen == LAST_APP_SCREEN) {
+        direction = -1;
+    } else if ((int)requested_screen < (int)active_screen) {
+        direction = -1;
+    }
+
+    requested_screen = resolveVisibleAppScreen(requested_screen, direction);
+    if (requested_screen != static_cast<Screen>(value)) {
+        rotaryEncoder.setEncoderValue((int)requested_screen);
+    }
+#endif
+
+    active_screen = requested_screen;
     DPRINT("[Rotary] Switched to screen %d\n", (int)active_screen);
 
     // Gentle click when changing the active screen.
@@ -319,15 +371,47 @@ void knobCallback(long value) {
             break;
         case TIMER_SCREEN:
             if (userTimerRunning) {
-                set_rgb(0, 255, 0); 
+                set_rgb(0, 255, 0);
             } else if (userTimerElapsed > 0) {
-                set_rgb(255, 200, 0); 
+                set_rgb(255, 200, 0);
             } else {
-                set_rgb(0, 0, 255); 
+                set_rgb(0, 0, 255);
             }
             break;
+        case GRAPH_SCREEN:
+            set_rgb(0, 80, 80); // Teal neutro para la pantalla de gráfica
+            break;
+#if PBIT_ENABLE_GRAPH_LAB
+        case LAB_DASH_OVERVIEW_SCREEN:
+            set_rgb(90, 90, 140);
+            break;
+        case LAB_SENSOR_FOCUS_SCREEN:
+            set_rgb(0, 110, 130);
+            break;
+        case LAB_DUAL_TH_SCREEN:
+            set_rgb(0, 140, 180);
+            break;
+        case LAB_ICON_SET_A_SCREEN:
+            set_rgb(180, 80, 255);
+            break;
+        case LAB_ICON_SET_B_SCREEN:
+            set_rgb(80, 180, 255);
+            break;
+        case LAB_ICON_SET_C_SCREEN:
+            set_rgb(255, 120, 80);
+            break;
+        case LAB_GAUGE_TEMP_SCREEN:
+            set_rgb(255, 140, 0);
+            break;
+        case LAB_VALUE_MODERN_SCREEN:
+            set_rgb(255, 0, 180);
+            break;
+        case LAB_WIDGET_MIX_SCREEN:
+            set_rgb(0, 200, 255);
+            break;
+#endif
         default:
-            set_rgb(0, 0, 0); 
+            set_rgb(0, 0, 0);
             break;
     }
 }
@@ -653,6 +737,28 @@ void buttonCallback(unsigned long duration) {
         }
         return;
     }
+
+    // -----------------------------------------------------------------
+    // Graph screen behavior: short press cycles between sensors.
+    // -----------------------------------------------------------------
+
+    if (active_screen == GRAPH_SCREEN) {
+        if (duration < MENU_LONG_PRESS_MS) {
+            graph_cycle_sensor();
+            if (g_sound_enabled) beep(800, 15);
+        }
+        return;
+    }
+
+#if PBIT_ENABLE_GRAPH_LAB
+    if (active_screen == LAB_SENSOR_FOCUS_SCREEN) {
+        if (duration < MENU_LONG_PRESS_MS) {
+            lab_focus_cycle_sensor();
+            if (g_sound_enabled) beep(800, 15);
+        }
+        return;
+    }
+#endif
 }
 
 void init_rotary() {

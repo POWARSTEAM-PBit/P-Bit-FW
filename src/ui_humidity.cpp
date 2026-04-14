@@ -20,15 +20,6 @@ extern Reading g_ui_readings_snapshot;
 
 namespace {
 
-const char* tr(const char* es, const char* cat, const char* en) {
-    switch (g_language) {
-        case LANG_CAT: return cat;
-        case LANG_EN: return en;
-        case LANG_ES:
-        default: return es;
-    }
-}
-
 void apply_humidity_rgb(uint8_t alert_state) {
     switch (alert_state) {
         case ALERT_CODE_LOW:
@@ -238,10 +229,10 @@ static void draw_humidity_menu_screen(bool screen_changed) {
     if (g_hum_menu_state == HUM_MODE_MENU) {
         if (state_changed || last_menu_index != (int)g_hum_menu_index) {
             const char* items[4] = {
-                tr("Límites", "Límits", "Limits"),
-                tr("Alertas", "Alertes", "Alerts"),
-                tr("Reset", "Reset", "Reset"),
-                tr("Salir", "Sortir", "Exit")
+                L(MENU_LIMITS),
+                L(MENU_ALERTS),
+                L(MENU_RESET),
+                L(MENU_EXIT)
             };
             drawCenteredMenuList(items, 4, g_hum_menu_index, LM_MENU4_Y0, LM_MENU4_GAP);
             drawFooterHint(L(INSTR_SEL), cx, LM_MENU_FOOTER_Y);
@@ -259,8 +250,8 @@ static void draw_humidity_menu_screen(bool screen_changed) {
             char value_buf[12];
             snprintf(value_buf, sizeof(value_buf), "%d%%", current_val);
             drawCenteredMenuValueScreen((g_hum_menu_state == HUM_MODE_EDIT_DRY)
-                                            ? tr("Seco", "Sec", "Dry")
-                                            : tr("Muy húmedo", "Molt humit", "Very humid"),
+                                            ? L(ST_DRY)
+                                            : L(ST_SATURATED),
                                         value_buf,
                                         color,
                                         MENU_VALUE_FONT_TIMER,
@@ -272,7 +263,7 @@ static void draw_humidity_menu_screen(bool screen_changed) {
     if (g_hum_menu_state == HUM_MODE_EDIT_ALERTS) {
         int alert_value = g_hum_edit_alerts ? 1 : 0;
         if (state_changed || alert_value != last_alert_value) {
-            drawCenteredMenuValueScreen(tr("Alertas", "Alertes", "Alerts"),
+            drawCenteredMenuValueScreen(L(MENU_ALERTS),
                                         g_hum_edit_alerts ? L(ST_ON) : L(ST_OFF),
                                         g_hum_edit_alerts ? TFT_GREEN : TFT_RED,
                                         MENU_VALUE_FONT_TIMER,
@@ -282,11 +273,11 @@ static void draw_humidity_menu_screen(bool screen_changed) {
     }
 
     if (g_hum_menu_state == HUM_MODE_CONFIRM_RESET && (state_changed || last_reset_choice != (int)g_hum_reset_choice)) {
-        drawResetChoicePrompt(tr("Reset", "Reset", "Reset"),
-                              tr("Valores por defecto", "Valors per defecte", "Default values"),
-                              tr("de humedad", "d'humitat", "for humidity"),
-                              tr("NO", "NO", "NO"),
-                              tr("SÍ", "SÍ", "YES"),
+        drawResetChoicePrompt(L(MENU_RESET),
+                              L(MENU_DEFAULTS),
+                              L(MENU_RESET_SUB_HUM),
+                              L(MENU_NO),
+                              L(MENU_YES),
                               g_hum_reset_choice,
                               L(ST_TURN_PUSH));
         last_reset_choice = (int)g_hum_reset_choice;
@@ -298,21 +289,21 @@ static void draw_humidity_menu_screen(bool screen_changed) {
             char line_buf_2[24];
             const char* lines[2];
             const uint16_t colors[2] = { TFT_ORANGE, TFT_GREEN };
-            snprintf(line_buf_1, sizeof(line_buf_1), "%s %d%%", tr("Seco", "Sec", "Dry"), g_hum_edit_dry);
-            snprintf(line_buf_2, sizeof(line_buf_2), "%s %d%%", tr("Muy húmedo", "Molt humit", "Very humid"), g_hum_edit_comf);
+            snprintf(line_buf_1, sizeof(line_buf_1), "%s %d%%", L(ST_DRY), g_hum_edit_dry);
+            snprintf(line_buf_2, sizeof(line_buf_2), "%s %d%%", L(ST_SATURATED), g_hum_edit_comf);
             lines[0] = line_buf_1;
             lines[1] = line_buf_2;
-            drawCenteredMenuFrame(tr("Guardado", "Desat", "Saved"), TFT_GREEN, L(ST_PUSH_MENU));
+            drawCenteredMenuFrame(L(MENU_SAVED), TFT_GREEN, L(ST_PUSH_MENU));
             drawCenteredMenuBodyLines(lines, colors, 2, MENU_TEXT_FONT_SMALL, LM_SUMMARY2_Y0, LM_SUMMARY2_GAP);
         } else if (g_hum_saved_kind == 1) {
-            drawCenteredMenuSavedScreen(tr("Guardado", "Desat", "Saved"),
+            drawCenteredMenuSavedScreen(L(MENU_SAVED),
                                         g_hum_edit_alerts ? L(ST_ON) : L(ST_OFF),
                                         g_hum_edit_alerts ? TFT_GREEN : TFT_RED,
                                         MENU_VALUE_FONT_TIMER,
                                         L(ST_PUSH_MENU));
         } else if (g_hum_saved_kind == 2) {
-            drawCenteredMenuSavedScreen(tr("Guardado", "Desat", "Saved"),
-                                        tr("Valores por defecto", "Valors per defecte", "Default values"),
+            drawCenteredMenuSavedScreen(L(MENU_SAVED),
+                                        L(MENU_DEFAULTS),
                                         TFT_WHITE,
                                         MENU_VALUE_FONT_BODY,
                                         L(ST_PUSH_MENU));

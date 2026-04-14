@@ -1,0 +1,37 @@
+{
+  "release_id": "2026-04-04_prod_timer-segmented_serialplotter-off",
+  "date": "2026-04-04",
+  "git_short_sha": "9079548",
+  "worktree_state": "dirty",
+  "environment": "esp32dev",
+  "features": {
+    "serial_plotter": false,
+    "timer_segmented_render": true,
+    "default_temperature_unit": "Celsius",
+    "language_selector_on_cold_boot": true
+  },
+  "memory": {
+    "ram_bytes": 38540,
+    "flash_bytes": 872249
+  },
+  "artifacts": {
+    "firmware_bin": {
+      "path": "bin/firmware.bin",
+      "sha256": "E51711C3E951BB4DA22CC409AA39373F194130D470223F0C214367D747A4A8E1"
+    },
+    "bootloader_bin": {
+      "path": "bin/bootloader.bin",
+      "sha256": "3D234A7471F67B013686DABD4DEE7C1FA915C9928463616A94BC9297ACF1ABF8"
+    },
+    "partitions_bin": {
+      "path": "bin/partitions.bin",
+      "sha256": "148B959CBFF1C38AA8E1D5C0BA9D612C54997B945E56A63F41223EEF650653A1"
+    },
+    "firmware_elf": {
+      "path": "bin/firmware.elf"
+    },
+    "firmware_map": {
+      "path": "bin/firmware.map"
+    }
+  }
+}

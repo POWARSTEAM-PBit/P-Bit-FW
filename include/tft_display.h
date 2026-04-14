@@ -1,5 +1,6 @@
 #pragma once
 #include <Arduino.h>
+#include "config.h"
 #include "io.h"
 
 // --- Screen enum ---
@@ -13,8 +14,32 @@ enum Screen {
     SOIL_SCREEN,
     DS18B20_SCREEN,
     SYSTEM_SCREEN,
-    TIMER_SCREEN
+    TIMER_SCREEN,
+    GRAPH_SCREEN
+#if PBIT_ENABLE_GRAPH_LAB
+    ,
+    LAB_DASH_OVERVIEW_SCREEN,
+    LAB_SENSOR_FOCUS_SCREEN,
+    LAB_DUAL_TH_SCREEN,
+    LAB_ICON_SET_A_SCREEN,
+    LAB_ICON_SET_B_SCREEN,
+    LAB_ICON_SET_C_SCREEN,
+    LAB_GAUGE_TEMP_SCREEN,
+    LAB_VALUE_MODERN_SCREEN,
+    LAB_WIDGET_MIX_SCREEN,
+    LAB_ICON_SIZES_ENV_SCREEN,
+    LAB_ICON_SIZES_EXT_SCREEN,
+    LAB_HOME_CARDS_SCREEN,
+    LAB_LINEAR_DASH_SCREEN,
+    LAB_ICON_TEST_SCREEN
+#endif
 };
+
+#if PBIT_ENABLE_GRAPH_LAB
+constexpr Screen LAST_APP_SCREEN = LAB_ICON_TEST_SCREEN;
+#else
+constexpr Screen LAST_APP_SCREEN = GRAPH_SCREEN;
+#endif
 
 enum UiOverlayState {
     UI_OVERLAY_NONE,

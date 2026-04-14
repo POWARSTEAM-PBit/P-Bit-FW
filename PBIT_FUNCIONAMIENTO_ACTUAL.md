@@ -1,6 +1,6 @@
 # P-Bit: Funcionamiento Actual del Firmware
 
-Actualizado: 2026-03-29
+Actualizado: 2026-04-10
 
 Este documento explica qué hace hoy el P-Bit con el código actual, cómo se usa y qué posibilidades educativas ofrece en contextos STEAM ambientales.
 
@@ -61,6 +61,7 @@ Orden actual de pantallas:
 - `DS18B20`
 - `Sistema`
 - `Timer`
+- `Gráfica`
 
 ### Botón del encoder
 
@@ -75,6 +76,7 @@ Acciones rápidas actuales:
 - `DS18B20`: alterna la misma unidad global compartida `C/F`
 - `Sistema`: alterna `Sonido ON/OFF`
 - `Timer`: con pulsación corta inicia/pausa; con pulsación larga abre el selector de minutos si está idle y resetea si ya estaba corriendo o pausado
+- `Gráfica`: pulsación corta cambia el sensor mostrado (`Temperatura` ↔ `Humedad`)
 
 En la mayoría de pantallas de sensores, la pulsación larga (~1.2 s) abre el menú propio de esa pantalla.
 
@@ -218,6 +220,23 @@ Funciones actuales:
 - avisar visualmente en rojo y con beep corto al terminar una cuenta regresiva si el sonido global está activo
 
 El valor `00:00:00` funciona como cronómetro ascendente. Cualquier otro valor funciona como cuenta regresiva.
+
+### Gráfica
+
+Muestra la evolución temporal de un sensor como gráfica de línea en pantalla completa.
+
+Funciones actuales:
+
+- historial de las últimas ~2 min 40 s (160 muestras a 1 muestra/s)
+- auto-escalado del eje Y con rango mínimo y margen de respiración
+- cambio de sensor (Temperatura ↔ Humedad) con pulsación corta del encoder
+- etiquetas dimmed de valor mínimo y máximo en las esquinas de la gráfica
+- render sin parpadeo mediante sprite de hardware
+- sensores disponibles actualmente: `Temperatura` y `Humedad`
+
+Nota:
+
+- la pantalla no tiene menú de configuración; en futuras versiones podría añadirse un rango fijo o más sensores
 
 ## 5. Alertas y feedback
 
@@ -431,10 +450,10 @@ Aprendizajes:
 
 Aunque el firmware ya es funcional y útil, todavía hay aspectos en evolución:
 
-- la localización aún no está cerrada al 100%
 - la UX visual todavía puede refinarse más
 - el timer ya permite editar `HH:MM:SS`, pero aún no tiene funciones de experimento más avanzadas
 - la pantalla de sonido sigue siendo interpretación por umbrales, no calibración física
+- la pantalla de gráfica es un prototipo funcional validado en hardware; quedan ajustes visuales finos y la ampliación a más sensores
 
 Esto no impide su uso educativo actual, pero sí marca oportunidades claras para las siguientes iteraciones.
 
@@ -447,6 +466,7 @@ Hoy el P-Bit ya es una plataforma educativa ambiental funcional que:
 - guarda ajustes
 - usa alertas visuales, LED y sonido
 - gestiona reposo automático
+- muestra la evolución temporal de sensores como gráfica de línea interactiva
 - sirve para actividades STEAM reales con plantas, clima, luz, ruido y análisis del entorno
 
 En su estado actual, ya puede usarse como herramienta de observación, experimentación y aprendizaje en educación ambiental.

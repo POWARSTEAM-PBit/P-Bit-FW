@@ -3,10 +3,11 @@
 #include <DHT.h>
 #include "io.h"
 #include "hw.h"  // Reuse the hardware layer for DS18B20 and shared sensor helpers.
-#include "ble.h" 
+#include "ble.h"
 #include "alert_engine.h"
 #include "runtime_events.h"
-#include <math.h> 
+#include "graph_buffer.h"
+#include <math.h>
 
 #define DHT_TYPE DHT11
 
@@ -49,12 +50,27 @@ void sensor_reading_task(void *param) {
    portEXIT_CRITICAL(&readings_mux);
 
    uint32_t last_slow_read_ms = 0;
+   float mic_peak_accum = 0.0f;
 
    while (1) {
       uint32_t current_ms = millis();
+      if (!isnan(local_r.mic) && local_r.mic > mic_peak_accum) {
+         mic_peak_accum = local_r.mic;
+      }
       if (current_ms - last_slow_read_ms >= SENSOR_READ_INTERVAL_MS) {
          last_slow_read_ms = current_ms;
-         read_slow_sensors(local_r); 
+         read_slow_sensors(local_r);
+
+         // Push valid readings to the graph history buffers.
+         portENTER_CRITICAL(&g_graph_mux);
+         if (!isnan(local_r.temperature)) graph_buffer_push(g_graph_temp,     local_r.temperature);
+         if (!isnan(local_r.humidity))    graph_buffer_push(g_graph_humidity,  local_r.humidity);
+         if (local_r.temp_ds18b20 >= -100.0f) graph_buffer_push(g_graph_ds18, local_r.temp_ds18b20);
+         if (!isnan(local_r.ldr))         graph_buffer_push(g_graph_light,     local_r.ldr);
+         if (!isnan(local_r.soil_humidity)) graph_buffer_push(g_graph_soil,    local_r.soil_humidity);
+         graph_buffer_push(g_graph_sound, mic_peak_accum);
+         portEXIT_CRITICAL(&g_graph_mux);
+         mic_peak_accum = 0.0f;
       }
       read_fast_sensors(local_r);
 

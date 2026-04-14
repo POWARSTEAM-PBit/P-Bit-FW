@@ -109,10 +109,103 @@ static const char* const STRINGS[LANG_KEY_COUNT][3] = {
 /* ST_TIMER_CFG_SELECT */ { "Pulsa editar · Mant guardar", "Prem editar · Mant desar", "Push edit · Hold save" },
 /* ST_TIMER_CFG_EDIT */ { "Gira ajusta",      "Gira ajusta",          "Turn adjust"        },
 
+// Shared menu strings
+/* MENU_SAVED        */  { "Guardado",              "Desat",                "Saved"              },
+/* MENU_RESET        */  { "Reset",                 "Reset",                "Reset"              },
+/* MENU_ALERTS       */  { "Alertas",               "Alertes",              "Alerts"             },
+/* MENU_EXIT         */  { "Salir",                 "Sortir",               "Exit"               },
+/* MENU_NO           */  { "NO",                    "NO",                   "NO"                 },
+/* MENU_YES          */  { "SÍ",                    "SÍ",                   "YES"                },
+/* MENU_DEFAULTS     */  { "Valores por defecto",   "Valors per defecte",   "Default values"     },
+/* MENU_ERROR        */  { "Error",                 "Error",                "Error"              },
+/* MENU_LIMITS       */  { "Límites",               "Límits",               "Limits"             },
+/* MENU_CALIBRATION  */  { "Calibración",           "Calibració",           "Calibration"        },
+/* MENU_UNIT         */  { "Unidad",                "Unitat",               "Unit"               },
+/* MENU_RESET_DONE   */  { "Reset aplicado",        "Reset aplicat",        "Reset applied"      },
+/* MENU_LOW          */  { "Bajo",                  "Baix",                 "Low"                },
+/* MENU_HIGH         */  { "Alto",                  "Alt",                  "High"               },
+/* MENU_LIMIT_LOW    */  { "Límite bajo",           "Límit baix",           "Low limit"          },
+/* MENU_LIMIT_HIGH   */  { "Límite alto",           "Límit alt",            "High limit"         },
+/* MENU_UNIT_F       */  { "Fahrenheit",            "Fahrenheit",           "Fahrenheit"         },
+/* MENU_UNIT_C       */  { "Celsius",               "Celsius",              "Celsius"            },
+
+// System menu
+/* MENU_SETTINGS     */  { "AJUSTES",               "AJUSTOS",              "SETTINGS"           },
+/* MENU_SOUND        */  { "Sonido",                "Soroll",               "Sound"              },
+/* MENU_SLEEP        */  { "Reposo",                "Repos",                "Sleep"              },
+/* MENU_NEVER        */  { "Nunca",                 "Mai",                  "Never"              },
+/* MENU_SLEEP_30S    */  { "30 seg",                "30 s",                 "30 sec"             },
+/* MENU_SLEEP_1M     */  { "1 min",                 "1 min",                "1 min"              },
+/* MENU_SLEEP_2M     */  { "2 min",                 "2 min",                "2 min"              },
+/* MENU_SLEEP_5M     */  { "5 min",                 "5 min",                "5 min"              },
+/* MENU_SLEEP_10M    */  { "10 min",                "10 min",               "10 min"             },
+/* MENU_FULL_RESET   */  { "Reset total",           "Reset total",          "Full reset"         },
+/* MENU_RESTORE_ALL  */  { "Todo vuelve",           "Tot torna",            "Restore all"        },
+/* MENU_TO_DEFAULTS  */  { "a fábrica",             "de fàbrica",           "to defaults"        },
+
+// Light menu
+/* MENU_DISPLAY_MODE     */  { "Modo display",      "Mode display",         "Display mode"       },
+/* MENU_LIGHT_MAX_DIM    */  { "Max penumbra",      "Max penombra",         "Max dim"            },
+/* MENU_LIGHT_MAX_INDOOR */  { "Max interior",      "Max interior",         "Max indoor"         },
+/* MENU_LIGHT_MAX_BRIGHT */  { "Max brillante",     "Max brillant",         "Max bright"         },
+/* MENU_RESET_SUB_LIGHT  */  { "de luz",            "de llum",              "for light"          },
+/* MENU_LIGHT_ABR_DIM    */  { "Pen",               "Pen",                  "Dim"                },
+/* MENU_LIGHT_ABR_IN     */  { "Int",               "Int",                  "In"                 },
+/* MENU_LIGHT_ABR_BRIGHT */  { "Bri",               "Bri",                  "Bri"                },
+
+// Sound menu
+/* MENU_SND_MAX_QUIET    */  { "Max silencio",      "Max silenci",          "Max quiet"          },
+/* MENU_SND_MAX_NORMAL   */  { "Max normal",        "Max normal",           "Max normal"         },
+/* MENU_SND_MAX_LOUD     */  { "Max alto",          "Max alt",              "Max loud"           },
+/* MENU_RESET_SUB_SOUND  */  { "de sonido",         "de so",                "for sound"          },
+/* MENU_SND_ABR_QUIET    */  { "Sil",               "Sil",                  "Qui"                },
+/* MENU_SND_ABR_NORMAL   */  { "Nor",               "Nor",                  "Nor"                },
+/* MENU_SND_ABR_LOUD     */  { "Alt",               "Alt",                  "Loud"               },
+
+// Soil menu
+/* MENU_SOIL_SENSOR_LIMITS */ { "Sensor y umbrales", "Sensor i llindars",   "Sensor and limits"  },
+/* MENU_RESET_SUB_SOIL   */  { "por defecto",       "per defecte",          "to defaults"        },
+/* MENU_RESTORED         */  { "restaurados",       "restaurats",           "restored"           },
+/* MENU_PUSH_CAPTURE     */  { "Pulsa para capturar", "Prem per capturar",  "Push to capture"    },
+
+// DS18 / temperature menu
+/* MENU_OFFSET           */  { "Offset",            "Offset",               "Offset"             },
+/* MENU_RESET_SUB_TEMP   */  { "de temperatura",    "de temperatura",       "for temperature"    },
+/* MENU_RESET_SUB_PROBE  */  { "del termómetro",    "del termòmetre",       "for probe menu"     },
+/* MENU_RESET_SUB_HUM    */  { "de humedad",        "d'humitat",            "for humidity"       },
+
 /* MENU_TITLE   */  { "Idioma",                "Idioma",               "Language"           },
 /* LANG_ES_NAME */  { "Español",               "Castellà",             "Spanish"            },
 /* LANG_CAT_NAME*/  { "Catalán",               "Català",               "Catalan"            },
 /* LANG_EN_NAME */  { "Inglés",                "Anglès",               "English"            },
+
+// Graph screen
+/* TIT_GRAPH         */ { "GRÁFICA",              "GRÀFICA",              "GRAPH"              },
+/* GRAPH_PUSH_SENSOR */ { "Pulsa: cambiar sensor", "Prem: canviar sensor", "Push: change sensor" },
+/* ST_WAITING        */ { "Esperando...",         "Esperant...",          "Waiting..."         },
+
+// Temporary lab screens
+/* TIT_LAB_DASH      */ { "ESTADO LAB",           "ESTAT LAB",            "LAB OVERVIEW"       },
+/* TIT_LAB_FOCUS     */ { "SENSOR LAB",           "SENSOR LAB",           "LAB SENSOR"         },
+/* TIT_LAB_DUAL_TH   */ { "CLIMA LAB",            "CLIMA LAB",            "LAB CLIMATE"        },
+/* TIT_LAB_ICON_A    */ { "OUTLINE",              "OUTLINE",              "OUTLINE"            },
+/* TIT_LAB_ICON_B    */ { "SOLID",                "SOLID",                "SOLID"              },
+/* TIT_LAB_ICON_C    */ { "PIXEL",                "PIXEL",                "PIXEL"              },
+/* TIT_LAB_GAUGE     */ { "GAUGE LAB",            "GAUGE LAB",            "GAUGE LAB"          },
+/* TIT_LAB_VALUE     */ { "VALOR LAB",            "VALOR LAB",            "VALUE LAB"          },
+/* TIT_LAB_WIDGETS   */ { "WIDGET LAB",           "WIDGET LAB",           "WIDGET LAB"         },
+/* LAB_COMPARE_HINT  */ { "4 iconos grandes",     "4 icones grans",       "4 large icons"      },
+/* LAB_EXPERIMENT_HINT */ { "Vista experimental", "Vista experimental",   "Experimental view"  },
+/* LAB_TEMP_SHORT    */ { "TEMP",                 "TEMP",                 "TEMP"               },
+/* LAB_HUM_SHORT     */ { "HUM",                  "HUM",                  "HUM"                },
+/* LAB_LIGHT_SHORT   */ { "LUZ",                  "LLUM",                 "LIGHT"              },
+/* LAB_SOUND_SHORT   */ { "MIC",                  "MIC",                  "MIC"                },
+/* LAB_SOIL_SHORT    */ { "SUELO",                "SÒL",                  "SOIL"               },
+/* LAB_PROBE_SHORT   */ { "SONDA",                "SONDA",                "PROBE"              },
+/* TIT_LAB_ICON_SZ_ENV */ { "TAM ICONO ENV",     "MIDA ICONA ENV",       "ICON SIZE ENV"      },
+/* TIT_LAB_ICON_SZ_EXT */ { "TAM ICONO EXT",     "MIDA ICONA EXT",       "ICON SIZE EXT"      },
+/* TIT_LAB_HOME_CARDS  */ { "HOME CARDS",         "HOME CARDS",           "HOME CARDS"         },
+/* TIT_LAB_LINEAR_DASH */ { "SENSOR LIST",        "SENSOR LIST",          "SENSOR LIST"        },
 };
 
 // ---------------------------------------------------------------

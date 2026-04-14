@@ -70,6 +70,17 @@ constexpr int LT_TARGET_CLEAR_Y = 110; // Clear band for the configured duration
 constexpr int LT_TARGET_CLEAR_H = 14;  // Height of the duration clear band.
 constexpr int LT_TARGET_Y = 120;       // Baseline for the configured duration below the card.
 
+// ── Graph screen ─────────────────────────────────────────
+// The graph area has a 1-px border; LG_GRAPH_W/H refer to the interior (sprite size).
+// Outer border: drawRect(LG_GRAPH_X, LG_GRAPH_Y, LG_GRAPH_W+2, LG_GRAPH_H+2, color)
+// Sprite push : (LG_GRAPH_X+1, LG_GRAPH_Y+1)
+constexpr int LG_SENSOR_Y  = 31;   // Sensor name/value band top Y (between header and graph).
+constexpr int LG_GRAPH_X   = 8;    // Left edge of the outer border rect.
+constexpr int LG_GRAPH_Y   = 49;   // Top edge of the outer border rect.
+constexpr int LG_GRAPH_W   = 142;  // Interior width  (== sprite width,  samples visible).
+constexpr int LG_GRAPH_H   = 60;   // Interior height (== sprite height).
+constexpr int LG_HINT_Y    = 120;  // Footer hint baseline.
+
 // ── System Info ──────────────────────────────────────────
 constexpr int LS_CARD_X     = 10;   // Left X coordinate of the system info card.
 constexpr int LS_CARD_Y     = 36;   // Top Y coordinate of the system info card.

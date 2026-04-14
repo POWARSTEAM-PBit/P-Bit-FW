@@ -34,15 +34,6 @@ static uint8_t g_temp_reset_choice = 0;
 
 namespace {
 
-static const char* tr(const char* es, const char* cat, const char* en) {
-    switch (g_language) {
-        case LANG_CAT: return cat;
-        case LANG_EN: return en;
-        case LANG_ES:
-        default: return es;
-    }
-}
-
 static float to_display(float temp_c) {
     return g_is_fahrenheit ? (temp_c * 1.8f + 32.0f) : temp_c;
 }
@@ -60,8 +51,8 @@ static int to_celsius_int(int display_temp) {
 }
 
 static const char* unit_name() {
-    return g_is_fahrenheit ? tr("Fahrenheit", "Fahrenheit", "Fahrenheit")
-                           : tr("Celsius", "Celsius", "Celsius");
+    return g_is_fahrenheit ? L(MENU_UNIT_F)
+                           : L(MENU_UNIT_C);
 }
 
 static const char* unit_short() {
@@ -330,11 +321,11 @@ static void draw_temp_menu_screen(bool screen_changed) {
     if (g_temp_menu_state == TEMP_MODE_MENU) {
         // Root menu follows the same five-item structure as the other sensors.
         const char* items[] = {
-            tr("Límites", "Límits", "Limits"),
-            tr("Unidad", "Unitat", "Unit"),
-            tr("Alertas", "Alertes", "Alerts"),
-            tr("Reset", "Reset", "Reset"),
-            tr("Salir", "Sortir", "Exit")
+            L(MENU_LIMITS),
+            L(MENU_UNIT),
+            L(MENU_ALERTS),
+            L(MENU_RESET),
+            L(MENU_EXIT)
         };
         drawCenteredMenuList(items, 5, g_temp_menu_index, LM_MENU5_Y0, LM_MENU5_GAP);
         drawFooterHint(L(INSTR_SEL), cx, LM_MENU_FOOTER_Y);
@@ -344,8 +335,8 @@ static void draw_temp_menu_screen(bool screen_changed) {
         bool low_mode = (g_temp_menu_state == TEMP_MODE_EDIT_LOW);
         char value_buf[18];
         snprintf(value_buf, sizeof(value_buf), "%d %s", get_temp_encoder_value(), unit_short());
-        drawCenteredMenuValueScreen(low_mode ? tr("Límite bajo", "Límit baix", "Low limit")
-                                             : tr("Límite alto", "Límit alt", "High limit"),
+        drawCenteredMenuValueScreen(low_mode ? L(MENU_LIMIT_LOW)
+                                             : L(MENU_LIMIT_HIGH),
                                     value_buf,
                                     low_mode ? TFT_CYAN : TFT_ORANGE,
                                     MENU_VALUE_FONT_TIMER,
@@ -353,9 +344,9 @@ static void draw_temp_menu_screen(bool screen_changed) {
         last_edit_value = get_temp_encoder_value();
     } else if (g_temp_menu_state == TEMP_MODE_EDIT_UNIT) {
         // Unit selection is a binary toggle between Celsius and Fahrenheit.
-        drawCenteredMenuValueScreen(tr("Unidad", "Unitat", "Unit"),
-                                    g_temp_edit_unit ? tr("Fahrenheit", "Fahrenheit", "Fahrenheit")
-                                                     : tr("Celsius", "Celsius", "Celsius"),
+        drawCenteredMenuValueScreen(L(MENU_UNIT),
+                                    g_temp_edit_unit ? L(MENU_UNIT_F)
+                                                     : L(MENU_UNIT_C),
                                     TFT_WHITE,
                                     MENU_VALUE_FONT_BODY,
                                     L(ST_TURN_PUSH));
@@ -363,25 +354,25 @@ static void draw_temp_menu_screen(bool screen_changed) {
     } else if (g_temp_menu_state == TEMP_MODE_EDIT_ALERTS) {
         // Alert enable/disable uses the same compact ON/OFF interaction as the
         // rest of the firmware.
-        drawCenteredMenuValueScreen(tr("Alertas", "Alertes", "Alerts"),
+        drawCenteredMenuValueScreen(L(MENU_ALERTS),
                                     g_temp_edit_alerts ? L(ST_ON) : L(ST_OFF),
                                     g_temp_edit_alerts ? TFT_GREEN : TFT_RED,
                                     MENU_VALUE_FONT_TIMER,
                                     L(ST_TURN_PUSH));
         last_alert_value = g_temp_edit_alerts ? 1 : 0;
     } else if (g_temp_menu_state == TEMP_MODE_CONFIRM_RESET) {
-        drawResetChoicePrompt(tr("Reset", "Reset", "Reset"),
-                              tr("Valores por defecto", "Valors per defecte", "Default values"),
-                              tr("de temperatura", "de temperatura", "for temperature"),
-                              tr("NO", "NO", "NO"),
-                              tr("SÍ", "SÍ", "YES"),
+        drawResetChoicePrompt(L(MENU_RESET),
+                              L(MENU_DEFAULTS),
+                              L(MENU_RESET_SUB_TEMP),
+                              L(MENU_NO),
+                              L(MENU_YES),
                               g_temp_reset_choice,
                               L(ST_TURN_PUSH));
         last_reset_choice = (int)g_temp_reset_choice;
     } else if (g_temp_menu_state == TEMP_MODE_SAVED) {
         // Saved state previews the updated setting before returning to menu.
-        const char* saved_title = g_temp_save_ok ? tr("Guardado", "Desat", "Saved")
-                                                 : tr("Error", "Error", "Error");
+        const char* saved_title = g_temp_save_ok ? L(MENU_SAVED)
+                                                 : L(MENU_ERROR);
         const uint16_t saved_title_color = g_temp_save_ok ? TFT_GREEN : TFT_RED;
         if (g_temp_saved_kind == 0 && g_temp_save_ok) {
             char line_buf_1[24];
@@ -389,17 +380,17 @@ static void draw_temp_menu_screen(bool screen_changed) {
             const char* lines[2];
             const uint16_t colors[2] = { TFT_CYAN, TFT_ORANGE };
             snprintf(line_buf_1, sizeof(line_buf_1), "%s %d %s",
-                     tr("Bajo", "Baix", "Low"), g_temp_edit_low, unit_short());
+                     L(MENU_LOW), g_temp_edit_low, unit_short());
             snprintf(line_buf_2, sizeof(line_buf_2), "%s %d %s",
-                     tr("Alto", "Alt", "High"), g_temp_edit_high, unit_short());
+                     L(MENU_HIGH), g_temp_edit_high, unit_short());
             lines[0] = line_buf_1;
             lines[1] = line_buf_2;
             drawCenteredMenuFrame(saved_title, saved_title_color, L(ST_PUSH_MENU));
             drawCenteredMenuBodyLines(lines, colors, 2, MENU_TEXT_FONT_SMALL, LM_SUMMARY2_Y0, LM_SUMMARY2_GAP);
         } else if (g_temp_saved_kind == 1) {
             drawCenteredMenuSavedScreen(saved_title,
-                                        g_temp_edit_unit ? tr("Fahrenheit", "Fahrenheit", "Fahrenheit")
-                                                         : tr("Celsius", "Celsius", "Celsius"),
+                                        g_temp_edit_unit ? L(MENU_UNIT_F)
+                                                         : L(MENU_UNIT_C),
                                         TFT_WHITE,
                                         MENU_VALUE_FONT_BODY,
                                         L(ST_PUSH_MENU));
@@ -411,7 +402,7 @@ static void draw_temp_menu_screen(bool screen_changed) {
                                         L(ST_PUSH_MENU));
         } else if (g_temp_saved_kind == 3) {
             drawCenteredMenuSavedScreen(saved_title,
-                                        tr("Valores por defecto", "Valors per defecte", "Default values"),
+                                        L(MENU_DEFAULTS),
                                         TFT_WHITE,
                                         MENU_VALUE_FONT_BODY,
                                         L(ST_PUSH_MENU));

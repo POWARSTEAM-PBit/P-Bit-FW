@@ -259,7 +259,7 @@ Protecciones:
 
 Orden real:
 
-`TEMP -> HUMIDITY -> LIGHT -> SOUND -> SOIL -> DS18B20 -> SYSTEM -> TIMER`
+`TEMP -> HUMIDITY -> LIGHT -> SOUND -> SOIL -> DS18B20 -> SYSTEM -> TIMER -> GRAPH`
 
 ### Gestos del encoder
 
@@ -330,6 +330,28 @@ Tiempos actuales:
 - long press en modo selección confirma y guarda la nueva duración
 - en runtime, la duración objetivo solo se dibuja en la banda inferior cuando hay cuenta regresiva
 - al terminar una cuenta regresiva, la UI pasa a rojo y dispara una alarma intermitente corta si el sonido global está activo
+
+#### Gráfica (`GRAPH_SCREEN`)
+
+- no tiene submenú dedicado
+- pulsación corta: cambia el sensor mostrado (`Temperatura` ↔ `Humedad`)
+- pulsación larga: sin efecto (reservada)
+- muestra una gráfica de línea de las últimas ~2 min 40 s de historia del sensor seleccionado
+- los datos se almacenan en buffers circulares de 160 muestras, llenados a 1 muestra/s por el `sensor_reading_task`
+- el acceso cross-core a los buffers usa `portENTER_CRITICAL` / `portEXIT_CRITICAL` con `g_graph_mux`
+- el render usa un `TFT_eSprite` de 142×72 px (16 bits de color) para evitar parpadeo
+- auto-escalado Y: mínimo de rango 4 °C (temperatura) o 8 % (humedad), más un 5 % de padding
+- las muestras más recientes quedan a la derecha
+- las etiquetas dimmed de mínimo y máximo aparecen en las esquinas del área de gráfica
+- la línea de la gráfica se dibuja en el color característico del sensor: naranja para temperatura, azul para humedad
+- el RGB mientras está en esta pantalla usa teal neutro `(0, 80, 80)`
+- sensores actualmente disponibles: `Temperatura` y `Humedad`; `Luz`, `Sonido`, `Suelo` y `DS18B20` están pendientes
+
+Archivos clave:
+
+- `include/graph_buffer.h` / `src/graph_buffer.cpp` — buffer circular y acceso thread-safe
+- `include/ui_graph.h` / `src/ui_graph.cpp` — render de pantalla y lógica de ciclo de sensor
+- `src/io.cpp` — push a buffers dentro del bloque de sensores lentos (cada 1 s)
 
 ## 9. Persistencia en NVS
 

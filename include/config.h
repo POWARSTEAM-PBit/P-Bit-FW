@@ -11,8 +11,13 @@ constexpr uint32_t SENSOR_READ_INTERVAL_MS = 1000; // 1 segundo
 
 // --- Optional runtime features ---
 // Enable the CSV stream used by Arduino Serial Plotter / lab mode.
-// Keep this on during classroom experiments and disable it for quieter production runs.
-#define PBIT_ENABLE_SERIAL_PLOTTER 1
+// Default to OFF for quieter production runs. Turn it back on only for lab/debug builds.
+#define PBIT_ENABLE_SERIAL_PLOTTER 0
+
+// Temporary UI laboratory screens for evaluating alternate graph/dashboard layouts.
+// Keep ON while iterating on visual concepts; set to 0 to hide the lab screens
+// from the carousel without touching the product screens.
+#define PBIT_ENABLE_GRAPH_LAB 1
 
 // --- Power management ---
 // IDLE is the product's visible sleep state.

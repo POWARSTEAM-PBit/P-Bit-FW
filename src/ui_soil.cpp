@@ -20,19 +20,6 @@
 extern TFT_eSPI tft;
 extern Reading g_ui_readings_snapshot;
 
-namespace {
-
-const char* tr(const char* es, const char* cat, const char* en) {
-    switch (g_language) {
-        case LANG_CAT: return cat;
-        case LANG_EN: return en;
-        case LANG_ES:
-        default: return es;
-    }
-}
-
-} // namespace
-
 static SoilCalibrationState g_soil_cal_state = SOIL_CAL_IDLE;
 static uint8_t g_soil_menu_index = 0;
 static int g_soil_cal_dry_raw = 0;
@@ -322,8 +309,8 @@ static void draw_soil_calibration_screen() {
             const char* items[5] = {
                 L(ST_SOIL_MENU_CAL),
                 L(ST_SOIL_MENU_THRESH),
-                tr("Alertas", "Alertes", "Alerts"),
-                tr("Reset", "Reset", "Reset"),
+                L(MENU_ALERTS),
+                L(MENU_RESET),
                 L(ST_SOIL_MENU_BACK)
             };
             drawCenteredMenuList(items, 5, g_soil_menu_index, LM_MENU5_Y0, LM_MENU5_GAP);
@@ -340,13 +327,13 @@ static void draw_soil_calibration_screen() {
                 drawCenteredMenuFrame(L(ST_SOIL_CAL_SAVED), TFT_GREEN, L(ST_PUSH_MENU));
                 break;
             case SOIL_CAL_RESET_DONE:
-                drawCenteredMenuFrame(tr("Reset aplicado", "Reset aplicat", "Reset applied"), TFT_GREEN, L(ST_PUSH_MENU));
+                drawCenteredMenuFrame(L(MENU_RESET_DONE), TFT_GREEN, L(ST_PUSH_MENU));
                 break;
             case SOIL_CAL_THRESH_DONE:
                 drawCenteredMenuFrame(L(ST_SOIL_THRESH_SAVED), TFT_GREEN, L(ST_PUSH_MENU));
                 break;
             case SOIL_CAL_ALERTS_DONE:
-                drawCenteredMenuFrame(tr("Guardado", "Desat", "Saved"), TFT_GREEN, L(ST_PUSH_MENU));
+                drawCenteredMenuFrame(L(MENU_SAVED), TFT_GREEN, L(ST_PUSH_MENU));
                 break;
             case SOIL_CAL_ERROR:
                 drawCenteredMenuFrame(L(ST_SOIL_CAL_ERROR), TFT_RED, L(ST_PUSH_MENU));
@@ -366,16 +353,16 @@ static void draw_soil_calibration_screen() {
                                     value_buf,
                                     g_soil_cal_state == SOIL_CAL_WAIT_DRY ? TFT_RED : TFT_CYAN,
                                     MENU_VALUE_FONT_TIMER,
-                                    tr("Pulsa para capturar", "Prem per capturar", "Push to capture"));
+                                    L(MENU_PUSH_CAPTURE));
         last_live_raw = g_soil_cal_live_raw;
     }
 
     if (g_soil_cal_state == SOIL_CAL_RESET_CONFIRM && (state_changed || last_reset_choice != (int)g_soil_reset_choice)) {
-        drawResetChoicePrompt(tr("Reset", "Reset", "Reset"),
-                              tr("Sensor y umbrales", "Sensor i llindars", "Sensor and limits"),
-                              tr("por defecto", "per defecte", "to defaults"),
-                              tr("NO", "NO", "NO"),
-                              tr("SÍ", "SÍ", "YES"),
+        drawResetChoicePrompt(L(MENU_RESET),
+                              L(MENU_SOIL_SENSOR_LIMITS),
+                              L(MENU_RESET_SUB_SOIL),
+                              L(MENU_NO),
+                              L(MENU_YES),
                               g_soil_reset_choice,
                               L(ST_TURN_PUSH));
         last_reset_choice = (int)g_soil_reset_choice;
@@ -383,7 +370,7 @@ static void draw_soil_calibration_screen() {
 
     if (g_soil_cal_state == SOIL_CAL_EDIT_ALERTS && (state_changed || last_alerts_enabled != (int)g_soil_alerts_enabled)) {
         // Keep the alert toggle visually aligned with the other binary menus.
-        drawCenteredMenuValueScreen(tr("Alertas", "Alertes", "Alerts"),
+        drawCenteredMenuValueScreen(L(MENU_ALERTS),
                                     g_soil_alerts_enabled ? L(ST_ON) : L(ST_OFF),
                                     g_soil_alerts_enabled ? TFT_GREEN : TFT_RED,
                                     MENU_VALUE_FONT_TIMER,
@@ -466,15 +453,15 @@ static void draw_soil_calibration_screen() {
     if (g_soil_cal_state == SOIL_CAL_RESET_DONE && state_changed) {
         tft.setFreeFont(FONT_BODY);
         tft.setTextColor(TFT_WHITE, TFT_BLACK);
-        tft.drawString(tr("Sensor y umbrales", "Sensor i llindars", "Sensor and limits"), cx, 70);
-        tft.drawString(tr("restaurados", "restaurats", "restored"), cx, 88);
+        tft.drawString(L(MENU_SOIL_SENSOR_LIMITS), cx, 70);
+        tft.drawString(L(MENU_RESTORED), cx, 88);
         tft.setTextFont(0);
     }
 
     if (g_soil_cal_state == SOIL_CAL_ALERTS_DONE && (state_changed || last_alerts_enabled != (int)g_soil_alerts_enabled)) {
         tft.setFreeFont(FONT_BODY);
         tft.setTextColor(g_soil_alerts_enabled ? TFT_GREEN : TFT_RED, TFT_BLACK);
-        tft.drawString(tr("Alertas", "Alertes", "Alerts"), cx, 70);
+        tft.drawString(L(MENU_ALERTS), cx, 70);
         tft.drawString(g_soil_alerts_enabled ? L(ST_ON) : L(ST_OFF), cx, 88);
         tft.setTextFont(0);
         last_alerts_enabled = (int)g_soil_alerts_enabled;

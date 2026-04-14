@@ -36,15 +36,6 @@ static uint8_t g_ds18_reset_choice = 0;
 
 namespace {
 
-static const char* tr(const char* es, const char* cat, const char* en) {
-    switch (g_language) {
-        case LANG_CAT: return cat;
-        case LANG_EN: return en;
-        case LANG_ES:
-        default: return es;
-    }
-}
-
 static float to_display(float temp_c) {
     return g_is_fahrenheit ? (temp_c * 1.8f + 32.0f) : temp_c;
 }
@@ -62,8 +53,8 @@ static int to_celsius_int(int display_temp) {
 }
 
 static const char* unit_name() {
-    return g_is_fahrenheit ? tr("Fahrenheit", "Fahrenheit", "Fahrenheit")
-                            : tr("Celsius", "Celsius", "Celsius");
+    return g_is_fahrenheit ? L(MENU_UNIT_F)
+                            : L(MENU_UNIT_C);
 }
 
 static const char* unit_short() {
@@ -312,11 +303,11 @@ static void draw_ds18_menu_screen(bool screen_changed) {
 
     if (g_ds18_menu_state == DS18_MODE_MENU) {
         const char* items[5] = {
-            tr("Calibración", "Calibració", "Calibration"),
-            tr("Unidad", "Unitat", "Unit"),
-            tr("Alertas", "Alertes", "Alerts"),
-            tr("Reset", "Reset", "Reset"),
-            tr("Salir", "Sortir", "Exit")
+            L(MENU_CALIBRATION),
+            L(MENU_UNIT),
+            L(MENU_ALERTS),
+            L(MENU_RESET),
+            L(MENU_EXIT)
         };
         drawCenteredMenuList(items, 5, g_ds18_menu_index, LM_MENU5_Y0, LM_MENU5_GAP);
         drawFooterHint(L(INSTR_SEL), cx, LM_MENU_FOOTER_Y);
@@ -324,7 +315,7 @@ static void draw_ds18_menu_screen(bool screen_changed) {
     } else if (g_ds18_menu_state == DS18_MODE_EDIT_OFFSET) {
         char value_buf[16];
         snprintf(value_buf, sizeof(value_buf), "%s%d.%d", g_ds18_edit_off >= 0 ? "+" : "-", abs(g_ds18_edit_off) / 10, abs(g_ds18_edit_off) % 10);
-        drawCenteredMenuValueScreen(tr("Offset", "Offset", "Offset"),
+        drawCenteredMenuValueScreen(L(MENU_OFFSET),
                                     value_buf,
                                     TFT_WHITE,
                                     MENU_VALUE_FONT_TIMER,
@@ -334,40 +325,40 @@ static void draw_ds18_menu_screen(bool screen_changed) {
         const bool low_mode = (g_ds18_menu_state == DS18_MODE_EDIT_LOW);
         char value_buf[20];
         snprintf(value_buf, sizeof(value_buf), "%d %s", get_ds18_encoder_value(), unit_short());
-        drawCenteredMenuValueScreen(low_mode ? tr("Límite bajo", "Límit baix", "Low limit")
-                                             : tr("Límite alto", "Límit alt", "High limit"),
+        drawCenteredMenuValueScreen(low_mode ? L(MENU_LIMIT_LOW)
+                                             : L(MENU_LIMIT_HIGH),
                                     value_buf,
                                     low_mode ? TFT_CYAN : TFT_ORANGE,
                                     MENU_VALUE_FONT_TIMER,
                                     L(ST_TURN_PUSH));
         last_edit_value = get_ds18_encoder_value();
     } else if (g_ds18_menu_state == DS18_MODE_EDIT_UNIT) {
-        drawCenteredMenuValueScreen(tr("Unidad", "Unitat", "Unit"),
-                                    g_ds18_edit_unit ? tr("Fahrenheit", "Fahrenheit", "Fahrenheit")
-                                                     : tr("Celsius", "Celsius", "Celsius"),
+        drawCenteredMenuValueScreen(L(MENU_UNIT),
+                                    g_ds18_edit_unit ? L(MENU_UNIT_F)
+                                                     : L(MENU_UNIT_C),
                                     TFT_WHITE,
                                     MENU_VALUE_FONT_BODY,
                                     L(ST_TURN_PUSH));
         last_unit_value = (int)g_ds18_edit_unit;
     } else if (g_ds18_menu_state == DS18_MODE_EDIT_ALERTS) {
-        drawCenteredMenuValueScreen(tr("Alertas", "Alertes", "Alerts"),
+        drawCenteredMenuValueScreen(L(MENU_ALERTS),
                                     g_ds18_edit_alerts ? L(ST_ON) : L(ST_OFF),
                                     g_ds18_edit_alerts ? TFT_GREEN : TFT_RED,
                                     MENU_VALUE_FONT_TIMER,
                                     L(ST_TURN_PUSH));
         last_alert_value = g_ds18_edit_alerts ? 1 : 0;
     } else if (g_ds18_menu_state == DS18_MODE_CONFIRM_RESET) {
-        drawResetChoicePrompt(tr("Reset", "Reset", "Reset"),
-                              tr("Valores por defecto", "Valors per defecte", "Default values"),
-                              tr("del termómetro", "del termòmetre", "for probe menu"),
-                              tr("NO", "NO", "NO"),
-                              tr("SÍ", "SÍ", "YES"),
+        drawResetChoicePrompt(L(MENU_RESET),
+                              L(MENU_DEFAULTS),
+                              L(MENU_RESET_SUB_PROBE),
+                              L(MENU_NO),
+                              L(MENU_YES),
                               g_ds18_reset_choice,
                               L(ST_TURN_PUSH));
         last_reset_choice = (int)g_ds18_reset_choice;
     } else if (g_ds18_menu_state == DS18_MODE_SAVED) {
-        const char* saved_title = g_ds18_save_ok ? tr("Guardado", "Desat", "Saved")
-                                                 : tr("Error", "Error", "Error");
+        const char* saved_title = g_ds18_save_ok ? L(MENU_SAVED)
+                                                 : L(MENU_ERROR);
         const uint16_t saved_title_color = g_ds18_save_ok ? TFT_GREEN : TFT_RED;
         if (g_ds18_saved_kind == 0 && g_ds18_save_ok) {
             char line1[24];
@@ -375,9 +366,9 @@ static void draw_ds18_menu_screen(bool screen_changed) {
             char line3[24];
             const char* lines[3];
             const uint16_t colors[3] = { TFT_CYAN, TFT_GREEN, TFT_ORANGE };
-            snprintf(line1, sizeof(line1), "%s %s%d.%d", tr("Offset", "Offset", "Offset"), g_ds18_edit_off >= 0 ? "+" : "-", abs(g_ds18_edit_off) / 10, abs(g_ds18_edit_off) % 10);
-            snprintf(line2, sizeof(line2), "%s %d %s", tr("Bajo", "Baix", "Low"), g_ds18_edit_low, unit_short());
-            snprintf(line3, sizeof(line3), "%s %d %s", tr("Alto", "Alt", "High"), g_ds18_edit_high, unit_short());
+            snprintf(line1, sizeof(line1), "%s %s%d.%d", L(MENU_OFFSET), g_ds18_edit_off >= 0 ? "+" : "-", abs(g_ds18_edit_off) / 10, abs(g_ds18_edit_off) % 10);
+            snprintf(line2, sizeof(line2), "%s %d %s", L(MENU_LOW), g_ds18_edit_low, unit_short());
+            snprintf(line3, sizeof(line3), "%s %d %s", L(MENU_HIGH), g_ds18_edit_high, unit_short());
             lines[0] = line1;
             lines[1] = line2;
             lines[2] = line3;
@@ -385,8 +376,8 @@ static void draw_ds18_menu_screen(bool screen_changed) {
             drawCenteredMenuBodyLines(lines, colors, 3, MENU_TEXT_FONT_SMALL, LM_SUMMARY3_Y0, LM_SUMMARY3_GAP);
         } else if (g_ds18_saved_kind == 1) {
             drawCenteredMenuSavedScreen(saved_title,
-                                        g_ds18_edit_unit ? tr("Fahrenheit", "Fahrenheit", "Fahrenheit")
-                                                         : tr("Celsius", "Celsius", "Celsius"),
+                                        g_ds18_edit_unit ? L(MENU_UNIT_F)
+                                                         : L(MENU_UNIT_C),
                                         TFT_WHITE,
                                         MENU_VALUE_FONT_BODY,
                                         L(ST_PUSH_MENU));
@@ -398,13 +389,13 @@ static void draw_ds18_menu_screen(bool screen_changed) {
                                         L(ST_PUSH_MENU));
         } else if (g_ds18_saved_kind == 3) {
             drawCenteredMenuSavedScreen(saved_title,
-                                        tr("Valores por defecto", "Valors per defecte", "Default values"),
+                                        L(MENU_DEFAULTS),
                                         TFT_WHITE,
                                         MENU_VALUE_FONT_BODY,
                                         L(ST_PUSH_MENU));
         } else {
             drawCenteredMenuSavedScreen(saved_title,
-                                        tr("Guardado", "Desat", "Saved"),
+                                        L(MENU_SAVED),
                                         TFT_WHITE,
                                         MENU_VALUE_FONT_BODY,
                                         L(ST_PUSH_MENU));

@@ -23,15 +23,6 @@ extern void drawBarGraph(int x, int y, int w, int h, uint16_t color, float value
 
 namespace {
 
-const char* tr(const char* es, const char* cat, const char* en) {
-    switch (g_language) {
-        case LANG_CAT: return cat;
-        case LANG_EN: return en;
-        case LANG_ES:
-        default: return es;
-    }
-}
-
 void apply_sound_rgb(uint8_t alert_state) {
     switch (alert_state) {
         case ALERT_CODE_HIGH:
@@ -282,22 +273,22 @@ static void draw_sound_menu_screen(bool screen_changed) {
 
     if (g_sound_menu_state == SOUND_MODE_MENU) {
         const char* items[] = {
-            tr("Calibración", "Calibració", "Calibration"),
-            tr("Alertas", "Alertes", "Alerts"),
-            tr("Reset", "Reset", "Reset"),
-            tr("Salir", "Sortir", "Exit")
+            L(MENU_CALIBRATION),
+            L(MENU_ALERTS),
+            L(MENU_RESET),
+            L(MENU_EXIT)
         };
         drawCenteredMenuList(items, 4, g_sound_menu_index, LM_MENU4_Y0, LM_MENU4_GAP);
         drawFooterHint(L(INSTR_SEL), cx, LM_MENU_FOOTER_Y);
         last_menu_index = (int)g_sound_menu_index;
     } else if (g_sound_menu_state >= SOUND_MODE_EDIT_QUIET && g_sound_menu_state <= SOUND_MODE_EDIT_LOUD) {
-        const char* title = tr("Max silencio", "Max silenci", "Max quiet");
+        const char* title = L(MENU_SND_MAX_QUIET);
         int value = g_sound_quiet_max;
         if (g_sound_menu_state == SOUND_MODE_EDIT_NORMAL) {
-            title = tr("Max normal", "Max normal", "Max normal");
+            title = L(MENU_SND_MAX_NORMAL);
             value = g_sound_normal_max;
         } else if (g_sound_menu_state == SOUND_MODE_EDIT_LOUD) {
-            title = tr("Max alto", "Max alt", "Max loud");
+            title = L(MENU_SND_MAX_LOUD);
             value = g_sound_loud_max;
         }
 
@@ -306,23 +297,23 @@ static void draw_sound_menu_screen(bool screen_changed) {
         drawCenteredMenuValueScreen(title, value_buf, TFT_WHITE, MENU_VALUE_FONT_TIMER, L(ST_TURN_PUSH));
         last_edit_value = value;
     } else if (g_sound_menu_state == SOUND_MODE_EDIT_ALERTS) {
-        drawCenteredMenuValueScreen(tr("Alertas", "Alertes", "Alerts"),
+        drawCenteredMenuValueScreen(L(MENU_ALERTS),
                                     g_sound_alerts_enabled ? L(ST_ON) : L(ST_OFF),
                                     g_sound_alerts_enabled ? TFT_GREEN : TFT_RED,
                                     MENU_VALUE_FONT_TIMER,
                                     L(ST_TURN_PUSH));
         last_alert_value = g_sound_alerts_enabled ? 1 : 0;
     } else if (g_sound_menu_state == SOUND_MODE_CONFIRM_RESET) {
-        drawResetChoicePrompt(tr("Reset", "Reset", "Reset"),
-                              tr("Valores por defecto", "Valors per defecte", "Default values"),
-                              tr("de sonido", "de so", "for sound"),
-                              tr("NO", "NO", "NO"),
-                              tr("SÍ", "SÍ", "YES"),
+        drawResetChoicePrompt(L(MENU_RESET),
+                              L(MENU_DEFAULTS),
+                              L(MENU_RESET_SUB_SOUND),
+                              L(MENU_NO),
+                              L(MENU_YES),
                               g_sound_reset_choice,
                               L(ST_TURN_PUSH));
         last_reset_choice = (int)g_sound_reset_choice;
     } else if (g_sound_menu_state == SOUND_MODE_SAVED) {
-        const char* saved_title = tr("Guardado", "Desat", "Saved");
+        const char* saved_title = L(MENU_SAVED);
 
         if (g_sound_last_saved_menu_index == 0) {
             char line_buf_1[18];
@@ -330,9 +321,9 @@ static void draw_sound_menu_screen(bool screen_changed) {
             char line_buf_3[18];
             const char* lines[3];
             const uint16_t colors[3] = { TFT_GREEN, TFT_YELLOW, TFT_ORANGE };
-            snprintf(line_buf_1, sizeof(line_buf_1), "%s < %d", tr("Sil", "Sil", "Qui"), g_sound_quiet_max);
-            snprintf(line_buf_2, sizeof(line_buf_2), "%s < %d", tr("Nor", "Nor", "Nor"), g_sound_normal_max);
-            snprintf(line_buf_3, sizeof(line_buf_3), "%s < %d", tr("Alt", "Alt", "Loud"), g_sound_loud_max);
+            snprintf(line_buf_1, sizeof(line_buf_1), "%s < %d", L(MENU_SND_ABR_QUIET), g_sound_quiet_max);
+            snprintf(line_buf_2, sizeof(line_buf_2), "%s < %d", L(MENU_SND_ABR_NORMAL), g_sound_normal_max);
+            snprintf(line_buf_3, sizeof(line_buf_3), "%s < %d", L(MENU_SND_ABR_LOUD), g_sound_loud_max);
             lines[0] = line_buf_1;
             lines[1] = line_buf_2;
             lines[2] = line_buf_3;
@@ -346,7 +337,7 @@ static void draw_sound_menu_screen(bool screen_changed) {
                                         L(ST_PUSH_MENU));
         } else {
             drawCenteredMenuSavedScreen(saved_title,
-                                        tr("Valores por defecto", "Valors per defecte", "Default values"),
+                                        L(MENU_DEFAULTS),
                                         TFT_WHITE,
                                         MENU_VALUE_FONT_BODY,
                                         L(ST_PUSH_MENU));
