@@ -34,6 +34,21 @@ static uint8_t g_temp_reset_choice = 0;
 
 namespace {
 
+constexpr int TEMP_INFO_CARD_X = LC_SCREEN_X;
+constexpr int TEMP_INFO_CARD_Y = LC_CARD_TOP;
+constexpr int TEMP_INFO_CARD_W = 112;
+constexpr int TEMP_INFO_CARD_H = 84;
+
+static uint16_t temp_info_card_bg() {
+    return tft.color565(8, 12, 18);
+}
+
+static void draw_temp_info_card(uint16_t border_color) {
+    const uint16_t bg = temp_info_card_bg();
+    tft.fillRoundRect(TEMP_INFO_CARD_X, TEMP_INFO_CARD_Y, TEMP_INFO_CARD_W, TEMP_INFO_CARD_H, 5, bg);
+    tft.drawRoundRect(TEMP_INFO_CARD_X, TEMP_INFO_CARD_Y, TEMP_INFO_CARD_W, TEMP_INFO_CARD_H, 5, border_color);
+}
+
 static float to_display(float temp_c) {
     return g_is_fahrenheit ? (temp_c * 1.8f + 32.0f) : temp_c;
 }
@@ -308,7 +323,7 @@ static void draw_temp_menu_screen(bool screen_changed) {
 
     if (state_changed) {
         tft.fillScreen(TFT_BLACK);
-        drawHeader(L(TIT_TEMP), TFT_RED);
+        drawHeader(L(TIT_TEMP));
         last_menu_index = -1;
         last_edit_value = INT16_MIN;
         last_unit_value = -1;
@@ -441,7 +456,7 @@ void draw_temp_screen(bool screen_changed, bool data_changed) {
 
     if (screen_changed) {
         tft.fillScreen(TFT_BLACK);
-        drawHeader(L(TIT_TEMP), COLOR_TITLE);
+        drawHeader(L(TIT_TEMP));
     }
 
     static int last_temp_drawn = INT16_MIN;
@@ -463,22 +478,22 @@ void draw_temp_screen(bool screen_changed, bool data_changed) {
         apply_temp_rgb(alert_state);
     }
 
-    // Clear only the text and value bands that actually change on screen.
-    tft.fillRect(0, LA_HINT_Y - 4, LEFT_PANEL_W, 18, TFT_BLACK);
-    tft.fillRect(0, LA_VALUE_TOP - 1, LEFT_PANEL_W, 46, TFT_BLACK);
+    // Card trial: wrap the hint and main value inside a compact panel.
+    tft.fillRect(0, LA_HINT_Y - 4, LEFT_PANEL_W, 72, TFT_BLACK);
     tft.fillRect(0, LA_CATEGORY_Y - 10, LEFT_PANEL_W, 28, TFT_BLACK);
+    draw_temp_info_card(no_dht ? TFT_DARKGREY : temp_color);
 
     if (no_dht) {
         tft.setTextDatum(TC_DATUM);
         tft.setFreeFont(FONT_SMALL);
         tft.setTextColor(TFT_RED, TFT_BLACK);
-        tft.drawString(L(ST_NO_SENSOR), LA_LEFT_CX, LA_HINT_Y);
+        tft.drawString(L(ST_NO_SENSOR), LA_LEFT_CX, TEMP_INFO_CARD_Y + 12);
         tft.setTextFont(0);
 
         tft.setTextDatum(TC_DATUM);
         tft.setFreeFont(FONT_VALUE);
         tft.setTextColor(TFT_DARKGREY, TFT_BLACK);
-        tft.drawString("---", LA_LEFT_CX, LA_VALUE_TOP);
+        tft.drawString("---", LA_LEFT_CX, TEMP_INFO_CARD_Y + 18);
         tft.setTextFont(0);
 
         drawFillTank(LA_TANK_X, LA_TANK_Y, LA_TANK_W, LA_TANK_H, TFT_DARKGREY, 0.0f, 0.0f, 50.0f, 3);
@@ -488,10 +503,10 @@ void draw_temp_screen(bool screen_changed, bool data_changed) {
         tft.setTextDatum(TC_DATUM);
         tft.setFreeFont(FONT_SMALL);
         tft.setTextColor(TFT_DARKGREY, TFT_BLACK);
-        tft.drawString(instruction_text, LA_LEFT_CX, LA_HINT_Y);
+        tft.drawString(instruction_text, LA_LEFT_CX, TEMP_INFO_CARD_Y + 12);
         tft.setTextFont(0);
 
-        drawSplitDecimalValue(to_display(temp_c), LA_LEFT_CX, LA_VALUE_TOP, temp_color, TFT_BLACK);
+        drawSplitDecimalValue(to_display(temp_c), LA_LEFT_CX, TEMP_INFO_CARD_Y + 18, temp_color, temp_info_card_bg());
 
         tft.setFreeFont(FONT_BODY);
         tft.setTextDatum(TC_DATUM);

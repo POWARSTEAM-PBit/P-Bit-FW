@@ -30,8 +30,8 @@ constexpr size_t LANG_CODES_COUNT = sizeof(LANG_CODES) / sizeof(LANG_CODES[0]);
 const uint32_t SLEEP_OPTIONS[] = { 30000, 60000, 120000, 300000, 600000, 0 };
 const int NUM_SLEEP_OPTIONS = sizeof(SLEEP_OPTIONS) / sizeof(SLEEP_OPTIONS[0]);
 
-static void draw_system_header(const char* title, uint16_t color) {
-    drawHeader(title, color);
+static void draw_system_header(const char* title) {
+    drawHeader(title);
 }
 
 static const char* get_sleep_option_name(int index) {
@@ -250,7 +250,7 @@ static void draw_system_menu_screen(bool screen_changed) {
 
     if (state_changed) {
         tft.fillScreen(TFT_BLACK);
-        draw_system_header(L(MENU_SETTINGS), TFT_GREEN);
+        draw_system_header(L(MENU_SETTINGS));
         last_menu_index = -1;
         last_sound_value = -1;
         last_sleep_index = -1;
@@ -354,7 +354,7 @@ void draw_system_screen(bool screen_changed, bool data_changed) {
 
     if (screen_changed) {
         tft.fillScreen(TFT_BLACK);
-        draw_system_header(L(TIT_SYS), TFT_GREEN);
+        draw_system_header(L(TIT_SYS));
         drawCard(LS_CARD_X, LS_CARD_Y, LS_CARD_W, LS_CARD_H, TFT_DARKGREY);
         tft.setTextDatum(TL_DATUM);
         tft.setFreeFont(FONT_INFO);
@@ -387,7 +387,7 @@ void draw_system_screen(bool screen_changed, bool data_changed) {
         char uptimeStr[12];
         snprintf(uptimeStr, sizeof(uptimeStr), "%02u:%02u:%02u", uptime_s / 3600, (uptime_s % 3600) / 60, uptime_s % 60);
         const int uptime_clear_w = (LS_CARD_X + LS_CARD_W - 2) - x_val + 1;
-        tft.fillRect(x_val, y_up - 1, uptime_clear_w, 18, TFT_BLACK);
+        tft.fillRect(x_val, y_up - 1, uptime_clear_w, 12, TFT_BLACK);
         tft.setFreeFont(FONT_INFO);
         tft.setTextColor(TFT_CYAN, TFT_BLACK);
         tft.setTextDatum(TL_DATUM);
@@ -396,7 +396,7 @@ void draw_system_screen(bool screen_changed, bool data_changed) {
     }
 
     if (screen_changed || ble_connected != last_ble_connected) {
-        tft.fillRect(x_val, y_ble, tft.width() - x_val - 11, 16, TFT_BLACK);
+        tft.fillRect(x_val, y_ble - 1, tft.width() - x_val - 11, 12, TFT_BLACK);
         tft.setFreeFont(FONT_INFO);
         tft.setTextColor(ble_connected ? TFT_GREEN : TFT_RED, TFT_BLACK);
         tft.drawString(ble_connected ? L(ST_CONNECTED) : L(ST_DISCONN), x_val, y_ble);

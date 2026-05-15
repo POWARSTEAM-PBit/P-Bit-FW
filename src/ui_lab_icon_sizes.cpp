@@ -221,7 +221,7 @@ struct IconRow {
 
 static void draw_size_page(LangKey title_key, const IconRow* rows, int n) {
     tft.fillScreen(kBg);
-    drawHeader(L(title_key), TFT_WHITE);
+    drawHeader(L(title_key));
     draw_size_labels();
 
     for (int i = 0; i < n; ++i) {

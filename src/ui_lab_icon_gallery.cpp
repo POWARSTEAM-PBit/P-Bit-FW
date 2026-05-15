@@ -266,7 +266,7 @@ void draw_icon_variant(int variant, int index, int cx, int cy, uint16_t color) {
 
 void draw_gallery(LangKey title_key, int variant) {
     tft.fillScreen(TFT_BLACK);
-    drawHeader(L(title_key), TFT_WHITE);
+    drawHeader(L(title_key));
 
     for (int i = 0; i < 4; ++i) {
         const int item_index = kGalleryOrder[i];

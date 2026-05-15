@@ -23,23 +23,79 @@ void drawCard(int x, int y, int w, int h, uint16_t color) {
     tft.drawRoundRect(x, y, w, h, 4, color);
 }
 
-void drawHeader(const char* title, uint16_t color) {
-    int cx = tft.width() / 2;
-    // Clear the entire header band before drawing the title and divider.
-    tft.fillRect(0, 0, tft.width(), L_HEADER_LINE + 4, TFT_BLACK);
-    tft.setTextDatum(TC_DATUM);
-    tft.setTextColor(color, TFT_BLACK);
-    tft.setFreeFont(FONT_HEADER); // Inter SemiBold 18pt — Latin-1 completo
+void drawHeader(const char* title) {
+    const int cx = tft.width() / 2;
+    tft.fillRect(0, 0, tft.width(), L_CONTENT_TOP, TFT_BLACK);
+    tft.setTextDatum(C_BASELINE);
+    tft.setTextColor(TFT_WHITE, TFT_BLACK);
+    tft.setFreeFont(FONT_HEADER);
     tft.drawString(title, cx, L_HEADER_Y);
-    tft.setTextFont(0);  // liberar GFXfont
-    tft.drawFastHLine(L_MARGIN_SIDE, L_HEADER_LINE, tft.width() - (L_MARGIN_SIDE * 2), color);
+    tft.setTextFont(0);
+    tft.drawFastHLine(LC_MASTER_HEADER_LINE_X,
+                      L_HEADER_LINE,
+                      LC_MASTER_HEADER_LINE_W,
+                      TFT_WHITE);
+}
+
+void drawMasterCardHeader(const char* title, uint16_t line_color) {
+    const int cx = tft.width() / 2;
+    tft.fillRect(0, 0, tft.width(), LC_MASTER_CARD_Y0, TFT_BLACK);
+    tft.setTextDatum(C_BASELINE);
+    tft.setTextColor(TFT_WHITE, TFT_BLACK);
+    tft.setFreeFont(FONT_HEADER);
+    tft.drawString(title, cx, LC_MASTER_HEADER_BASELINE);
+    tft.setTextFont(0);
+    tft.drawFastHLine(LC_MASTER_HEADER_LINE_X,
+                      L_HEADER_LINE,
+                      LC_MASTER_HEADER_LINE_W,
+                      line_color);
 }
 
 void drawFooterHint(const char* text, int cx, int y, uint16_t color) {
     tft.setTextDatum(MC_DATUM);
     tft.setFreeFont(FONT_SMALL);
     tft.setTextColor(color, TFT_BLACK);
+    if (tft.textWidth(text) > tft.width() - 4) {
+        tft.setTextFont(1);
+    }
     tft.drawString(text, cx, y);
+    tft.setTextFont(0);
+}
+
+void drawMasterFooterHint(const char* text, uint16_t color) {
+    tft.fillRect(0, LC_MASTER_FOOTER_TEXT_TOP, tft.width(), tft.height() - LC_MASTER_FOOTER_TEXT_TOP, TFT_BLACK);
+    tft.setTextDatum(C_BASELINE);
+    tft.setFreeFont(FONT_SMALL);
+    tft.setTextColor(color);
+    if (tft.textWidth(text) > tft.width() - 4) {
+        tft.setTextFont(1);
+    }
+    tft.drawString(text, tft.width() / 2, LC_MASTER_FOOTER_BASELINE);
+    tft.setTextFont(0);
+}
+
+void drawSensorChip(int x,
+                    int y,
+                    int w,
+                    int h,
+                    const char* label,
+                    uint16_t accent,
+                    SensorIconDrawFn icon_fn,
+                    uint16_t bg,
+                    uint16_t text_color) {
+    tft.fillRoundRect(x, y, w, h, 4, bg);
+    tft.drawRoundRect(x, y, w, h, 4, accent);
+
+    int text_x = x + 8;
+    if (icon_fn) {
+        icon_fn(x + 9, y + (h / 2), accent);
+        text_x = x + 18;
+    }
+
+    tft.setTextDatum(TL_DATUM);
+    tft.setFreeFont(FONT_SMALL);
+    tft.setTextColor(text_color, bg);
+    tft.drawString(label, text_x, y + 4);
     tft.setTextFont(0);
 }
 

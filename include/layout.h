@@ -3,18 +3,22 @@
 // The constants below define the shared safe areas used by every screen.
 
 // ── Global ───────────────────────────────────────────────
-constexpr int L_HEADER_Y    = 2;    // Main title baseline for every screen header.
-constexpr int L_HEADER_LINE = 28;   // Divider line below the title.
-constexpr int L_CONTENT_TOP = 32;   // First usable Y coordinate below the header.
+constexpr int L_HEADER_Y    = 18;   // Main title baseline for every screen header.
+constexpr int L_HEADER_LINE = 23;   // Divider line below the title.
+constexpr int L_CONTENT_TOP = 27;   // First usable Y coordinate below the header.
 constexpr int L_MARGIN_SIDE = 10;   // Shared side margin for centered horizontal elements.
 constexpr int L_ALERT_JEWEL_X = 14;  // Safe anchor for the runtime alert indicator.
 constexpr int L_ALERT_JEWEL_Y = 118; // Y position for the runtime alert indicator.
-// Legacy clear area kept only to erase the retired global-alert badge until a new
-// visual solution is designed. It is not an active UI surface anymore.
-constexpr int L_LEGACY_ALERT_BADGE_X = 148;
-constexpr int L_LEGACY_ALERT_BADGE_Y = 72;
-constexpr int L_LEGACY_ALERT_BADGE_H = 24;
-constexpr int L_LEGACY_ALERT_BADGE_W = 12;
+
+// Shared spacing baseline used by the main UI family.
+// These are the reference limits we try to keep consistent across cards:
+// - title top offset: `L_HEADER_Y`
+// - divider Y: `L_HEADER_LINE`
+// - divider side margins: `L_MARGIN_SIDE`
+// - content start: `L_CONTENT_TOP`
+// - divider-to-card gap: 3 px
+// - standard card gap: 4 px
+// - compact cards may consume the lower band when no footer hint is present
 
 // ── Menus / shared layout bands ───────────────────────────
 constexpr int LM_MENU_TITLE_BAND_Y = 38;  // Shared top band for titles and subtitles.
@@ -74,11 +78,11 @@ constexpr int LT_TARGET_Y = 120;       // Baseline for the configured duration b
 // The graph area has a 1-px border; LG_GRAPH_W/H refer to the interior (sprite size).
 // Outer border: drawRect(LG_GRAPH_X, LG_GRAPH_Y, LG_GRAPH_W+2, LG_GRAPH_H+2, color)
 // Sprite push : (LG_GRAPH_X+1, LG_GRAPH_Y+1)
-constexpr int LG_SENSOR_Y  = 31;   // Sensor name/value band top Y (between header and graph).
-constexpr int LG_GRAPH_X   = 8;    // Left edge of the outer border rect.
-constexpr int LG_GRAPH_Y   = 49;   // Top edge of the outer border rect.
-constexpr int LG_GRAPH_W   = 142;  // Interior width  (== sprite width,  samples visible).
-constexpr int LG_GRAPH_H   = 60;   // Interior height (== sprite height).
+constexpr int LG_SENSOR_Y  = 27;   // Sensor name/value band top Y (between header and graph).
+constexpr int LG_GRAPH_X   = 2;    // Left edge of the outer border rect.
+constexpr int LG_GRAPH_Y   = 46;   // Top edge of the outer border rect.
+constexpr int LG_GRAPH_W   = 154;  // Interior width  (== sprite width,  samples visible).
+constexpr int LG_GRAPH_H   = 64;   // Interior height (== sprite height).
 constexpr int LG_HINT_Y    = 120;  // Footer hint baseline.
 
 // ── System Info ──────────────────────────────────────────
@@ -93,3 +97,40 @@ constexpr int LS_ROW_UP     = 54;   // UP row baseline.
 constexpr int LS_ROW_BLE    = 68;   // BLE row baseline.
 constexpr int LS_ROW_LAN    = 82;   // Language row baseline.
 constexpr int LS_FOOTER_Y   = 116;  // Footer baseline below the card.
+
+// ── Card layout system ─────────────────────────────────────
+// Agreed baseline for all card-based screens.
+constexpr int LC_CARD_TOP        = 27;  // first outer border Y for lab cards (3 px below header line)
+constexpr int LC_CARD_TOP_AIRY   = 31;  // content start for non-card interior blocks
+constexpr int LC_MARGIN_DENSE    = 2;   // lateral margin for full-width lab cards
+constexpr int LC_MARGIN_SPACIOUS = 2;   // lateral margin for full-width lab cards
+constexpr int LC_GAP             = 4;   // standard card/block gap (horizontal and vertical)
+constexpr int LC_FOOTER_Y        = 120; // footer hint anchor, universal across card screens
+constexpr int LC_SCREEN_X        = 2;   // common external left border for lab cards.
+constexpr int LC_SCREEN_W        = 156; // common external width for lab cards.
+constexpr int LC_SCREEN_BOTTOM   = 126; // common lower visual limit for cards without footer.
+constexpr int LC_CARD_RADIUS     = 4;   // common corner radius for card shells.
+
+// ── Validated card master rule ──────────────────────────────
+// Confirmed on real 160x128 TFT hardware on 2026-05-15.
+// Use this geometry as the reference for future card-based screens.
+constexpr int LC_MASTER_HEADER_BASELINE = L_HEADER_Y;
+constexpr int LC_MASTER_HEADER_TEXT_TOP = 0;
+constexpr int LC_MASTER_HEADER_LINE_Y   = L_HEADER_LINE;
+constexpr int LC_MASTER_HEADER_LINE_X   = 4;
+constexpr int LC_MASTER_HEADER_LINE_W   = 152;
+constexpr int LC_MASTER_CARD_X0         = LC_SCREEN_X;
+constexpr int LC_MASTER_CARD_Y0         = LC_CARD_TOP;
+constexpr int LC_MASTER_CARD_W          = 76;
+constexpr int LC_MASTER_CARD_H          = 48;
+constexpr int LC_MASTER_CARD_GAP        = 4;
+constexpr int LC_MASTER_CARD_RADIUS     = LC_CARD_RADIUS;
+constexpr int LC_MASTER_CARD_X1         = LC_MASTER_CARD_X0 + LC_MASTER_CARD_W + LC_MASTER_CARD_GAP;
+constexpr int LC_MASTER_CARD_Y1         = LC_MASTER_CARD_Y0 + LC_MASTER_CARD_H + LC_MASTER_CARD_GAP;
+constexpr int LC_MASTER_CARD_CX0        = LC_MASTER_CARD_X0 + (LC_MASTER_CARD_W / 2);
+constexpr int LC_MASTER_CARD_CX1        = LC_MASTER_CARD_X1 + (LC_MASTER_CARD_W / 2);
+constexpr int LC_MASTER_CARD_CY0        = LC_MASTER_CARD_Y0 + (LC_MASTER_CARD_H / 2);
+constexpr int LC_MASTER_CARD_CY1        = LC_MASTER_CARD_Y1 + (LC_MASTER_CARD_H / 2);
+constexpr int LC_MASTER_CARD_BOTTOM     = LC_MASTER_CARD_Y1 + LC_MASTER_CARD_H - 1;
+constexpr int LC_MASTER_FOOTER_BASELINE = 126;
+constexpr int LC_MASTER_FOOTER_TEXT_TOP = 118;

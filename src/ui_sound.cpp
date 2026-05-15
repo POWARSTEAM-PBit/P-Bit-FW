@@ -57,8 +57,8 @@ static void draw_sound_alert_jewel(uint8_t alert_state, bool alerts_enabled) {
     drawAlertJewel(L_ALERT_JEWEL_X, L_ALERT_JEWEL_Y, jewel_state, jewel_color);
 }
 
-void draw_sound_header(const char* title, uint16_t color) {
-    drawHeader(title, color);
+void draw_sound_header(const char* title) {
+    drawHeader(title);
 }
 
 } // namespace
@@ -263,7 +263,7 @@ static void draw_sound_menu_screen(bool screen_changed) {
 
     if (state_changed) {
         tft.fillScreen(TFT_BLACK);
-        draw_sound_header(L(TIT_SOUND), TFT_MAGENTA);
+        draw_sound_header(L(TIT_SOUND));
         last_menu_index = -1;
         last_edit_value = -1;
         last_alert_value = -1;
@@ -390,7 +390,7 @@ void draw_sound_screen(bool screen_changed, bool data_changed) {
 
     if (screen_changed) {
         tft.fillScreen(BACKGROUND_COLOR);
-        draw_sound_header(L(TIT_SOUND), TITLE_COLOR);
+        draw_sound_header(L(TIT_SOUND));
     }
 
     static int last_sound_drawn = -1;
@@ -445,4 +445,3 @@ void draw_sound_screen(bool screen_changed, bool data_changed) {
 
     last_alerts_enabled = alerts_enabled;
 }
-

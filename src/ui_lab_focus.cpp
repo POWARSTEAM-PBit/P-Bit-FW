@@ -24,23 +24,23 @@ extern bool g_is_fahrenheit;
 
 namespace {
 
-constexpr int LF_SUMMARY_X = 8;
-constexpr int LF_SUMMARY_Y = 33;
-constexpr int LF_SUMMARY_W = 144;
-constexpr int LF_SUMMARY_H = 40;
+constexpr int LF_SUMMARY_X = LC_SCREEN_X;
+constexpr int LF_SUMMARY_Y = LC_CARD_TOP;
+constexpr int LF_SUMMARY_W = LC_SCREEN_W;
+constexpr int LF_SUMMARY_H = 41;
 
-constexpr int LF_GRAPH_X = 8;
-constexpr int LF_GRAPH_Y = 78;
-constexpr int LF_GRAPH_W = 144;
-constexpr int LF_GRAPH_H = 34;
+constexpr int LF_GRAPH_X = LC_SCREEN_X;
+constexpr int LF_GRAPH_Y = LF_SUMMARY_Y + LF_SUMMARY_H + LC_GAP;
+constexpr int LF_GRAPH_W = LC_SCREEN_W;
+constexpr int LF_GRAPH_H = 41;
 constexpr int LF_GRAPH_INSET = 2;
 constexpr int LF_GRAPH_INNER_W = LF_GRAPH_W - (LF_GRAPH_INSET * 2);
 constexpr int LF_GRAPH_INNER_H = LF_GRAPH_H - (LF_GRAPH_INSET * 2);
 
-constexpr int LF_ICON_CX = 20;
-constexpr int LF_ICON_CY = 53;
-constexpr int LF_TITLE_X = 33;
-constexpr int LF_TITLE_Y = 44;
+constexpr int LF_ICON_CX = LF_SUMMARY_X + 14;
+constexpr int LF_ICON_CY = LF_SUMMARY_Y + 20;
+constexpr int LF_TITLE_X = LF_SUMMARY_X + 27;
+constexpr int LF_TITLE_Y = LF_SUMMARY_Y + 10;
 constexpr int LF_HINT_Y = 120;
 
 static LabFocusSensor g_sensor = LAB_FOCUS_HUMIDITY;
@@ -98,7 +98,7 @@ static uint16_t sensor_secondary_color(LabFocusSensor sensor) {
 }
 
 static int summary_value_y() {
-    return 42;
+    return 36;
 }
 
 static int summary_no_sensor_y(LabFocusSensor sensor) {
@@ -106,7 +106,8 @@ static int summary_no_sensor_y(LabFocusSensor sensor) {
 }
 
 static int graph_no_sensor_y(LabFocusSensor sensor) {
-    return (sensor == LAB_FOCUS_SOIL || sensor == LAB_FOCUS_DS18) ? 94 : 95;
+    (void)sensor;
+    return (LF_GRAPH_H / 2) + 1;
 }
 
 static uint16_t summary_bg_color() {
@@ -314,13 +315,13 @@ static void draw_right_aligned_pair(int right_x,
 
 static void clear_summary_content(LabFocusSensor sensor, bool valid) {
     const uint16_t bg = summary_bg_color();
-    const int clear_x = LF_SUMMARY_X + 76;
+    const int clear_x = LF_SUMMARY_X + 72;
     const int clear_y = LF_SUMMARY_Y + 6;
-    const int clear_w = LF_SUMMARY_W - 84;
+    const int clear_w = LF_SUMMARY_W - 76;
     const int clear_h = LF_SUMMARY_H - 12;
     tft.fillRect(clear_x, clear_y, clear_w, clear_h, bg);
     if (!valid) {
-        tft.fillRect(LF_SUMMARY_X + 76, LF_SUMMARY_Y + 12, LF_SUMMARY_W - 84, 14, bg);
+        tft.fillRect(clear_x, LF_SUMMARY_Y + 12, clear_w, 14, bg);
     }
 }
 
@@ -464,13 +465,12 @@ static void draw_graph_panel(LabFocusSensor sensor, bool valid, bool shell_redra
 
     if (shell_redraw) {
         tft.fillRoundRect(LF_GRAPH_X, LF_GRAPH_Y, LF_GRAPH_W, LF_GRAPH_H, 4, graph_bg_color());
-        tft.drawRoundRect(LF_GRAPH_X, LF_GRAPH_Y, LF_GRAPH_W, LF_GRAPH_H, 4, border);
+    } else {
+        tft.fillRect(LF_GRAPH_X + 1, LF_GRAPH_Y + 1, LF_GRAPH_W - 2, LF_GRAPH_H - 2, graph_bg_color());
     }
+    tft.drawRoundRect(LF_GRAPH_X, LF_GRAPH_Y, LF_GRAPH_W, LF_GRAPH_H, 4, border);
 
     if (!valid) {
-        if (!shell_redraw) {
-            tft.fillRect(LF_GRAPH_X + 1, LF_GRAPH_Y + 1, LF_GRAPH_W - 2, LF_GRAPH_H - 2, graph_bg_color());
-        }
         tft.setTextDatum(MC_DATUM);
         tft.setFreeFont(FONT_SMALL);
         tft.setTextColor(TFT_DARKGREY, TFT_BLACK);
@@ -487,9 +487,6 @@ static void draw_graph_panel(LabFocusSensor sensor, bool valid, bool shell_redra
     }
 
     if (n == 0) {
-        if (!shell_redraw) {
-            tft.fillRect(LF_GRAPH_X + 1, LF_GRAPH_Y + 1, LF_GRAPH_W - 2, LF_GRAPH_H - 2, graph_bg_color());
-        }
         tft.setTextDatum(MC_DATUM);
         tft.setFreeFont(FONT_SMALL);
         tft.setTextColor(TFT_DARKGREY, TFT_BLACK);
@@ -543,7 +540,7 @@ void draw_lab_focus_screen(bool screen_changed, bool sensor_data_changed) {
 
     if (need_full) {
         tft.fillScreen(TFT_BLACK);
-        drawHeader(L(TIT_LAB_FOCUS), TFT_WHITE);
+        drawHeader(L(TIT_LAB_FOCUS));
         draw_summary_panel(g_sensor, valid, true);
         draw_graph_panel(g_sensor, valid, true);
         drawFooterHint(sensor_footer(), tft.width() / 2, LF_HINT_Y, TFT_DARKGREY);

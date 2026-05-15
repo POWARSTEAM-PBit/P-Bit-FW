@@ -139,7 +139,7 @@ static void draw_timer_value_sprite(const char* time, uint16_t color, bool force
 }
 
 static void draw_timer_target_label(const char* label, uint16_t color) {
-    tft.fillRect(0, LT_TARGET_CLEAR_Y, tft.width(), LT_TARGET_CLEAR_H, TFT_BLACK);
+    tft.fillRect(0, LT_TARGET_CLEAR_Y, tft.width(), tft.height() - LT_TARGET_CLEAR_Y, TFT_BLACK);
     if (!label || label[0] == '\0') {
         return;
     }
@@ -199,8 +199,8 @@ static void draw_timer_editor_value(int hours,
     tft.setTextFont(0);
 }
 
-static void draw_timer_header(const char* title, uint16_t color) {
-    drawHeader(title, color);
+static void draw_timer_header(const char* title) {
+    drawHeader(title);
 }
 
 // The timer renderer needs all three arguments so it can refresh only the
@@ -225,7 +225,7 @@ void draw_timer_screen(bool screen_changed, bool data_changed, bool timer_needs_
         const bool editing = timer_menu_is_editing();
         if (screen_changed) {
             tft.fillScreen(TFT_BLACK);
-            draw_timer_header(L(TIT_TIMER), TFT_BLUE);
+            draw_timer_header(L(TIT_TIMER));
         }
         if (screen_changed
             || menu_hours != last_menu_hours
@@ -293,7 +293,7 @@ void draw_timer_screen(bool screen_changed, bool data_changed, bool timer_needs_
     // 3. DIBUJO ESTÁTICO (Título)
     if (screen_changed) {
         tft.fillScreen(TFT_BLACK);
-        draw_timer_header(L(TIT_TIMER), TFT_BLUE);
+        draw_timer_header(L(TIT_TIMER));
     }
     
     // 4. DIBUJO SEMI-ESTÁTICO (Marco, Estado E INSTRUCCIONES)

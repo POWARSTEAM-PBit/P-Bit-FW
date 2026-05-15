@@ -20,6 +20,51 @@ extern Reading g_ui_readings_snapshot;
 
 namespace {
 
+constexpr int HUM_INFO_CARD_X = 10;
+constexpr int HUM_INFO_CARD_Y = 36;
+constexpr int HUM_INFO_CARD_W = 96;
+constexpr int HUM_INFO_CARD_H = 62;
+
+static uint16_t hum_info_card_bg() {
+    return tft.color565(8, 12, 18);
+}
+
+static void draw_hum_info_card(uint16_t border_color) {
+    const uint16_t bg = hum_info_card_bg();
+    tft.fillRoundRect(HUM_INFO_CARD_X, HUM_INFO_CARD_Y, HUM_INFO_CARD_W, HUM_INFO_CARD_H, 5, bg);
+    tft.drawRoundRect(HUM_INFO_CARD_X, HUM_INFO_CARD_Y, HUM_INFO_CARD_W, HUM_INFO_CARD_H, 5, border_color);
+}
+
+static void draw_hum_card_title(const char* text) {
+    tft.setTextDatum(TC_DATUM);
+    tft.setFreeFont(FONT_SMALL);
+    tft.setTextColor(TFT_DARKGREY, hum_info_card_bg());
+    tft.drawString(text, LA_LEFT_CX, HUM_INFO_CARD_Y + 12);
+    tft.setTextFont(0);
+}
+
+static void draw_hum_card_value(bool valid, const char* value_text, const char* unit_text, uint16_t value_color) {
+    tft.setTextDatum(TC_DATUM);
+    tft.setFreeFont(FONT_TIMER);
+    tft.setTextColor(valid ? value_color : TFT_DARKGREY, hum_info_card_bg());
+    tft.drawString(value_text, LA_LEFT_CX, HUM_INFO_CARD_Y + 26);
+    tft.setTextFont(0);
+
+    tft.setTextDatum(TC_DATUM);
+    tft.setFreeFont(FONT_SMALL);
+    tft.setTextColor(value_color, hum_info_card_bg());
+    tft.drawString(unit_text, LA_LEFT_CX, HUM_INFO_CARD_Y + 42);
+    tft.setTextFont(0);
+}
+
+static void draw_hum_card_status(const char* text, uint16_t color) {
+    tft.setTextDatum(TC_DATUM);
+    tft.setFreeFont(FONT_SMALL);
+    tft.setTextColor(color, hum_info_card_bg());
+    tft.drawString(text, LA_LEFT_CX, HUM_INFO_CARD_Y + 56);
+    tft.setTextFont(0);
+}
+
 void apply_humidity_rgb(uint8_t alert_state) {
     switch (alert_state) {
         case ALERT_CODE_LOW:
@@ -219,7 +264,7 @@ static void draw_humidity_menu_screen(bool screen_changed) {
 
     if (state_changed) {
         tft.fillScreen(TFT_BLACK);
-        drawHeader(L(TIT_HUM), TFT_CYAN);
+        drawHeader(L(TIT_HUM));
         last_menu_index = -1;
         last_edit_val = -1;
         last_alert_value = -1;
@@ -367,7 +412,7 @@ void draw_humidity_screen(bool screen_changed, bool data_changed) {
     // --- Estáticos ---
     if (screen_changed) {
         tft.fillScreen(BACKGROUND_COLOR);
-        drawHeader(L(TIT_HUM), HUMIDITY_COLOR);
+        drawHeader(L(TIT_HUM));
     }
 
     // Salida temprana si el valor ni el estado cambiaron
@@ -392,51 +437,25 @@ void draw_humidity_screen(bool screen_changed, bool data_changed) {
     }
 
     // --- Dinámicos ---
-    tft.fillRect(0, LA_HINT_Y - 4, LEFT_PANEL_W, 20, BACKGROUND_COLOR);
-    tft.setTextDatum(TC_DATUM);
-    tft.setFreeFont(FONT_SMALL);
-    tft.setTextColor(TFT_DARKGREY, BACKGROUND_COLOR);
-    tft.drawString(L(SUB_AIR_REL), LA_LEFT_CX, LA_HINT_Y);
-    tft.setTextFont(0);
+    tft.fillRect(0, LA_HINT_Y - 4, LEFT_PANEL_W, 72, BACKGROUND_COLOR);
+    draw_hum_info_card((alert_state == ALERT_CODE_HIGH) ? TFT_RED
+                       : (alert_state == ALERT_CODE_LOW) ? TFT_ORANGE
+                       : HUMIDITY_COLOR);
+    draw_hum_card_title(L(SUB_AIR_REL));
 
     if (no_dht_h) {
         drawFillTank(LA_TANK_X, LA_TANK_Y, LA_TANK_W, LA_TANK_H, HUMIDITY_COLOR, 0.0f, 0.0f, 100.0f, 3);
         tft.drawRoundRect(LA_TANK_X, LA_TANK_Y, LA_TANK_W, LA_TANK_H, 3, TFT_DARKGREY);
-        tft.fillRect(0, LA_VALUE_TOP - 1, LEFT_PANEL_W, 46, BACKGROUND_COLOR);
-        tft.setTextDatum(TC_DATUM);
-        tft.setFreeFont(FONT_VALUE);
-        tft.setTextColor(TFT_DARKGREY, BACKGROUND_COLOR);
-        tft.drawString("---", LA_LEFT_CX, LA_VALUE_TOP);
-        tft.setTextFont(0); // liberar GFXfont
-        tft.fillRect(0, LA_CATEGORY_Y - 10, LEFT_PANEL_W, 28, BACKGROUND_COLOR);
+        draw_hum_card_value(false, "---", "%", TFT_DARKGREY);
+        draw_hum_card_status(L(ST_NO_SENSOR), TFT_RED);
     } else {
         drawFillTank(LA_TANK_X, LA_TANK_Y, LA_TANK_W, LA_TANK_H, tankFillColor, hum, 0.0f, 100.0f, 3);
         tft.drawRoundRect(LA_TANK_X, LA_TANK_Y, LA_TANK_W, LA_TANK_H, 3, tankBorderColor);
 
         char humStr[6];
         snprintf(humStr, sizeof(humStr), "%.0f", hum);
-        const char* unitStr = "%";
-        tft.setFreeFont(FONT_VALUE);
-        int intW  = tft.textWidth(humStr);
-        tft.setFreeFont(FONT_BODY);
-        int unitW = tft.textWidth(unitStr);
-        int startX = LA_LEFT_CX - (intW + unitW) / 2;
-        tft.fillRect(0, LA_VALUE_TOP - 1, LEFT_PANEL_W, 46, BACKGROUND_COLOR);
-        tft.setTextDatum(TL_DATUM);
-        tft.setFreeFont(FONT_VALUE);
-        tft.setTextColor(valueColor, BACKGROUND_COLOR);
-        tft.drawString(humStr, startX, LA_VALUE_TOP);
-        tft.setFreeFont(FONT_BODY);
-        tft.setTextColor(HUMIDITY_COLOR, BACKGROUND_COLOR);
-        tft.drawString(unitStr, startX + intW, LA_VALUE_TOP);
-        tft.setTextFont(0); // liberar GFXfont
-
-        tft.fillRect(0, LA_CATEGORY_Y - 10, LEFT_PANEL_W, 28, BACKGROUND_COLOR);
-        tft.setFreeFont(FONT_BODY);
-        tft.setTextDatum(TC_DATUM);
-        tft.setTextColor(statusColor, BACKGROUND_COLOR);
-        tft.drawString(statusText, LA_LEFT_CX, LA_CATEGORY_Y);
-        tft.setTextFont(0); // liberar GFXfont
+        draw_hum_card_value(true, humStr, "%", valueColor);
+        draw_hum_card_status(statusText, statusColor);
     }
 
     draw_humidity_alert_jewel(alert_state, alerts_enabled, no_dht_h);

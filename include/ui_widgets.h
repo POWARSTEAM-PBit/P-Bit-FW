@@ -5,6 +5,8 @@
 // Global TFT object shared by all UI modules.
 extern TFT_eSPI tft;
 
+typedef void (*SensorIconDrawFn)(int cx, int cy, uint16_t color);
+
 // --- Widget prototypes ---
 typedef enum {
     ALERT_JEWEL_OFF = 0,
@@ -26,8 +28,19 @@ typedef enum {
 
 uint16_t getTempColor(float temp);
 void drawCard(int x, int y, int w, int h, uint16_t color);
-void drawHeader(const char* title, uint16_t color);
+void drawHeader(const char* title);
+void drawMasterCardHeader(const char* title, uint16_t line_color = TFT_WHITE);
 void drawFooterHint(const char* text, int cx, int y, uint16_t color = TFT_CYAN);
+void drawMasterFooterHint(const char* text, uint16_t color = TFT_DARKGREY);
+void drawSensorChip(int x,
+                    int y,
+                    int w,
+                    int h,
+                    const char* label,
+                    uint16_t accent,
+                    SensorIconDrawFn icon_fn,
+                    uint16_t bg = TFT_BLACK,
+                    uint16_t text_color = TFT_WHITE);
 // Clear the shared menu title/body/footer bands before drawing a new state.
 void clearMenuBands();
 // Draw the common centered menu frame: title at the top band and footer hint at the bottom.

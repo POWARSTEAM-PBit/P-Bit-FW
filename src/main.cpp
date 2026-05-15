@@ -13,6 +13,7 @@
 #include <esp_system.h>
 #include <esp_timer.h>
 #include <driver/rtc_io.h>
+#include <stdio.h>
 #include "ui_widgets.h" // Owns the global TFT instance
 #include "ui_boot.h"    // Boot animation and splash flow
 #include "timer.h"
@@ -25,6 +26,7 @@
 #include "ui_system.h"
 #include "lang_select.h" // Cold-boot language selector
 #include "config.h"
+#include "layout.h"
 #include "runtime_events.h"
 #include "alert_engine.h"
 
@@ -39,7 +41,7 @@ bool g_sound_enabled; // Loaded from NVS during hardware init
 volatile unsigned long g_last_activity_ms = 0;
 volatile PowerMode g_power_mode = POWER_ACTIVE;
 
-RTC_DATA_ATTR uint8_t g_rtc_last_active_screen = TEMP_SCREEN;
+RTC_DATA_ATTR uint8_t g_rtc_last_active_screen = FIRST_APP_SCREEN;
 RTC_DATA_ATTR uint8_t g_rtc_last_power_mode = POWER_ACTIVE;
 RTC_DATA_ATTR uint8_t g_rtc_last_sleep_intent = 0;
 RTC_DATA_ATTR uint32_t g_rtc_boot_counter = 0;
@@ -50,13 +52,38 @@ enum SleepIntent : uint8_t {
     SLEEP_INTENT_DEEP_SLEEP = 2
 };
 
+#if PBIT_ENABLE_GRAPH_LAB
+static bool isHiddenRestoreScreen(Screen screen) {
+    switch (screen) {
+        case LAB_DASH_OVERVIEW_SCREEN:
+        case LAB_ICON_SET_A_SCREEN:
+        case LAB_ICON_SET_B_SCREEN:
+        case LAB_ICON_SET_C_SCREEN:
+        case LAB_ICON_SIZES_ENV_SCREEN:
+        case LAB_ICON_SIZES_EXT_SCREEN:
+        case LAB_ICON_TEST_SCREEN:
+            return true;
+        default:
+            return false;
+    }
+}
+#endif
+
 static bool isRestorableScreen(Screen screen) {
-    return screen >= TEMP_SCREEN && screen <= TIMER_SCREEN;
+    if (screen < TEMP_SCREEN || screen > LAST_APP_SCREEN) {
+        return false;
+    }
+#if PBIT_ENABLE_GRAPH_LAB
+    if (isHiddenRestoreScreen(screen)) {
+        return false;
+    }
+#endif
+    return true;
 }
 
 static Screen getPersistedSleepScreen() {
     Screen persisted = static_cast<Screen>(g_rtc_last_active_screen);
-    return isRestorableScreen(persisted) ? persisted : TEMP_SCREEN;
+    return isRestorableScreen(persisted) ? persisted : FIRST_APP_SCREEN;
 }
 
 static unsigned long now_ms() {
@@ -136,6 +163,76 @@ void setup() {
     // Module initialization.
     set_devicename();
     init_tft_display();
+
+    // ── LAYOUT VALIDATION TEST ── enable only when recalibrating master geometry ──
+    constexpr bool kShowStartupLayoutValidation = false;
+    if (kShowStartupLayoutValidation) {
+        extern const GFXfont Roboto_Medium10pt8b;
+        extern const GFXfont Roboto_Regular7pt8b;
+        extern const GFXfont Roboto_Light6pt8b;
+
+        tft.fillScreen(TFT_BLACK);
+
+        // Pixel boundary reference: red dot at each corner
+        tft.fillRect(0,   0,   1, 1, TFT_RED);
+        tft.fillRect(159, 0,   1, 1, TFT_RED);
+        tft.fillRect(0,   127, 1, 1, TFT_RED);
+        tft.fillRect(159, 127, 1, 1, TFT_RED);
+
+        // ── Header: C_BASELINE y=16 → text top=3, bottom=17 ──────────
+        // TC/MC datums use glyph_ab=18 (global font max, char Å), not string ascent=13.
+        // C_BASELINE bypasses that: y IS the baseline. top = y - 13 = 3.
+        tft.setTextDatum(C_BASELINE);
+        tft.setTextColor(TFT_WHITE, TFT_BLACK);
+        tft.setFreeFont(&Roboto_Medium10pt8b);
+        tft.drawString("SENSOR LAB", 80, LC_MASTER_HEADER_BASELINE);
+        tft.setTextFont(0);
+        tft.drawFastHLine(LC_MASTER_HEADER_LINE_X,
+                          LC_MASTER_HEADER_LINE_Y,
+                          LC_MASTER_HEADER_LINE_W,
+                          TFT_WHITE);
+
+        // ── Mock 2x2 card grid ─────────────────────────────────────────
+        // margin=2px, gap=4px, card=76x48, row0 y=27, row1 y=79
+        const uint16_t kFrame = tft.color565(50, 70, 110);
+        tft.drawRoundRect(LC_MASTER_CARD_X0, LC_MASTER_CARD_Y0,
+                          LC_MASTER_CARD_W, LC_MASTER_CARD_H,
+                          LC_MASTER_CARD_RADIUS, kFrame);
+        tft.drawRoundRect(LC_MASTER_CARD_X1, LC_MASTER_CARD_Y0,
+                          LC_MASTER_CARD_W, LC_MASTER_CARD_H,
+                          LC_MASTER_CARD_RADIUS, kFrame);
+        tft.drawRoundRect(LC_MASTER_CARD_X0, LC_MASTER_CARD_Y1,
+                          LC_MASTER_CARD_W, LC_MASTER_CARD_H,
+                          LC_MASTER_CARD_RADIUS, kFrame);
+        tft.drawRoundRect(LC_MASTER_CARD_X1, LC_MASTER_CARD_Y1,
+                          LC_MASTER_CARD_W, LC_MASTER_CARD_H,
+                          LC_MASTER_CARD_RADIUS, kFrame);
+
+        // Card size labels
+        char card_label[16];
+        snprintf(card_label, sizeof(card_label), "%dx%d", LC_MASTER_CARD_W, LC_MASTER_CARD_H);
+        tft.setTextDatum(MC_DATUM);
+        tft.setFreeFont(&Roboto_Regular7pt8b);
+        tft.setTextColor(tft.color565(90, 90, 90), TFT_BLACK);
+        tft.drawString(card_label, LC_MASTER_CARD_CX0, LC_MASTER_CARD_CY0);
+        tft.drawString(card_label, LC_MASTER_CARD_CX1, LC_MASTER_CARD_CY0);
+        tft.drawString(card_label, LC_MASTER_CARD_CX0, LC_MASTER_CARD_CY1);
+        tft.drawString(card_label, LC_MASTER_CARD_CX1, LC_MASTER_CARD_CY1);
+        tft.setTextFont(0);
+
+        // ── Y-axis markers on right edge (1px wide) ───────────────────
+        // Each dot shows a key layout boundary
+        tft.fillRect(159, LC_MASTER_HEADER_TEXT_TOP,  1, 1, TFT_YELLOW);
+        tft.fillRect(159, LC_MASTER_HEADER_LINE_Y,    1, 1, TFT_CYAN);
+        tft.fillRect(159, LC_MASTER_CARD_Y0,          1, 1, TFT_WHITE);
+        tft.fillRect(159, LC_MASTER_CARD_Y1,          1, 1, TFT_WHITE);
+        tft.fillRect(159, LC_MASTER_CARD_BOTTOM,      1, 1, TFT_WHITE);
+        tft.fillRect(159, LC_MASTER_FOOTER_TEXT_TOP,  1, 1, TFT_MAGENTA);
+
+        delay(15000);
+    }
+    // ── END LAYOUT VALIDATION TEST ──────────────────────────────────────
+
     init_ble();
     init_leds_and_buzzer();
     alert_engine_reset();
@@ -166,12 +263,15 @@ void setup() {
         default : // Cold boot / power-on
             Serial.println("[Power] Cold Boot detected. Running boot sequence.");
             run_boot_sequence();
-            active_screen = TEMP_SCREEN;
+            active_screen = FIRST_APP_SCREEN;
             runtime_set_last_active_screen_before_sleep(active_screen);
             g_is_fahrenheit = false;
             g_power_mode = POWER_ACTIVE;
             persistPowerState(POWER_ACTIVE, SLEEP_INTENT_NONE);
             showLanguageMenu();       // Always show the language menu on first boot.
+            tft.fillScreen(TFT_BLACK); // Force a clean slate before the first app screen redraw.
+            delay(25);                // Give the display driver time to settle.
+            tft.fillScreen(TFT_BLACK);
             g_is_fahrenheit = false;
             break;
     }

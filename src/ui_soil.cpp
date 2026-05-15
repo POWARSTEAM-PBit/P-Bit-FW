@@ -292,7 +292,7 @@ static void draw_soil_calibration_screen() {
 
     if (state_changed) {
         tft.fillScreen(TFT_BLACK);
-        drawHeader(L(TIT_SOIL), TFT_GREEN);
+        drawHeader(L(TIT_SOIL));
         last_menu_index = -1;
         last_live_raw = -1;
         last_dry_raw = -1;
@@ -524,23 +524,30 @@ void draw_soil_screen(bool screen_changed, bool data_changed) {
     // --- Estáticos ---
     if (screen_changed) {
         tft.fillScreen(BACKGROUND_COLOR);
-        drawHeader(L(TIT_SOIL), TITLE_COLOR);
+        drawHeader(L(TIT_SOIL));
         tft.drawRoundRect(LA_TANK_X, LA_TANK_Y, LA_TANK_W, LA_TANK_H, 3, TFT_DARKGREY);
     }
 
     static int last_soil_drawn = -1;
     static int last_category_id = -1;
+    static uint8_t last_alert_code = ALERT_CODE_OFF;
+    static bool last_alerts_enabled = false;
     int soil_rounded = no_sensor ? -9999 : (int)roundf(soil);
     bool value_changed = screen_changed || (soil_rounded != last_soil_drawn);
     bool category_changed = screen_changed || (category_id != last_category_id);
     uint8_t alert_code = alert_engine_get_code(AlertSensor::Soil);
-    if (!value_changed && !category_changed) return;
+    bool alert_changed = screen_changed
+        || (alert_code != last_alert_code)
+        || (g_soil_alerts_enabled != last_alerts_enabled);
+    if (!value_changed && !category_changed && !alert_changed) return;
 
     last_soil_drawn = soil_rounded;
     last_category_id = category_id;
+    last_alert_code = alert_code;
+    last_alerts_enabled = g_soil_alerts_enabled;
 
     // --- Dinámicos ---
-    if (data_changed || screen_changed) {
+    if (data_changed || screen_changed || alert_changed) {
         if (screen_changed || value_changed) {
             tft.fillRect(0, LA_HINT_Y - 4, LEFT_PANEL_W, 18, BACKGROUND_COLOR);
             if (!no_sensor) {
@@ -600,6 +607,8 @@ void draw_soil_screen(bool screen_changed, bool data_changed) {
             }
         }
 
-        draw_soil_alert_jewel(alert_code, no_sensor);
+        if (value_changed || category_changed || alert_changed) {
+            draw_soil_alert_jewel(alert_code, no_sensor);
+        }
     }
 }

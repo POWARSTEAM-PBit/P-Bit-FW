@@ -14,7 +14,10 @@
       "Bash(cmd.exe /c \"where pio\")",
       "Bash(cmd.exe /c \"where pio 2>&1 & echo EXIT:%ERRORLEVEL%\")",
       "Bash(powershell.exe -Command \"cd 'c:\\\\\\\\POWAR-GIT\\\\\\\\P-Bit-FW - edit'; & pio run 2>&1\")",
-      "Bash(powershell.exe -NoProfile -Command \"ls 'C:\\\\Users\\\\Pablo Z\\\\.platformio\\\\penv\\\\Scripts\\\\pio*' 2>&1\")"
+      "Bash(powershell.exe -NoProfile -Command \"ls 'C:\\\\Users\\\\Pablo Z\\\\.platformio\\\\penv\\\\Scripts\\\\pio*' 2>&1\")",
+      "Bash(sort -t'-' -k2 -n)",
+      "Bash(python3 -c \"print\\('no python'\\)\")",
+      "Bash(node -e ' *)"
     ]
   }
 }

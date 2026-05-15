@@ -17,8 +17,6 @@
 extern TFT_eSPI tft;
 extern Reading g_ui_readings_snapshot;
 extern void drawBarGraph(int x, int y, int w, int h, uint16_t color, float value, float minVal, float maxVal);
-extern void drawHeader(const char* title, uint16_t color);
-
 namespace {
 
 void format_light_threshold_value(int value, char* out, size_t out_size) {
@@ -282,7 +280,7 @@ static void draw_light_menu_screen(bool screen_changed) {
 
     if (state_changed) {
         tft.fillScreen(TFT_BLACK);
-        drawHeader(L(TIT_LIGHT), TFT_YELLOW);
+        drawHeader(L(TIT_LIGHT));
         last_menu_index = -1;
         last_edit_value = -1;
         last_display_mode = -1;
@@ -448,20 +446,22 @@ void draw_light_screen(bool screen_changed, bool data_changed) {
 
     if (screen_changed) {
         tft.fillScreen(BACKGROUND_COLOR);
-        drawHeader(L(TIT_LIGHT), TFT_YELLOW);
+        drawHeader(L(TIT_LIGHT));
     }
 
     static int last_display_cache = -1;
     static int last_category_id = -1;
     static int last_display_mode = -1;
     static uint8_t last_alert_state = ALERT_CODE_OFF;
+    static bool last_alerts_enabled = false;
 
     int display_cache = (int)roundf(display_val);
     if (!screen_changed
         && display_cache == last_display_cache
         && category_id == last_category_id
         && display_mode == (uint8_t)last_display_mode
-        && alert_state == last_alert_state) {
+        && alert_state == last_alert_state
+        && alerts_enabled == last_alerts_enabled) {
         return;
     }
 
@@ -469,6 +469,7 @@ void draw_light_screen(bool screen_changed, bool data_changed) {
     last_category_id = category_id;
     last_display_mode = (int)display_mode;
     last_alert_state = alert_state;
+    last_alerts_enabled = alerts_enabled;
 
     if (display_mode == 0 && display_val >= 10000.0f) {
         snprintf(value_str, sizeof(value_str), "%.0fk", display_val / 1000.0f);
@@ -502,4 +503,3 @@ void draw_light_screen(bool screen_changed, bool data_changed) {
 
     draw_light_alert_jewel(alert_state, alerts_enabled);
 }
-

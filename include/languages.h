@@ -43,6 +43,8 @@ enum LangKey : uint8_t {
     // Relative humidity status
     ST_MOLD_RISK,
     ST_TOO_DRY,
+    ST_CLIMATE_FRESH,
+    ST_CLIMATE_WARM,
 
     // BLE status
     ST_DISCONN,
@@ -187,6 +189,12 @@ enum LangKey : uint8_t {
     TIT_GRAPH,
     GRAPH_PUSH_SENSOR,
     ST_WAITING,
+    GRAPH_LABEL_TEMP_AIR,
+    GRAPH_LABEL_HUM_AIR,
+    GRAPH_LABEL_LIGHT,
+    GRAPH_LABEL_SOUND,
+    GRAPH_LABEL_SOIL_HUM,
+    GRAPH_LABEL_DS18,
 
     // Temporary lab screens
     TIT_LAB_DASH,
@@ -197,7 +205,14 @@ enum LangKey : uint8_t {
     TIT_LAB_ICON_C,
     TIT_LAB_GAUGE,
     TIT_LAB_VALUE,
+    TIT_LAB_TEMP_CARD,
+    TIT_LAB_PROBE_CARD,
     TIT_LAB_WIDGETS,
+    TIT_LAB_VU_STACK,
+    TIT_LAB_VU_WAVE,
+    LAB_PUSH_VIEW,
+    LAB_VIEW_STACK,
+    LAB_VIEW_WAVE,
     LAB_COMPARE_HINT,
     LAB_EXPERIMENT_HINT,
     LAB_TEMP_SHORT,
@@ -206,6 +221,7 @@ enum LangKey : uint8_t {
     LAB_SOUND_SHORT,
     LAB_SOIL_SHORT,
     LAB_PROBE_SHORT,
+    LAB_TEMP_DIFF,
     TIT_LAB_ICON_SZ_ENV,
     TIT_LAB_ICON_SZ_EXT,
     TIT_LAB_HOME_CARDS,

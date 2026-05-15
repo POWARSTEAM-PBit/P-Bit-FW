@@ -21,6 +21,8 @@
 #include "ui_graph.h"
 #if PBIT_ENABLE_GRAPH_LAB
 #include "ui_lab_focus.h"
+#include "ui_lab_sensor_cards.h"
+#include "ui_lab_widget_showcase.h"
 #endif
 #include "runtime_events.h"
 
@@ -50,32 +52,54 @@ int g_deferred_beep_freq_hz = 0;
 int g_deferred_beep_duration_ms = 0;
 
 #if PBIT_ENABLE_GRAPH_LAB
-static bool isHiddenLabScreen(Screen screen) {
-    switch (screen) {
-        case LAB_ICON_SET_A_SCREEN:
-        case LAB_ICON_SET_B_SCREEN:
-        case LAB_ICON_SET_C_SCREEN:
-        case LAB_ICON_SIZES_ENV_SCREEN:
-        case LAB_ICON_SIZES_EXT_SCREEN:
-            return true;
-        default:
-            return false;
+constexpr Screen kVisibleAppScreens[] = {
+    LAB_HOME_CARDS_SCREEN,
+    LAB_DUAL_TH_SCREEN,
+    LAB_WIDGET_MIX_SCREEN,
+    LAB_SOUND_VU_STACK_SCREEN,
+    LAB_LINEAR_DASH_SCREEN,
+    LAB_SENSOR_FOCUS_SCREEN,
+    GRAPH_SCREEN,
+    TEMP_SCREEN,
+    HUMIDITY_SCREEN,
+    LIGHT_SCREEN,
+    SOUND_SCREEN,
+    SOIL_SCREEN,
+    DS18B20_SCREEN,
+    SYSTEM_SCREEN,
+    TIMER_SCREEN,
+    LAB_GAUGE_TEMP_SCREEN,
+    LAB_VALUE_MODERN_SCREEN,
+    LAB_SENSOR_CARD_SCREEN
+};
+
+constexpr int kVisibleAppScreenCount = (int)(sizeof(kVisibleAppScreens) / sizeof(kVisibleAppScreens[0]));
+
+static Screen canonicalCarouselScreen(Screen screen) {
+    if (screen == LAB_SOUND_VU_WAVE_SCREEN) {
+        return LAB_SOUND_VU_STACK_SCREEN;
     }
+    return screen;
 }
 
-static Screen stepAppScreen(Screen screen, int direction) {
-    int next = (int)screen + direction;
-    if (next > (int)LAST_APP_SCREEN) next = (int)TEMP_SCREEN;
-    if (next < (int)TEMP_SCREEN) next = (int)LAST_APP_SCREEN;
-    return static_cast<Screen>(next);
+static int appScreenToCarouselIndex(Screen screen) {
+    const Screen canonical = canonicalCarouselScreen(screen);
+    for (int i = 0; i < kVisibleAppScreenCount; ++i) {
+        if (kVisibleAppScreens[i] == canonical) {
+            return i;
+        }
+    }
+    return 0;
 }
 
-static Screen resolveVisibleAppScreen(Screen screen, int direction) {
-    Screen candidate = screen;
-    while (isHiddenLabScreen(candidate)) {
-        candidate = stepAppScreen(candidate, direction);
+static Screen carouselIndexToAppScreen(int index) {
+    if (index < 0) {
+        return kVisibleAppScreens[0];
     }
-    return candidate;
+    if (index >= kVisibleAppScreenCount) {
+        return kVisibleAppScreens[kVisibleAppScreenCount - 1];
+    }
+    return kVisibleAppScreens[index];
 }
 #endif
 
@@ -102,10 +126,33 @@ static void service_deferred_beep(unsigned long now_ms_value) {
 
 } // namespace
 
+#if PBIT_ENABLE_GRAPH_LAB
+static bool isHiddenRestoreScreen(Screen screen) {
+    switch (screen) {
+        case LAB_DASH_OVERVIEW_SCREEN:
+        case LAB_ICON_SET_A_SCREEN:
+        case LAB_ICON_SET_B_SCREEN:
+        case LAB_ICON_SET_C_SCREEN:
+        case LAB_ICON_SIZES_ENV_SCREEN:
+        case LAB_ICON_SIZES_EXT_SCREEN:
+        case LAB_ICON_TEST_SCREEN:
+            return true;
+        default:
+            return false;
+    }
+}
+#endif
+
 static void configure_app_rotary_bounds() {
+#if PBIT_ENABLE_GRAPH_LAB
+    rotaryEncoder.setBoundaries(0, kVisibleAppScreenCount - 1, true);
+    rotaryEncoder.setEncoderValue(appScreenToCarouselIndex(active_screen));
+#else
     rotaryEncoder.setBoundaries(TEMP_SCREEN, LAST_APP_SCREEN, true);
     rotaryEncoder.setStepValue(1);
     rotaryEncoder.setEncoderValue((int)active_screen);
+#endif
+    rotaryEncoder.setStepValue(1);
 }
 
 static void configure_soil_ui_rotary_bounds() {
@@ -204,7 +251,15 @@ static void play_soil_confirm_beep() {
 }
 
 static bool isRestorableScreen(Screen screen) {
-    return screen >= TEMP_SCREEN && screen <= LAST_APP_SCREEN;
+    if (screen < TEMP_SCREEN || screen > LAST_APP_SCREEN) {
+        return false;
+    }
+#if PBIT_ENABLE_GRAPH_LAB
+    if (isHiddenRestoreScreen(screen)) {
+        return false;
+    }
+#endif
+    return true;
 }
 
 static unsigned long now_ms() {
@@ -228,7 +283,7 @@ static void exitIdleModeIfNeeded() {
         if (isRestorableScreen(restored_screen)) {
             active_screen = restored_screen;
         } else {
-            active_screen = TEMP_SCREEN;
+            active_screen = FIRST_APP_SCREEN;
         }
 
         runtime_mark_sensor_data_ready();
@@ -319,23 +374,12 @@ void knobCallback(long value) {
         return;
     }
 
-    if (value < TEMP_SCREEN || value > LAST_APP_SCREEN) return;
-
-    Screen requested_screen = static_cast<Screen>(value);
 #if PBIT_ENABLE_GRAPH_LAB
-    int direction = 1;
-    if (active_screen == LAST_APP_SCREEN && requested_screen == TEMP_SCREEN) {
-        direction = 1;
-    } else if (active_screen == TEMP_SCREEN && requested_screen == LAST_APP_SCREEN) {
-        direction = -1;
-    } else if ((int)requested_screen < (int)active_screen) {
-        direction = -1;
-    }
-
-    requested_screen = resolveVisibleAppScreen(requested_screen, direction);
-    if (requested_screen != static_cast<Screen>(value)) {
-        rotaryEncoder.setEncoderValue((int)requested_screen);
-    }
+    if (value < 0 || value >= kVisibleAppScreenCount) return;
+    Screen requested_screen = carouselIndexToAppScreen((int)value);
+#else
+    if (value < TEMP_SCREEN || value > LAST_APP_SCREEN) return;
+    Screen requested_screen = static_cast<Screen>(value);
 #endif
 
     active_screen = requested_screen;
@@ -382,6 +426,12 @@ void knobCallback(long value) {
             set_rgb(0, 80, 80); // Teal neutro para la pantalla de gráfica
             break;
 #if PBIT_ENABLE_GRAPH_LAB
+        case LAB_HOME_CARDS_SCREEN:
+            set_rgb(0, 150, 210);
+            break;
+        case LAB_LINEAR_DASH_SCREEN:
+            set_rgb(0, 170, 100);
+            break;
         case LAB_DASH_OVERVIEW_SCREEN:
             set_rgb(90, 90, 140);
             break;
@@ -406,8 +456,23 @@ void knobCallback(long value) {
         case LAB_VALUE_MODERN_SCREEN:
             set_rgb(255, 0, 180);
             break;
+        case LAB_SENSOR_CARD_SCREEN:
+            set_rgb(255, 130, 0);
+            break;
+        case LAB_TEMP_CARD_SCREEN:
+            set_rgb(255, 110, 0);
+            break;
+        case LAB_DS18_CARD_SCREEN:
+            set_rgb(255, 255, 255);
+            break;
         case LAB_WIDGET_MIX_SCREEN:
-            set_rgb(0, 200, 255);
+            set_rgb(255, 140, 60);
+            break;
+        case LAB_SOUND_VU_STACK_SCREEN:
+            set_rgb(0, 220, 120);
+            break;
+        case LAB_SOUND_VU_WAVE_SCREEN:
+            set_rgb(0, 160, 255);
             break;
 #endif
         default:
@@ -751,9 +816,36 @@ void buttonCallback(unsigned long duration) {
     }
 
 #if PBIT_ENABLE_GRAPH_LAB
+    if (active_screen == LAB_SOUND_VU_STACK_SCREEN || active_screen == LAB_SOUND_VU_WAVE_SCREEN) {
+        if (duration < MENU_LONG_PRESS_MS) {
+            active_screen = (active_screen == LAB_SOUND_VU_STACK_SCREEN)
+                ? LAB_SOUND_VU_WAVE_SCREEN
+                : LAB_SOUND_VU_STACK_SCREEN;
+            runtime_request_ui_full_redraw();
+            if (g_sound_enabled) beep(800, 15);
+        }
+        return;
+    }
+
     if (active_screen == LAB_SENSOR_FOCUS_SCREEN) {
         if (duration < MENU_LONG_PRESS_MS) {
             lab_focus_cycle_sensor();
+            if (g_sound_enabled) beep(800, 15);
+        }
+        return;
+    }
+
+    if (active_screen == LAB_SENSOR_CARD_SCREEN) {
+        if (duration < MENU_LONG_PRESS_MS) {
+            lab_sensor_card_cycle();
+            if (g_sound_enabled) beep(800, 15);
+        }
+        return;
+    }
+
+    if (active_screen == LAB_GAUGE_TEMP_SCREEN) {
+        if (duration < MENU_LONG_PRESS_MS) {
+            lab_gauge_cycle_sensor();
             if (g_sound_enabled) beep(800, 15);
         }
         return;
@@ -767,7 +859,7 @@ void init_rotary() {
     rotaryEncoder.setEncoderType(EncoderType::FLOATING);
     pinMode((uint8_t)DI_ENCODER_SW, INPUT_PULLUP);
     
-    // Screen boundaries start at TEMP_SCREEN and exclude BOOT_SCREEN.
+    // Screen boundaries cover the visible carousel and exclude BOOT_SCREEN.
     configure_app_rotary_bounds();
     
     rotaryEncoder.onTurned(&knobCallback);

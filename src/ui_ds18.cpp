@@ -291,7 +291,7 @@ static void draw_ds18_menu_screen(bool screen_changed) {
     const int cx = tft.width() / 2;
     if (state_changed) {
         tft.fillScreen(TFT_BLACK);
-        drawHeader(L(TIT_THERM), TFT_ORANGE);
+        drawHeader(L(TIT_THERM));
         last_menu_index = -1;
         last_edit_value = -9999;
         last_unit_value = -1;
@@ -448,7 +448,7 @@ void draw_ds18_screen(bool screen_changed, bool data_changed) {
 
     if (screen_changed) {
         tft.fillScreen(BACKGROUND_COLOR);
-        drawHeader(L(TIT_THERM), TITLE_COLOR);
+        drawHeader(L(TIT_THERM));
     }
 
     static int last_display_cache = INT16_MIN;

@@ -31,6 +31,8 @@
 #include "ui_lab_focus.h"
 #include "ui_lab_dual.h"
 #include "ui_lab_icon_gallery.h"
+#include "ui_lab_sensor_cards.h"
+#include "ui_lab_sound_vu.h"
 #include "ui_lab_widget_showcase.h"
 #include "ui_lab_icon_sizes.h"
 #include "ui_lab_home_cards.h"
@@ -97,6 +99,12 @@ static void apply_global_alert_rgb(const GlobalAlertSummary& summary) {
                 set_rgb(0, 80, 80); // Teal neutro para la pantalla de gráfica
                 break;
 #if PBIT_ENABLE_GRAPH_LAB
+            case LAB_HOME_CARDS_SCREEN:
+                set_rgb(0, 150, 210);
+                break;
+            case LAB_LINEAR_DASH_SCREEN:
+                set_rgb(0, 170, 100);
+                break;
             case LAB_DASH_OVERVIEW_SCREEN:
                 set_rgb(90, 90, 140);
                 break;
@@ -121,8 +129,23 @@ static void apply_global_alert_rgb(const GlobalAlertSummary& summary) {
             case LAB_VALUE_MODERN_SCREEN:
                 set_rgb(255, 0, 180);
                 break;
+            case LAB_SENSOR_CARD_SCREEN:
+                set_rgb(255, 130, 0);
+                break;
+            case LAB_TEMP_CARD_SCREEN:
+                set_rgb(255, 110, 0);
+                break;
+            case LAB_DS18_CARD_SCREEN:
+                set_rgb(255, 255, 255);
+                break;
             case LAB_WIDGET_MIX_SCREEN:
-                set_rgb(0, 200, 255);
+                set_rgb(255, 140, 60);
+                break;
+            case LAB_SOUND_VU_STACK_SCREEN:
+                set_rgb(0, 220, 120);
+                break;
+            case LAB_SOUND_VU_WAVE_SCREEN:
+                set_rgb(0, 160, 255);
                 break;
             case LAB_ICON_TEST_SCREEN:
                 set_rgb(255, 165, 0);
@@ -177,16 +200,6 @@ static void apply_global_alert_rgb(const GlobalAlertSummary& summary) {
 
 static void render_global_alert_badge() {
     const GlobalAlertSummary summary = alert_engine_get_global_summary();
-    static bool cleared_legacy_badge = false;
-
-    if (!cleared_legacy_badge) {
-        tft.fillRect(L_LEGACY_ALERT_BADGE_X,
-                     L_LEGACY_ALERT_BADGE_Y,
-                     L_LEGACY_ALERT_BADGE_W,
-                     L_LEGACY_ALERT_BADGE_H,
-                     TFT_BLACK);
-        cleared_legacy_badge = true;
-    }
 
     apply_global_alert_rgb(summary);
 }
@@ -405,8 +418,28 @@ void switch_screen(void *param) {
                     draw_lab_value_modern_screen(screen_changed, sensor_data_changed);
                     break;
 
+                case LAB_SENSOR_CARD_SCREEN:
+                    draw_lab_sensor_card_screen(screen_changed, sensor_data_changed);
+                    break;
+
+                case LAB_TEMP_CARD_SCREEN:
+                    draw_lab_temp_card_screen(screen_changed, sensor_data_changed);
+                    break;
+
+                case LAB_DS18_CARD_SCREEN:
+                    draw_lab_ds18_card_screen(screen_changed, sensor_data_changed);
+                    break;
+
                 case LAB_WIDGET_MIX_SCREEN:
                     draw_lab_widget_mix_screen(screen_changed, sensor_data_changed);
+                    break;
+
+                case LAB_SOUND_VU_STACK_SCREEN:
+                    draw_lab_sound_vu_stack_screen(screen_changed, sensor_data_changed);
+                    break;
+
+                case LAB_SOUND_VU_WAVE_SCREEN:
+                    draw_lab_sound_vu_wave_screen(screen_changed, sensor_data_changed);
                     break;
 
                 case LAB_ICON_SIZES_ENV_SCREEN:

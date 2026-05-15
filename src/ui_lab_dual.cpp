@@ -6,6 +6,7 @@
 
 #include "ui_widgets.h"
 #include "io.h"
+#include "hw.h"
 #include "languages.h"
 #include "fonts.h"
 #include "layout.h"
@@ -23,27 +24,33 @@ extern bool g_is_fahrenheit;
 namespace {
 
 constexpr int kHeaderClearH = L_HEADER_LINE + 4;
-constexpr int kPanelY = 36;
-constexpr int kPanelH = 76;
-constexpr int kPanelW = 72;
+constexpr int kPanelY = LC_CARD_TOP;
+constexpr int kPanelH = 73;
+constexpr int kPanelW = LC_MASTER_CARD_W;
 constexpr int kPanelGap = 4;
-constexpr int kLeftX = 6;
+constexpr int kLeftX = LC_MASTER_CARD_X0;
 constexpr int kRightX = kLeftX + kPanelW + kPanelGap;
 constexpr int kCenterX = 80;
+constexpr int kFooterX = LC_SCREEN_X;
+constexpr int kFooterY = 104;
+constexpr int kFooterW = LC_SCREEN_W;
+constexpr int kFooterH = 23;
+constexpr int kFooterTextCx = kFooterX + (kFooterW / 2);
+constexpr int kFooterTextCy = kFooterY + (kFooterH / 2) - 1;
 
-constexpr int kTitleY = 44;
-constexpr int kValueY = 62;
-constexpr int kStatusY = 92;
-constexpr int kBarY = 101;
-constexpr int kBarH = 7;
-constexpr int kValueClearY = 54;
-constexpr int kValueClearH = 20;
-constexpr int kTempValueClearX = 26;
-constexpr int kTempValueClearW = 34;
-constexpr int kHumValueClearX = 22;
-constexpr int kHumValueClearW = 38;
-constexpr int kBarClearY = 98;
-constexpr int kBarClearH = 11;
+constexpr int kTitleY = 32;
+constexpr int kValueY = 52;
+constexpr int kStatusY = 80;
+constexpr int kBarY = 85;
+constexpr int kBarH = 9;
+constexpr int kValueClearY = kValueY - kPanelY - 4;
+constexpr int kValueClearH = 28;
+constexpr int kTempValueClearX = 8;
+constexpr int kTempValueClearW = kPanelW - 16;
+constexpr int kHumValueClearX = 8;
+constexpr int kHumValueClearW = kPanelW - 16;
+constexpr int kBarClearY = kBarY - kPanelY - 2;
+constexpr int kBarClearH = 13;
 
 static int g_last_temp_key = INT_MIN;
 static int g_last_hum_key = INT_MIN;
@@ -104,6 +111,50 @@ static uint16_t hum_unit_color(bool valid) {
     return valid ? tft.color565(176, 255, 255) : TFT_DARKGREY;
 }
 
+static uint16_t footer_bg_color() {
+    return tft.color565(8, 12, 18);
+}
+
+static void draw_climate_footer(float temp_c, bool no_temp, float hum, bool no_hum) {
+    const char* footer_text = L(ST_NO_SENSOR);
+    uint16_t footer_color = TFT_DARKGREY;
+
+    if (!no_temp && !no_hum) {
+        const int hum_dry_max = get_humidity_threshold_dry();
+        const int hum_comfort_max = get_humidity_threshold_comfort();
+        const int temp_low = get_temp_alarm_low();
+        const int temp_high = get_temp_alarm_high();
+
+        if (hum > (float)hum_comfort_max) {
+            footer_text = L(ST_MOLD_RISK);
+            footer_color = TFT_RED;
+        } else if (hum < (float)hum_dry_max) {
+            footer_text = L(ST_TOO_DRY);
+            footer_color = TFT_ORANGE;
+        } else if (temp_c < (float)temp_low) {
+            footer_text = L(ST_CLIMATE_FRESH);
+            footer_color = tft.color565(72, 212, 255);
+        } else if (temp_c > (float)temp_high) {
+            footer_text = L(ST_CLIMATE_WARM);
+            footer_color = tft.color565(255, 182, 64);
+        } else {
+            footer_text = L(ST_OPTIMAL);
+            footer_color = TFT_GREEN;
+        }
+    }
+
+    const uint16_t bg = footer_bg_color();
+    tft.fillRect(kFooterX - 1, kFooterY - 1, kFooterW + 2, kFooterH + 2, TFT_BLACK);
+    tft.fillRoundRect(kFooterX, kFooterY, kFooterW, kFooterH, 4, bg);
+    tft.drawRoundRect(kFooterX, kFooterY, kFooterW, kFooterH, 4, footer_color);
+    tft.fillCircle(kFooterX + 8, kFooterY + (kFooterH / 2), 2, footer_color);
+    tft.setTextDatum(MC_DATUM);
+    tft.setFreeFont(FONT_SMALL);
+    tft.setTextColor(footer_color, bg);
+    tft.drawString(footer_text, kFooterTextCx, kFooterTextCy);
+    tft.setTextFont(0);
+}
+
 static void draw_panel_frame(int x, int y, int w, int h, uint16_t color) {
     drawCard(x, y, w, h, color);
 }
@@ -121,7 +172,7 @@ static void draw_panel_unit(int x, int y, int w, const char* unit_text, uint16_t
     tft.setTextDatum(TR_DATUM);
     tft.setFreeFont(FONT_BODY);
     tft.setTextColor(unit_color, TFT_BLACK);
-    tft.drawString(unit_text, x + w - 7, y + 2);
+    tft.drawString(unit_text, x + w - 8, y + 3);
     tft.setTextFont(0);
 }
 
@@ -140,7 +191,7 @@ static void draw_center_value(int x,
 static void draw_temp_shell(int x, int y, int w, int h, uint16_t panel_color, uint16_t title_color, uint16_t unit_color, bool no_sensor) {
     clear_panel_interior(x, y, w, h);
     draw_panel_frame(x, y, w, h, panel_color);
-    pbit_draw_temp_icon(x + 10, y + 13, unit_color);
+    pbit_draw_temp_icon(x + 12, y + 13, unit_color);
     draw_panel_title_centered(x, y, w, short_panel_title(false), title_color);
     draw_panel_unit(x, y, w, no_sensor ? "" : temp_unit_short(), unit_color);
 }
@@ -156,7 +207,6 @@ static void draw_temp_content(int x, int y, int w, int h, float temp_display, bo
     draw_center_value(x, kValueY, w, value_buf, value_color);
 
     if (no_sensor) {
-        tft.fillRect(x + kTempValueClearX, y + 72, kTempValueClearW, 16, TFT_BLACK);
         tft.setTextDatum(MC_DATUM);
         tft.setFreeFont(FONT_SMALL);
         tft.setTextColor(TFT_DARKGREY, TFT_BLACK);
@@ -185,7 +235,7 @@ static void draw_temp_panel(bool redraw_shell, bool redraw_content, bool no_sens
 static void draw_humidity_shell(int x, int y, int w, int h, uint16_t panel_color, uint16_t title_color, uint16_t unit_color, bool no_sensor) {
     clear_panel_interior(x, y, w, h);
     draw_panel_frame(x, y, w, h, panel_color);
-    pbit_draw_humidity_icon(x + 10, y + 14, unit_color);
+    pbit_draw_humidity_icon(x + 12, y + 14, unit_color);
     draw_panel_title_centered(x, y, w, short_panel_title(true), title_color);
     draw_panel_unit(x, y, w, no_sensor ? "" : "%", unit_color);
 }
@@ -201,7 +251,6 @@ static void draw_humidity_content(int x, int y, int w, int h, float hum, bool no
     draw_center_value(x, kValueY, w, value_buf, value_color);
 
     if (no_sensor) {
-        tft.fillRect(x + kHumValueClearX, y + 72, kHumValueClearW, 16, TFT_BLACK);
         tft.setTextDatum(MC_DATUM);
         tft.setFreeFont(FONT_SMALL);
         tft.setTextColor(TFT_DARKGREY, TFT_BLACK);
@@ -254,7 +303,7 @@ void draw_lab_dual_th_screen(bool screen_changed, bool sensor_data_changed) {
 
     if (screen_changed) {
         tft.fillScreen(TFT_BLACK);
-        drawHeader(L(TIT_LAB_DUAL_TH), TFT_WHITE);
+        drawHeader(L(TIT_LAB_DUAL_TH));
         tft.drawFastVLine(kCenterX, kPanelY, kPanelH, TFT_DARKGREY);
     }
 
@@ -268,6 +317,10 @@ void draw_lab_dual_th_screen(bool screen_changed, bool sensor_data_changed) {
         draw_humidity_panel(true, true, no_hum, hum, hum_panel_color, hum_title_color, hum_value_col, hum_unit_col);
     } else if (hum_changed) {
         draw_humidity_panel(false, true, no_hum, hum, hum_panel_color, hum_title_color, hum_value_col, hum_unit_col);
+    }
+
+    if (screen_changed || temp_changed || hum_changed) {
+        draw_climate_footer(temp_c, no_temp, hum, no_hum);
     }
 
     g_last_temp_key = temp_key;

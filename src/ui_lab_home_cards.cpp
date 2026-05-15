@@ -1,22 +1,19 @@
 // ui_lab_home_cards.cpp
-// Layout A: 2×2 card grid showing temperature, humidity, light and sound.
+// Layout A: 2x2 card grid showing temperature, humidity, light and sound.
 //
-// Each card (74×40px):
+// Each card follows the validated LC_MASTER_* card rule:
 //   - small icon  (top-left corner, ~10px)
 //   - sensor tag  (text, beside icon)
 //   - large value (centre-right, FONT_BODY)
 //   - unit        (small, after value)
-//   - 3px colour bar at card bottom reflecting sensor state
-//
-// Card grid  (160×128 landscape, header 0-28, footer hint 121-127):
-//   Col 0 x=4    Col 1 x=82
-//   Row 0 y=30   Row 1 y=74
+//   - right mini tank reflecting sensor range
 
 #include "ui_lab_home_cards.h"
 
 #include "fonts.h"
 #include "io.h"
 #include "languages.h"
+#include "layout.h"
 #include "tft_display.h"
 #include "ui_icons.h"
 #include "ui_widgets.h"
@@ -41,11 +38,12 @@ constexpr uint16_t kMagenta  = TFT_MAGENTA;
 constexpr uint16_t kGreen    = 0x07E0;
 constexpr uint16_t kRed      = TFT_RED;
 
-// card geometry
-constexpr int kCardW  = 74;
-constexpr int kCardH  = 40;
-constexpr int kCol[2] = { 4, 82 };
-constexpr int kRow[2] = { 30, 74 };
+constexpr int kCardW = LC_MASTER_CARD_W;
+constexpr int kCardH = LC_MASTER_CARD_H;
+constexpr int kCol[2] = { LC_MASTER_CARD_X0, LC_MASTER_CARD_X1 };
+constexpr int kRow[2] = { LC_MASTER_CARD_Y0, LC_MASTER_CARD_Y1 };
+constexpr int kValueXPad = 26;
+constexpr int kTankW = 8;
 
 static void draw_home_temp_icon(int cx, int cy, uint16_t color) {
     tft.fillRoundRect(cx - 4, cy - 10, 8, 15, 4, color);
@@ -112,8 +110,8 @@ static uint16_t sound_state_color(float s) {
 static void draw_card_shell(int col, int row, uint16_t accent) {
     const int x = kCol[col];
     const int y = kRow[row];
-    tft.fillRoundRect(x, y, kCardW, kCardH, 4, 0x0841);
-    tft.drawRoundRect(x, y, kCardW, kCardH, 4, accent);
+    tft.fillRoundRect(x, y, kCardW, kCardH, LC_MASTER_CARD_RADIUS, 0x0841);
+    tft.drawRoundRect(x, y, kCardW, kCardH, LC_MASTER_CARD_RADIUS, accent);
 }
 
 struct CardData {
@@ -147,16 +145,20 @@ static void draw_card_dynamic(const CardData& d) {
     tft.fillRoundRect(x + 1, y + 1, kCardW - 2, kCardH - 2, 3, 0x0841);
 
     // icon
-    const int icon_x = x + 13;
-    const int icon_y = y + 19 + (d.mic_extra_drop ? 1 : 0);
+    const int icon_x = x + 15;
+    const int icon_y = y + 23 + (d.mic_extra_drop ? 1 : 0);
     d.icon_fn(icon_x, icon_y, d.valid ? d.accent : TFT_DARKGREY);
 
     // tag label
     tft.setTextDatum(TL_DATUM);
     tft.setTextFont(2);
     tft.setTextColor(TFT_WHITE, 0x0841);
-    tft.drawString(d.tag, x + 26, y + 2);
+    tft.drawString(d.tag, x + 29, y + 6);
     tft.setTextFont(0);
+
+    const int tank_x = x + kCardW - 12;
+    const int value_x = x + kValueXPad + 3;
+    const int value_max_w = tank_x - value_x - 3;
 
     // value
     tft.setTextDatum(TL_DATUM);
@@ -165,25 +167,26 @@ static void draw_card_dynamic(const CardData& d) {
         char buf[16];
         char full[20];
         snprintf(buf, sizeof(buf), d.fmt, d.value);
-        snprintf(full, sizeof(full), "%s %s", buf, d.unit);
+        snprintf(full, sizeof(full), "%s%s", buf, d.unit);
         tft.setTextColor(TFT_WHITE, 0x0841);
-        tft.drawString(full, x + 26, y + 19);
+        if (tft.textWidth(full) > value_max_w) {
+            tft.setFreeFont(FONT_SMALL);
+        }
+        tft.drawString(full, value_x, y + 24);
     } else {
         tft.setTextColor(TFT_DARKGREY, 0x0841);
-        tft.drawString("--", x + 26, y + 19);
+        tft.drawString("--", value_x, y + 24);
     }
     tft.setTextFont(0);
 
     // right vertical tank reflects the logical range of each sensor.
-    const int tank_x = x + kCardW - 8;
     const int tank_y = y + 6;
-    const int tank_w = 4;
     const int tank_h = kCardH - 12;
-    tft.drawRoundRect(tank_x, tank_y, tank_w, tank_h, 1, 0x2104);
+    tft.drawRoundRect(tank_x, tank_y, kTankW, tank_h, 1, 0x2104);
     if (d.valid) {
-        drawFillTank(tank_x, tank_y, tank_w, tank_h, d.accent, d.value, d.min_value, d.max_value, 1);
+        drawFillTank(tank_x, tank_y, kTankW, tank_h, d.accent, d.value, d.min_value, d.max_value, 1);
     } else {
-        tft.fillRect(tank_x + 1, tank_y + 1, tank_w - 2, tank_h - 2, TFT_BLACK);
+        tft.fillRect(tank_x + 1, tank_y + 1, kTankW - 2, tank_h - 2, TFT_BLACK);
     }
 }
 
@@ -236,16 +239,11 @@ static bool card_valid_now(int index) {
 
 static void draw_shell() {
     tft.fillScreen(kBg);
-    drawHeader(L(TIT_LAB_HOME_CARDS), TFT_WHITE);
+    drawMasterCardHeader(L(TIT_LAB_HOME_CARDS));
     draw_card_shell(0, 0, kOrange);
     draw_card_shell(1, 0, kCyan);
     draw_card_shell(0, 1, kYellow);
     draw_card_shell(1, 1, kMagenta);
-    tft.setTextDatum(TC_DATUM);
-    tft.setTextFont(1);
-    tft.setTextColor(TFT_DARKGREY, kBg);
-    tft.drawString(L(LAB_EXPERIMENT_HINT), 80, 119);
-    tft.setTextFont(0);
 }
 
 } // namespace

@@ -48,6 +48,8 @@ static const char* const STRINGS[LANG_KEY_COUNT][3] = {
 
 /* ST_MOLD_RISK */  { "Riesgo de moho",        "Risc de floridura",    "Mold risk"          },
 /* ST_TOO_DRY   */  { "Muy seco",              "Massa sec",            "Too dry"            },
+/* ST_CLIMATE_FRESH */ { "Fresco",             "Fresc",                "Cool"               },
+/* ST_CLIMATE_WARM */  { "Cálido",             "Càlid",                "Warm"               },
 
 /* ST_DISCONN   */  { "DESCONECTADO",          "DESCONNECTAT",         "DISCONNECTED"       },
 /* ST_CONNECTED */  { "CONECTADO",             "CONNECTAT",            "CONNECTED"          },
@@ -180,9 +182,15 @@ static const char* const STRINGS[LANG_KEY_COUNT][3] = {
 /* LANG_EN_NAME */  { "Inglés",                "Anglès",               "English"            },
 
 // Graph screen
-/* TIT_GRAPH         */ { "GRÁFICA",              "GRÀFICA",              "GRAPH"              },
+/* TIT_GRAPH         */ { "GRÁFICA",              "GRÀFICA",              "GRAPH LAB"          },
 /* GRAPH_PUSH_SENSOR */ { "Pulsa: cambiar sensor", "Prem: canviar sensor", "Push: change sensor" },
 /* ST_WAITING        */ { "Esperando...",         "Esperant...",          "Waiting..."         },
+/* GRAPH_LABEL_TEMP_AIR */ { "Temperatura aire", "Temperatura aire",      "Air temperature"    },
+/* GRAPH_LABEL_HUM_AIR  */ { "Humedad",          "Humitat",               "Humidity"           },
+/* GRAPH_LABEL_LIGHT    */ { "Luz",              "Llum",                  "Light"              },
+/* GRAPH_LABEL_SOUND    */ { "Sonido",           "Soroll",                "Sound"              },
+/* GRAPH_LABEL_SOIL_HUM */ { "Humedad suelo",    "Humitat sòl",           "Soil moisture"      },
+/* GRAPH_LABEL_DS18     */ { "Temperatura sonda","Temperatura sonda",     "Probe temperature"  },
 
 // Temporary lab screens
 /* TIT_LAB_DASH      */ { "ESTADO LAB",           "ESTAT LAB",            "LAB OVERVIEW"       },
@@ -193,7 +201,14 @@ static const char* const STRINGS[LANG_KEY_COUNT][3] = {
 /* TIT_LAB_ICON_C    */ { "PIXEL",                "PIXEL",                "PIXEL"              },
 /* TIT_LAB_GAUGE     */ { "GAUGE LAB",            "GAUGE LAB",            "GAUGE LAB"          },
 /* TIT_LAB_VALUE     */ { "VALOR LAB",            "VALOR LAB",            "VALUE LAB"          },
-/* TIT_LAB_WIDGETS   */ { "WIDGET LAB",           "WIDGET LAB",           "WIDGET LAB"         },
+/* TIT_LAB_TEMP_CARD */ { "TEMP CARD",            "TEMP CARD",            "TEMP CARD"          },
+/* TIT_LAB_PROBE_CARD */ { "PROBE CARD",          "PROBE CARD",           "PROBE CARD"         },
+/* TIT_LAB_WIDGETS   */ { "TEMP LAB",             "TEMP LAB",             "TEMP LAB"           },
+/* TIT_LAB_VU_STACK  */ { "SOUND LAB",            "SOUND LAB",            "SOUND LAB"          },
+/* TIT_LAB_VU_WAVE   */ { "SOUND LAB",            "SOUND LAB",            "SOUND LAB"          },
+/* LAB_PUSH_VIEW     */ { "Pulsa: cambiar vista", "Prem: canviar vista",  "Push: change view"  },
+/* LAB_VIEW_STACK    */ { "STACK",                "STACK",                "STACK"              },
+/* LAB_VIEW_WAVE     */ { "WAVE",                 "WAVE",                 "WAVE"               },
 /* LAB_COMPARE_HINT  */ { "4 iconos grandes",     "4 icones grans",       "4 large icons"      },
 /* LAB_EXPERIMENT_HINT */ { "Vista experimental", "Vista experimental",   "Experimental view"  },
 /* LAB_TEMP_SHORT    */ { "TEMP",                 "TEMP",                 "TEMP"               },
@@ -202,10 +217,11 @@ static const char* const STRINGS[LANG_KEY_COUNT][3] = {
 /* LAB_SOUND_SHORT   */ { "MIC",                  "MIC",                  "MIC"                },
 /* LAB_SOIL_SHORT    */ { "SUELO",                "SÒL",                  "SOIL"               },
 /* LAB_PROBE_SHORT   */ { "SONDA",                "SONDA",                "PROBE"              },
+/* LAB_TEMP_DIFF     */ { "DIF TEMP",             "DIF TEMP",             "TEMP DIFF"          },
 /* TIT_LAB_ICON_SZ_ENV */ { "TAM ICONO ENV",     "MIDA ICONA ENV",       "ICON SIZE ENV"      },
 /* TIT_LAB_ICON_SZ_EXT */ { "TAM ICONO EXT",     "MIDA ICONA EXT",       "ICON SIZE EXT"      },
-/* TIT_LAB_HOME_CARDS  */ { "HOME CARDS",         "HOME CARDS",           "HOME CARDS"         },
-/* TIT_LAB_LINEAR_DASH */ { "SENSOR LIST",        "SENSOR LIST",          "SENSOR LIST"        },
+/* TIT_LAB_HOME_CARDS  */ { "HOME",               "HOME",                 "HOME"               },
+/* TIT_LAB_LINEAR_DASH */ { "PLANT LAB",          "PLANT LAB",            "PLANT LAB"          },
 };
 
 // ---------------------------------------------------------------
@@ -252,7 +268,7 @@ constexpr int MENU_CURSOR_Y_OFFSET = 2;
 // The menu is rendered in the currently selected language so every label matches.
 static void drawMenuOptions(int sel, Language current_menu_lang) {
     const int cx         = tft.width() / 2;
-    const int y_opts[]   = { 40, 64, 88 };
+    const int y_opts[]   = { 38, 62, 86 };
     const int x_cursor   = 12;
 
     for (int i = 0; i < 3; i++) {

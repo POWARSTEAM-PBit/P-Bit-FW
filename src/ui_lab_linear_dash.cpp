@@ -1,11 +1,12 @@
 // ui_lab_linear_dash.cpp
-// SENSOR LIST: compact row-based dashboard with cached visible state.
+// PLANT LAB: compact row-based dashboard with cached visible state.
 
 #include "ui_lab_linear_dash.h"
 
 #include "fonts.h"
 #include "io.h"
 #include "languages.h"
+#include "layout.h"
 #include "tft_display.h"
 #include "ui_icons.h"
 #include "ui_widgets.h"
@@ -28,11 +29,18 @@ constexpr uint16_t kYellow  = 0xFFE0;
 constexpr uint16_t kMagenta = TFT_MAGENTA;
 constexpr uint16_t kGreen   = TFT_GREEN;
 constexpr uint16_t kGrey    = TFT_DARKGREY;
+constexpr uint16_t kProbe   = 0xC71F;
 
-constexpr int kRowTop[5] = { 34, 50, 66, 82, 98 };
-constexpr int kRowH = 15;
+constexpr int kRowTop[5] = {
+    LC_MASTER_CARD_Y0,
+    LC_MASTER_CARD_Y0 + 20,
+    LC_MASTER_CARD_Y0 + 40,
+    LC_MASTER_CARD_Y0 + 60,
+    LC_MASTER_CARD_Y0 + 80,
+};
+constexpr int kRowH = 16;
 constexpr int kIconCX = 11;
-constexpr int kLabelX = 23;
+constexpr int kLabelX = 24;
 constexpr int kValueRightX = 107;
 constexpr int kDividerX = 111;
 constexpr int kBarX = 116;
@@ -133,14 +141,8 @@ static void draw_row_content(int row, const RowData& d, const char* value_text, 
 
 static void draw_shell() {
     tft.fillScreen(kBg);
-    drawHeader(L(TIT_LAB_LINEAR_DASH), TFT_WHITE);
+    drawMasterCardHeader(L(TIT_LAB_LINEAR_DASH));
     draw_row_shell();
-
-    tft.setTextDatum(TC_DATUM);
-    tft.setTextFont(1);
-    tft.setTextColor(TFT_DARKGREY, kBg);
-    tft.drawString(L(LAB_EXPERIMENT_HINT), 80, 119);
-    tft.setTextFont(0);
 }
 
 static void draw_dynamic(bool force_all = false) {
@@ -149,21 +151,24 @@ static void draw_dynamic(bool force_all = false) {
     const bool t_ok = !isnan(r.temperature);
     const bool h_ok = !isnan(r.humidity);
     const bool l_ok = !isnan(r.ldr);
-    const bool s_ok = !isnan(r.mic);
     const bool o_ok = !isnan(r.soil_humidity);
+    const bool d_ok = r.temp_ds18b20 >= -100.0f;
 
     const float t_c = t_ok ? r.temperature : 0.0f;
     const float t_d = g_is_fahrenheit ? (t_c * 1.8f + 32.0f) : t_c;
     const char* t_u = g_is_fahrenheit ? L(ST_UNIT_F_SHORT) : L(ST_UNIT_C_SHORT);
     const float t_min = g_is_fahrenheit ? 32.0f : 0.0f;
     const float t_max = g_is_fahrenheit ? 122.0f : 50.0f;
+    const float d_c = d_ok ? r.temp_ds18b20 : 0.0f;
+    const float d_d = g_is_fahrenheit ? (d_c * 1.8f + 32.0f) : d_c;
+    const char* d_u = g_is_fahrenheit ? L(ST_UNIT_F_SHORT) : L(ST_UNIT_C_SHORT);
 
     const RowData rows[5] = {
         { pbit_draw_temp_icon,     "TEMP",  kOrange,  t_ok, t_d,                     t_min, t_max,   "%.1f", t_u  },
         { pbit_draw_humidity_icon, "HUM",   kCyan,    h_ok, h_ok ? r.humidity : 0.0f, 0.0f, 100.0f,  "%.0f", "%"  },
         { pbit_draw_light_icon,    "LUZ",   kYellow,  l_ok, l_ok ? r.ldr : 0.0f,      0.0f, 1023.0f, "%.0f", "lx" },
-        { pbit_draw_sound_icon,    "MIC",   kMagenta, s_ok, s_ok ? r.mic : 0.0f,      0.0f, 100.0f,  "%.0f", "%"  },
         { pbit_draw_plant_icon,    "SUELO", kGreen,   o_ok, o_ok ? r.soil_humidity : 0.0f, 0.0f, 100.0f, "%.0f", "%" },
+        { pbit_draw_probe_icon,    "DS18",  kProbe,   d_ok, d_d,                       t_min, t_max,   "%.1f", d_u  },
     };
 
     for (int i = 0; i < 5; ++i) {

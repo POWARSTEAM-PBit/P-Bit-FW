@@ -21,13 +21,13 @@ extern bool g_is_fahrenheit;
 
 namespace {
 
-constexpr int kBodyX = 8;
-constexpr int kBodyY = 33;
-constexpr int kBodyW = 144;
-constexpr int kBodyH = 84;
+constexpr int kBodyX = LC_MASTER_CARD_X0;
+constexpr int kBodyY = LC_MASTER_CARD_Y0;
+constexpr int kBodyW = 156;
+constexpr int kBodyH = 88;
 
 constexpr int kRowH = 18;
-constexpr int kRowTop0 = kBodyY + 1;
+constexpr int kRowTop0 = kBodyY + 4;
 constexpr int kRowGap = 20;
 
 constexpr int kAccentX = kBodyX + 4;
@@ -113,7 +113,7 @@ static bool row_value_valid(int row_index, bool temp_valid, bool hum_valid, bool
 
 static void clear_value_area(int row_index) {
     const int row_y = row_top(row_index);
-    tft.fillRect(kBodyX + 78, row_y + 2, 64, kRowH - 3, TFT_BLACK);
+    tft.fillRect(kBodyX + 84, row_y + 2, kBodyW - 90, kRowH - 3, TFT_BLACK);
 }
 
 static void draw_row_value(int row_index, const char* value, uint16_t color) {
@@ -231,7 +231,7 @@ static void draw_row_icon(int row_index, uint16_t color) {
 
 static void draw_full_panel() {
     tft.fillScreen(TFT_BLACK);
-    drawHeader(L(TIT_LAB_DASH), TFT_WHITE);
+    drawMasterCardHeader(L(TIT_LAB_DASH));
     tft.drawRoundRect(kBodyX, kBodyY, kBodyW, kBodyH, 4, kPanelBorder);
     for (int i = 0; i < 4; ++i) {
         draw_row_static(i);
