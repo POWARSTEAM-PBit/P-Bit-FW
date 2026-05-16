@@ -39,9 +39,19 @@ constexpr int kRailH = 82;
 constexpr int kAlertJewelX = kCardX + 15;
 constexpr int kAlertJewelY = kCardY + 81;
 
+// Proposed canonical palette for new sensor cards
+constexpr uint16_t kHumPrimary   = 0x069F;  // cian eléctrico
+constexpr uint16_t kLightPrimary = 0xFFE0;  // amarillo
+constexpr uint16_t kSoundPrimary = 0xF81F;  // magenta punk
+constexpr uint16_t kSoilPrimary  = 0x2F85;  // verde cálido
+
 enum LabSensorCardId : uint8_t {
     CARD_TEMP = 0,
     CARD_DS18,
+    CARD_HUM,
+    CARD_LIGHT,
+    CARD_SOUND,
+    CARD_SOIL,
     CARD_COUNT
 };
 
@@ -72,9 +82,11 @@ struct LabSensorCardSpec {
     LangKey invalid_bottom_key;
     uint16_t invalid_bottom_color;
     AlertSensor alert_sensor;
+    bool is_temperature;
     bool (*is_valid)(const Reading& reading);
     float (*value_c)(const Reading& reading);
     bool (*alerts_enabled)();
+    const char* (*unit_fn)();
     uint16_t (*accent)(bool sensor_valid, float temp_c, uint8_t alert_code);
     void (*draw_rail)(bool sensor_valid, float temp_c, uint16_t accent);
 };
@@ -86,39 +98,76 @@ static float to_display(float temp_c) {
     return g_is_fahrenheit ? (temp_c * 1.8f + 32.0f) : temp_c;
 }
 
-static const char* unit_name() {
+static const char* unit_temp() {
     return g_is_fahrenheit ? L(MENU_UNIT_F) : L(MENU_UNIT_C);
 }
 
-static bool temp_is_valid(const Reading& reading) {
-    return !isnan(reading.temperature);
-}
+static const char* unit_pct()  { return "%"; }
+static const char* unit_lux()  { return L(ST_LUX_UNIT); }
 
-static float temp_value_c(const Reading& reading) {
-    return reading.temperature;
-}
+// --- Validity and value helpers ---
 
-static bool ds18_is_valid(const Reading& reading) {
-    return reading.temp_ds18b20 >= -100.0f;
-}
+static bool temp_is_valid(const Reading& r)  { return !isnan(r.temperature); }
+static float temp_value_c(const Reading& r)  { return r.temperature; }
 
-static float ds18_value_c(const Reading& reading) {
-    return reading.temp_ds18b20;
-}
+static bool ds18_is_valid(const Reading& r)  { return r.temp_ds18b20 >= -100.0f; }
+static float ds18_value_c(const Reading& r)  { return r.temp_ds18b20; }
 
-static uint16_t temp_accent(bool sensor_valid, float temp_c, uint8_t alert_code) {
-    if (!sensor_valid) return TFT_DARKGREY;
+static bool hum_is_valid(const Reading& r)   { return !isnan(r.humidity); }
+static float hum_value_c(const Reading& r)   { return r.humidity; }
+
+static bool light_is_valid(const Reading& r) { return !isnan(r.ldr); }
+static float light_value_c(const Reading& r) { return r.ldr; }
+
+static bool sound_is_valid(const Reading& r) { return !isnan(r.mic); }
+static float sound_value_c(const Reading& r) { return r.mic; }
+
+static bool soil_is_valid(const Reading& r)  { return !isnan(r.soil_humidity); }
+static float soil_value_c(const Reading& r)  { return r.soil_humidity; }
+
+// --- Accent color functions ---
+
+static uint16_t temp_accent(bool valid, float temp_c, uint8_t alert_code) {
+    if (!valid) return TFT_DARKGREY;
     if (alert_code == ALERT_CODE_LOW) return TFT_BLUE;
     if (alert_code == ALERT_CODE_HIGH) return TFT_RED;
     return getTempColor(temp_c);
 }
 
-static uint16_t ds18_accent(bool sensor_valid, float temp_c, uint8_t alert_code) {
-    if (!sensor_valid) return TFT_DARKGREY;
+static uint16_t ds18_accent(bool valid, float temp_c, uint8_t alert_code) {
+    if (!valid) return TFT_DARKGREY;
     if (alert_code == ALERT_CODE_LOW) return TFT_BLUE;
     if (alert_code == ALERT_CODE_HIGH) return TFT_RED;
     return (temp_c < 0.0f) ? TFT_CYAN : getTempColor(temp_c);
 }
+
+static uint16_t hum_accent(bool valid, float, uint8_t alert_code) {
+    if (!valid) return TFT_DARKGREY;
+    if (alert_code == ALERT_CODE_LOW)  return TFT_BLUE;
+    if (alert_code == ALERT_CODE_HIGH || alert_code == ALERT_CODE_CRITICAL) return TFT_RED;
+    return kHumPrimary;
+}
+
+static uint16_t light_accent(bool valid, float, uint8_t alert_code) {
+    if (!valid) return TFT_DARKGREY;
+    if (alert_code == ALERT_CODE_HIGH || alert_code == ALERT_CODE_CRITICAL) return TFT_RED;
+    return kLightPrimary;
+}
+
+static uint16_t sound_accent(bool valid, float, uint8_t alert_code) {
+    if (!valid) return TFT_DARKGREY;
+    if (alert_code == ALERT_CODE_HIGH || alert_code == ALERT_CODE_CRITICAL) return TFT_RED;
+    return kSoundPrimary;
+}
+
+static uint16_t soil_accent(bool valid, float, uint8_t alert_code) {
+    if (!valid) return TFT_DARKGREY;
+    if (alert_code == ALERT_CODE_LOW)  return TFT_RED;
+    if (alert_code == ALERT_CODE_HIGH || alert_code == ALERT_CODE_MOIST) return TFT_BLUE;
+    return kSoilPrimary;
+}
+
+// --- Alert jewel helpers ---
 
 static AlertJewelState jewel_state(bool sensor_valid, bool alerts_enabled, uint8_t alert_code) {
     if (!sensor_valid || !alerts_enabled) return ALERT_JEWEL_OFF;
@@ -129,14 +178,15 @@ static AlertJewelState jewel_state(bool sensor_valid, bool alerts_enabled, uint8
 
 static uint16_t jewel_color(AlertJewelState state, uint16_t accent) {
     switch (state) {
-        case ALERT_JEWEL_OFF: return TFT_DARKGREY;
+        case ALERT_JEWEL_OFF:  return TFT_DARKGREY;
         case ALERT_JEWEL_WARN: return (accent == TFT_BLUE) ? TFT_BLUE : TFT_ORANGE;
         case ALERT_JEWEL_CRIT: return TFT_RED;
         case ALERT_JEWEL_OK:
-        default:
-            return TFT_GREEN;
+        default:               return TFT_GREEN;
     }
 }
+
+// --- Rail draw functions ---
 
 static void draw_lab_card_shell(const char* title) {
     tft.fillScreen(kBg);
@@ -177,13 +227,22 @@ static void draw_bottom_line(const char* text, uint16_t color) {
     tft.setTextFont(0);
 }
 
-static void draw_big_value(bool sensor_valid, float shown_temp, uint16_t accent) {
+static void draw_big_value(bool sensor_valid, float shown_value, uint16_t accent, bool is_temperature) {
     tft.fillRect(kCardX + 10, kCardY + 16, 104, 48, kCardBg);
     if (sensor_valid) {
-        drawSplitDecimalValue(shown_temp, kValueCx, kValueY, accent, kCardBg);
+        if (is_temperature) {
+            drawSplitDecimalValue(shown_value, kValueCx, kValueY, accent, kCardBg);
+        } else {
+            char buf[8];
+            snprintf(buf, sizeof(buf), "%.0f", shown_value);
+            tft.setTextDatum(TC_DATUM);
+            tft.setFreeFont(FONT_VALUE);
+            tft.setTextColor(accent, kCardBg);
+            tft.drawString(buf, kValueCx, kValueY);
+            tft.setTextFont(0);
+        }
         return;
     }
-
     tft.setTextDatum(TC_DATUM);
     tft.setFreeFont(FONT_VALUE);
     tft.setTextColor(TFT_DARKGREY, kCardBg);
@@ -248,6 +307,23 @@ static void draw_probe_rail(bool sensor_valid, float temp_c, uint16_t accent) {
     tft.drawFastHLine(kRailX - 2, zero_y, kRailW + 4, TFT_WHITE);
 }
 
+static void draw_linear_rail(bool sensor_valid, float value, uint16_t accent, float max_v) {
+    const int inner_h = kRailH - 2;
+    tft.fillRect(kRailX + 1, kRailY + 1, kRailW - 2, inner_h, kCardBg);
+    if (sensor_valid) {
+        const int fill_px = (int)roundf(constrain(value / max_v, 0.0f, 1.0f) * inner_h);
+        if (fill_px > 0) {
+            tft.fillRect(kRailX + 1, kRailY + 1 + (inner_h - fill_px), kRailW - 2, fill_px, accent);
+        }
+    }
+    tft.drawRoundRect(kRailX, kRailY, kRailW, kRailH, 3, sensor_valid ? accent : TFT_DARKGREY);
+}
+
+static void draw_hum_rail  (bool v, float f, uint16_t a) { draw_linear_rail(v, f, a, 100.0f); }
+static void draw_light_rail(bool v, float f, uint16_t a) { draw_linear_rail(v, f, a, 1023.0f); }
+static void draw_sound_rail(bool v, float f, uint16_t a) { draw_linear_rail(v, f, a, 100.0f); }
+static void draw_soil_rail (bool v, float f, uint16_t a) { draw_linear_rail(v, f, a, 100.0f); }
+
 static const LabSensorCardSpec kCardSpecs[CARD_COUNT] = {
     {
         CARD_TEMP,
@@ -256,9 +332,11 @@ static const LabSensorCardSpec kCardSpecs[CARD_COUNT] = {
         ST_NO_SENSOR,
         TFT_DARKGREY,
         AlertSensor::Temp,
+        true,
         temp_is_valid,
         temp_value_c,
         get_temp_alerts_enabled,
+        unit_temp,
         temp_accent,
         draw_temp_rail
     },
@@ -269,11 +347,73 @@ static const LabSensorCardSpec kCardSpecs[CARD_COUNT] = {
         ST_CHECK_DS18,
         TFT_CYAN,
         AlertSensor::Ds18,
+        true,
         ds18_is_valid,
         ds18_value_c,
         get_ds18_alerts_enabled,
+        unit_temp,
         ds18_accent,
         draw_probe_rail
+    },
+    {
+        CARD_HUM,
+        TIT_LAB_HUM_CARD,
+        "DHT11",
+        ST_NO_SENSOR,
+        TFT_DARKGREY,
+        AlertSensor::Humidity,
+        false,
+        hum_is_valid,
+        hum_value_c,
+        get_humidity_alerts_enabled,
+        unit_pct,
+        hum_accent,
+        draw_hum_rail
+    },
+    {
+        CARD_LIGHT,
+        TIT_LAB_LIGHT_CARD,
+        "LDR",
+        ST_NO_SENSOR,
+        TFT_DARKGREY,
+        AlertSensor::Light,
+        false,
+        light_is_valid,
+        light_value_c,
+        get_light_alerts_enabled,
+        unit_lux,
+        light_accent,
+        draw_light_rail
+    },
+    {
+        CARD_SOUND,
+        TIT_LAB_SOUND_CARD,
+        "MIC",
+        ST_NO_SENSOR,
+        TFT_DARKGREY,
+        AlertSensor::Sound,
+        false,
+        sound_is_valid,
+        sound_value_c,
+        get_sound_alerts_enabled,
+        unit_pct,
+        sound_accent,
+        draw_sound_rail
+    },
+    {
+        CARD_SOIL,
+        TIT_LAB_SOIL_CARD,
+        "SOIL",
+        ST_CHECK_SOIL,
+        TFT_DARKGREY,
+        AlertSensor::Soil,
+        false,
+        soil_is_valid,
+        soil_value_c,
+        get_soil_alerts_enabled,
+        unit_pct,
+        soil_accent,
+        draw_soil_rail
     }
 };
 
@@ -285,12 +425,17 @@ static CardRenderState read_state(const LabSensorCardSpec& spec) {
     CardRenderState state;
     state.sensor_valid = spec.is_valid(g_ui_readings_snapshot);
     state.temp_c = state.sensor_valid ? spec.value_c(g_ui_readings_snapshot) : 0.0f;
-    state.shown_temp = state.sensor_valid ? to_display(state.temp_c) : 0.0f;
-    state.value_key = state.sensor_valid ? (int)lroundf(state.shown_temp * 10.0f) : INT_MIN;
-    state.alert_code = alert_engine_get_code(spec.alert_sensor);
+    if (spec.is_temperature) {
+        state.shown_temp = state.sensor_valid ? to_display(state.temp_c) : 0.0f;
+        state.value_key  = state.sensor_valid ? (int)lroundf(state.shown_temp * 10.0f) : INT_MIN;
+    } else {
+        state.shown_temp = state.temp_c;
+        state.value_key  = state.sensor_valid ? (int)lroundf(state.temp_c) : INT_MIN;
+    }
+    state.alert_code    = alert_engine_get_code(spec.alert_sensor);
     state.alerts_enabled = spec.alerts_enabled();
     state.accent = spec.accent(state.sensor_valid, state.temp_c, state.alert_code);
-    state.jewel = jewel_state(state.sensor_valid, state.alerts_enabled, state.alert_code);
+    state.jewel  = jewel_state(state.sensor_valid, state.alerts_enabled, state.alert_code);
     return state;
 }
 
@@ -319,8 +464,8 @@ static void draw_card_dynamic(const LabSensorCardSpec& spec, const CardRenderSta
     if (!state.sensor_valid) {
         draw_hint_line(L(ST_NO_SENSOR), TFT_RED);
     }
-    draw_big_value(state.sensor_valid, state.shown_temp, state.accent);
-    draw_bottom_line(state.sensor_valid ? unit_name() : L(spec.invalid_bottom_key),
+    draw_big_value(state.sensor_valid, state.shown_temp, state.accent, spec.is_temperature);
+    draw_bottom_line(state.sensor_valid ? spec.unit_fn() : L(spec.invalid_bottom_key),
                      state.sensor_valid ? TFT_WHITE : spec.invalid_bottom_color);
     drawAlertJewel(kAlertJewelX,
                    kAlertJewelY,
@@ -355,7 +500,7 @@ static void draw_card_screen_for(LabSensorCardId id,
 } // namespace
 
 void lab_sensor_card_cycle() {
-    g_selected_card = (g_selected_card == CARD_TEMP) ? CARD_DS18 : CARD_TEMP;
+    g_selected_card = (LabSensorCardId)(((uint8_t)g_selected_card + 1) % (uint8_t)CARD_COUNT);
     g_card_cache[g_selected_card].valid = false;
     runtime_request_ui_full_redraw();
 }

@@ -261,3 +261,67 @@ Orden de trabajo definido. No avanzar al siguiente paso sin cerrar el anterior:
 - Documentar cada ajuste con: archivo, motivo, build, pendiente de hardware.
 - Si una pantalla sigue pisando texto o bordes tras dos microajustes, proponer ocultarla del carrusel en lugar de seguir acumulando parches.
 - Cada ajuste nuevo debe quedar reflejado en `LAB_GRAPH_UI_HANDOFF.md` con: archivo tocado, motivo, estado de build y qué queda pendiente de validar en pantalla real.
+
+---
+
+## 11. Análisis de paleta de colores e iconos — 2026-05-16
+
+### Estado
+Análisis completado. Propuesta documentada en `PALETTE_AND_ICONS_PROPOSAL.md`. Ningún cambio aplicado en producción. Las entradas nuevas de SENSOR CARD y VALOR LAB usarán la paleta propuesta como banco de prueba.
+
+### Problemas detectados en paleta
+
+**HUM y DS18 indistinguibles (crítico):**
+En SENSOR LAB, HUM = cyan(primario)+purple(secundario) y DS18 = purple(primario)+cyan(secundario). Mismo par de colores con roles intercambiados. Un niño no puede distinguirlos.
+
+**SOIL y HUM comparten cian:**
+HUM primary = TFT_CYAN. SOIL secondary = TFT_CYAN. Dos sensores hídricos con el mismo color dominante.
+
+**TFT_ORANGE es dorado, no ácido:**
+TFT_ORANGE = (255,165,0) — el canal G=165 lo hace amber/dorado. Para el estilo punk/Nintendo, (255,100,0) es más encendido.
+
+**Sin fuente de verdad:**
+Cada pantalla define sus constantes locales. Hay drift de color entre screens para el mismo sensor.
+
+### Paleta canónica propuesta
+
+| Sensor | Primary propuesto | Hex | Secondary propuesto | Hex |
+|--------|-----------------|-----|---------------------|-----|
+| TEMP | Naranja ácido (255,100,0) | 0xFB20 | Magenta punk | 0xF81F |
+| HUM | Cian eléctrico (0,210,255) | 0x069F | Cobalto (60,120,255) | 0x3BDF |
+| LUZ | Amarillo (sin cambio) | 0xFFE0 | Ámbar (255,180,0) | 0xFDA0 |
+| SOUND | Magenta (sin cambio) | 0xF81F | Verde neón (sin cambio) | 0x07E0 |
+| SOIL | Verde cálido (40,240,40) | 0x2F85 | Tierra (200,130,60) | 0xCC07 |
+| DS18 | Violeta (160,60,255) | 0xA1FF | Magenta punk | 0xF81F |
+
+Los fondos navy `(8,12,18)` y `(4,8,20)` **no cambian** — están bien y son parte del carácter visual del sistema.
+
+### Problemas detectados en iconos
+
+| Icono | Problema | Decisión |
+|-------|---------|---------|
+| HUM | Ring negro interior crea efecto donut. En versión large, triángulo y círculo no se unen suavemente (brecha 3px) | Confirmado: REHACERLO |
+| DS18 | Sonda horizontal con cables lee como conector eléctrico, no sonda de temperatura | Confirmado: REDISEÑAR como sonda vertical |
+| SOIL | Hojas triangulares agudas leen como flechas a pequeño tamaño | Confirmado: MEJORAR con hojas ovales |
+| SOUND | Base de micrófono de 9px sobre cuerpo de 6px — parece mesa | Pendiente: propuesta de 7px |
+| LUZ | Rayos diagonales de 1px desaparecen a tamaños pequeños | Pendiente: rayos de 2px |
+| TEMP | TFT_BLACK hardcodeado en detalle interior — se rompe sobre fondos navy | Pendiente: parámetro bg_color |
+
+### Estrategia de validación
+
+**No cambiar producción sin validación en hardware.** Proceso aprobado:
+
+1. Implementar variantes `_v2` en `LAB_ICON_TEST_SCREEN` (ya existe)
+2. Comparar en hardware: icono actual vs propuesto lado a lado
+3. Aprobar uno a uno — nunca en batch
+4. Solo tras aprobación, reemplazar función original en `ui_icons.cpp`
+
+Para paletas: las entradas nuevas de SENSOR CARD (HUM, LUZ, SOUND, SUELO) y el ciclo de sensores de VALOR LAB usan la paleta propuesta. Si se ven bien en hardware → paleta aprobada.
+
+### Documentación completa
+
+Ver `PALETTE_AND_ICONS_PROPOSAL.md` en este mismo directorio para:
+- Inventario completo de colores por pantalla
+- Pseudocódigo de redesign de cada icono
+- Propuesta de `include/palette.h`
+- Lista de decisiones pendientes de producto

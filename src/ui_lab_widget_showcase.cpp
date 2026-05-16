@@ -49,10 +49,21 @@ static uint16_t mix565(uint16_t a, uint16_t b, uint8_t amount_b) {
     return (uint16_t)((r << 11) | (g << 5) | bl);
 }
 
-struct TempRenderCache {
+enum ValueLabSensor : uint8_t {
+    VALUE_SENSOR_TEMP = 0,
+    VALUE_SENSOR_HUM,
+    VALUE_SENSOR_LIGHT,
+    VALUE_SENSOR_SOUND,
+    VALUE_SENSOR_SOIL,
+    VALUE_SENSOR_DS18,
+    VALUE_SENSOR_COUNT
+};
+
+struct ValueRenderCache {
     bool valid = false;
-    bool temp_valid = false;
-    int temp10 = INT_MIN;
+    ValueLabSensor sensor = VALUE_SENSOR_TEMP;
+    bool sensor_valid = false;
+    int value_key = INT_MIN;
     bool fahrenheit = false;
 };
 
@@ -86,7 +97,8 @@ struct TempLabCache {
 
 static GaugeLabSensor g_gauge_sensor = GAUGE_SENSOR_TEMP;
 static GaugeRenderCache g_gauge_cache;
-static TempRenderCache g_value_cache;
+static ValueLabSensor g_value_sensor = VALUE_SENSOR_TEMP;
+static ValueRenderCache g_value_cache;
 static TempLabCache g_mix_cache;
 
 struct GaugeSpec {
@@ -499,54 +511,120 @@ static void draw_lab_gauge_dynamic() {
     tft.setTextFont(0);
 }
 
+static const GraphBuffer& value_sensor_graph(ValueLabSensor s) {
+    switch (s) {
+        case VALUE_SENSOR_HUM:   return g_graph_humidity;
+        case VALUE_SENSOR_LIGHT: return g_graph_light;
+        case VALUE_SENSOR_SOUND: return g_graph_sound;
+        case VALUE_SENSOR_SOIL:  return g_graph_soil;
+        case VALUE_SENSOR_DS18:  return g_graph_ds18;
+        default:                 return g_graph_temp;
+    }
+}
+
 static void draw_lab_value_shell() {
     tft.fillScreen(kBg);
     drawHeader(L(TIT_LAB_VALUE));
-    drawCard(LC_SCREEN_X, LC_CARD_TOP, LC_SCREEN_W, LC_SCREEN_BOTTOM - LC_CARD_TOP + 1, kHotPink);
     draw_compact_footer();
 
-    tft.fillRoundRect(12, 36, 64, 18, 4, tft.color565(24, 14, 24));
-    pbit_draw_temp_icon(22, 45, kWarmOrange);
-    draw_section_label(L(LAB_TEMP_SHORT), 34, 38, TFT_WHITE);
+    // Per-sensor: border color, icon fn, label, device string, icon badge bg
+    uint16_t card_border;
+    void (*icon_fn)(int, int, uint16_t);
+    LangKey label_key;
+    const char* device_str;
+    uint16_t icon_badge_bg;
+    uint16_t icon_color;
 
-    tft.fillRoundRect(94, 36, 54, 18, 4, tft.color565(8, 18, 28));
-    draw_section_label("DHT11", 104, 37, kElectricBlue);
+    switch (g_value_sensor) {
+        case VALUE_SENSOR_HUM:
+            card_border   = kCoolBlue;
+            icon_fn       = pbit_draw_humidity_icon;
+            label_key     = LAB_HUM_SHORT;
+            device_str    = "DHT11";
+            icon_badge_bg = 0x0863;  // color565(8,14,28)
+            icon_color    = kCoolBlue;
+            break;
+        case VALUE_SENSOR_LIGHT:
+            card_border   = kNeonYellow;
+            icon_fn       = pbit_draw_light_icon;
+            label_key     = LAB_LIGHT_SHORT;
+            device_str    = "LDR";
+            icon_badge_bg = 0x10A0;  // color565(20,20,4)
+            icon_color    = kNeonYellow;
+            break;
+        case VALUE_SENSOR_SOUND:
+            card_border   = kHotPink;
+            icon_fn       = pbit_draw_sound_icon;
+            label_key     = LAB_SOUND_SHORT;
+            device_str    = "MIC";
+            icon_badge_bg = 0x1822;  // color565(24,4,20)
+            icon_color    = kHotPink;
+            break;
+        case VALUE_SENSOR_SOIL:
+            card_border   = kNeonGreen;
+            icon_fn       = pbit_draw_plant_icon;
+            label_key     = LAB_SOIL_SHORT;
+            device_str    = "SOIL";
+            icon_badge_bg = 0x00A0;  // color565(4,20,4)
+            icon_color    = kNeonGreen;
+            break;
+        case VALUE_SENSOR_DS18:
+            card_border   = kElectricBlue;
+            icon_fn       = pbit_draw_probe_icon;
+            label_key     = LAB_PROBE_SHORT;
+            device_str    = "DS18B20";
+            icon_badge_bg = 0x0063;  // color565(4,14,28)
+            icon_color    = kElectricBlue;
+            break;
+        default:  // VALUE_SENSOR_TEMP
+            card_border   = kHotPink;
+            icon_fn       = pbit_draw_temp_icon;
+            label_key     = LAB_TEMP_SHORT;
+            device_str    = "DHT11";
+            icon_badge_bg = 0x1863;  // color565(24,14,24)
+            icon_color    = kWarmOrange;
+            break;
+    }
+
+    drawCard(LC_SCREEN_X, LC_CARD_TOP, LC_SCREEN_W, LC_SCREEN_BOTTOM - LC_CARD_TOP + 1, card_border);
+    tft.fillRoundRect(12, 36, 64, 18, 4, icon_badge_bg);
+    icon_fn(22, 45, icon_color);
+    draw_section_label(L(label_key), 34, 38, TFT_WHITE);
+    tft.fillRoundRect(94, 36, 54, 18, 4, 0x0883);  // color565(8,18,28)
+    draw_section_label(device_str, 104, 37, kElectricBlue);
 }
 
 static void draw_lab_value_dynamic() {
-    const float raw_temp = g_ui_readings_snapshot.temperature;
-    const bool valid = !isnan(raw_temp);
-    const float shown_temp = valid ? display_temp(raw_temp) : 0.0f;
-    const float min_temp = g_is_fahrenheit ? 32.0f : 0.0f;
-    const float max_temp = g_is_fahrenheit ? 122.0f : 50.0f;
+    const GaugeLabSensor gs = (GaugeLabSensor)g_value_sensor;
+    const bool valid = gauge_sensor_valid(gs);
+    const float shown = valid ? gauge_sensor_value(gs) : 0.0f;
+    float min_v = 0.0f, max_v = 1.0f;
+    gauge_sensor_range(gs, min_v, max_v);
+    const GaugeSensorSpec& spec = gauge_spec(gs);
 
     tft.fillRect(12, 56, 136, 61, kBg);
     tft.fillRect(18, 98, 124, 16, kBg);
 
+    char val_buf[16];
+    format_gauge_value(val_buf, sizeof(val_buf), gs, valid);
     tft.setTextDatum(TL_DATUM);
     tft.setFreeFont(FONT_MENU);
     tft.setTextColor(valid ? TFT_WHITE : TFT_DARKGREY, kBg);
-    char temp_buf[16];
-    if (valid) {
-        snprintf(temp_buf, sizeof(temp_buf), "%.1f", shown_temp);
-        tft.drawString(temp_buf, 18, 63);
-    } else {
-        snprintf(temp_buf, sizeof(temp_buf), "--");
-        tft.drawString(temp_buf, 18, 63);
-    }
-    const int value_w = tft.textWidth(temp_buf);
+    tft.drawString(val_buf, 18, 63);
+    const int value_w = tft.textWidth(val_buf);
 
     tft.setFreeFont(FONT_SMALL);
-    tft.setTextColor(valid ? kHotPink : TFT_DARKGREY, kBg);
-    tft.drawString(temp_unit(), 18 + value_w + 4, 67);
+    tft.setTextColor(valid ? spec.primary : TFT_DARKGREY, kBg);
+    tft.drawString(gauge_sensor_unit(gs), 18 + value_w + 4, 67);
     tft.setTextFont(0);
 
     draw_segment_bar(18, 99, 124, 14, 9,
-                     valid ? constrain((shown_temp - min_temp) / (max_temp - min_temp), 0.0f, 1.0f) : 0.0f,
-                     kWarmOrange,
+                     valid ? constrain((shown - min_v) / (max_v - min_v), 0.0f, 1.0f) : 0.0f,
+                     valid ? spec.primary : TFT_DARKGREY,
                      tft.color565(30, 24, 32));
 
-    draw_sparkline(88, 58, 56, 31, g_graph_temp, kElectricBlue, tft.color565(32, 44, 64), tft.color565(8, 16, 28));
+    draw_sparkline(88, 58, 56, 31, value_sensor_graph(g_value_sensor),
+                   kElectricBlue, tft.color565(32, 44, 64), tft.color565(8, 16, 28));
 }
 
 constexpr uint16_t kCardBg = 0x0841;
@@ -825,29 +903,39 @@ void draw_lab_gauge_temp_screen(bool screen_changed, bool sensor_data_changed) {
 }
 
 void draw_lab_value_modern_screen(bool screen_changed, bool sensor_data_changed) {
-    const bool temp_valid = !isnan(g_ui_readings_snapshot.temperature);
-    const int temp_key = display_temp_key();
+    const GaugeLabSensor gs = (GaugeLabSensor)g_value_sensor;
+    bool sv = false;
+    const int vk = gauge_sensor_key(gs, &sv);
     const bool dynamic_dirty = !g_value_cache.valid
-        || (g_value_cache.temp_valid != temp_valid)
-        || (g_value_cache.temp10 != temp_key)
+        || (g_value_cache.sensor != g_value_sensor)
+        || (g_value_cache.sensor_valid != sv)
+        || (g_value_cache.value_key != vk)
         || (g_value_cache.fahrenheit != g_is_fahrenheit);
 
     if (screen_changed) {
         draw_lab_value_shell();
         draw_lab_value_dynamic();
         g_value_cache.valid = true;
-        g_value_cache.temp_valid = temp_valid;
-        g_value_cache.temp10 = temp_key;
+        g_value_cache.sensor = g_value_sensor;
+        g_value_cache.sensor_valid = sv;
+        g_value_cache.value_key = vk;
         g_value_cache.fahrenheit = g_is_fahrenheit;
         return;
     }
     if (sensor_data_changed && dynamic_dirty) {
         draw_lab_value_dynamic();
         g_value_cache.valid = true;
-        g_value_cache.temp_valid = temp_valid;
-        g_value_cache.temp10 = temp_key;
+        g_value_cache.sensor = g_value_sensor;
+        g_value_cache.sensor_valid = sv;
+        g_value_cache.value_key = vk;
         g_value_cache.fahrenheit = g_is_fahrenheit;
     }
+}
+
+void lab_value_cycle_sensor() {
+    g_value_sensor = (ValueLabSensor)(((uint8_t)g_value_sensor + 1) % (uint8_t)VALUE_SENSOR_COUNT);
+    g_value_cache.valid = false;
+    runtime_request_ui_full_redraw();
 }
 
 void draw_lab_widget_mix_screen(bool screen_changed, bool sensor_data_changed) {

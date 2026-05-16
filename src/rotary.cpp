@@ -850,6 +850,14 @@ void buttonCallback(unsigned long duration) {
         }
         return;
     }
+
+    if (active_screen == LAB_VALUE_MODERN_SCREEN) {
+        if (duration < MENU_LONG_PRESS_MS) {
+            lab_value_cycle_sensor();
+            if (g_sound_enabled) beep(800, 15);
+        }
+        return;
+    }
 #endif
 }
 
