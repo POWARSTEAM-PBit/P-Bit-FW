@@ -32,6 +32,7 @@ Archivos principales:
 - `src/ui_lab_icon_gallery.cpp` — galerías de iconos (ocultas)
 - `src/ui_lab_icon_sizes.cpp` — tamaños de iconos (ocultas)
 - `src/ui_lab_icon_test.cpp` — icon test (oculto)
+- `src/ui_icons.cpp` + `include/ui_icons.h` — biblioteca de iconos procedurales
 - `include/layout.h` — constantes globales de geometría
 - `include/languages.h` — claves de texto multilenguaje
 - `src/tft_display.cpp` — router de pantallas
@@ -58,6 +59,7 @@ Archivos principales:
 | `LC_SCREEN_X` | 2 | Margen lateral común |
 | `LC_SCREEN_W` | 156 | Ancho exterior común |
 | `LC_SCREEN_BOTTOM` | 126 | Límite inferior común |
+| `LC_CARD_TOP` | 27 | Borde superior de card principal |
 | `LC_CARD_RADIUS` | 4 | Radio de esquinas |
 | `LC_GAP` | 4 | Gap entre cards/bloques |
 | `LC_FOOTER_Y` | 120 | Baseline del footer |
@@ -85,6 +87,22 @@ Archivos principales:
 | `LG_GRAPH_W` | 154 | Ancho interior del sprite |
 | `LG_GRAPH_H` | 64 | Alto interior del sprite |
 | `LG_HINT_Y` | 120 | Footer hint |
+
+---
+
+## Biblioteca de iconos (`ui_icons.cpp` / `ui_icons.h`)
+
+Arquitectura: función `impl_*(cx, cy, color, int s)` por sensor, 3 wrappers públicos por variante.
+
+| Tier | Sufijo | Factor s | Tamaño aprox | Uso |
+|---|---|---|---|---|
+| Small | `pbit_draw_*_icon` | 1 | ~14×14 px | `SensorIconDrawFn`, cards, listas |
+| Large | `pbit_draw_*_icon_large` | 2 | ~28×28 px | Pantallas foco |
+| XL | `pbit_draw_*_icon_xl` | 3 | ~42×42 px | Centro del gauge |
+
+Iconos disponibles: `temp`, `probe`, `humidity`, `light`, `sound`, `plant`.
+
+**Bug crítico resuelto (mayo 2026):** ícono humidity — el triángulo de la gota requiere base ±3*s (tangente exacta al círculo, `sqrt(5²−4²)=3`). Con ±5*s o ±7*s la punta se ve separada del círculo. El linter del proyecto revirtió esta corrección varias veces; la versión correcta está en `src/ui_icons.cpp` linea `impl_humidity`.
 
 ---
 
@@ -136,7 +154,7 @@ Pantallas en el enum pero tampoco en el carrusel (sub-vistas internas):
 | `LAB_SENSOR_FOCUS_SCREEN` | Cicla entre los 6 sensores |
 | `LAB_SOUND_VU_STACK_SCREEN` | Alterna a `LAB_SOUND_VU_WAVE_SCREEN` |
 | `LAB_SOUND_VU_WAVE_SCREEN` | Vuelve a `LAB_SOUND_VU_STACK_SCREEN` |
-| `LAB_SENSOR_CARD_SCREEN` | Cicla entre TEMP CARD y PROBE CARD |
+| `LAB_SENSOR_CARD_SCREEN` | Cicla entre los 6 sensores (TEMP→DS18→HUM→LIGHT→SOUND→SOIL) |
 | `LAB_GAUGE_TEMP_SCREEN` | Cicla entre sensores del gauge |
 
 ---
@@ -168,9 +186,9 @@ Pantallas en el enum pero tampoco en el carrusel (sub-vistas internas):
 - Dos cards superiores en `x=2/82`, `y=27`, `w=76`, `h=50`: `DHT11` (izquierda) y `DS18B20` (derecha).
 - Fondos diferenciados, nombre en color y unidad `C/F` en esquina superior derecha de cada card.
 - Card inferior de diferencia en `x=2`, `y=81`, `w=156`, `h=46`, bottom `126`.
-- Barra diferencial sin texto "DIF TEMP": `0` centrado, escala `+10 C / +18 F` a cada lado.
+- Barra diferencial sin etiqueta central "0": escala `+10°C / +18°F` a cada lado (adapta a rango real del delta si supera 10°).
 - Dirección: si DHT11 > DS18, llena hacia la izquierda; si DS18 > DHT11, llena hacia la derecha.
-- Valor diferencial centrado abajo de la barra, `y` ajustado `+3 px` respecto a ronda anterior.
+- Valor diferencial centrado abajo de la barra, posición Y ajustada `+3 px`.
 - Estado: **pendiente de validación en hardware** — especialmente legibilidad de la barra diferencial y textos en idiomas largos.
 
 ### SOUND LAB (`LAB_SOUND_VU_STACK_SCREEN` / `LAB_SOUND_VU_WAVE_SCREEN`)
@@ -179,7 +197,7 @@ Pantallas en el enum pero tampoco en el carrusel (sub-vistas internas):
 - Sin chip/card de MIC; `MIC` queda como etiqueta suelta.
 - Sin hint de cambio de vista en pantalla.
 - Footer muestra el estado: `Normal`, `Loud`, etc.
-- Valor `y-3` respecto a posición anterior; indicador de límites en esquina inferior izquierda.
+- **Ajuste mayo 2026:** todos los elementos desplazados Y-1 (title chip y=25, badge y=24, meter area y=53, footer y=110).
 - Estado: **pendiente de validación en hardware**.
 
 ### PLANT LAB (`LAB_LINEAR_DASH_SCREEN`)
@@ -212,10 +230,8 @@ Pantallas en el enum pero tampoco en el carrusel (sub-vistas internas):
 ### GAUGE LAB (`LAB_GAUGE_TEMP_SCREEN`)
 
 - Gauge circular protagonista: radio `r=32`, valor centrado.
-- Icono de sensor grande, centrado verticalmente, color `TFT_WHITE` cuando el sensor es válido.
-- Etiqueta del sensor centrada junto al icono.
-- Unidad `C/F/%` etc. en `kWarmOrange` cuando el sensor es válido.
-- `TFT_DARKGREY` para icono y unidad cuando el sensor no es válido.
+- **Ajuste mayo 2026:** ícono XL (s=3, ~42×42 px) centrado; anillo desplazado X+4; etiquetas min/max en color neutro `0x6B6D` (antes eran primary/secondary).
+- Icono `TFT_WHITE` cuando sensor válido, `TFT_DARKGREY` cuando no.
 - Pulsación corta cicla entre sensores.
 - Estado: **pendiente de validación en hardware**; biblioteca de widgets.
 
@@ -225,60 +241,63 @@ Pantallas en el enum pero tampoco en el carrusel (sub-vistas internas):
 - Dato principal grande; unidad junto al valor (no debajo de la sparkline).
 - Barra segmentada inferior con doble altura; sparkline con fondo sutil.
 - `DHT11` `y-1`; barra inferior `y+1`; gráfica `h+1`; valor/unidad `y+1`.
+- Pendiente: el color `off` de los segmentos de la barra puede estar demasiado oscuro (difícil distinguir de fondo).
 - Estado: **pendiente de validación en hardware**; plantilla de referencia de composición.
 
-### SENSOR CARD (`LAB_SENSOR_CARD_SCREEN`)
+### SENSOR CARD (`LAB_SENSOR_CARD_SCREEN`) — rediseñado mayo 2026
 
-- Galería de cards de sensor; pulsación corta cicla entre TEMP CARD y PROBE CARD.
-- Enums internos: `LAB_TEMP_CARD_SCREEN` y `LAB_DS18_CARD_SCREEN` (no entran directamente al carrusel).
+**Rediseño completo.** Sustituye el layout izquierda-valor / derecha-tanque por un layout de 3 zonas horizontales sin solapamiento de zonas de borrado.
 
-#### TEMP CARD (`LAB_TEMP_CARD_SCREEN`)
+#### Layout nuevo (card 156×100 px, y=27..126)
 
-- Card única: `x=2`, `y=27`, `w=156`, `h=100`, bottom `126`.
-- Rail en `x=140`, `y=52`, `w=12`, `h=62`.
-- Nombre del sensor arriba, color blanco.
-- Indicador de límites `x-3, y+4` respecto a ronda anterior.
-- Estado: **pendiente de validación en hardware**.
+```
+y=27..43  HEADER (17 px)  icon(s=1) + device_label (color secondary) + unit/status (TR)
+                           separador y=44
+y=45..81  VALUE  (37 px)  número grande centrado full-width (kValueCx=80)
+                           separador y=82
+y=83..110 VIZ    (28 px)  visualización horizontal específica por sensor
+y=113..126 FOOTER          alert jewel (x=12, y=116)
+```
 
-#### PROBE CARD (`LAB_DS18_CARD_SCREEN`)
+Clave anti-overlap: `draw_card_dynamic` hace un `fillRect` completo antes de dibujar; ningún helper tiene `fillRect` parciales propios.
 
-- Misma estructura que TEMP CARD pero para DS18B20.
-- Marca de cero en el rail: pendiente de confirmar escala en hardware.
-- Estado: **pendiente de validación en hardware**.
+#### Visualizaciones por sensor
 
-### ESTADO LAB (`LAB_DASH_OVERVIEW_SCREEN`) — oculto
+| Sensor | Viz | Rango | Detalle |
+|---|---|---|---|
+| TEMP (DHT11) | 12 segmentos gradiente azul→rojo | 0–50°C | Labels "0°"/"50°" |
+| DS18B20 | 14 segmentos, azul hielo/cálido | -55..+125°C | Tick blanco en 0°, labels "-55°"/"+125°" |
+| HUM (DHT11) | 10 gotas-pill en fila, cyan | 0–100% | Highlight dot interior, labels "0%"/"100%" |
+| LIGHT (LDR) | 8 barras verticales crecientes | 0–1023 lux | Oscuro→amarillo, estilo ecualizador |
+| SOUND (MIC) | 7 columnas VU misma altura | 0–100% | Verde/naranja/rojo por zona |
+| SOIL | 3 zonas fijas + marcador | 0–100% | DRY(rojo)/OK(verde)/WET(azul), diamante posición |
 
-- 4 filas: Temp, Hum, Luz, Sound.
-- Redraw por fila (solo cambia lo que cambia).
-- No muestra Suelo ni DS18.
-- Oculto del carrusel; útil como referencia de layout de lista.
+- Estado: **pendiente de validación en hardware** — primer build con el nuevo diseño.
 
-### Galerías de iconos — ocultas
+#### TEMP CARD / PROBE CARD (sub-vistas internas)
 
-- `LAB_ICON_SET_A/B/C_SCREEN` — familias OUTLINE / SOLID / PIXEL.
-- `LAB_ICON_SIZES_ENV_SCREEN` / `EXT` — tamaños S/M/L.
-- `LAB_ICON_TEST_SCREEN` — comparativa procedural vs bitmap.
-- Tooling interno. No forman parte de ningún flujo de producto.
+Accesibles desde SENSOR CARD con pulsación corta.
+Usan el mismo sistema de vizualización horizontal descrito arriba.
 
 ---
 
 ## Pendiente de validación en hardware
 
-Estas tareas no requieren código adicional. Son verificación visual en pantalla real:
+Estas tareas no requieren código adicional salvo los ajustes que surjan al ver en pantalla real:
 
-1. Distancia línea–card de `3 px` y bottom común `126` — confirmar en todas las pantallas.
-2. **TEMP LAB** — barra diferencial izquierda/derecha, colores, legibilidad. Revisar en idiomas con textos largos (`Sonda` → `Sense sensor`).
-3. **Títulos largos** — confirmar que `TEMPORIZADOR`, `TERMÓMETRO`, `TEMPERATURA` no se recortan.
-4. **SOUND LAB** — posición y claridad del texto de estado; comportamiento del indicador de límites.
-5. **GAUGE LAB** — legibilidad del valor dentro del anillo; contraste icono blanco sobre fondo.
-6. **VALOR LAB** — lectura del dato grande; distinción sparkline/barra.
-7. **TEMP CARD / PROBE CARD** — rail, escala y marca de cero.
-8. Confirmar ausencia de parpadeo en redraw rápido (especialmente SENSOR LAB y ESTADO LAB).
+1. **SENSOR CARD (nuevo)** — validar toda la nueva geometría: que FONT_VALUE cabe en 37px, `drawSplitDecimalValue` centrado en cx=80, ícono small en header de 17px, marcador de SOIL no se sale del card (y≈124).
+2. **VALOR LAB** — off-color segmentos de barra demasiado oscuro; ajustar si no se distingue del fondo.
+3. **TEMP LAB** — barra diferencial izquierda/derecha, colores, legibilidad en idiomas con textos largos.
+4. **Títulos largos** — confirmar que `TEMPORIZADOR`, `TERMÓMETRO`, `TEMPERATURA` no se recortan.
+5. **SOUND LAB** — posición y claridad del texto de estado con el ajuste Y-1.
+6. **GAUGE LAB** — ícono XL en centro, legibilidad del valor dentro del anillo, contraste.
+7. Confirmar ausencia de parpadeo en redraw rápido (especialmente SENSOR LAB y ESTADO LAB).
 
 ### Decisión de producto pendiente
 
 - Decidir si `TEMP CARD`, `PROBE CARD` y `TEMP LAB` se mantienen visibles en el carrusel o se ocultan.
 - Decidir si `GAUGE LAB`, `VALOR LAB` y `SENSOR CARD` quedan como pantallas de laboratorio permanentes o se promueven.
+- Decidir paleta general de pantallas madre (revisión pendiente de colores de fondo, acento y contraste global).
 
 ---
 
