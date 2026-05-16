@@ -1,281 +1,294 @@
 # Handoff: Pantallas Lab / Graph
 
-Fecha de actualización: 2026-05-16
+Actualizado: 2026-05-16
 
-Este documento resume el estado actual de las pantallas temporales de laboratorio y de la pantalla de gráfica. Incluye el alcance, los archivos clave, el estado actual de cada pantalla y el último build verificado.
-
-## Estado de la pasada actual
-
-La pasada de unificación visual iniciada el 2026-05-15 está aplicada y compila, pero no está cerrada visualmente hasta nueva validación en hardware.
-
-Checkpoint compacto antes de galerías/templates:
-
-- Aprobadas: `HOME`, `CLIMA LAB`, `GRÁFICA`.
-- No tocar shared geometry global salvo necesidad extrema: `include/layout.h` queda como regla madre vigente.
-- Próxima ejecución: microajustes locales en `SOUND LAB`, `TEMP LAB`, `GAUGE LAB`, `TEMP CARD`/`PROBE CARD`.
-- Nueva arquitectura prevista: `TEMP CARD` y `PROBE CARD` se unen en una galería/template de sensor cards con cambio por pulsación corta; `GAUGE LAB` pasa a galería/template de gauges por sensor.
-- Archivos esperados: `src/ui_lab_sound_vu.cpp`, `src/ui_lab_widget_showcase.cpp`, `src/ui_lab_sensor_cards.cpp`, `include/ui_lab_sensor_cards.h`, `include/ui_lab_widget_showcase.h`, `src/tft_display.cpp`, `include/tft_display.h`, `src/rotary.cpp`.
-- Validación obligatoria: `py -3 -m platformio run --project-dir "c:/POWAR-GIT/P-Bit-FW - edit"` y nota de hardware pendiente.
-
-Pantallas aprobadas como referencia estable:
-
-- `LAB_HOME_CARDS_SCREEN` (`HOME`)
-- `LAB_DUAL_TH_SCREEN` (`CLIMA LAB`)
-- `GRAPH_SCREEN` (`GRÁFICA`)
-
-Cambios ya aplicados:
-
-- Se creó una regla común de header en `include/layout.h`: `L_HEADER_Y=18`, `L_HEADER_LINE=23`, `L_CONTENT_TOP=27`.
-- `drawHeader()` ahora usa `C_BASELINE`, no `TC_DATUM`, para que todos los títulos se midan como baseline real.
-- `drawMasterCardHeader()` quedó alineado con la misma regla de header.
-- Se añadieron constantes `LC_MASTER_*` para la geometría validada de cards 2x2.
-- `HOME`, `ESTADO LAB` y `PLANT LAB` usan la geometría `LC_MASTER_*`.
-- Se quitaron footers `Vista experimental` de pantallas donde no aportaban acción.
-- Se corrigieron clears y solapes detectados en `CLIMA LAB`, `SENSOR LAB`, `VALOR LAB`, `SYSTEM`, `SOIL`, `LIGHT` y `TIMER`.
-- `TEMP CARD` y `PROBE CARD` recibieron un primer rescate de layout: card más alta, rail separado, etiqueta de dispositivo sin pisar el rail y sin footer experimental.
-- `SOUND LAB` separa mejor la etiqueta `STACK/WAVE` del valor porcentual.
-
-Ronda de ajuste posterior a capturas del 2026-05-15:
-
-- Se aumentó en `1 px` el aire entre título y línea: `L_HEADER_LINE=23`.
-- La primera línea/borde de contenido queda en `y=27`, dejando `3 px` limpios entre línea y card.
-- Regla general de cards externas: `LC_SCREEN_X=2`, `LC_SCREEN_W=156`, `LC_SCREEN_BOTTOM=126`, `LC_CARD_RADIUS=4`.
-- `HOME`: `LC_MASTER_CARD_H` sube a `48`, con `x=2/82`, `y=27/79`, `w=76`, gap `4`, bottom común `126`.
-- `CLIMA LAB`: paneles en `x=2/82`, `y=27`, `w=76`, `h=73`, gap central `4`; footer de estado en `x=2`, `y=104`, `w=156`, `h=23`, bottom `126`; barras internas en `y=89` y texto `Óptimo` centrado en `y=115`.
-- `TEMP LAB`: dos cards superiores en `x=2/82`, `y=27`, `w=76`, `h=50`; card inferior de delta en `x=2`, `y=81`, `w=156`, `h=46`, bottom `126`; unidad `C/F` junto a `TEMP/SONDA`.
-- `PLANT LAB`: filas en `y=27/47/67/87/107`, alto `16`, gap visual `4`, para usar más el espacio inferior.
-- `SENSOR LAB`: summary en `x=2`, `y=27`, `w=156`, `h=42`; gráfico en `x=2`, `y=73`, `w=156`, `h=42`.
-- `GRÁFICA`: marco exterior en `x=2`, `y=46`, `w=156`, `h=66`, radio `4`; banda sensor/valor arranca en `L_CONTENT_TOP`.
-- `VALOR LAB`: card ampliada a `x=2`, `y=27`, `w=156`, `h=100`, bottom `126`; la unidad ya se dibuja junto al valor y no debajo de la sparkline; sparkline y barra crecen.
-- `GAUGE LAB`: icono de sensor XL, gauge `r=32`, unidad arriba a la derecha, min/max alineados con el inicio y fin del arco.
-- `TEMP CARD` / `PROBE CARD`: card `x=2`, `y=27`, `w=156`, `h=100`, bottom `126`; rail en `x=140`, `y=52`, `w=12`, `h=62`; línea inferior con fallback de fuente para textos largos.
-- Build verificado: `py -3 -m platformio run --project-dir "c:/POWAR-GIT/P-Bit-FW - edit"` -> `SUCCESS`, RAM `14.0%`, Flash `69.8%`.
-
-Ronda general de unidad visual:
-
-- `CLIMA LAB`: paneles superiores alineados con HOME (`x=2/82`, `w=76`, `y=27`); footer inferior alineado con los mismos límites (`x=2`, `w=156`, bottom `126`); texto del footer subido `1 px`; barras internas subidas `3 px`.
-- `TEMP LAB`: cards superiores alineadas con HOME (`x=2/82`, `w=76`, `y=27`); card inferior crece hasta bottom `126`; unidad `C/F` se dibuja junto al título `TEMP/SONDA`; valores principales bajan dentro de cada card para ganar aire.
-- `VALOR LAB`, `GAUGE LAB`, `SENSOR LAB`, `TEMP CARD`, `PROBE CARD`, `SOUND LAB` y `GRAPH` adoptan los límites externos comunes donde tienen card/panel principal.
-- `GRAPH` conserva su banda de sensor/valor, pero el marco de gráfica ahora usa límite exterior `x=2,w=156` y radio `4`.
-- Build verificado tras esta ronda: `py -3 -m platformio run --project-dir "c:/POWAR-GIT/P-Bit-FW - edit"` -> `SUCCESS`, RAM `14.0%`, Flash `69.8%`.
-
-Ronda puntual posterior de microdiagramación:
-
-- `HOME`: icono, nombre de sensor y dato de cada card se movieron `x+2,y+2` sin mover el tanque lateral ni la geometría externa.
-- `CLIMA LAB`: iconos internos `x+2`, unidad `C/F/%` `x-1`, barras internas subidas `4 px`, barras más altas (`h=9`) y hint de estado `y-1`.
-- `TEMP LAB`: cards superiores nombran `DHT11` y `DS18`; nombres centrados a la misma altura, unidad `C/F` queda en la esquina superior derecha y valores `y+1`.
-- `TEMP LAB`: la card inferior dejó de ser una curva histórica y ahora es una barra comparativa de diferencia centrada; `DHT11 - DS18` llena hacia la derecha si DHT11 está más caliente y hacia la izquierda si DS18 está más caliente; la etiqueta usa la clave `LAB_TEMP_DIFF`.
-- `GRÁFICA`: etiqueta de sensor y dato de la banda superior suben `1 px` (`LG_SENSOR_Y=28`).
-- `SENSOR LAB`: summary y gráfica bajan `1 px` de altura cada una, mantienen gap y top común, y dejan más aire inferior.
-- Build verificado tras esta ronda: `py -3 -m platformio run --project-dir "c:/POWAR-GIT/P-Bit-FW - edit"` -> `SUCCESS`, RAM `14.0%`, Flash `69.8%`.
-
-Ronda amplia posterior con múltiples agentes:
-
-- Corrección posterior: `LAB_SENSOR_FOCUS_SCREEN` se mantiene visible en el carrusel y restaurable desde sueño; esta es la pantalla/carretel de sensores aprobada como referencia visual.
-- La pantalla gris inicial de validación de layout en `setup()` quedó apagada con `kShowStartupLayoutValidation = false`; esa era la prueba de 4 cards antes de los logos, no el carretel de sensores.
-- Build verificado tras la corrección: `py -3 -m platformio run --project-dir "c:/POWAR-GIT/P-Bit-FW - edit"` -> `SUCCESS`, RAM `14.0%`, Flash `69.8%`, Flash usada `914233 bytes`.
-- Menú de idiomas: las tres opciones suben `2 px`.
-- `HOME`: icono, etiqueta y valor bajan `2 px`; etiqueta/valor se mueven `x+1`; el tanque lateral duplica ancho y crece hacia la izquierda.
-- `CLIMA LAB`: unidades `C/F/%` bajan `1 px`.
-- `PLANT LAB`: nombres de sensores se mueven `x+1`.
-- `GRÁFICA`: banda superior sube a `LG_SENSOR_Y=27` y usa nombres largos por sensor mediante claves `GRAPH_LABEL_*`.
-- `TEMPERATURA`: card principal se alinea con el límite común `LC_SCREEN_X/LC_CARD_TOP` y gana altura para seguir la regla de cards.
-- `GAUGE LAB`: icono de temperatura más grande y centrado verticalmente en el espacio útil; etiqueta `TEMP` centrada con el icono; valor dentro del gauge usa fuente más grande.
-- `VALOR LAB`: dato principal más grande, barra inferior con doble altura y sparkline con fondo sutil para distinguirse.
-- `TEMP LAB`: cards superiores con fondos diferenciados, nombre y unidad en colores distintos; `DS18B20` completo; card de diferencia con escala base `0..10C` / `0..18F` hacia ambos lados y marcas de escala en vez de nombres de sensores.
-- `SOUND LAB`: se quitaron `STACK/WAVE` y el hint de cambio de vista; el footer muestra el estado (`Normal`, etc.); chip `MIC`, valor y gráfica se redistribuyen para aprovechar más alto.
-- `TEMP CARD` / `PROBE CARD`: se quita `Pulsa F/C`; etiqueta de dispositivo pasa a esquina superior izquierda; dato sube `10 px` y `x-6`; rail derecho triplica ancho y sube; unidad baja `2 px`; joya de alerta baja `6 px`.
-- Build verificado tras esta ronda: `py -3 -m platformio run --project-dir "c:/POWAR-GIT/P-Bit-FW - edit"` -> `SUCCESS`, RAM `14.0%`, Flash `69.8%`, Flash usada `914793 bytes`.
-
-Ronda puntual posterior:
-
-- `HOME`, `CLIMA LAB` y `GRÁFICA` quedan aprobadas como patrón visual de referencia.
-- `TEMP LAB`: se eliminó el texto `DIF TEMP`; la barra diferencial sube `3 px`; `0` y escala `+10C/+18F` quedan arriba; el valor diferencial queda centrado abajo; si `DHT11` está más caliente llena hacia la izquierda y si `DS18B20` está más caliente llena hacia la derecha.
-- `SOUND LAB`: se quitó el chip/card de `MIC`; `MIC` queda como etiqueta suelta, el valor sube `3 px` y el indicador de límites pasa a la esquina inferior izquierda.
-- `GRÁFICA`: en humedad, las líneas horizontales dejan de llegar a blanco y pasan a una progresión azul más suave.
-- `GAUGE LAB`: icono baja `3 px`, pasa a blanco y la unidad `C/F` usa naranja.
-- `VALOR LAB`: barra inferior baja `1 px`, `DHT11` sube `1 px`, gráfica crece `1 px` hacia abajo y valor/unidad bajan `1 px`.
-- `TEMP CARD` / `PROBE CARD`: indicador de límites se mueve `x-3,y+4`; nombre del sensor sube y pasa a blanco para evitar corte por clear area.
-- Build verificado tras esta ronda: `py -3 -m platformio run --project-dir "c:/POWAR-GIT/P-Bit-FW - edit"` -> `SUCCESS`, RAM `14.1%`, Flash `69.7%`, Flash usada `914169 bytes`.
-
-Corrección de código 2026-05-16:
-
-- `GAUGE LAB` (`src/ui_lab_widget_showcase.cpp`): icono pasa a `TFT_WHITE` cuando el sensor es válido (era `primary`). Motivo: los colores de icono y unidad del GAUGE LAB no se habían aplicado en la ronda anterior aunque el handoff los documentaba como hechos.
-- `GAUGE LAB` (`src/ui_lab_widget_showcase.cpp`): unidad (`C/F`, `%`, etc.) pasa a `kWarmOrange` cuando el sensor es válido (era `primary`).
-- `src/ui_lab_widget_showcase.cpp`: eliminadas 6 funciones `draw_icon_*_big` que eran dead code y generaban errores de compilación por forward-reference (`draw_solid_drop_large`, `draw_solid_light_large`, `draw_solid_mic_large` usadas antes de definirse).
-- Build verificado: `SUCCESS`, RAM `14.1%`, Flash `69.8%`, Flash `915057 bytes`.
-
-Pendiente antes de aprobar:
-
-- Flashear y validar en hardware esta ronda de reglas generales, especialmente la nueva distancia línea-card de `3 px` y el bottom común `126`.
-- Validar visualmente la nueva barra diferencial de `TEMP LAB`: dirección izquierda/derecha, lectura de `DHT11`/`DS18` y colores vivos sin exceso de saturación.
-- Confirmar que títulos largos como `TEMPORIZADOR`, `TERMÓMETRO` y `TEMPERATURA` siguen sin salirse ni quedar recortados con el header aprobado.
-- Revisar si `TEMP LAB` necesita reducir fuente en idiomas donde `Sonda`/`Sense sensor` no quepan en la card superior.
-- Decidir si `TEMP CARD`, `PROBE CARD` y `TEMP LAB` se mantienen visibles o se ocultan del carrusel.
-
-Regla de documentación:
-
-- Cada ajuste visual nuevo debe dejar una nota breve en este documento o en `ANALISIS_PANTALLAS_EXPERIMENTALES_PBIT.md`.
-- La nota debe indicar archivo tocado, motivo del cambio, estado de build y qué queda pendiente de validar en pantalla real.
-
-## Alcance
-
-Estas iteraciones afectan solo a pantallas temporales o experimentales:
-
-- `GRAPH_SCREEN`
-- `LAB_DASH_OVERVIEW_SCREEN` (`ESTADO LAB`)
-- `LAB_SENSOR_FOCUS_SCREEN` (`SENSOR LAB`)
-- `LAB_DUAL_TH_SCREEN` (`CLIMA LAB`)
-- `LAB_ICON_SET_A/B/C_SCREEN` (`OUTLINE / SOLID / PIXEL`)
-- `LAB_GAUGE_TEMP_SCREEN` (`GAUGE LAB`)
-- `LAB_VALUE_MODERN_SCREEN` (`VALOR LAB`)
-- `LAB_WIDGET_MIX_SCREEN` (`WIDGET LAB`)
-
-Esta tanda no está destinada a cerrar un producto final. Son pantallas de prueba visual que se usan como banco de experimentación para definir luego qué se integra y qué se descarta.
-
-## Archivos principales
-
-- `src/ui_lab_dash.cpp`
-- `src/ui_lab_focus.cpp`
-- `src/ui_lab_dual.cpp`
-- `src/ui_lab_widget_showcase.cpp`
-- `src/ui_lab_sound_vu.cpp`
-- `src/ui_lab_home_cards.cpp`
-- `src/ui_lab_sensor_cards.cpp`
-- `src/ui_graph.cpp`
-- `include/layout.h`
-- `include/languages.h`
-- `src/tft_display.cpp`
-- `src/lang_select.cpp`
-
-Estos son los archivos donde están los ajustes más recientes y el comportamiento visual actual.
-
-## Estado actual general
-
-### 1. `ESTADO LAB` (`LAB_DASH_OVERVIEW_SCREEN`)
-
-- Ya hay un layout de 4 filas totalmente funcional.
-- El sistema redibuja solo los datos que cambian, no toda la fila.
-- Se mejoró el espaciado para evitar que el contenido llegue demasiado al borde inferior.
-- La paleta actual es uniforme: texto blanco + acento cromático por fila.
-
-Pendiente:
-
-- Validar en hardware si el espaciado de las 4 filas resulta homogéneo.
-- Confirmar ausencia de parpadeo en cambios rápidos de sensor.
-
-### 2. `SENSOR LAB` (`LAB_SENSOR_FOCUS_SCREEN`)
-
-- La geometría ya es coherente entre los sensores.
-- El redibujo se separa en shell estático y contenido dinámico.
-- Todos los valores usan misma tipografía y alineación vertical consistente.
-- Las transiciones de estado y color están listas para verificación.
-
-Pendiente:
-
-- Comprobar en pantalla real si el valor de `SOUND` se lee con la misma facilidad que `TEMP`.
-- Ajustar contraste de unidades para `LIGHT` y `DS18` si hace falta.
-
-### 3. `CLIMA LAB` (`LAB_DUAL_TH_SCREEN`)
-
-- El layout actual ya está en la rama principal.
-- Se redujeron las cards de temperatura/humedad para dejar espacio al estado verde de clima óptimo.
-- Se mantiene shell/contenido separado para minimizar redraws.
-
-Pendiente:
-
-- Verificar en hardware si la nueva proporción de cards resulta equilibrada.
-- Confirmar que la card de estado óptimo ya cabe sin recortes ni solapamientos.
-
-### 4. `GAUGE LAB` y `VALOR LAB` (`LAB_GAUGE_TEMP_SCREEN`, `LAB_VALUE_MODERN_SCREEN`)
-
-- Se avanzó en propuestas visuales basadas en iconos sólidos.
-- `GAUGE LAB` muestra un anillo grande con valor centrado.
-- `VALOR LAB` ahora usa cards con valor grande y barra segmentada.
-
-Pendiente:
-
-- Validar si la legibilidad del valor en el anillo es adecuada en la pantalla real.
-- Decidir si estas versiones se mantienen como experimentales o se convierten en patrones de diseño.
-
-### 5. `WIDGET LAB` (`LAB_WIDGET_MIX_SCREEN`)
-
-- Se implementó el widget mixto de temperatura/humedad/delta en una sola pantalla.
-- Se añadió un gráfico de delta con cero en el centro y color según signo.
-
-Pendiente:
-
-- Verificar si el gráfico de delta es suficientemente claro y si la línea cero se percibe bien.
-- Determinar si este estilo merece una pantalla propia o debe simplificarse.
-
-### 6. `SOUND LAB` (`LAB_VU_STACK` / `LAB_VU_WAVE`)
-
-- Se ajustó la altura del valor, de las barras y del texto de estado para que queden más altos y legibles.
-- Se desplazó el panel interior `Stack/Wave` hacia arriba y se mejoró el espaciado del badge.
-- El estado del texto (`Normal`, `Loud`, etc.) también se subió unos píxeles.
-
-Pendiente:
-
-- Confirmar comportamiento visual en hardware, especialmente la posición y claridad del texto de estado.
-- Verificar si la barra interior necesita más desplazamiento en la pantalla real.
-
-## Verificación de documentación técnica
-
-- El documento ahora refleja el estado actual del código y no el estado previo de abril.
-- Se incluye el build más reciente y la recomendación de pasos siguientes.
-- Se especifica claramente qué se ha hecho y qué está pendiente.
-
-## Build verificada
-
-Última compilación correcta en esta rama:
+## Build actual verificada
 
 - Herramienta: `py -3 -m platformio run --project-dir "c:/POWAR-GIT/P-Bit-FW - edit"`
 - Resultado: `SUCCESS`
-- RAM usada: `14.1%`
-- Flash usada: `69.8%`
-- Flash bytes: `915057`
+- RAM: `14.1%` (46044 / 327680 bytes)
+- Flash: `69.8%` (915281 / 1310720 bytes)
 - Fecha: `2026-05-16`
 
-## Problema persistente en HOME
+Todo el código de ajustes visuales de las rondas anteriores está commiteado en `ce41581`. El árbol git está limpio (solo el log de debug modificado).
 
-- El card `MIC` en `LAB_HOME_CARDS_SCREEN` sigue mostrando un artefacto inicial en la esquina superior derecha al arrancar desde el selector de idioma.
-- Se aplicaron las siguientes correcciones sin éxito definitivo:
-  - limpieza total de pantalla tras salir de `showLanguageMenu()`
-  - doble `tft.fillScreen(TFT_BLACK)` con retardo al iniciar el primer redraw de HOME
-  - limpieza explícita del área de cards en `draw_shell()` de `src/ui_lab_home_cards.cpp`
-- El bug parece ser un artefacto residual de transición de pantalla, no un error directo de geometría del card MIC.
-- Si persiste en hardware, conviene evaluar otro enfoque o modelo visual para el HOME en lugar de insistir en el mismo layout.
+---
 
-## Siguiente paso recomendado
+## Alcance del build LAB
 
-1. Validar en hardware `ESTADO LAB`.
-2. Validar en hardware `SENSOR LAB / HUM`.
-3. Validar en hardware `SENSOR LAB / LIGHT`.
-4. Revisar `CLIMA LAB` para asegurarse de que la card verde entra bien.
-5. Validar `SENSOR LAB / SOUND`.
-6. Validar `SENSOR LAB / SOIL`.
-7. Validar `SENSOR LAB / DS18`.
-8. Validar `GRAPH TEMP`.
-9. Validar `GRAPH HUM`.
+Las pantallas de laboratorio y gráfica solo se compilan cuando `PBIT_ENABLE_GRAPH_LAB = 1` en `include/config.h`. Ese flag está activo en el build actual.
 
-> Nota: esta tanda es de experimentación visual. No se propone integrar todo tal cual; el objetivo actual es concretar cuáles de estas pantallas deben seguir y cuáles deben simplificarse o eliminarse.
+Archivos principales:
 
-Feedback corto esperado:
+- `src/ui_lab_home_cards.cpp` — HOME CARDS
+- `src/ui_lab_dual.cpp` — CLIMA LAB
+- `src/ui_lab_widget_showcase.cpp` — TEMP LAB, GAUGE LAB, VALOR LAB
+- `src/ui_lab_sound_vu.cpp` — SOUND LAB (STACK + WAVE)
+- `src/ui_lab_linear_dash.cpp` — PLANT LAB
+- `src/ui_lab_focus.cpp` — SENSOR LAB
+- `src/ui_graph.cpp` — GRÁFICA
+- `src/ui_lab_sensor_cards.cpp` — TEMP CARD, PROBE CARD, SENSOR CARD
+- `src/ui_lab_dash.cpp` — ESTADO LAB (oculto)
+- `src/ui_lab_icon_gallery.cpp` — galerías de iconos (ocultas)
+- `src/ui_lab_icon_sizes.cpp` — tamaños de iconos (ocultas)
+- `src/ui_lab_icon_test.cpp` — icon test (oculto)
+- `include/layout.h` — constantes globales de geometría
+- `include/languages.h` — claves de texto multilenguaje
+- `src/tft_display.cpp` — router de pantallas
+- `src/rotary.cpp` — navegación y orden del carrusel
 
-- `Estado Lab fila 3 bajar 1`
-- `Hum unit x -1`
-- `Sound sigue vibrando`
-- `Clima % ok`
-- `Graph temp horizontales aún muy visibles`
+---
 
-## Nota importante para otro agente
+## Reglas de geometría globales (layout.h)
 
-No rehacer estas pantallas desde cero.
+### Header común (todas las pantallas)
 
-La base visual ya está bastante conseguida. Lo correcto ahora es:
+| Constante | Valor | Descripción |
+| --- |---| --- |
+| `L_HEADER_Y` | 18 | Baseline del título |
+| `L_HEADER_LINE` | 23 | Y de la línea divisoria |
+| `L_CONTENT_TOP` | 27 | Primera Y útil bajo el header |
+| `LC_MASTER_HEADER_LINE_X` | 4 | X inicial de la línea |
+| `LC_MASTER_HEADER_LINE_W` | 152 | Ancho de la línea |
 
-- retocar microgeometría en hardware
-- validar paletas
-- y cerrar flicker residual
+### Cards externas (lab screens)
 
-No abrir cambios grandes de arquitectura salvo que el usuario lo pida explícitamente.
+| Constante | Valor | Descripción |
+| --- |---| --- |
+| `LC_SCREEN_X` | 2 | Margen lateral común |
+| `LC_SCREEN_W` | 156 | Ancho exterior común |
+| `LC_SCREEN_BOTTOM` | 126 | Límite inferior común |
+| `LC_CARD_RADIUS` | 4 | Radio de esquinas |
+| `LC_GAP` | 4 | Gap entre cards/bloques |
+| `LC_FOOTER_Y` | 120 | Baseline del footer |
+
+### Cards 2×2 (HOME y familia)
+
+| Constante | Valor | Descripción |
+| --- |---| --- |
+| `LC_MASTER_CARD_X0` | 2 | X card izquierda |
+| `LC_MASTER_CARD_X1` | 82 | X card derecha |
+| `LC_MASTER_CARD_Y0` | 27 | Y fila superior |
+| `LC_MASTER_CARD_Y1` | 79 | Y fila inferior |
+| `LC_MASTER_CARD_W` | 76 | Ancho de cada card |
+| `LC_MASTER_CARD_H` | 48 | Alto de cada card |
+| `LC_MASTER_CARD_GAP` | 4 | Gap entre cards |
+| `LC_MASTER_CARD_BOTTOM` | 126 | Bottom de la fila inferior |
+
+### Gráfica (GRÁFICA / GRAPH_SCREEN)
+
+| Constante | Valor | Descripción |
+| --- |---| --- |
+| `LG_SENSOR_Y` | 27 | Banda sensor/valor (entre header y gráfica) |
+| `LG_GRAPH_X` | 2 | Borde exterior izquierdo |
+| `LG_GRAPH_Y` | 46 | Borde exterior superior |
+| `LG_GRAPH_W` | 154 | Ancho interior del sprite |
+| `LG_GRAPH_H` | 64 | Alto interior del sprite |
+| `LG_HINT_Y` | 120 | Footer hint |
+
+---
+
+## Carrusel visible actual
+
+Definido en `src/rotary.cpp` → `kVisibleAppScreens[]`:
+
+| Posición | Nombre visible | Enum | Archivo |
+| --- |---| --- |---|
+| 1 | HOME | `LAB_HOME_CARDS_SCREEN` | `ui_lab_home_cards.cpp` |
+| 2 | CLIMA LAB | `LAB_DUAL_TH_SCREEN` | `ui_lab_dual.cpp` |
+| 3 | TEMP LAB | `LAB_WIDGET_MIX_SCREEN` | `ui_lab_widget_showcase.cpp` |
+| 4 | SOUND LAB | `LAB_SOUND_VU_STACK_SCREEN` | `ui_lab_sound_vu.cpp` |
+| 5 | PLANT LAB | `LAB_LINEAR_DASH_SCREEN` | `ui_lab_linear_dash.cpp` |
+| 6 | SENSOR LAB | `LAB_SENSOR_FOCUS_SCREEN` | `ui_lab_focus.cpp` |
+| 7 | GRÁFICA | `GRAPH_SCREEN` | `ui_graph.cpp` |
+| 8 | TEMP | `TEMP_SCREEN` | `ui_temp.cpp` |
+| 9 | HUM | `HUMIDITY_SCREEN` | `ui_humidity.cpp` |
+| 10 | LUZ | `LIGHT_SCREEN` | `ui_light.cpp` |
+| 11 | SONIDO | `SOUND_SCREEN` | `ui_sound.cpp` |
+| 12 | SUELO | `SOIL_SCREEN` | `ui_soil.cpp` |
+| 13 | DS18 | `DS18B20_SCREEN` | `ui_ds18.cpp` |
+| 14 | SISTEMA | `SYSTEM_SCREEN` | `ui_system.cpp` |
+| 15 | TIMER | `TIMER_SCREEN` | `ui_timer.cpp` |
+| 16 | GAUGE LAB | `LAB_GAUGE_TEMP_SCREEN` | `ui_lab_widget_showcase.cpp` |
+| 17 | VALOR LAB | `LAB_VALUE_MODERN_SCREEN` | `ui_lab_widget_showcase.cpp` |
+| 18 | SENSOR CARD | `LAB_SENSOR_CARD_SCREEN` | `ui_lab_sensor_cards.cpp` |
+
+### Pantallas fuera del carrusel (compiladas, ocultas)
+
+Definido en `isHiddenRestoreScreen()` en `src/rotary.cpp`:
+
+- `LAB_DASH_OVERVIEW_SCREEN` — ESTADO LAB
+- `LAB_ICON_SET_A_SCREEN` / `B` / `C` — galerías de iconos
+- `LAB_ICON_SIZES_ENV_SCREEN` / `EXT` — tamaños de iconos
+- `LAB_ICON_TEST_SCREEN` — test procedural vs bitmap
+
+Pantallas en el enum pero tampoco en el carrusel (sub-vistas internas):
+
+- `LAB_SOUND_VU_WAVE_SCREEN` — accesible desde SOUND LAB con pulsación corta
+- `LAB_TEMP_CARD_SCREEN` — accesible desde SENSOR CARD con pulsación corta
+- `LAB_DS18_CARD_SCREEN` — accesible desde SENSOR CARD con pulsación corta
+
+### Comportamiento de pulsación corta por pantalla
+
+| Pantalla | Acción |
+| --- |---|
+| `GRAPH_SCREEN` | Cicla entre los 6 sensores con historial |
+| `LAB_SENSOR_FOCUS_SCREEN` | Cicla entre los 6 sensores |
+| `LAB_SOUND_VU_STACK_SCREEN` | Alterna a `LAB_SOUND_VU_WAVE_SCREEN` |
+| `LAB_SOUND_VU_WAVE_SCREEN` | Vuelve a `LAB_SOUND_VU_STACK_SCREEN` |
+| `LAB_SENSOR_CARD_SCREEN` | Cicla entre TEMP CARD y PROBE CARD |
+| `LAB_GAUGE_TEMP_SCREEN` | Cicla entre sensores del gauge |
+
+---
+
+## Estado de cada pantalla
+
+### HOME (`LAB_HOME_CARDS_SCREEN`)
+
+- Layout 2×2 con Temp, Hum, Luz, Sound.
+- Geometría validada: cards en `x=2/82`, `y=27/79`, `w=76`, `h=48`, gap `4`, bottom `126`.
+- Icono, etiqueta y valor de cada card en `x+2, y+2` del origen de la card.
+- Tanque lateral de humedad: doble ancho, crece hacia la izquierda.
+- Footer `Vista experimental` eliminado.
+- Bug conocido: artefacto en esquina superior derecha de la card MIC al arrancar desde el selector de idioma. No bloqueante para validación.
+- Estado: **aprobada como referencia visual**.
+
+### CLIMA LAB (`LAB_DUAL_TH_SCREEN`)
+
+- Dos panels superiores Temp + Hum en `x=2/82`, `y=27`, `w=76`, `h=73`.
+- Footer de estado climático en `x=2`, `y=104`, `w=156`, `h=23`, bottom `126`.
+- Estado en footer: `Muy seco`, `Fresco`, `Óptimo`, `Cálido`, `Riesgo de moho` según umbrales reales.
+- Barras internas en `y=89`, altura `9 px`.
+- Texto `Óptimo` centrado en `y=115`.
+- Iconos internos `x+2`, unidades `C/F/%` `x-1`, `y+1`.
+- Estado: **aprobada como referencia visual**.
+
+### TEMP LAB (`LAB_WIDGET_MIX_SCREEN`)
+
+- Dos cards superiores en `x=2/82`, `y=27`, `w=76`, `h=50`: `DHT11` (izquierda) y `DS18B20` (derecha).
+- Fondos diferenciados, nombre en color y unidad `C/F` en esquina superior derecha de cada card.
+- Card inferior de diferencia en `x=2`, `y=81`, `w=156`, `h=46`, bottom `126`.
+- Barra diferencial sin texto "DIF TEMP": `0` centrado, escala `+10 C / +18 F` a cada lado.
+- Dirección: si DHT11 > DS18, llena hacia la izquierda; si DS18 > DHT11, llena hacia la derecha.
+- Valor diferencial centrado abajo de la barra, `y` ajustado `+3 px` respecto a ronda anterior.
+- Estado: **pendiente de validación en hardware** — especialmente legibilidad de la barra diferencial y textos en idiomas largos.
+
+### SOUND LAB (`LAB_SOUND_VU_STACK_SCREEN` / `LAB_SOUND_VU_WAVE_SCREEN`)
+
+- Pantalla única de entrada: STACK. Pulsación corta alterna a WAVE (sub-vista interna).
+- Sin chip/card de MIC; `MIC` queda como etiqueta suelta.
+- Sin hint de cambio de vista en pantalla.
+- Footer muestra el estado: `Normal`, `Loud`, etc.
+- Valor `y-3` respecto a posición anterior; indicador de límites en esquina inferior izquierda.
+- Estado: **pendiente de validación en hardware**.
+
+### PLANT LAB (`LAB_LINEAR_DASH_SCREEN`)
+
+- Lista compacta: Temp, Hum, Luz, Suelo, DS18 (sin Mic).
+- Filas en `y=27/47/67/87/107`, alto `16`, gap visual `4`.
+- Nombres de sensores `x+1`.
+- Estado: **pendiente de validación en hardware**.
+
+### SENSOR LAB (`LAB_SENSOR_FOCUS_SCREEN`)
+
+- Carrusel interno de 6 sensores: Temp, Hum, Luz, Sound, Suelo, DS18.
+- Pulsación corta cicla entre ellos.
+- Visible en el carrusel principal (posición 6).
+- Reutiliza buffers históricos reales.
+- Summary en `x=2`, `y=27`, `w=156`, `h=42`; gráfica en `x=2`, `y=73`, `w=156`, `h=42`.
+- Estado: **referencia visual fuerte para futura v2 de pantallas individuales**.
+
+### GRÁFICA (`GRAPH_SCREEN`)
+
+- Gráfica a pantalla completa con banda superior sensor/valor.
+- Banda superior: `LG_SENSOR_Y=27`.
+- Marco exterior: `x=2`, `y=46`, `w=156` (borde incluido), `h=66`, radio `4`.
+- Sprite interior: `LG_GRAPH_W=154`, `LG_GRAPH_H=64`.
+- Pulsación corta cicla entre 6 sensores: Temp aire, Hum aire, Luz, Sonido, Hum suelo, DS18.
+- Líneas horizontales de humedad: progresión azul suave (sin llegar a blanco).
+- Etiquetas largas por sensor via claves `GRAPH_LABEL_*`.
+- Estado: **aprobada como referencia visual**.
+
+### GAUGE LAB (`LAB_GAUGE_TEMP_SCREEN`)
+
+- Gauge circular protagonista: radio `r=32`, valor centrado.
+- Icono de sensor grande, centrado verticalmente, color `TFT_WHITE` cuando el sensor es válido.
+- Etiqueta del sensor centrada junto al icono.
+- Unidad `C/F/%` etc. en `kWarmOrange` cuando el sensor es válido.
+- `TFT_DARKGREY` para icono y unidad cuando el sensor no es válido.
+- Pulsación corta cicla entre sensores.
+- Estado: **pendiente de validación en hardware**; biblioteca de widgets.
+
+### VALOR LAB (`LAB_VALUE_MODERN_SCREEN`)
+
+- Card ampliada: `x=2`, `y=27`, `w=156`, `h=100`, bottom `126`.
+- Dato principal grande; unidad junto al valor (no debajo de la sparkline).
+- Barra segmentada inferior con doble altura; sparkline con fondo sutil.
+- `DHT11` `y-1`; barra inferior `y+1`; gráfica `h+1`; valor/unidad `y+1`.
+- Estado: **pendiente de validación en hardware**; plantilla de referencia de composición.
+
+### SENSOR CARD (`LAB_SENSOR_CARD_SCREEN`)
+
+- Galería de cards de sensor; pulsación corta cicla entre TEMP CARD y PROBE CARD.
+- Enums internos: `LAB_TEMP_CARD_SCREEN` y `LAB_DS18_CARD_SCREEN` (no entran directamente al carrusel).
+
+#### TEMP CARD (`LAB_TEMP_CARD_SCREEN`)
+
+- Card única: `x=2`, `y=27`, `w=156`, `h=100`, bottom `126`.
+- Rail en `x=140`, `y=52`, `w=12`, `h=62`.
+- Nombre del sensor arriba, color blanco.
+- Indicador de límites `x-3, y+4` respecto a ronda anterior.
+- Estado: **pendiente de validación en hardware**.
+
+#### PROBE CARD (`LAB_DS18_CARD_SCREEN`)
+
+- Misma estructura que TEMP CARD pero para DS18B20.
+- Marca de cero en el rail: pendiente de confirmar escala en hardware.
+- Estado: **pendiente de validación en hardware**.
+
+### ESTADO LAB (`LAB_DASH_OVERVIEW_SCREEN`) — oculto
+
+- 4 filas: Temp, Hum, Luz, Sound.
+- Redraw por fila (solo cambia lo que cambia).
+- No muestra Suelo ni DS18.
+- Oculto del carrusel; útil como referencia de layout de lista.
+
+### Galerías de iconos — ocultas
+
+- `LAB_ICON_SET_A/B/C_SCREEN` — familias OUTLINE / SOLID / PIXEL.
+- `LAB_ICON_SIZES_ENV_SCREEN` / `EXT` — tamaños S/M/L.
+- `LAB_ICON_TEST_SCREEN` — comparativa procedural vs bitmap.
+- Tooling interno. No forman parte de ningún flujo de producto.
+
+---
+
+## Pendiente de validación en hardware
+
+Estas tareas no requieren código adicional. Son verificación visual en pantalla real:
+
+1. Distancia línea–card de `3 px` y bottom común `126` — confirmar en todas las pantallas.
+2. **TEMP LAB** — barra diferencial izquierda/derecha, colores, legibilidad. Revisar en idiomas con textos largos (`Sonda` → `Sense sensor`).
+3. **Títulos largos** — confirmar que `TEMPORIZADOR`, `TERMÓMETRO`, `TEMPERATURA` no se recortan.
+4. **SOUND LAB** — posición y claridad del texto de estado; comportamiento del indicador de límites.
+5. **GAUGE LAB** — legibilidad del valor dentro del anillo; contraste icono blanco sobre fondo.
+6. **VALOR LAB** — lectura del dato grande; distinción sparkline/barra.
+7. **TEMP CARD / PROBE CARD** — rail, escala y marca de cero.
+8. Confirmar ausencia de parpadeo en redraw rápido (especialmente SENSOR LAB y ESTADO LAB).
+
+### Decisión de producto pendiente
+
+- Decidir si `TEMP CARD`, `PROBE CARD` y `TEMP LAB` se mantienen visibles en el carrusel o se ocultan.
+- Decidir si `GAUGE LAB`, `VALOR LAB` y `SENSOR CARD` quedan como pantallas de laboratorio permanentes o se promueven.
+
+---
+
+## Regla de documentación
+
+Cada ajuste visual nuevo debe dejar una nota en este documento o en `ANALISIS_PANTALLAS_EXPERIMENTALES_PBIT.md`:
+
+- archivo tocado
+- motivo del cambio
+- estado de build
+- qué queda pendiente de validar en pantalla real
+
+No rehacer pantallas desde cero sin pedirlo explícitamente. La base visual está conseguida; lo que corresponde ahora es retoque de microgeometría y validación en hardware.
