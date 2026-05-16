@@ -138,8 +138,8 @@ static void draw_value_badge(int right_x, int y, bool valid, uint8_t level, uint
 }
 
 static void draw_status_footer(const SoundVisual& visual) {
-    tft.fillRect(4, 111, 152, 12, kPanel);
-    drawFooterHint(visual.label, tft.width() / 2, 117, visual.color);
+    tft.fillRect(4, 110, 152, 12, kPanel);
+    drawFooterHint(visual.label, tft.width() / 2, 116, visual.color);
 }
 
 static uint16_t stack_segment_color(int segment_index) {
@@ -211,12 +211,12 @@ static void draw_stack_dynamic(bool valid, uint8_t level, const SoundVisual& vis
     tft.fillRoundRect(LC_SCREEN_X, LC_CARD_TOP, LC_SCREEN_W, card_h, LC_CARD_RADIUS, kPanel);
     tft.drawRoundRect(LC_SCREEN_X, LC_CARD_TOP, LC_SCREEN_W, card_h, LC_CARD_RADIUS, kPanelBorder);
 
-    draw_panel_title_chip(12, 26, 52, kPanelAlt, kNeonGreen, L(LAB_SOUND_SHORT));
-    draw_value_badge(150, 25, valid, level, visual.color);
+    draw_panel_title_chip(12, 25, 52, kPanelAlt, kNeonGreen, L(LAB_SOUND_SHORT));
+    draw_value_badge(150, 24, valid, level, visual.color);
 
-    tft.fillRoundRect(12, 54, 136, 56, 4, TFT_BLACK);
-    tft.drawRoundRect(12, 54, 136, 56, 4, tft.color565(16, 70, 40));
-    draw_stack_meter(16, 58, 128, 48);
+    tft.fillRoundRect(12, 53, 136, 56, 4, TFT_BLACK);
+    tft.drawRoundRect(12, 53, 136, 56, 4, tft.color565(16, 70, 40));
+    draw_stack_meter(16, 57, 128, 48);
     draw_status_footer(visual);
     draw_sound_alert_jewel(14, 119, alert_code, alerts_enabled);
 }
@@ -232,12 +232,12 @@ static void draw_wave_dynamic(bool valid, uint8_t level, const SoundVisual& visu
     tft.fillRoundRect(LC_SCREEN_X, LC_CARD_TOP, LC_SCREEN_W, card_h, LC_CARD_RADIUS, kPanel);
     tft.drawRoundRect(LC_SCREEN_X, LC_CARD_TOP, LC_SCREEN_W, card_h, LC_CARD_RADIUS, tft.color565(36, 80, 110));
 
-    draw_panel_title_chip(12, 26, 52, kPanelAlt, kWaveBlue, L(LAB_SOUND_SHORT));
-    draw_value_badge(150, 25, valid, level, visual.color);
+    draw_panel_title_chip(12, 25, 52, kPanelAlt, kWaveBlue, L(LAB_SOUND_SHORT));
+    draw_value_badge(150, 24, valid, level, visual.color);
 
-    tft.fillRoundRect(12, 54, 136, 56, 4, TFT_BLACK);
-    tft.drawRoundRect(12, 54, 136, 56, 4, tft.color565(22, 54, 76));
-    draw_wave_meter(16, 82, 128, 20);
+    tft.fillRoundRect(12, 53, 136, 56, 4, TFT_BLACK);
+    tft.drawRoundRect(12, 53, 136, 56, 4, tft.color565(22, 54, 76));
+    draw_wave_meter(16, 81, 128, 20);
     draw_status_footer(visual);
     draw_sound_alert_jewel(14, 119, alert_code, alerts_enabled);
 }

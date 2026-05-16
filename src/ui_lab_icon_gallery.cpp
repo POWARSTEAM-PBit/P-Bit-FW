@@ -82,11 +82,8 @@ void draw_outline_sun(int cx, int cy, uint16_t color) {
 }
 
 void draw_outline_probe(int cx, int cy, uint16_t color) {
-    tft.drawRoundRect(cx - 4, cy - 4, 16, 8, 2, color);
-    tft.drawLine(cx + 12, cy, cx + 18, cy - 6, color);
-    tft.drawLine(cx + 12, cy + 1, cx + 18, cy - 5, color);
-    tft.drawLine(cx - 4, cy, cx - 10, cy + 6, color);
-    tft.drawLine(cx - 10, cy + 6, cx - 12, cy + 12, color);
+    tft.drawFastVLine(cx, cy - 11, 4, color);            // cable
+    tft.drawRoundRect(cx - 4, cy - 7, 9, 14, 3, color); // DS18B20 capsule outline
 }
 
 // Solid bold -----------------------------------------------------------------
@@ -100,7 +97,6 @@ void draw_solid_temp(int cx, int cy, uint16_t color) {
 void draw_solid_drop(int cx, int cy, uint16_t color) {
     tft.fillTriangle(cx, cy - 13, cx - 8, cy - 2, cx + 8, cy - 2, color);
     tft.fillCircle(cx, cy + 3, 8, color);
-    tft.fillCircle(cx, cy + 4, 4, TFT_BLACK);
 }
 
 void draw_solid_plant(int cx, int cy, uint16_t color) {
@@ -129,11 +125,8 @@ void draw_solid_sun(int cx, int cy, uint16_t color) {
 }
 
 void draw_solid_probe(int cx, int cy, uint16_t color) {
-    tft.fillRoundRect(cx - 10, cy - 3, 16, 7, 3, color);
-    tft.fillRoundRect(cx + 6, cy - 2, 5, 5, 2, color);
-    tft.drawLine(cx + 11, cy, cx + 17, cy - 3, color);
-    tft.drawLine(cx - 10, cy, cx - 15, cy + 4, color);
-    tft.drawLine(cx - 15, cy + 4, cx - 18, cy + 9, color);
+    tft.fillRect(cx - 1, cy - 11, 3, 5, color);           // cable
+    tft.fillRoundRect(cx - 4, cy - 6, 9, 14, 4, color);   // DS18B20 capsule
 }
 
 // Pixel premium --------------------------------------------------------------
@@ -203,12 +196,18 @@ void draw_pixel_sun(int cx, int cy, uint16_t color) {
 
 void draw_pixel_probe(int cx, int cy, uint16_t color) {
     const int s = 2;
-    for (int x = cx - 10; x <= cx + 4; x += 2) px(x, cy - 2, s, color);
-    for (int x = cx - 10; x <= cx + 4; x += 2) px(x, cy, s, color);
-    px(cx + 6, cy - 2, s, color); px(cx + 8, cy - 2, s, color);
-    px(cx + 6, cy, s, color); px(cx + 8, cy, s, color);
-    px(cx + 10, cy - 2, s, color); px(cx + 12, cy - 4, s, color);
-    px(cx - 12, cy, s, color); px(cx - 14, cy + 2, s, color); px(cx - 16, cy + 4, s, color);
+    // cable
+    px(cx, cy - 12, s, color);
+    px(cx, cy - 10, s, color);
+    // capsule top cap
+    px(cx - 2, cy - 8, s, color); px(cx, cy - 8, s, color); px(cx + 2, cy - 8, s, color);
+    // capsule sides
+    px(cx - 4, cy - 6, s, color); px(cx + 4, cy - 6, s, color);
+    px(cx - 4, cy - 4, s, color); px(cx + 4, cy - 4, s, color);
+    px(cx - 4, cy - 2, s, color); px(cx + 4, cy - 2, s, color);
+    px(cx - 4, cy,     s, color); px(cx + 4, cy,     s, color);
+    // capsule bottom cap
+    px(cx - 2, cy + 2, s, color); px(cx, cy + 2, s, color); px(cx + 2, cy + 2, s, color);
 }
 
 void draw_compact_footer(const char* text) {
