@@ -13,16 +13,14 @@ void pbit_draw_temp_icon(int cx, int cy, uint16_t color) {
 }
 
 void pbit_draw_probe_icon(int cx, int cy, uint16_t color) {
-    tft.fillRoundRect(cx - 2, cy - 3, 9, 5, 2, color);
-    tft.fillRoundRect(cx + 7, cy - 2, 4, 3, 1, color);
-    tft.drawLine(cx - 2, cy, cx - 7, cy + 4, color);
-    tft.drawLine(cx - 7, cy + 4, cx - 10, cy + 8, color);
+    tft.fillCircle(cx, cy - 6, 3, color);
+    tft.fillRect(cx - 1, cy - 3, 3, 9, color);
+    tft.fillTriangle(cx, cy + 7, cx - 2, cy + 5, cx + 2, cy + 5, color);
 }
 
 void pbit_draw_humidity_icon(int cx, int cy, uint16_t color) {
     tft.fillTriangle(cx, cy - 9, cx - 5, cy - 1, cx + 5, cy - 1, color);
     tft.fillCircle(cx, cy + 2, 5, color);
-    tft.fillCircle(cx, cy + 3, 2, TFT_BLACK);
 }
 
 void pbit_draw_light_icon(int cx, int cy, uint16_t color) {
@@ -45,8 +43,8 @@ void pbit_draw_sound_icon(int cx, int cy, uint16_t color) {
 }
 
 void pbit_draw_plant_icon(int cx, int cy, uint16_t color) {
-    tft.fillRoundRect(cx - 5, cy + 5, 11, 2, 1, color);
-    tft.fillRect(cx - 1, cy - 1, 2, 7, color);
-    tft.fillTriangle(cx, cy - 1, cx - 6, cy + 1, cx - 2, cy - 6, color);
-    tft.fillTriangle(cx, cy - 2, cx + 6, cy, cx + 2, cy - 7, color);
+    tft.fillRect(cx - 1, cy - 2, 2, 9, color);
+    tft.fillRoundRect(cx - 8, cy - 3, 8, 4, 2, color);
+    tft.fillRoundRect(cx + 1, cy - 7, 8, 4, 2, color);
+    tft.fillRoundRect(cx - 5, cy + 7, 10, 2, 1, color);
 }

@@ -527,71 +527,48 @@ static void draw_lab_value_shell() {
     drawHeader(L(TIT_LAB_VALUE));
     draw_compact_footer();
 
-    // Per-sensor: border color, icon fn, label, device string, icon badge bg
-    uint16_t card_border;
+    // Colors from gauge_spec: primary for icon/bar, secondary for border/device label
+    const GaugeSensorSpec& vspec = gauge_spec((GaugeLabSensor)g_value_sensor);
+
     void (*icon_fn)(int, int, uint16_t);
     LangKey label_key;
     const char* device_str;
     uint16_t icon_badge_bg;
-    uint16_t icon_color;
 
     switch (g_value_sensor) {
         case VALUE_SENSOR_HUM:
-            card_border   = kCoolBlue;
-            icon_fn       = pbit_draw_humidity_icon;
-            label_key     = LAB_HUM_SHORT;
-            device_str    = "DHT11";
-            icon_badge_bg = 0x0863;  // color565(8,14,28)
-            icon_color    = kCoolBlue;
+            icon_fn = pbit_draw_humidity_icon; label_key = LAB_HUM_SHORT;
+            device_str = "DHT11";    icon_badge_bg = 0x0863;
             break;
         case VALUE_SENSOR_LIGHT:
-            card_border   = kNeonYellow;
-            icon_fn       = pbit_draw_light_icon;
-            label_key     = LAB_LIGHT_SHORT;
-            device_str    = "LDR";
-            icon_badge_bg = 0x10A0;  // color565(20,20,4)
-            icon_color    = kNeonYellow;
+            icon_fn = pbit_draw_light_icon; label_key = LAB_LIGHT_SHORT;
+            device_str = "LDR";      icon_badge_bg = 0x10A0;
             break;
         case VALUE_SENSOR_SOUND:
-            card_border   = kHotPink;
-            icon_fn       = pbit_draw_sound_icon;
-            label_key     = LAB_SOUND_SHORT;
-            device_str    = "MIC";
-            icon_badge_bg = 0x1822;  // color565(24,4,20)
-            icon_color    = kHotPink;
+            icon_fn = pbit_draw_sound_icon; label_key = LAB_SOUND_SHORT;
+            device_str = "MIC";      icon_badge_bg = 0x1822;
             break;
         case VALUE_SENSOR_SOIL:
-            card_border   = kNeonGreen;
-            icon_fn       = pbit_draw_plant_icon;
-            label_key     = LAB_SOIL_SHORT;
-            device_str    = "SOIL";
-            icon_badge_bg = 0x00A0;  // color565(4,20,4)
-            icon_color    = kNeonGreen;
+            icon_fn = pbit_draw_plant_icon; label_key = LAB_SOIL_SHORT;
+            device_str = "SOIL";     icon_badge_bg = 0x00A0;
             break;
         case VALUE_SENSOR_DS18:
-            card_border   = kElectricBlue;
-            icon_fn       = pbit_draw_probe_icon;
-            label_key     = LAB_PROBE_SHORT;
-            device_str    = "DS18B20";
-            icon_badge_bg = 0x0063;  // color565(4,14,28)
-            icon_color    = kElectricBlue;
+            icon_fn = pbit_draw_probe_icon; label_key = LAB_PROBE_SHORT;
+            device_str = "DS18B20";  icon_badge_bg = 0x0063;
             break;
-        default:  // VALUE_SENSOR_TEMP
-            card_border   = kHotPink;
-            icon_fn       = pbit_draw_temp_icon;
-            label_key     = LAB_TEMP_SHORT;
-            device_str    = "DHT11";
-            icon_badge_bg = 0x1863;  // color565(24,14,24)
-            icon_color    = kWarmOrange;
+        default:
+            icon_fn = pbit_draw_temp_icon;  label_key = LAB_TEMP_SHORT;
+            device_str = "DHT11";    icon_badge_bg = 0x1863;
             break;
     }
 
-    drawCard(LC_SCREEN_X, LC_CARD_TOP, LC_SCREEN_W, LC_SCREEN_BOTTOM - LC_CARD_TOP + 1, card_border);
+    // secondary → card border + device label color; primary → icon color
+    drawCard(LC_SCREEN_X, LC_CARD_TOP, LC_SCREEN_W, LC_SCREEN_BOTTOM - LC_CARD_TOP + 1, vspec.secondary);
     tft.fillRoundRect(12, 36, 64, 18, 4, icon_badge_bg);
-    icon_fn(22, 45, icon_color);
+    icon_fn(22, 45, vspec.primary);
     draw_section_label(L(label_key), 34, 38, TFT_WHITE);
-    tft.fillRoundRect(94, 36, 54, 18, 4, 0x0883);  // color565(8,18,28)
-    draw_section_label(device_str, 104, 37, kElectricBlue);
+    tft.fillRoundRect(94, 36, 54, 18, 4, 0x0883);
+    draw_section_label(device_str, 104, 37, vspec.secondary);
 }
 
 static void draw_lab_value_dynamic() {
@@ -624,7 +601,7 @@ static void draw_lab_value_dynamic() {
                      tft.color565(30, 24, 32));
 
     draw_sparkline(88, 58, 56, 31, value_sensor_graph(g_value_sensor),
-                   kElectricBlue, tft.color565(32, 44, 64), tft.color565(8, 16, 28));
+                   spec.secondary, tft.color565(32, 44, 64), tft.color565(8, 16, 28));
 }
 
 constexpr uint16_t kCardBg = 0x0841;
