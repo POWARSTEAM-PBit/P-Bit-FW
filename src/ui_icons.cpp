@@ -24,8 +24,9 @@ static void impl_probe(int cx, int cy, uint16_t c, int s) {
 }
 
 static void impl_humidity(int cx, int cy, uint16_t c, int s) {
-    tft.fillCircle(cx, cy + 2*s, 5*s, c);                                          // drop body
-    tft.fillTriangle(cx, cy - 7*s, cx - 5*s, cy - 3*s, cx + 5*s, cy - 3*s, c);   // tip — base = circle top (±5s)
+    tft.fillCircle(cx, cy + 2*s, 5*s, c);
+    // Base width ±3s is tangent to the circle at cy-2s (sqrt(5²-4²)=3), giving a smooth teardrop.
+    tft.fillTriangle(cx, cy - 7*s, cx - 3*s, cy - 2*s, cx + 3*s, cy - 2*s, c);
 }
 
 static void impl_light(int cx, int cy, uint16_t c, int s) {
