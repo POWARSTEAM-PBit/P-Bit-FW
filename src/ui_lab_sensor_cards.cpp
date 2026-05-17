@@ -26,43 +26,38 @@ namespace {
 constexpr uint16_t kBg     = TFT_BLACK;
 constexpr uint16_t kCardBg = 0x1082;
 
-constexpr int kCardX = LC_SCREEN_X;   // = 2
-constexpr int kCardY = LC_CARD_TOP;   // = 27
-constexpr int kCardW = LC_SCREEN_W;   // = 156
-constexpr int kCardH = LC_SCREEN_BOTTOM - LC_CARD_TOP + 1;  // = 100
+constexpr int kCardX = LC_SCREEN_X;      // = 2
+constexpr int kCardY = LC_CARD_TOP;      // = 27
+constexpr int kCardW = LC_SCREEN_W;      // = 156
+constexpr int kCardH = LC_SCREEN_BOTTOM - LC_CARD_TOP + 1; // = 100
 
 // ── Layout zones ──────────────────────────────────────────────────────
-// Header strip  y = 27..43  (17 px): icon + device label + jewel
-// Separator     y = 44      (1 px)
-// Value zone    y = 46..86  (41 px): large value + compact unit
-// Viz labels    y = 98..104
-// Viz bars      y = 109..124 (bottom = card bottom - 2)
+// Header strip  y = 27..43: icon + device label + jewel
+// Value zone    y = 44..80: large value + compact unit
+// Viz labels    y = 90..97
+// Viz bars      y = 101..116
 
-constexpr int kIconCx    = kCardX + 11;          // = 13
-constexpr int kIconCy    = kCardY + 12;          // = 39
+constexpr int kIconCx    = kCardX + 13;          // = 15
+constexpr int kIconCy    = kCardY + 13;          // = 40
 
-constexpr int kDevLabelX = kCardX + 23;           // = 25 (TL datum)
-constexpr int kDevLabelY = kCardY + 4;            // = 31
+constexpr int kDevLabelX = kCardX + 27;          // = 29
+constexpr int kDevLabelY = kCardY + 6;           // = 33
 
-constexpr int kJewelPadRight = 10;
-constexpr int kAlertJewelX = kCardX + kCardW - 8; // = 150
-constexpr int kAlertJewelY = kCardY + 8;          // = 35
-constexpr int kHeaderRightTextX = kAlertJewelX - 8;
+constexpr int kAlertJewelX = kCardX + kCardW - 11; // = 147
+constexpr int kAlertJewelY = kCardY + 10;          // = 37
 
-constexpr int kSepY1     = kCardY + 19;           // = 46
-constexpr int kValueTopY = kCardY + 25;           // = 52
-constexpr int kValueRightX = kCardX + 110;        // = 112
-constexpr int kUnitValueX = kCardX + 114;         // = 116
-constexpr int kUnitTopY  = kCardY + 37;           // = 64
-constexpr int kInvalidValueY = kCardY + 21;       // = 48
-constexpr int kSepY2     = kCardY + 57;           // = 84
+constexpr int kValueGroupCx = 80;
+constexpr int kValueTopY = kCardY + 16;          // = 43
+constexpr int kUnitTopY  = kCardY + 26;          // = 53
+constexpr int kUnitGapX  = 4;
+constexpr int kInvalidValueY = kCardY + 23;      // = 50
 
-constexpr int kVizLabelY = kCardY + 60;           // = 87
-constexpr int kVizX      = kCardX + 6;            // = 8
-constexpr int kVizW      = kCardW - 12;           // = 144
-constexpr int kVizBottomY = kCardY + kCardH - 3;  // = 124
-constexpr int kVizTrackTopY = kCardY + 82;        // = 109
-constexpr int kVizTrackH = kVizBottomY - kVizTrackTopY + 1; // = 16
+constexpr int kVizLabelY = kCardY + 63;          // = 90
+constexpr int kVizX      = kCardX + 8;           // = 10
+constexpr int kVizW      = kCardW - 16;          // = 140
+constexpr int kVizBarH   = 16;                   // Altura estándar unificada (agrandada 1px arriba)
+constexpr int kVizBottomY = kCardY + 89;         // = 116
+constexpr int kVizBarY   = kVizBottomY - kVizBarH + 1; // = 101
 
 // ── Canonical secondary palette ───────────────────────────────────────
 constexpr uint16_t kTempSecondary  = 0xF81F;
@@ -77,7 +72,6 @@ constexpr uint16_t kSoundPrimary = 0xF81F;
 constexpr uint16_t kSoilPrimary  = 0x2F85;
 
 constexpr uint16_t kVizTrack = 0x1084;
-constexpr uint16_t kSepColor = 0x2104;
 
 // ── Enums and structs ─────────────────────────────────────────────────
 
@@ -123,7 +117,6 @@ struct LabSensorCardSpec {
     bool   (*is_valid)(const Reading&);
     float  (*value_c)(const Reading&);
     bool   (*alerts_enabled)();
-    const char* (*unit_fn)();
     const char* (*compact_unit_fn)();
     uint16_t (*accent)(bool, float, uint8_t);
     void (*draw_viz)(bool, float, uint16_t);
@@ -138,12 +131,6 @@ static LabSensorCardId g_selected_card = CARD_TEMP;
 static float to_display(float temp_c) {
     return g_is_fahrenheit ? (temp_c * 1.8f + 32.0f) : temp_c;
 }
-
-static const char* unit_temp() {
-    return g_is_fahrenheit ? L(MENU_UNIT_F) : L(MENU_UNIT_C);
-}
-static const char* unit_pct() { return "%"; }
-static const char* unit_lux() { return L(ST_LUX_UNIT); }
 
 static const char* unit_temp_compact() {
     return g_is_fahrenheit ? "F" : "C";
@@ -209,9 +196,33 @@ static uint16_t sound_accent(bool valid, float, uint8_t alert_code) {
 
 static uint16_t soil_accent(bool valid, float, uint8_t alert_code) {
     if (!valid) return TFT_DARKGREY;
-    if (alert_code == ALERT_CODE_LOW)  return TFT_RED;
-    if (alert_code == ALERT_CODE_HIGH || alert_code == ALERT_CODE_MOIST) return TFT_BLUE;
     return kSoilPrimary;
+}
+
+static uint16_t temp_bar_color(float t) {
+    t = constrain(t, 0.0f, 1.0f);
+    if (t < 0.25f) {
+        const float u = t / 0.25f;
+        return tft.color565((uint8_t)roundf(20 + u * 40),
+                            (uint8_t)roundf(60 + u * 150),
+                            (uint8_t)roundf(170 + u * 85));
+    }
+    if (t < 0.50f) {
+        const float u = (t - 0.25f) / 0.25f;
+        return tft.color565((uint8_t)roundf(60 + u * 195),
+                            (uint8_t)roundf(210 + u * 35),
+                            (uint8_t)roundf(255 - u * 230));
+    }
+    if (t < 0.75f) {
+        const float u = (t - 0.50f) / 0.25f;
+        return tft.color565(255,
+                            (uint8_t)roundf(245 - u * 110),
+                            20);
+    }
+    const float u = (t - 0.75f) / 0.25f;
+    return tft.color565(255,
+                        (uint8_t)roundf(135 - u * 120),
+                        (uint8_t)roundf(20 - u * 20));
 }
 
 // ── Alert jewel helpers ───────────────────────────────────────────────
@@ -240,23 +251,14 @@ static void draw_lab_card_shell(const char* title) {
     drawHeader(title);
 }
 
-// ── Header strip (icon + device label + unit) ─────────────────────────
+// ── Header strip (icon + device label) ────────────────────────────────
 
-static void draw_header_strip(const char* device_label, uint16_t secondary,
-                              const char* status_str, bool sensor_valid) {
+static void draw_header_strip(const char* device_label, uint16_t secondary) {
     tft.setFreeFont(FONT_SMALL);
     tft.setTextColor(secondary, kCardBg);
     tft.setTextDatum(TL_DATUM);
     tft.drawString(device_label, kDevLabelX, kDevLabelY);
-
-    if (status_str && status_str[0] != '\0') {
-        tft.setTextColor(sensor_valid ? 0x8C71 : TFT_DARKGREY, kCardBg);
-        tft.setTextDatum(TR_DATUM);
-        tft.drawString(status_str, kHeaderRightTextX, kDevLabelY);
-    }
     tft.setTextFont(0);
-
-    tft.drawFastHLine(kCardX + 4, kSepY1, kCardW - 8, kSepColor);
 }
 
 // ── Value zone (large value + compact unit) ──────────────────────────
@@ -291,16 +293,25 @@ static void draw_value_compact(bool sensor_valid,
     tft.setFreeFont(FONT_VALUE);
     const int value_w = tft.textWidth(value_str);
 
+    tft.setFreeFont(FONT_BODY);
+    const int unit_w = tft.textWidth(compact_unit);
+    const int group_w = value_w + kUnitGapX + unit_w;
+    const int min_x = kCardX + 10;
+    const int max_x = kCardX + kCardW - 10 - group_w;
+    const int centered_x = kValueGroupCx - group_w / 2;
+    const int start_x = (group_w > kCardW - 20)
+        ? min_x
+        : constrain(centered_x, min_x, max_x);
+
     tft.setTextDatum(TL_DATUM);
     tft.setTextColor(accent, kCardBg);
-    tft.drawString(value_str, kValueRightX - value_w, kValueTopY);
+    tft.setFreeFont(FONT_VALUE);
+    tft.drawString(value_str, start_x, kValueTopY);
 
     tft.setTextColor(0x8C71, kCardBg);
     tft.setFreeFont(FONT_BODY);
-    tft.drawString(compact_unit, kUnitValueX, kUnitTopY);
+    tft.drawString(compact_unit, start_x + value_w + kUnitGapX, kUnitTopY);
     tft.setTextFont(0);
-
-    tft.drawFastHLine(kCardX + 4, kSepY2, kCardW - 8, kSepColor);
 }
 
 // ── Visualization functions — horizontal, per-sensor identity ─────────
@@ -310,7 +321,7 @@ static void draw_temp_viz(bool sv, float temp_c, uint16_t accent) {
     constexpr int segs = 12;
     const int gap  = 1;
     const int sw   = (kVizW - (segs - 1) * gap) / segs;
-    const int bh   = 14;
+    const int bh   = kVizBarH;
     const int by   = kVizBottomY - bh + 1;
 
     const float norm = sv ? constrain(temp_c, 0.0f, 50.0f) / 50.0f : 0.0f;
@@ -323,18 +334,12 @@ static void draw_temp_viz(bool sv, float temp_c, uint16_t accent) {
             c = kVizTrack;
         } else {
             const float t = (float)i / (float)(segs - 1);
-            c = tft.color565(
-                (uint8_t)roundf(40 + t * 215),
-                (uint8_t)roundf(190 - t * 150),
-                (uint8_t)roundf(240 - t * 220));
+            c = temp_bar_color(t);
         }
         tft.fillRoundRect(sx, by, sw, bh, 2, c);
         // Top pixel brighter for filled segments (highlight)
         if (sv && i < filled) {
-            tft.drawFastHLine(sx + 1, by + 1, sw - 2, tft.color565(
-                (uint8_t)min(255, (int)roundf(80 + (float)i / segs * 215)),
-                (uint8_t)max(0, (int)roundf(220 - (float)i / segs * 180)),
-                255 - i * 18));
+            tft.drawFastHLine(sx + 1, by + 1, sw - 2, TFT_WHITE);
         }
     }
 
@@ -356,7 +361,7 @@ static void draw_probe_viz(bool sv, float temp_c, uint16_t accent) {
     constexpr float kRange = kMax - kMin;  // 180
     const int gap = 1;
     const int sw  = (kVizW - (segs - 1) * gap) / segs;
-    const int bh  = 14;
+    const int bh  = kVizBarH;
     const int by  = kVizBottomY - bh + 1;
 
     // 0°C lands at seg index = (55/180)*14 = 4.28 → seg 4
@@ -377,16 +382,14 @@ static void draw_probe_viz(bool sv, float temp_c, uint16_t accent) {
                              (uint8_t)roundf(200 + t * 55));
         } else {
             const float t = (float)(i - zero_seg) / (float)max(1, segs - zero_seg - 1);
-            c = tft.color565((uint8_t)roundf(40 + t * 215),
-                             (uint8_t)roundf(190 - t * 150),
-                             (uint8_t)roundf(240 - t * 220));
+            c = temp_bar_color(0.25f + t * 0.75f);
         }
         tft.fillRoundRect(sx, by, sw, bh, 2, c);
     }
 
-    // Zero reference tick (white vertical line between segs)
+    // Zero reference tick, kept inside the bar.
     const int zero_x = kVizX + zero_seg * (sw + gap) - 1;
-    tft.drawFastVLine(zero_x, by - 2, bh + 4, TFT_WHITE);
+    tft.drawFastVLine(zero_x, by, bh, TFT_WHITE);
 
     // End labels
     tft.setFreeFont(FONT_SMALL);
@@ -403,7 +406,7 @@ static void draw_hum_viz(bool sv, float value, uint16_t accent) {
     constexpr int segs = 10;
     const int gap = 3;
     const int sw  = (kVizW - (segs - 1) * gap) / segs;
-    const int bh  = 12;
+    const int bh  = kVizBarH;
     const int by  = kVizBottomY - bh + 1;
 
     const int filled = sv ? (int)roundf(constrain(value, 0.0f, 100.0f) / 100.0f * segs) : 0;
@@ -414,9 +417,9 @@ static void draw_hum_viz(bool sv, float value, uint16_t accent) {
         if (i < filled) {
             const float t = (float)i / (float)(segs - 1);
             c = tft.color565(
-                (uint8_t)roundf(10 + t * 30),
-                (uint8_t)roundf(160 + t * 80),
-                (uint8_t)roundf(200 + t * 55));
+                (uint8_t)roundf(245 - t * 215),
+                (uint8_t)roundf(250 - t * 170),
+                (uint8_t)roundf(255 - t * 20));
         } else {
             c = kVizTrack;
         }
@@ -444,7 +447,7 @@ static void draw_light_viz(bool sv, float value, uint16_t accent) {
     const int gap = 4;
     const int bw  = (kVizW - (bars - 1) * gap) / bars;
     const float norm = sv ? constrain(value, 0.0f, 1023.0f) / 1023.0f : 0.0f;
-    const int max_h  = kVizTrackH;
+    const int max_h  = kVizBarH;
     const int base_y = kVizBottomY;
 
     for (int i = 0; i < bars; i++) {
@@ -453,15 +456,15 @@ static void draw_light_viz(bool sv, float value, uint16_t accent) {
         const bool lit     = sv && norm >= (bar_t - 1.0f / bars);
         const int  bar_h   = (int)roundf(bar_t * max_h);
         const int  sx      = kVizX + i * (bw + gap);
-        const int  sy      = base_y - bar_h;
+        const int  sy      = base_y - bar_h + 1;
         uint16_t c;
         if (lit) {
             c = tft.color565(
-                (uint8_t)roundf(50  + bar_t * 205),
-                (uint8_t)roundf(50  + bar_t * 205),
-                (uint8_t)roundf(bar_t * 20));
+                (uint8_t)roundf(120 + bar_t * 135),
+                (uint8_t)roundf(105 + bar_t * 145),
+                0);
         } else {
-            c = kVizTrack;
+            c = tft.color565(36, 32, 0);
         }
         tft.fillRoundRect(sx, sy, bw, bar_h, 2, c);
     }
@@ -472,15 +475,19 @@ static void draw_sound_viz(bool sv, float value, uint16_t accent) {
     constexpr int cols = 7;
     const int gap  = 3;
     const int cw   = (kVizW - (cols - 1) * gap) / cols;
-    const float norm = sv ? constrain(value, 0.0f, 100.0f) / 100.0f : 0.0f;
-    const int max_h  = kVizTrackH;
+    const int total_w = cols * cw + (cols - 1) * gap;
+    const int start_x = kVizX + (kVizW - total_w) / 2;
+    const float norm = sv ? powf(constrain(value, 0.0f, 100.0f) / 100.0f, 1.35f) : 0.0f;
+    const int max_h  = kVizBarH;
     const int base_y = kVizBottomY;
-    const int bar_h  = (int)roundf(norm * max_h);
 
     for (int i = 0; i < cols; i++) {
-        const int sx = kVizX + i * (cw + gap);
+        const int sx = start_x + i * (cw + gap);
+        const float threshold = (float)i * 0.10f;
+        const float col_level = sv ? constrain((norm - threshold) / (1.0f - threshold), 0.0f, 1.0f) : 0.0f;
+        const int bar_h = (int)roundf(col_level * max_h);
         // Track
-        tft.fillRoundRect(sx, base_y - max_h, cw, max_h, 2, kVizTrack);
+        tft.fillRoundRect(sx, base_y - max_h + 1, cw, max_h, 2, kVizTrack);
         if (!sv || bar_h == 0) continue;
         // Filled: color depends on column position (simulate VU zones)
         const float zone = (float)(i + 1) / (float)cols;
@@ -488,45 +495,55 @@ static void draw_sound_viz(bool sv, float value, uint16_t accent) {
         if (zone > 0.72f)      c = TFT_RED;
         else if (zone > 0.43f) c = 0xFD20;  // orange
         else                   c = 0x27E0;  // acid green
-        tft.fillRoundRect(sx, base_y - bar_h, cw, bar_h, 2, c);
+        tft.fillRoundRect(sx, base_y - bar_h + 1, cw, bar_h, 2, c);
         // Peak pixel
-        tft.drawFastHLine(sx, base_y - bar_h - 1, cw, TFT_WHITE);
+        if (base_y - bar_h >= kVizBarY) {
+            tft.drawFastHLine(sx, base_y - bar_h, cw, TFT_WHITE);
+        }
     }
 }
 
 // SOIL: 3-zone labeled bar (DRY | GOOD | WET) + position marker diamond
 static void draw_soil_viz(bool sv, float value, uint16_t accent) {
-    const int bh = 12;
+    const int bh = kVizBarH;
     const int by = kVizBottomY - bh + 1;
+    const int label_y = by + bh / 2 - 2;
 
     // Three zones: 0-30 red, 30-70 green, 70-100 blue
     const int dry_w  = (int)roundf(0.30f * kVizW);
     const int good_w = (int)roundf(0.40f * kVizW);
     const int wet_w  = kVizW - dry_w - good_w;
 
-    tft.fillRoundRect(kVizX,           by, dry_w,  bh, 3, 0x2800);  // dark red
-    tft.fillRoundRect(kVizX + dry_w,   by, good_w, bh, 0, 0x0640);  // dark green
-    tft.fillRoundRect(kVizX + dry_w + good_w, by, wet_w, bh, 3, 0x000A);  // dark blue
+    const uint16_t dry_color  = TFT_YELLOW;
+    const uint16_t good_color = 0x07E0;
+    const uint16_t wet_color  = TFT_BLUE;
 
-    // Zone labels
+    tft.fillRoundRect(kVizX,           by, dry_w,  bh, 3, dry_color);
+    tft.fillRoundRect(kVizX + dry_w,   by, good_w, bh, 0, good_color);
+    tft.fillRoundRect(kVizX + dry_w + good_w, by, wet_w, bh, 3, wet_color);
+
+    // DIBUJAR TEXTO (Capa media)
     tft.setFreeFont(FONT_SMALL);
-    tft.setTextDatum(TC_DATUM);
-    tft.setTextColor(TFT_RED,   kCardBg);
-    tft.drawString("DRY",  kVizX + dry_w / 2, kVizLabelY);
-    tft.setTextColor(0x2F85, kCardBg);
-    tft.drawString("OK",   kVizX + dry_w + good_w / 2, kVizLabelY);
-    tft.setTextColor(TFT_CYAN, kCardBg);
-    tft.drawString("WET",  kVizX + dry_w + good_w + wet_w / 2, kVizLabelY);
+    tft.setTextDatum(MC_DATUM);
+    tft.setTextColor(TFT_BLACK, dry_color);
+    tft.drawString("DRY", kVizX + dry_w / 2, label_y);
+    tft.setTextColor(TFT_BLACK, good_color);
+    tft.drawString("OK",  kVizX + dry_w + good_w / 2, label_y);
+    tft.setTextColor(TFT_BLACK, wet_color);
+    tft.drawString("WET", kVizX + dry_w + good_w + wet_w / 2, label_y);
     tft.setTextFont(0);
 
-    // Position marker (filled diamond)
-    if (!sv) return;
-    const float norm = constrain(value, 0.0f, 100.0f) / 100.0f;
-    const int mx = kVizX + (int)roundf(norm * (kVizW - 1));
+    // DIBUJAR FLECHA INDICADORA (Capa superior, pisa texto y barra)
+    if (sv) {
+        const float norm = constrain(value, 0.0f, 100.0f) / 100.0f;
+        const int mx = constrain(kVizX + (int)roundf(norm * (kVizW - 1)),
+                                 kVizX + 4,
+                                 kVizX + kVizW - 5);
 
-    // Draw filled diamond
-    tft.drawFastVLine(mx, by + bh + 1, 5, TFT_WHITE);
-    tft.fillTriangle(mx - 4, by + bh + 6, mx + 4, by + bh + 6, mx, by + bh + 2, TFT_WHITE);
+        // Línea central tipo cursor que cruza la barra y remata en triángulo superior
+        tft.drawFastVLine(mx, by, bh, TFT_WHITE);
+        tft.fillTriangle(mx, by - 5, mx - 4, by, mx + 4, by, TFT_WHITE);
+    }
 }
 
 // ── Spec array ────────────────────────────────────────────────────────
@@ -535,37 +552,37 @@ static const LabSensorCardSpec kCardSpecs[CARD_COUNT] = {
     {
         CARD_TEMP, TIT_LAB_TEMP_CARD, "DHT11", kTempSecondary,
         ST_NO_SENSOR, TFT_DARKGREY, AlertSensor::Temp, true,
-        temp_is_valid, temp_value_c, get_temp_alerts_enabled, unit_temp, unit_temp_compact,
+        temp_is_valid, temp_value_c, get_temp_alerts_enabled, unit_temp_compact,
         temp_accent, draw_temp_viz, pbit_draw_temp_icon
     },
     {
         CARD_DS18, TIT_LAB_PROBE_CARD, "DS18B20", kTempSecondary,
         ST_CHECK_DS18, TFT_CYAN, AlertSensor::Ds18, true,
-        ds18_is_valid, ds18_value_c, get_ds18_alerts_enabled, unit_temp, unit_temp_compact,
+        ds18_is_valid, ds18_value_c, get_ds18_alerts_enabled, unit_temp_compact,
         ds18_accent, draw_probe_viz, pbit_draw_probe_icon
     },
     {
         CARD_HUM, TIT_LAB_HUM_CARD, "DHT11", kHumSecondary,
         ST_NO_SENSOR, TFT_DARKGREY, AlertSensor::Humidity, false,
-        hum_is_valid, hum_value_c, get_humidity_alerts_enabled, unit_pct, unit_pct_compact,
+        hum_is_valid, hum_value_c, get_humidity_alerts_enabled, unit_pct_compact,
         hum_accent, draw_hum_viz, pbit_draw_humidity_icon
     },
     {
         CARD_LIGHT, TIT_LAB_LIGHT_CARD, "LDR", kLightSecondary,
         ST_NO_SENSOR, TFT_DARKGREY, AlertSensor::Light, false,
-        light_is_valid, light_value_c, get_light_alerts_enabled, unit_lux, unit_lux_compact,
+        light_is_valid, light_value_c, get_light_alerts_enabled, unit_lux_compact,
         light_accent, draw_light_viz, pbit_draw_light_icon
     },
     {
         CARD_SOUND, TIT_LAB_SOUND_CARD, "MIC", kSoundSecondary,
         ST_NO_SENSOR, TFT_DARKGREY, AlertSensor::Sound, false,
-        sound_is_valid, sound_value_c, get_sound_alerts_enabled, unit_pct, unit_pct_compact,
+        sound_is_valid, sound_value_c, get_sound_alerts_enabled, unit_pct_compact,
         sound_accent, draw_sound_viz, pbit_draw_sound_icon
     },
     {
         CARD_SOIL, TIT_LAB_SOIL_CARD, "SOIL", kSoilSecondary,
         ST_CHECK_SOIL, TFT_DARKGREY, AlertSensor::Soil, false,
-        soil_is_valid, soil_value_c, get_soil_alerts_enabled, unit_pct, unit_pct_compact,
+        soil_is_valid, soil_value_c, get_soil_alerts_enabled, unit_pct_compact,
         soil_accent, draw_soil_viz, pbit_draw_plant_icon
     }
 };
@@ -620,9 +637,8 @@ static void draw_card_dynamic(const LabSensorCardSpec& spec, const CardRenderSta
     tft.fillRoundRect(kCardX, kCardY, kCardW, kCardH, LC_CARD_RADIUS, kCardBg);
     tft.drawRoundRect(kCardX, kCardY, kCardW, kCardH, LC_CARD_RADIUS, state.accent);
 
-    // Header: device label + short status only when invalid
-    const char* header_status = state.sensor_valid ? "" : nullptr;
-    draw_header_strip(spec.device_label, spec.secondary, header_status, state.sensor_valid);
+    // Header: device label only. Alerts are shown by the jewel.
+    draw_header_strip(spec.device_label, spec.secondary);
 
     // Large value + compact unit in one visual group
     draw_value_compact(state.sensor_valid,

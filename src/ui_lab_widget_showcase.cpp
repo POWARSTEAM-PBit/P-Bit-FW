@@ -138,9 +138,11 @@ static const char* temp_unit() {
 }
 
 static void draw_section_label(const char* text, int x, int y, uint16_t color) {
+static void draw_section_label(const char* text, int x, int y, uint16_t color, uint16_t bg_color = kBg) {
     tft.setTextDatum(TL_DATUM);
     tft.setFreeFont(FONT_SMALL);
     tft.setTextColor(color, kBg);
+    tft.setTextColor(color, bg_color);
     tft.drawString(text, x, y);
     tft.setTextFont(0);
 }
@@ -459,6 +461,47 @@ static void draw_lab_value_shell() {
     // Colors from gauge_spec: primary for icon/bar, secondary for border/device label
     const GaugeSensorSpec& vspec = gauge_spec((GaugeLabSensor)g_value_sensor);
 
+    // secondary → card border + device label color; primary → icon color
+    drawCard(LC_SCREEN_X, LC_CARD_TOP, LC_SCREEN_W, LC_SCREEN_BOTTOM - LC_CARD_TOP + 1, vspec.secondary);
+}
+
+static void draw_lab_value_dynamic() {
+    const GaugeLabSensor gs = (GaugeLabSensor)g_value_sensor;
+    const bool valid = gauge_sensor_valid(gs);
+    const float shown = valid ? gauge_sensor_value(gs) : 0.0f;
+    float min_v = 0.0f, max_v = 1.0f;
+    gauge_sensor_range(gs, min_v, max_v);
+    const GaugeSensorSpec& spec = gauge_spec(gs);
+
+    // Usamos el color de fondo real de la tarjeta
+    constexpr uint16_t kValorCardBg = 0x0841;
+    tft.fillRect(12, 56, 136, 61, kValorCardBg);
+    tft.fillRect(18, 98, 124, 16, kValorCardBg);
+
+    // 1. DIBUJAR GRÁFICOS (Capa inferior)
+    draw_segment_bar(18, 99, 124, 14, 9,
+                     valid ? constrain((shown - min_v) / (max_v - min_v), 0.0f, 1.0f) : 0.0f,
+                     valid ? spec.primary : TFT_DARKGREY,
+                     tft.color565(30, 24, 32));
+
+    draw_sparkline(88, 58, 56, 31, value_sensor_graph(g_value_sensor),
+                   spec.secondary, tft.color565(32, 44, 64), tft.color565(8, 16, 28));
+
+    // 2. DIBUJAR TEXTOS (Capa superior)
+    char val_buf[16];
+    format_gauge_value(val_buf, sizeof(val_buf), gs, valid);
+    tft.setTextDatum(TL_DATUM);
+    tft.setFreeFont(FONT_MENU);
+    tft.setTextColor(valid ? TFT_WHITE : TFT_DARKGREY, kValorCardBg);
+    tft.drawString(val_buf, 18, 63);
+    const int value_w = tft.textWidth(val_buf);
+
+    tft.setFreeFont(FONT_SMALL);
+    tft.setTextColor(valid ? spec.primary : TFT_DARKGREY, kValorCardBg);
+    tft.drawString(gauge_sensor_unit(gs), 18 + value_w + 4, 67);
+    tft.setTextFont(0);
+
+    // 3. DIBUJAR BADGES SUPERIORES (Capa máxima)
     void (*icon_fn)(int, int, uint16_t);
     LangKey label_key;
     const char* device_str;
@@ -491,46 +534,17 @@ static void draw_lab_value_shell() {
             break;
     }
 
-    // secondary → card border + device label color; primary → icon color
-    drawCard(LC_SCREEN_X, LC_CARD_TOP, LC_SCREEN_W, LC_SCREEN_BOTTOM - LC_CARD_TOP + 1, vspec.secondary);
     tft.fillRoundRect(12, 36, 64, 18, 4, icon_badge_bg);
-    icon_fn(22, 45, vspec.primary);
-    draw_section_label(L(label_key), 34, 38, TFT_WHITE);
-    tft.fillRoundRect(94, 36, 54, 18, 4, 0x0883);
-    draw_section_label(device_str, 104, 37, vspec.secondary);
-}
+    icon_fn(22, 45, spec.primary);
+    draw_section_label(L(label_key), 34, 38, TFT_WHITE, icon_badge_bg);
 
-static void draw_lab_value_dynamic() {
-    const GaugeLabSensor gs = (GaugeLabSensor)g_value_sensor;
-    const bool valid = gauge_sensor_valid(gs);
-    const float shown = valid ? gauge_sensor_value(gs) : 0.0f;
-    float min_v = 0.0f, max_v = 1.0f;
-    gauge_sensor_range(gs, min_v, max_v);
-    const GaugeSensorSpec& spec = gauge_spec(gs);
-
-    tft.fillRect(12, 56, 136, 61, kBg);
-    tft.fillRect(18, 98, 124, 16, kBg);
-
-    char val_buf[16];
-    format_gauge_value(val_buf, sizeof(val_buf), gs, valid);
-    tft.setTextDatum(TL_DATUM);
-    tft.setFreeFont(FONT_MENU);
-    tft.setTextColor(valid ? TFT_WHITE : TFT_DARKGREY, kBg);
-    tft.drawString(val_buf, 18, 63);
-    const int value_w = tft.textWidth(val_buf);
-
+    // Badge del dispositivo centrado con la gráfica (X=88, W=56, CX=116)
+    tft.fillRoundRect(88, 36, 56, 18, 4, 0x0883);
+    tft.setTextDatum(TC_DATUM);
     tft.setFreeFont(FONT_SMALL);
-    tft.setTextColor(valid ? spec.primary : TFT_DARKGREY, kBg);
-    tft.drawString(gauge_sensor_unit(gs), 18 + value_w + 4, 67);
+    tft.setTextColor(spec.secondary, 0x0883);
+    tft.drawString(device_str, 116, 37);
     tft.setTextFont(0);
-
-    draw_segment_bar(18, 99, 124, 14, 9,
-                     valid ? constrain((shown - min_v) / (max_v - min_v), 0.0f, 1.0f) : 0.0f,
-                     valid ? spec.primary : TFT_DARKGREY,
-                     tft.color565(30, 24, 32));
-
-    draw_sparkline(88, 58, 56, 31, value_sensor_graph(g_value_sensor),
-                   spec.secondary, tft.color565(32, 44, 64), tft.color565(8, 16, 28));
 }
 
 constexpr uint16_t kCardBg = 0x0841;
