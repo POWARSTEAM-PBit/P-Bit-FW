@@ -137,11 +137,9 @@ static const char* temp_unit() {
     return g_is_fahrenheit ? L(ST_UNIT_F_SHORT) : L(ST_UNIT_C_SHORT);
 }
 
-static void draw_section_label(const char* text, int x, int y, uint16_t color) {
 static void draw_section_label(const char* text, int x, int y, uint16_t color, uint16_t bg_color = kBg) {
     tft.setTextDatum(TL_DATUM);
     tft.setFreeFont(FONT_SMALL);
-    tft.setTextColor(color, kBg);
     tft.setTextColor(color, bg_color);
     tft.drawString(text, x, y);
     tft.setTextFont(0);

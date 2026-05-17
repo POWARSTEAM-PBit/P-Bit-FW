@@ -637,10 +637,9 @@ static void draw_card_dynamic(const LabSensorCardSpec& spec, const CardRenderSta
     tft.fillRoundRect(kCardX, kCardY, kCardW, kCardH, LC_CARD_RADIUS, kCardBg);
     tft.drawRoundRect(kCardX, kCardY, kCardW, kCardH, LC_CARD_RADIUS, state.accent);
 
-    // Header: device label only. Alerts are shown by the jewel.
-    draw_header_strip(spec.device_label, spec.secondary);
-
-    // Large value + compact unit in one visual group
+    // Value zone drawn first: FONT_VALUE background fill (setTextColor with bg) can
+    // reach slightly above kValueTopY due to GFX glyph yOffset > declared font ascent.
+    // Drawing the header strip after guarantees the device label is never erased.
     draw_value_compact(state.sensor_valid,
                        state.shown_value,
                        state.accent,
@@ -655,7 +654,8 @@ static void draw_card_dynamic(const LabSensorCardSpec& spec, const CardRenderSta
     drawAlertJewel(kAlertJewelX, kAlertJewelY,
                    state.jewel, jewel_color(state.jewel, state.accent));
 
-    // Icon drawn last so nothing erases it
+    // Header strip and icon drawn last — nothing above can erase them
+    draw_header_strip(spec.device_label, spec.secondary);
     spec.icon_fn(kIconCx, kIconCy, state.accent);
 }
 
