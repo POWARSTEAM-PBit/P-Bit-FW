@@ -231,6 +231,11 @@ enum LangKey : uint8_t {
     TIT_LAB_HOME_CARDS,
     TIT_LAB_LINEAR_DASH,
 
+    // Soil moisture bar zone labels (3-char max)
+    SOIL_ZONE_DRY,
+    SOIL_ZONE_OK,
+    SOIL_ZONE_WET,
+
     LANG_KEY_COUNT  // Centinela — debe ser el último
 };
 

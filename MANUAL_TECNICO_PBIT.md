@@ -1,6 +1,6 @@
 # Manual Técnico del P-Bit
 
-Actualizado: 2026-03-29
+Actualizado: 2026-05-17
 
 Este documento describe el estado técnico actual del P-Bit a partir del firmware y la configuración presentes en este repositorio. Está pensado como base de entrenamiento para desarrollo, integración, soporte, mantenimiento y despliegue educativo.
 
@@ -129,15 +129,17 @@ Notas de hardware:
 Orden real de `setup()`:
 
 1. `Serial.begin`
-2. cálculo de nombre de dispositivo desde MAC
-3. inicialización de TFT
-4. inicialización BLE
-5. inicialización de LED RGB y buzzer
-6. inicialización de hardware y sensores
-7. detección de tipo de arranque
-8. carga o selección de idioma
-9. inicialización del encoder
-10. creación de tareas FreeRTOS
+2. `nvs_flash_init` (con erase automático si hay páginas corruptas)
+3. cálculo de nombre de dispositivo desde MAC
+4. inicialización de TFT
+5. inicialización BLE **condicional** — solo si `load_ble_enabled_store()` devuelve `true`; por defecto es `false` de fábrica y se resetea a `false` con cada nuevo flash
+6. inicialización de LED RGB y buzzer
+7. reset de NVS por build-hash si el firmware es nuevo (ver sección 9)
+8. inicialización de hardware y sensores
+9. detección de tipo de arranque (wake desde sleep o arranque en frío)
+10. carga o selección de idioma
+11. inicialización del encoder
+12. creación de tareas FreeRTOS
 
 ### Tareas y responsabilidades
 
@@ -257,19 +259,22 @@ Protecciones:
 
 ### Navegación principal
 
-Orden real:
+Orden real del carrusel de producción (12 posiciones, circular):
 
-`TEMP -> HUMIDITY -> LIGHT -> SOUND -> SOIL -> DS18B20 -> SYSTEM -> TIMER -> GRAPH`
+`HOME -> CLIMA -> MULTI -> SONIDO VU -> TEMPERATURA -> HUMEDAD -> LUZ -> SONIDO -> SUELO -> DS18B20 -> TIMER -> SISTEMA`
+
+Las primeras 4 posiciones (`Home`, `Clima`, `Multi`, `Sonido VU`) son pantallas de solo lectura. Las 6 posiciones de sensor individual usan `SENSOR_ZONE_SCREEN` con cambio de modo de visualización vía pulsación corta y menú de configuración vía pulsación larga. `GRAPH_SCREEN` existe en el firmware pero no está en el carrusel de producción actual.
 
 ### Gestos del encoder
 
 - giro: cambia de pantalla o modifica opciones/valores
 - pulsación corta:
   - confirma pasos dentro de menú
-  - ejecuta acciones rápidas en ciertas pantallas
+  - en pantallas de sensor individual: alterna el modo de visualización del sensor
 - pulsación larga:
-  - abre menús en sensores y sistema
-  - en `Timer`, abre el selector de minutos si está idle o resetea si ya estaba corriendo/pausado
+  - en pantallas de sensor individual: abre el menú de configuración del sensor
+  - en `Timer`: abre el editor de duración `HH:MM:SS` si está idle o resetea si ya estaba corriendo/pausado
+  - en `Sistema`: mantener 60 s sin girar activa la pantalla oculta de BLE
 
 Tiempos actuales:
 
@@ -278,36 +283,56 @@ Tiempos actuales:
 
 ### Pantallas y menús disponibles
 
+#### Home
+
+Vista global de todos los sensores en cards. Solo lectura; no tiene menú.
+
+#### Clima
+
+Temperatura ambiente y humedad del aire en card combinado. Solo lectura; no tiene menú.
+
+#### Multi
+
+Múltiples sensores con widgets en una sola pantalla. Solo lectura; no tiene menú.
+
+#### Sonido VU
+
+Nivel de sonido ambiental en barras apiladas. Solo lectura; no tiene menú.
+
 #### Temperatura DHT
 
-- cambio rápido `C/F`
-- la unidad es global y compartida con `DS18B20`
+- pulsación corta: alterna modo de visualización
+- la unidad `C/F` es global y compartida con `DS18B20`
 - menú `Límites / Unidad / Alertas / Reset / Salir`
 
 #### Humedad del aire
 
+- pulsación corta: alterna modo de visualización
 - menú `Límites / Alertas / Reset / Salir`
 - usa dos umbrales: `Seco` y `Muy húmedo`
 
 #### Luz
 
+- pulsación corta: alterna modo de visualización
 - menú `Calibración / Modo display / Alertas / Reset / Salir`
 - modos de vista: `Lux`, `% log`, `Raw ADC`
 
 #### Sonido
 
+- pulsación corta: alterna modo de visualización
 - menú `Calibración / Alertas / Reset / Salir`
 - calibración interpretativa por umbrales, no física
 
 #### Suelo
 
+- pulsación corta: alterna modo de visualización
 - menú `Calibrar sensor / Editar umbrales / Alertas / Reset / Salir`
 - clasificación actual: `Seco`, `Óptimo`, `Húmedo`, `Muy húmedo`
 
 #### DS18B20
 
-- cambio rápido `C/F`
-- la unidad es global y compartida con `TEMP`
+- pulsación corta: alterna modo de visualización
+- la unidad `C/F` es global y compartida con `Temperatura DHT`
 - menú `Calibración / Unidad / Alertas / Reset / Salir`
 
 #### Sistema
@@ -333,24 +358,12 @@ Tiempos actuales:
 
 #### Gráfica (`GRAPH_SCREEN`)
 
-- no tiene submenú dedicado
-- pulsación corta: cambia el sensor mostrado (`Temperatura` ↔ `Humedad`)
-- pulsación larga: sin efecto (reservada)
-- muestra una gráfica de línea de las últimas ~2 min 40 s de historia del sensor seleccionado
-- los datos se almacenan en buffers circulares de 160 muestras, llenados a 1 muestra/s por el `sensor_reading_task`
-- el acceso cross-core a los buffers usa `portENTER_CRITICAL` / `portEXIT_CRITICAL` con `g_graph_mux`
-- el render usa un `TFT_eSprite` de 142×72 px (16 bits de color) para evitar parpadeo
-- auto-escalado Y: mínimo de rango 4 °C (temperatura) o 8 % (humedad), más un 5 % de padding
-- las muestras más recientes quedan a la derecha
-- las etiquetas dimmed de mínimo y máximo aparecen en las esquinas del área de gráfica
-- la línea de la gráfica se dibuja en el color característico del sensor: naranja para temperatura, azul para humedad
-- el RGB mientras está en esta pantalla usa teal neutro `(0, 80, 80)`
-- sensores actualmente disponibles: `Temperatura` y `Humedad`; `Luz`, `Sonido`, `Suelo` y `DS18B20` están pendientes
+`GRAPH_SCREEN` no forma parte del carrusel de producción actual. La infraestructura de buffers circulares (160 muestras a 1 s, `g_graph_mux` para acceso cross-core) sigue activa en `graph_buffer.cpp` y el sensor task sigue llenando los 6 buffers. La integración del histórico como modo de visualización adicional dentro de las pantallas de sensor individuales es el paso siguiente natural.
 
 Archivos clave:
 
 - `include/graph_buffer.h` / `src/graph_buffer.cpp` — buffer circular y acceso thread-safe
-- `include/ui_graph.h` / `src/ui_graph.cpp` — render de pantalla y lógica de ciclo de sensor
+- `include/ui_graph.h` / `src/ui_graph.cpp` — render de pantalla (conservado pero no en carrusel activo)
 - `src/io.cpp` — push a buffers dentro del bloque de sensores lentos (cada 1 s)
 
 ## 9. Persistencia en NVS
@@ -409,15 +422,66 @@ Namespace utilizado:
 - `sys_sleep`
 - `sys_sound`
 
+#### BLE
+
+- `ble_en` (bool, default `false`) — controla si el BLE se inicializa en el arranque
+
+Esta clave se borra junto con el resto del namespace `pbit` en cada nuevo flash (ver build-hash reset a continuación).
+
 #### Idioma
 
 - gestionado desde el módulo de idioma con persistencia propia
 
 ## 10. BLE
 
-### Modo BLE actual
+### Feature gate — BLE desactivado por defecto
 
-El dispositivo inicia publicidad BLE con nombre derivado de la MAC:
+El BLE del P-Bit sale desactivado de fábrica.
+
+El flag de control es la clave NVS `ble_en` (bool, namespace `pbit`, default `false`).
+
+Comportamiento:
+
+- En cada nuevo flash, la clave se borra porque el build-hash FNV-1a detecta el nuevo binario y llama a `clear_all_settings_store()`, que limpia el namespace `pbit` entero. `ble_en` vuelve a `false` (su default implícito al no existir).
+- En reinicios normales entre flashes, el valor persistido se respeta: si el usuario activó el BLE, sigue activo.
+- `init_ble()` solo se llama si `load_ble_enabled_store()` devuelve `true`. Si devuelve `false`, el stack NimBLE nunca se inicia y el dispositivo no emite señal BLE.
+
+### Pantalla BLE Toggle (gesto secreto de producción)
+
+La pantalla `BLE_TOGGLE_SCREEN` es una función de fábrica. No aparece en el carrusel de navegación normal.
+
+#### Cómo activarla
+
+Desde la pantalla `Sistema`, mantener el encoder presionado durante **60 segundos** sin girarlo.
+
+Flujo interno:
+
+1. A los ~1.2 s el menú de Sistema se abre normalmente (longpress estándar).
+2. El conteo de tiempo continúa en el fondo; el flag `g_ble_secret_eligible` se mantiene desde el momento en que empezó la pulsación.
+3. Al cumplirse 60 s desde el inicio de la pulsación, `poll_rotary_aux()` detecta la condición (`g_ble_secret_eligible && !g_ble_secret_fired && hold >= 60000 ms`), navega a `BLE_TOGGLE_SCREEN` y suprime el callback de release.
+4. El sistema emite un tono de 1800 Hz por 150 ms como confirmación audible.
+
+#### Cómo funciona la pantalla
+
+- Fondo azul puro full-screen (sin header estándar).
+- Ícono Bluetooth blanco XL centrado en la parte superior.
+- Label `BLUETOOTH` centrado debajo del ícono.
+- Dos botones: `OFF` (izquierda) y `ON` (derecha). El seleccionado se resalta en blanco con texto azul; el otro queda con borde dimmed.
+- El encoder gira entre `OFF` (valor 0) y `ON` (valor 1).
+- La selección inicial carga el valor actual de `ble_en` desde NVS.
+- Una pulsación corta confirma: llama a `save_ble_enabled_store(true/false)`, muestra una pantalla de confirmación azul con "REINICIANDO..." y llama a `esp_restart()` tras 700 ms.
+- No hay forma de salir sin confirmar excepto apagando el dispositivo.
+
+#### Archivos clave
+
+- `include/ui_ble_toggle.h` / `src/ui_ble_toggle.cpp` — pantalla y estado
+- `src/rotary.cpp` — detección del gesto (variable `g_ble_secret_eligible`, constante `BLE_SECRET_PRESS_MS = 60000`)
+- `include/settings_store.h` / `src/settings_store.cpp` — `load_ble_enabled_store()` / `save_ble_enabled_store()`
+- `src/main.cpp` — `if (load_ble_enabled_store()) { init_ble(); }`
+
+### Modo BLE activo
+
+Cuando `ble_en == true`, el dispositivo inicia publicidad BLE con nombre derivado de la MAC:
 
 - formato: `PBIT-XXXX`
 
@@ -545,16 +609,20 @@ Nota técnica:
 
 ## 14. Serial y modo laboratorio
 
-El firmware emite una línea CSV-like por Serial cada ciclo útil:
+El firmware incluye una salida CSV-like por Serial para uso con el Arduino Serial Plotter y actividades de captura de datos. Esta salida está desactivada por defecto en producción y se controla con el flag de compilación `PBIT_ENABLE_SERIAL_PLOTTER` en `include/config.h`.
+
+Para activarla: cambiar `#define PBIT_ENABLE_SERIAL_PLOTTER 0` a `1` y recompilar.
+
+Cuando está activa, emite por Serial cada ciclo del sensor task:
 
 `Temp:..., Hum:..., Luz:..., Sonido:..., Suelo:..., DS18:...`
 
 Uso previsto:
 
-- inspección rápida
-- captura de datos
-- uso con `Serial Plotter`
-- actividades STEAM de registro y comparación
+- inspección rápida de lecturas durante desarrollo
+- captura de datos en modo laboratorio
+- uso con Arduino Serial Plotter
+- actividades STEAM de registro y comparación con el IDE conectado
 
 ## 15. Limitaciones actuales
 

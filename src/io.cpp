@@ -32,7 +32,7 @@ static uint8_t dht_temp_fail_count = 0;
 static uint8_t dht_hum_fail_count = 0;
 
 void sensor_reading_task(void *param) {
-    Serial.println("[IO] Sensor task started.");
+    DPRINTLN("[IO] Sensor task started.");
    dht.begin();
 
    Reading local_r;

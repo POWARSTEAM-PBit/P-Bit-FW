@@ -125,14 +125,27 @@ Un color primario por sensor (identidad) más un color secundario (complemento p
 
 ### Tabla maestra de identidad
 
-| Sensor | Primary propuesto | Hex | RGB888 | Secondary propuesto | Hex | RGB888 |
-|--------|------------------|-----|--------|---------------------|-----|--------|
-| TEMP | Naranja ácido | `0xFB20` | (255, 100, 0) | Magenta punk | `0xF81F` | (255, 0, 255) |
-| HUM | Cian eléctrico | `0x069F` | (0, 210, 255) | Cobalto | `0x3BDF` | (60, 120, 255) |
-| LUZ | Amarillo | `0xFFE0` | (255, 255, 0) | Ámbar | `0xFDA0` | (255, 180, 0) |
-| SOUND | Magenta punk | `0xF81F` | (255, 0, 255) | Verde neón | `0x07E0` | (0, 255, 0) |
-| SOIL | Verde cálido | `0x2F85` | (40, 240, 40) | Tierra | `0xCC07` | (200, 130, 60) |
-| DS18 | Violeta eléctrico | `0xA1FF` | (160, 60, 255) | Magenta punk | `0xF81F` | (255, 0, 255) |
+Actualizada 2026-05-17: añadidos P3 (acento cálido) y P4 (contraste frío), extraídos de los colores ya presentes en `ui_graph.cpp` (max-label, min-label, band-label). Son colores **existentes en el código** — no inventados. La columna "Fuente" indica el módulo de origen.
+
+| Sensor | P1 · Primary | Hex | P2 · Secondary | Hex | P3 · Acento cálido | Hex | P4 · Contraste frío | Hex |
+|--------|-------------|-----|----------------|-----|--------------------|-----|---------------------|-----|
+| **TEMP** | Naranja ácido | `0xFB20` | Magenta punk | `0xF81F` | Amarillo cálido *(graph max-label)* | `0xFFD8` | Azul frío *(graph min-label)* | `0x069F` |
+| **HUMEDAD** | Cian eléctrico | `0x069F` | Cobalto | `0x3BDF` | Rosa *(graph band-label)* | `0xFBAE` | Azul marino *(graph grid-v)* | `0x0318` |
+| **LUZ** | Amarillo | `0xFFE0` | Ámbar | `0xFDA0` | Dorado claro *(graph band-label)* | `0xFF86` | Dorado oscuro *(graph border)* | `0x7E60` |
+| **SONIDO** | Magenta punk | `0xF81F` | Verde neón | `0x07E0` | Naranja *(graph max-label)* | `0xFD20` | Púrpura oscuro *(graph grid-v)* | `0x5C2C` |
+| **SUELO** | Verde cálido | `0x2F85` | Cian menta *(focus secondary)* | `0x07FF` | Menta claro *(graph band-label)* | `0x6FD6` | Verde oscuro *(graph border)* | `0x0300` |
+| **TERMÓMETRO** | Violeta eléctrico | `0xA1FF` | Azul eléctrico *(gauge primary)* | `0x35FF` | Lila claro *(graph band-label)* | `0xCABF` | Cian frío *(graph min-label)* | `0x07FF` |
+
+> Los hex565 de P3/P4 son aproximaciones de los valores `tft.color565(r,g,b)` que ya usa `ui_graph.cpp`. Los valores exactos se calculan en runtime — ver las funciones `graph_band_label_color()`, `graph_max_label_color()`, `graph_min_label_color()` en ese archivo.
+
+### Uso semántico de los 4 colores
+
+| Color | Uso principal |
+|-------|--------------|
+| P1 · Primary | Borde de card, dial del gauge, icono activo, línea de gráfica, segmentos llenos |
+| P2 · Secondary | Sparklines, borde degradado en FOCUS, ring exterior del gauge, highlights de badge |
+| P3 · Acento cálido | Max-labels en gráfica, pico de VU, highlight de valor extremo |
+| P4 · Contraste frío | Min-labels en gráfica, referencia de cero, grid sutil, texto de estado neutral |
 
 ### Backgrounds — sin cambio
 
@@ -366,18 +379,24 @@ Solo después de que todos los colores estén validados. Crear el archivo canón
 
 ## Decisiones pendientes de producto
 
-Ver también `ANALISIS_PANTALLAS_EXPERIMENTALES_PBIT.md` sección 8 para decisiones de navegación relacionadas.
+Ver también `ANALISIS_PANTALLAS_EXPERIMENTALES_PBIT.md` sección 8 y `LAB_GRAPH_UI_HANDOFF.md` para decisiones de navegación relacionadas.
 
-- [ ] ¿Aprobar naranja ácido `(255,100,0)` para TEMP? — decisión visual, requiere ver en hardware
-- [ ] ¿Aprobar cobalto `(60,120,255)` como secundario de HUM? — clave para diferenciar HUM vs DS18
-- [ ] ¿Aprobar tierra `(200,130,60)` como secundario de SOIL? — decisión estética
-- [ ] ¿Aprobar violeta eléctrico `(160,60,255)` para DS18? — diferenciación vs HUM y purple actual
-- [ ] ¿Crear `include/palette.h` o mantener constantes locales por archivo? — decisión de arquitectura de código
-- [ ] ¿Rediseño de DS18 como sonda vertical? — requiere prototipo en `LAB_ICON_TEST_SCREEN`
+### Paleta — decisiones abiertas
+
+- [ ] ¿Aprobar naranja ácido `(255,100,0)` para TEMP P1? — requiere ver en hardware vs TFT_ORANGE actual
+- [ ] ¿Aprobar cobalto `(60,120,255)` como P2 de HUMEDAD? — clave para diferenciar HUMEDAD vs TERMÓMETRO
+- [ ] ¿Aprobar violeta eléctrico `(160,60,255)` para TERMÓMETRO P1? — diferenciación vs HUM y purple actual
+- [ ] ¿Tierra `(200,130,60)` como P2 de SUELO o mantener cian menta? — decisión estética
+- [ ] ¿Crear `include/palette.h`? — Fase 4 según estrategia. Bloqueada hasta validar P1/P2 en hardware.
+- [ ] P3/P4 añadidos a tabla (2026-05-17): verificar valores hex565 exactos vs `tft.color565()` en hardware.
+
+### Iconos — decisiones abiertas
+
+- [ ] ¿Rediseño de DS18 como sonda vertical (TO-92)? — requiere prototipo en `LAB_ICON_TEST_SCREEN`
 - [ ] ¿Rediseño de HUM como gota limpia sin donut? — requiere prototipo
 - [ ] ¿Mejora de SOIL con hojas redondeadas? — requiere prototipo
-- [ ] ¿Corrección de proporciones de SOUND? — cambio menor, bajo riesgo
-- [ ] ¿Firma de función de `pbit_draw_temp_icon` con parámetro `bg`? — decisión de API interna
+- [ ] ¿Corrección de proporciones de SOUND (base horizontal)? — cambio menor, bajo riesgo
+- [ ] ¿Firma de `pbit_draw_temp_icon` con parámetro `bg` para eliminar TFT_BLACK hardcodeado? — decisión de API interna
 
 ---
 

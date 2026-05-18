@@ -20,11 +20,14 @@
 #include "ui_system.h"
 #include "ui_graph.h"
 #if PBIT_ENABLE_GRAPH_LAB
+#include "sensor_zone.h"
 #include "ui_lab_focus.h"
 #include "ui_lab_sensor_cards.h"
 #include "ui_lab_widget_showcase.h"
 #endif
 #include "runtime_events.h"
+#include "ui_ble_toggle.h"
+#include "settings_store.h"
 
 // External state shared with the rest of the firmware.
 extern volatile unsigned long g_last_activity_ms;
@@ -35,6 +38,7 @@ constexpr uint8_t ENCODER_STEPS_PER_DETENT = 2;
 constexpr unsigned long BUTTON_DEBOUNCE_MS = 30;
 constexpr unsigned long MENU_LONG_PRESS_MS = 1200;
 constexpr unsigned long TIMER_RESET_LONG_PRESS_MS = 1000;
+constexpr unsigned long BLE_SECRET_PRESS_MS = 60000UL; // 60 s hold on SYSTEM_SCREEN
 
 extern RotaryEncoder rotaryEncoder;
 
@@ -46,60 +50,67 @@ unsigned long g_button_last_change_ms = 0;
 unsigned long g_button_press_start_ms = 0;
 bool g_button_long_press_handled = false;
 
+// Secret BLE gesture: press started on SYSTEM_SCREEN (before menu opens).
+bool g_ble_secret_eligible = false;
+bool g_ble_secret_fired = false;
+
 bool g_deferred_beep_active = false;
 unsigned long g_deferred_beep_due_ms = 0;
 int g_deferred_beep_freq_hz = 0;
 int g_deferred_beep_duration_ms = 0;
 
 #if PBIT_ENABLE_GRAPH_LAB
-constexpr Screen kVisibleAppScreens[] = {
-    LAB_HOME_CARDS_SCREEN,
-    LAB_DUAL_TH_SCREEN,
-    LAB_WIDGET_MIX_SCREEN,
-    LAB_SOUND_VU_STACK_SCREEN,
-    LAB_LINEAR_DASH_SCREEN,
-    LAB_SENSOR_FOCUS_SCREEN,
-    GRAPH_SCREEN,
-    TEMP_SCREEN,
-    HUMIDITY_SCREEN,
-    LIGHT_SCREEN,
-    SOUND_SCREEN,
-    SOIL_SCREEN,
-    DS18B20_SCREEN,
-    SYSTEM_SCREEN,
-    TIMER_SCREEN,
-    LAB_GAUGE_TEMP_SCREEN,
-    LAB_VALUE_MODERN_SCREEN,
-    LAB_SENSOR_CARD_SCREEN
+// Flat carousel — every screen is permanently visible; no level-2 mode.
+// Sensor positions reuse SENSOR_ZONE_SCREEN and call sz_set_sensor() on arrival.
+// Short press on a sensor slot  → sz_next_viz()
+// Long press on a sensor slot   → config menu for that sensor
+struct CarouselEntry {
+    Screen     screen;
+    int8_t     sensor; // SzSensorId for sensor slots, -1 otherwise
 };
 
-constexpr int kVisibleAppScreenCount = (int)(sizeof(kVisibleAppScreens) / sizeof(kVisibleAppScreens[0]));
+constexpr CarouselEntry kCarousel[] = {
+    { LAB_HOME_CARDS_SCREEN,     -1 },          // HOME
+    { LAB_DUAL_TH_SCREEN,        -1 },          // CLIMA LAB
+    { LAB_WIDGET_MIX_SCREEN,     -1 },          // MULTI LAB
+    { LAB_SOUND_VU_STACK_SCREEN, -1 },          // SOUND LAB
+    { SENSOR_ZONE_SCREEN, (int8_t)SZ_TEMP  },   // TEMPERATURA
+    { SENSOR_ZONE_SCREEN, (int8_t)SZ_HUM   },   // HUMEDAD
+    { SENSOR_ZONE_SCREEN, (int8_t)SZ_LIGHT },   // LUZ
+    { SENSOR_ZONE_SCREEN, (int8_t)SZ_SOUND },   // SONIDO
+    { SENSOR_ZONE_SCREEN, (int8_t)SZ_SOIL  },   // HUMEDAD SUELO
+    { SENSOR_ZONE_SCREEN, (int8_t)SZ_DS18  },   // DS18B20
+    { TIMER_SCREEN,              -1 },          // CRONÓMETRO
+    { SYSTEM_SCREEN,             -1 },          // System Info
+};
 
-static Screen canonicalCarouselScreen(Screen screen) {
-    if (screen == LAB_SOUND_VU_WAVE_SCREEN) {
-        return LAB_SOUND_VU_STACK_SCREEN;
-    }
-    return screen;
+constexpr int kCarouselCount = (int)(sizeof(kCarousel) / sizeof(kCarousel[0]));
+
+static bool carousel_is_sensor_slot(int idx) {
+    return idx >= 0 && idx < kCarouselCount && kCarousel[idx].sensor >= 0;
 }
 
+// Returns the carousel index for a screen.
+// For SENSOR_ZONE_SCREEN, matches the slot for the currently active sensor.
+// Returns -1 if not found.
 static int appScreenToCarouselIndex(Screen screen) {
-    const Screen canonical = canonicalCarouselScreen(screen);
-    for (int i = 0; i < kVisibleAppScreenCount; ++i) {
-        if (kVisibleAppScreens[i] == canonical) {
-            return i;
+    if (screen == SENSOR_ZONE_SCREEN) {
+        int8_t s = (int8_t)sz_get_sensor();
+        for (int i = 0; i < kCarouselCount; ++i) {
+            if (kCarousel[i].sensor == s) return i;
         }
+        return -1;
     }
-    return 0;
+    for (int i = 0; i < kCarouselCount; ++i) {
+        if (kCarousel[i].screen == screen && kCarousel[i].sensor < 0) return i;
+    }
+    return -1;
 }
 
 static Screen carouselIndexToAppScreen(int index) {
-    if (index < 0) {
-        return kVisibleAppScreens[0];
-    }
-    if (index >= kVisibleAppScreenCount) {
-        return kVisibleAppScreens[kVisibleAppScreenCount - 1];
-    }
-    return kVisibleAppScreens[index];
+    if (index < 0)             return kCarousel[0].screen;
+    if (index >= kCarouselCount) return kCarousel[kCarouselCount - 1].screen;
+    return kCarousel[index].screen;
 }
 #endif
 
@@ -129,6 +140,7 @@ static void service_deferred_beep(unsigned long now_ms_value) {
 #if PBIT_ENABLE_GRAPH_LAB
 static bool isHiddenRestoreScreen(Screen screen) {
     switch (screen) {
+        case BLE_TOGGLE_SCREEN:   // never restore into the secret BLE screen
         case LAB_DASH_OVERVIEW_SCREEN:
         case LAB_ICON_SET_A_SCREEN:
         case LAB_ICON_SET_B_SCREEN:
@@ -145,8 +157,15 @@ static bool isHiddenRestoreScreen(Screen screen) {
 
 static void configure_app_rotary_bounds() {
 #if PBIT_ENABLE_GRAPH_LAB
-    rotaryEncoder.setBoundaries(0, kVisibleAppScreenCount - 1, true);
-    rotaryEncoder.setEncoderValue(appScreenToCarouselIndex(active_screen));
+    rotaryEncoder.setBoundaries(0, kCarouselCount - 1, true);
+    int idx = appScreenToCarouselIndex(active_screen);
+    if (idx < 0) {
+        // Screen not in carousel (old sensor config screen returning). Snap to active sensor slot.
+        active_screen = SENSOR_ZONE_SCREEN;
+        idx = appScreenToCarouselIndex(SENSOR_ZONE_SCREEN);
+        if (idx < 0) idx = 0;
+    }
+    rotaryEncoder.setEncoderValue(idx);
 #else
     rotaryEncoder.setBoundaries(TEMP_SCREEN, LAST_APP_SCREEN, true);
     rotaryEncoder.setStepValue(1);
@@ -234,6 +253,12 @@ static void configure_timer_ui_rotary_bounds() {
     rotaryEncoder.setEncoderValue(getTimerMenuEncoderValue());
 }
 
+static void configure_ble_toggle_rotary_bounds() {
+    rotaryEncoder.setBoundaries(get_ble_toggle_encoder_min(), get_ble_toggle_encoder_max(), false);
+    rotaryEncoder.setStepValue(1);
+    rotaryEncoder.setEncoderValue(get_ble_toggle_encoder_value());
+}
+
 static void play_double_beep(int first_hz, int second_hz) {
     if (!g_sound_enabled) return;
     beep(first_hz, 45);
@@ -251,6 +276,7 @@ static void play_soil_confirm_beep() {
 }
 
 static bool isRestorableScreen(Screen screen) {
+    if (screen == BLE_TOGGLE_SCREEN) return false;
     if (screen < TEMP_SCREEN || screen > LAST_APP_SCREEN) {
         return false;
     }
@@ -274,7 +300,7 @@ RotaryEncoder rotaryEncoder(DI_ENCODER_A, DI_ENCODER_B, -1, DO_ENCODER_VCC, ENCO
  */
 static void exitIdleModeIfNeeded() {
     if (g_power_mode == POWER_IDLE) {
-        Serial.println("[Power] Leaving IDLE mode.");
+        DPRINTLN("[Power] Leaving IDLE mode.");
 
         g_power_mode = POWER_ACTIVE;
         runtime_set_ui_overlay(UI_OVERLAY_NONE);
@@ -364,6 +390,15 @@ void knobCallback(long value) {
         return;
     }
 
+    if (active_screen == BLE_TOGGLE_SCREEN) {
+        const int previous = get_ble_toggle_encoder_value();
+        set_ble_toggle_input_value((int)value);
+        if (get_ble_toggle_encoder_value() != previous) {
+            play_soil_nav_beep();
+        }
+        return;
+    }
+
     if (active_screen == TIMER_SCREEN && timer_menu_is_active()) {
         int previous = getTimerMenuEncoderValue();
         setTimerMenuEncoderValue((int)value);
@@ -375,8 +410,14 @@ void knobCallback(long value) {
     }
 
 #if PBIT_ENABLE_GRAPH_LAB
-    if (value < 0 || value >= kVisibleAppScreenCount) return;
-    Screen requested_screen = carouselIndexToAppScreen((int)value);
+    if (value < 0 || value >= (long)kCarouselCount) return;
+    const int idx = (int)value;
+    Screen requested_screen = kCarousel[idx].screen;
+
+    // When arriving at a sensor slot, update the active sensor immediately.
+    if (carousel_is_sensor_slot(idx)) {
+        sz_set_sensor((uint8_t)kCarousel[idx].sensor);
+    }
 #else
     if (value < TEMP_SCREEN || value > LAST_APP_SCREEN) return;
     Screen requested_screen = static_cast<Screen>(value);
@@ -385,10 +426,7 @@ void knobCallback(long value) {
     active_screen = requested_screen;
     DPRINT("[Rotary] Switched to screen %d\n", (int)active_screen);
 
-    // Gentle click when changing the active screen.
-    if (g_sound_enabled) {
-        beep(800, 15); 
-    }
+    if (g_sound_enabled) beep(800, 15);
 
     // Screen-level RGB feedback. Light keeps the LED off to avoid polluting the LDR.
     switch (active_screen) {
@@ -411,7 +449,10 @@ void knobCallback(long value) {
             set_rgb(255, 255, 255); 
             break;
         case SYSTEM_SCREEN:
-            set_rgb(0, 255, 0); 
+            set_rgb(0, 255, 0);
+            break;
+        case BLE_TOGGLE_SCREEN:
+            set_rgb(0, 80, 255);
             break;
         case TIMER_SCREEN:
             if (userTimerRunning) {
@@ -482,6 +523,24 @@ void knobCallback(long value) {
 }
 
 static bool handle_button_long_press() {
+#if PBIT_ENABLE_GRAPH_LAB
+    if (active_screen == SENSOR_ZONE_SCREEN) {
+        // Long press: open config menu for the active sensor.
+        // On menu exit, configure_app_rotary_bounds() snaps back to this sensor's slot.
+        switch (sz_get_sensor()) {
+            case SZ_TEMP:  active_screen = TEMP_SCREEN;     start_temp_menu();      configure_temp_ui_rotary_bounds();     break;
+            case SZ_HUM:   active_screen = HUMIDITY_SCREEN; start_humidity_menu();  configure_humidity_ui_rotary_bounds(); break;
+            case SZ_LIGHT: active_screen = LIGHT_SCREEN;    start_light_menu();     configure_light_ui_rotary_bounds();    break;
+            case SZ_SOUND: active_screen = SOUND_SCREEN;    start_sound_menu();     configure_sound_ui_rotary_bounds();    break;
+            case SZ_SOIL:  active_screen = SOIL_SCREEN;     startSoilCalibration(); configure_soil_ui_rotary_bounds();     break;
+            case SZ_DS18:  active_screen = DS18B20_SCREEN;  start_ds18_menu();      configure_ds18_ui_rotary_bounds();     break;
+            default: configure_app_rotary_bounds(); break;
+        }
+        play_double_beep(1200, 1600);
+        return true;
+    }
+#endif
+
     if (active_screen == SYSTEM_SCREEN && !system_menu_is_active()) {
         start_system_menu();
         configure_system_ui_rotary_bounds();
@@ -703,6 +762,14 @@ void buttonCallback(unsigned long duration) {
     }
 
     // -----------------------------------------------------------------
+    // BLE toggle screen: confirm selection → save to NVS → restart.
+    // -----------------------------------------------------------------
+    if (active_screen == BLE_TOGGLE_SCREEN) {
+        handle_ble_toggle_button(); // calls esp_restart() — does not return
+        return;
+    }
+
+    // -----------------------------------------------------------------
     // Short-press behavior on the System screen: toggle the global sound flag.
     // -----------------------------------------------------------------
     if (active_screen == SYSTEM_SCREEN) {
@@ -816,6 +883,15 @@ void buttonCallback(unsigned long duration) {
     }
 
 #if PBIT_ENABLE_GRAPH_LAB
+    if (active_screen == SENSOR_ZONE_SCREEN) {
+        // Short press: cycle viz mode for the current sensor.
+        if (duration < MENU_LONG_PRESS_MS) {
+            sz_next_viz();
+            if (g_sound_enabled) beep(800, 15);
+        }
+        return;
+    }
+
     if (active_screen == LAB_SOUND_VU_STACK_SCREEN || active_screen == LAB_SOUND_VU_WAVE_SCREEN) {
         if (duration < MENU_LONG_PRESS_MS) {
             active_screen = (active_screen == LAB_SOUND_VU_STACK_SCREEN)
@@ -882,7 +958,7 @@ void init_rotary() {
     g_button_press_start_ms = g_button_raw_pressed ? now : 0;
     g_button_long_press_handled = false;
     g_deferred_beep_active = false;
-    Serial.println("[Rotary] Initialized.");
+    DPRINTLN("[Rotary] Initialized.");
 }
 
 void poll_rotary_aux() {
@@ -903,9 +979,13 @@ void poll_rotary_aux() {
         if (g_button_debounced_pressed) {
             g_button_press_start_ms = now;
             g_button_long_press_handled = false;
+            g_ble_secret_eligible = (active_screen == SYSTEM_SCREEN && !system_menu_is_active());
+            g_ble_secret_fired = false;
             g_last_activity_ms = now;
             exitIdleModeIfNeeded();
         } else {
+            g_ble_secret_eligible = false;
+            g_ble_secret_fired = false;
             g_last_activity_ms = now;
             if (!g_button_long_press_handled) {
                 buttonCallback(now - g_button_press_start_ms);
@@ -919,6 +999,20 @@ void poll_rotary_aux() {
 
     g_last_activity_ms = now;
     exitIdleModeIfNeeded();
+
+    // Secret BLE unlock — fires independently of g_button_long_press_handled so it
+    // triggers even after the 1.2 s system-menu open has already consumed that flag.
+    if (g_ble_secret_eligible && !g_ble_secret_fired
+            && (now - g_button_press_start_ms) >= BLE_SECRET_PRESS_MS) {
+        g_ble_secret_fired = true;
+        g_button_long_press_handled = true; // suppress buttonCallback on release
+        init_ble_toggle_screen();
+        active_screen = BLE_TOGGLE_SCREEN;
+        configure_ble_toggle_rotary_bounds();
+        runtime_request_ui_full_redraw();
+        beep(1800, 150);
+        return;
+    }
 
     if (g_button_long_press_handled) {
         return;
@@ -937,7 +1031,11 @@ void poll_rotary_aux() {
             || (active_screen == SOUND_SCREEN && !sound_menu_is_active())
             || (active_screen == SOIL_SCREEN && !soilCalibrationIsActive())
             || (active_screen == DS18B20_SCREEN && !ds18_menu_is_active())
-            || (active_screen == SYSTEM_SCREEN && !system_menu_is_active())) {
+            || (active_screen == SYSTEM_SCREEN && !system_menu_is_active())
+#if PBIT_ENABLE_GRAPH_LAB
+            || active_screen == SENSOR_ZONE_SCREEN
+#endif
+            ) {
         threshold_ms = MENU_LONG_PRESS_MS;
     }
 

@@ -2,6 +2,7 @@
 #include "ui_widgets.h"
 #include "hw.h"
 #include "ble.h"
+#include "settings_store.h"
 #include "languages.h"
 #include "fonts.h"
 #include "layout.h"
@@ -352,7 +353,9 @@ void draw_system_screen(bool screen_changed, bool data_changed) {
     const int y_lang  = LS_ROW_LAN;
     const int cx      = tft.width() / 2;
 
+    static bool s_ble_enabled = false; // cached per screen_changed — doesn't change at runtime
     if (screen_changed) {
+        s_ble_enabled = load_ble_enabled_store();
         tft.fillScreen(TFT_BLACK);
         draw_system_header(L(TIT_SYS));
         drawCard(LS_CARD_X, LS_CARD_Y, LS_CARD_W, LS_CARD_H, TFT_DARKGREY);
@@ -361,7 +364,9 @@ void draw_system_screen(bool screen_changed, bool data_changed) {
         tft.setTextColor(TFT_LIGHTGREY, TFT_BLACK);
         tft.drawString(L(SYS_DEV_LABEL), x_draw, y_dev);
         tft.drawString(L(SYS_UP_LABEL), x_draw, y_up);
-        tft.drawString(L(SYS_BLE_LABEL), x_draw, y_ble);
+        if (s_ble_enabled) {
+            tft.drawString(L(SYS_BLE_LABEL), x_draw, y_ble);
+        }
         tft.drawString(L(SYS_LANG_LABEL), x_draw, y_lang);
         tft.setTextColor(TFT_YELLOW, TFT_BLACK);
         tft.drawString(dev_name, x_val, y_dev);
@@ -371,7 +376,7 @@ void draw_system_screen(bool screen_changed, bool data_changed) {
     }
 
     uint32_t uptime_s = millis() / 1000;
-    bool ble_connected = client_connected.load();
+    bool ble_connected = s_ble_enabled ? client_connected.load() : false;
     static uint32_t last_uptime_s = UINT32_MAX;
     static bool last_ble_connected = false;
     static bool last_sound_enabled = true;
@@ -395,7 +400,7 @@ void draw_system_screen(bool screen_changed, bool data_changed) {
         tft.setTextDatum(TL_DATUM);
     }
 
-    if (screen_changed || ble_connected != last_ble_connected) {
+    if (s_ble_enabled && (screen_changed || ble_connected != last_ble_connected)) {
         tft.fillRect(x_val, y_ble - 1, tft.width() - x_val - 11, 12, TFT_BLACK);
         tft.setFreeFont(FONT_INFO);
         tft.setTextColor(ble_connected ? TFT_GREEN : TFT_RED, TFT_BLACK);

@@ -1,16 +1,16 @@
 # Handoff: Pantallas Lab / Graph
 
-Actualizado: 2026-05-16
+Actualizado: 2026-05-17
 
 ## Build actual verificada
 
 - Herramienta: `py -3 -m platformio run --project-dir "c:/POWAR-GIT/P-Bit-FW - edit"`
 - Resultado: `SUCCESS`
 - RAM: `14.1%` (46044 / 327680 bytes)
-- Flash: `69.8%` (915281 / 1310720 bytes)
-- Fecha: `2026-05-16`
+- Flash: `70.4%` (922773 / 1310720 bytes)
+- Fecha: `2026-05-17`
 
-Todo el código de ajustes visuales de las rondas anteriores está commiteado en `ce41581`. El árbol git está limpio (solo el log de debug modificado).
+Sesión 2026-05-17: implementada arquitectura Sensor Zone completa (carrusel plano de 12 posiciones, `sensor_zone.h/cpp`, persistencia NVS, routing en `tft_display.cpp`, navegación en `rotary.cpp`). Ajustes visuales: medidor TEMP LAB ampliado 2px arriba, vizualizaciones Sensor Card bajadas 2px. Pending: naming system en idiomas, sz_is_active() para fix de title flash, paleta canónica P3/P4.
 
 ---
 
@@ -20,14 +20,16 @@ Las pantallas de laboratorio y gráfica solo se compilan cuando `PBIT_ENABLE_GRA
 
 Archivos principales:
 
+- `src/sensor_zone.cpp` / `include/sensor_zone.h` — **NUEVO** estado central de la zona de sensores
+- `src/settings_store.cpp` / `include/settings_store.h` — persistencia NVS sensor zone
 - `src/ui_lab_home_cards.cpp` — HOME CARDS
 - `src/ui_lab_dual.cpp` — CLIMA LAB
 - `src/ui_lab_widget_showcase.cpp` — TEMP LAB, GAUGE LAB, VALOR LAB
 - `src/ui_lab_sound_vu.cpp` — SOUND LAB (STACK + WAVE)
 - `src/ui_lab_linear_dash.cpp` — PLANT LAB
-- `src/ui_lab_focus.cpp` — SENSOR LAB
-- `src/ui_graph.cpp` — GRÁFICA
-- `src/ui_lab_sensor_cards.cpp` — TEMP CARD, PROBE CARD, SENSOR CARD
+- `src/ui_lab_focus.cpp` — sub-renderer FOCUS (panel valor + mini-gráfica)
+- `src/ui_graph.cpp` — sub-renderer GRÁFICA
+- `src/ui_lab_sensor_cards.cpp` — sub-renderer CARD
 - `src/ui_lab_dash.cpp` — ESTADO LAB (oculto)
 - `src/ui_lab_icon_gallery.cpp` — galerías de iconos (ocultas)
 - `src/ui_lab_icon_sizes.cpp` — tamaños de iconos (ocultas)
@@ -106,56 +108,160 @@ Iconos disponibles: `temp`, `probe`, `humidity`, `light`, `sound`, `plant`.
 
 ---
 
-## Carrusel visible actual
+## Carrusel actual — arquitectura plana de 12 posiciones
 
-Definido en `src/rotary.cpp` → `kVisibleAppScreens[]`:
+Definido en `src/rotary.cpp` → `kCarousel[]` (struct `CarouselEntry{Screen, int8_t sensor}`).
 
-| Posición | Nombre visible | Enum | Archivo |
-| --- |---| --- |---|
-| 1 | HOME | `LAB_HOME_CARDS_SCREEN` | `ui_lab_home_cards.cpp` |
-| 2 | CLIMA LAB | `LAB_DUAL_TH_SCREEN` | `ui_lab_dual.cpp` |
-| 3 | TEMP LAB | `LAB_WIDGET_MIX_SCREEN` | `ui_lab_widget_showcase.cpp` |
-| 4 | SOUND LAB | `LAB_SOUND_VU_STACK_SCREEN` | `ui_lab_sound_vu.cpp` |
-| 5 | PLANT LAB | `LAB_LINEAR_DASH_SCREEN` | `ui_lab_linear_dash.cpp` |
-| 6 | SENSOR LAB | `LAB_SENSOR_FOCUS_SCREEN` | `ui_lab_focus.cpp` |
-| 7 | GRÁFICA | `GRAPH_SCREEN` | `ui_graph.cpp` |
-| 8 | TEMP | `TEMP_SCREEN` | `ui_temp.cpp` |
-| 9 | HUM | `HUMIDITY_SCREEN` | `ui_humidity.cpp` |
-| 10 | LUZ | `LIGHT_SCREEN` | `ui_light.cpp` |
-| 11 | SONIDO | `SOUND_SCREEN` | `ui_sound.cpp` |
-| 12 | SUELO | `SOIL_SCREEN` | `ui_soil.cpp` |
-| 13 | DS18 | `DS18B20_SCREEN` | `ui_ds18.cpp` |
-| 14 | SISTEMA | `SYSTEM_SCREEN` | `ui_system.cpp` |
-| 15 | TIMER | `TIMER_SCREEN` | `ui_timer.cpp` |
-| 16 | GAUGE LAB | `LAB_GAUGE_TEMP_SCREEN` | `ui_lab_widget_showcase.cpp` |
-| 17 | VALOR LAB | `LAB_VALUE_MODERN_SCREEN` | `ui_lab_widget_showcase.cpp` |
-| 18 | SENSOR CARD | `LAB_SENSOR_CARD_SCREEN` | `ui_lab_sensor_cards.cpp` |
+| Pos | Nombre header | Screen enum | Sensor |
+|-----|--------------|-------------|--------|
+| 1 | HOME | `LAB_HOME_CARDS_SCREEN` | — |
+| 2 | CLIMA LAB | `LAB_DUAL_TH_SCREEN` | — |
+| 3 | TEMP LAB | `LAB_WIDGET_MIX_SCREEN` | — |
+| 4 | SOUND LAB | `LAB_SOUND_VU_STACK_SCREEN` | — |
+| 5 | *(viz del sensor)* | `SENSOR_ZONE_SCREEN` | `SZ_TEMP` |
+| 6 | *(viz del sensor)* | `SENSOR_ZONE_SCREEN` | `SZ_HUM` |
+| 7 | *(viz del sensor)* | `SENSOR_ZONE_SCREEN` | `SZ_LIGHT` |
+| 8 | *(viz del sensor)* | `SENSOR_ZONE_SCREEN` | `SZ_SOUND` |
+| 9 | *(viz del sensor)* | `SENSOR_ZONE_SCREEN` | `SZ_SOIL` |
+| 10 | *(viz del sensor)* | `SENSOR_ZONE_SCREEN` | `SZ_DS18` |
+| 11 | TIMER | `TIMER_SCREEN` | — |
+| 12 | SISTEMA | `SYSTEM_SCREEN` | — |
+
+Las posiciones 5–10 comparten el mismo `Screen` (`SENSOR_ZONE_SCREEN`) pero cada una fija el sensor activo vía `sz_set_sensor()` al aterrizar en ella. El encoder navega linealmente entre las 12 posiciones sin niveles secundarios.
 
 ### Pantallas fuera del carrusel (compiladas, ocultas)
 
-Definido en `isHiddenRestoreScreen()` en `src/rotary.cpp`:
-
 - `LAB_DASH_OVERVIEW_SCREEN` — ESTADO LAB
-- `LAB_ICON_SET_A_SCREEN` / `B` / `C` — galerías de iconos
-- `LAB_ICON_SIZES_ENV_SCREEN` / `EXT` — tamaños de iconos
+- `LAB_ICON_SET_A/B/C_SCREEN` — galerías de iconos
+- `LAB_ICON_SIZES_ENV/EXT_SCREEN` — tamaños de iconos
 - `LAB_ICON_TEST_SCREEN` — test procedural vs bitmap
+- `LAB_SENSOR_FOCUS_SCREEN` — sub-renderer de `SENSOR_ZONE_SCREEN` (viz FOCUS)
+- `LAB_GAUGE_TEMP_SCREEN` — sub-renderer de `SENSOR_ZONE_SCREEN` (viz GAUGE)
+- `LAB_VALUE_MODERN_SCREEN` — sub-renderer de `SENSOR_ZONE_SCREEN` (viz VALOR)
+- `LAB_SENSOR_CARD_SCREEN` — sub-renderer de `SENSOR_ZONE_SCREEN` (viz CARD)
+- `GRAPH_SCREEN` — sub-renderer de `SENSOR_ZONE_SCREEN` (viz GRAF)
+- `LAB_SOUND_VU_WAVE_SCREEN` — sub-vista interna de SOUND LAB (pulsación corta)
 
-Pantallas en el enum pero tampoco en el carrusel (sub-vistas internas):
+### Comportamiento de pulsación por pantalla
 
-- `LAB_SOUND_VU_WAVE_SCREEN` — accesible desde SOUND LAB con pulsación corta
-- `LAB_TEMP_CARD_SCREEN` — accesible desde SENSOR CARD con pulsación corta
-- `LAB_DS18_CARD_SCREEN` — accesible desde SENSOR CARD con pulsación corta
+| Pantalla / contexto | Pulsación corta | Pulsación larga |
+|---------------------|-----------------|-----------------|
+| `SENSOR_ZONE_SCREEN` | Cicla viz mode del sensor activo | Abre menú de config del sensor |
+| `LAB_SOUND_VU_STACK_SCREEN` | Alterna a WAVE | — |
+| `LAB_SOUND_VU_WAVE_SCREEN` | Vuelve a STACK | — |
+| Resto del carrusel | Sin acción | — |
 
-### Comportamiento de pulsación corta por pantalla
+Después de salir de un menú de config (TEMP_SCREEN, HUMIDITY_SCREEN, etc.), `configure_app_rotary_bounds` detecta que la pantalla activa no está en el carrusel y vuelve automáticamente a `SENSOR_ZONE_SCREEN` con el sensor correcto.
 
-| Pantalla | Acción |
-| --- |---|
-| `GRAPH_SCREEN` | Cicla entre los 6 sensores con historial |
-| `LAB_SENSOR_FOCUS_SCREEN` | Cicla entre los 6 sensores |
-| `LAB_SOUND_VU_STACK_SCREEN` | Alterna a `LAB_SOUND_VU_WAVE_SCREEN` |
-| `LAB_SOUND_VU_WAVE_SCREEN` | Vuelve a `LAB_SOUND_VU_STACK_SCREEN` |
-| `LAB_SENSOR_CARD_SCREEN` | Cicla entre los 6 sensores (TEMP→DS18→HUM→LIGHT→SOUND→SOIL) |
-| `LAB_GAUGE_TEMP_SCREEN` | Cicla entre sensores del gauge |
+---
+
+## Arquitectura Sensor Zone
+
+### Módulo `sensor_zone.h / sensor_zone.cpp`
+
+Estado central para la zona de los 6 sensores individuales. Desacopla la navegación (rotary.cpp) del rendering (tft_display.cpp).
+
+#### Enums
+
+```cpp
+enum SzSensorId : uint8_t {
+    SZ_TEMP=0, SZ_HUM, SZ_LIGHT, SZ_SOUND, SZ_SOIL, SZ_DS18, SZ_SENSOR_COUNT
+};
+
+enum SzVizMode : uint8_t {
+    SZ_VIZ_FOCUS=0,  // PENDIENTE: cambiar default de CARD a FOCUS
+    SZ_VIZ_CARD,
+    SZ_VIZ_VALOR,
+    SZ_VIZ_GRAPH,
+    SZ_VIZ_GAUGE,
+    SZ_VIZ_COUNT
+};
+```
+
+#### API pública
+
+| Función | Descripción |
+|---------|-------------|
+| `sz_init()` | Carga sensor y viz de NVS al arranque |
+| `sz_get_sensor()` | Sensor activo actual |
+| `sz_get_viz()` | Viz mode del sensor activo |
+| `sz_set_sensor(uint8_t)` | Salta a sensor por índice, persiste, solicita redraw |
+| `sz_next_sensor()` | Avanza sensor (wraps), persiste |
+| `sz_prev_sensor()` | Retrocede sensor (wraps), persiste |
+| `sz_next_viz()` | Cicla viz mode del sensor activo, persiste |
+| `sz_sync_renderer(bool force)` | Sincroniza sub-renderer; tracking interno evita calls redundantes |
+| `sz_sensor_name(SzSensorId)` | Nombre display del sensor (actualmente hardcoded ES — **pendiente: usar LangKey**) |
+| `sz_sensor_rgb(SzSensorId, r, g, b)` | Color LED para el sensor activo |
+
+#### Persistencia NVS
+
+| Clave | Tipo | Descripción |
+|-------|------|-------------|
+| `"sz_sen"` | `UChar` | Sensor activo (0–5) |
+| `"sz_v0"` .. `"sz_v5"` | `UChar` | Viz mode por sensor (0–4) |
+
+#### Routing en tft_display.cpp
+
+```cpp
+case SENSOR_ZONE_SCREEN:
+    sz_sync_renderer(screen_changed);
+    switch (sz_get_viz()) {
+        case SZ_VIZ_CARD:  draw_lab_sensor_card_screen(...); break;
+        case SZ_VIZ_VALOR: draw_lab_value_modern_screen(...);
+                           if (screen_changed) drawHeader(sz_sensor_name(...)); break;
+        case SZ_VIZ_FOCUS: draw_lab_focus_screen(...);
+                           if (screen_changed) drawHeader(sz_sensor_name(...)); break;
+        case SZ_VIZ_GRAPH: draw_graph_screen(...);
+                           if (screen_changed) drawHeader(sz_sensor_name(...)); break;
+        case SZ_VIZ_GAUGE: draw_lab_gauge_temp_screen(...);
+                           if (screen_changed) drawHeader(sz_sensor_name(...)); break;
+    }
+    break;
+```
+
+> **Bug conocido**: el `drawHeader` posterior al sub-renderer causa flash visible (dos draws en el mismo frame). Fix pendiente: flag `sz_is_active()` para que los sub-renderers salten su `drawHeader` interno.
+
+---
+
+## Sistema de nombres de visualización — Sensor Zone
+
+### Tabla definitiva de títulos header
+
+El sensor activo determina el prefijo; el viz mode añade el sufijo. El viz FOCUS (principal, default) usa solo el nombre del sensor sin sufijo.
+
+| Sensor | FOCUS (default) | CARD | VALOR | GRAPH | GAUGE |
+|--------|----------------|------|-------|-------|-------|
+| SZ_TEMP | `Temperatura` | `Temp Card` | `Temp Lab` | `Temp Graf` | `Temp Dial` |
+| SZ_HUM | `Humedad` | `Hum Card` | `Hum Lab` | `Hum Graf` | `Hum Dial` |
+| SZ_LIGHT | `Luz` | `Luz Card` | `Luz Lab` | `Luz Graf` | `Luz Dial` |
+| SZ_SOUND | `Sonido` | `Sonido Card` | `Sonido Lab` | `Sonido Graf` | `Sonido Dial` |
+| SZ_SOIL | `Suelo` | `Suelo Card` | `Suelo Lab` | `Suelo Graf` | `Suelo Dial` |
+| SZ_DS18 | `Termómetro` | `Termómetro Card` | `Termómetro Lab` | `Termómetro Graf` | `Termómetro Dial` |
+
+> **Nota hardware**: `"Termómetro Card"` / `"Termómetro Graf"` son los títulos más largos (~15 chars). Verificar que no se recorten en pantalla real con `FONT_HEADER` a 160px de ancho.
+
+### Implementación pendiente
+
+El sistema de nombres requiere:
+1. Añadir LangKeys `SZ_NAME_*` en `include/languages.h` y `src/lang_select.cpp` para que `sz_sensor_name()` retorne texto localizado (actualmente hardcoded ES).
+2. Añadir LangKeys `SZ_VIZ_SUFFIX_CARD`, `SZ_VIZ_SUFFIX_LAB`, `SZ_VIZ_SUFFIX_GRAF`, `SZ_VIZ_SUFFIX_DIAL` para los sufijos.
+3. `sz_sensor_name()` compondrá `sensor_name + " " + viz_suffix` según el viz activo (excepto FOCUS que retorna solo el nombre del sensor).
+4. Cambiar el default de `g_viz[i]` de `SZ_VIZ_CARD` a `SZ_VIZ_FOCUS`.
+5. Cambiar `GRAPH_PUSH_SENSOR` → nuevo LangKey `SZ_PUSH_CHANGE_VIZ` = `"Pulsa: cambiar vista"` en el footer de FOCUS.
+
+### Resolución de duplicaciones de título
+
+Los sub-renderers muestran internamente labels cortos del sensor (TEMP, HUM, SUELO…) que duplican el header cuando se llaman desde `SENSOR_ZONE_SCREEN`. El enfoque aprobado: flag `sz_is_active()` en `sensor_zone.h`. Cada sub-renderer lo chequea y sustituye su label interno por la **unidad de medida** (`°C`, `%`, `lux`) en lugar de suprimirlo — mantiene el peso visual sin duplicar información.
+
+Pantallas afectadas y qué cambiar:
+
+| Sub-renderer | Label interno actual | Reemplazar por |
+|-------------|---------------------|----------------|
+| `ui_lab_focus.cpp` `draw_summary_shell()` | `sensor_title()` = "TEMP" | unidad del sensor |
+| `ui_lab_widget_showcase.cpp` `draw_lab_gauge_dynamic()` | `L(spec.label_key)` = "TEMP" | unidad del sensor |
+| `ui_lab_widget_showcase.cpp` `draw_lab_value_dynamic()` | badge text `L(label_key)` = "TEMP" | solo icono (sin texto en el badge) |
+| `ui_graph.cpp` `draw_graph_screen()` | `graph_sensor_label()` = "Temperatura aire" | unidad del sensor |
+| `ui_lab_sensor_cards.cpp` | device_label "DHT11"/"LDR" | sin cambio — es info de hardware, no duplica |
 
 ---
 

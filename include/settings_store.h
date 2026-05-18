@@ -90,3 +90,18 @@ void save_system_sound_enabled_store(bool enabled);
 void save_system_sleep_timeout_store(uint32_t timeout_ms);
 
 void clear_all_settings_store();
+
+// Sensor zone navigation persistence
+uint8_t load_sz_sensor_store();
+void    save_sz_sensor_store(uint8_t sensor_id);
+uint8_t load_sz_viz_store(uint8_t sensor_id);
+void    save_sz_viz_store(uint8_t sensor_id, uint8_t viz_mode);
+
+// BLE feature gate — factory-disabled. Cleared on every new flash (build hash reset).
+bool load_ble_enabled_store();
+void save_ble_enabled_store(bool enabled);
+
+// Firmware build stamp — resets NVS whenever a new binary is flashed.
+// Stores/loads a 32-bit FNV-1a hash of the build timestamp.
+uint32_t load_fw_build_stamp_store();
+void     save_fw_build_stamp_store(uint32_t stamp);

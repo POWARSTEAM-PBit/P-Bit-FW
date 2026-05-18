@@ -3,6 +3,8 @@
 // Short press cycles through all six available sensors.
 
 #include "ui_graph.h"
+#include "sensor_zone.h"
+#include "palette.h"
 
 #include "fonts.h"
 #include "graph_buffer.h"
@@ -120,77 +122,82 @@ static float graph_min_span(GraphSensor sensor) {
 }
 
 static uint16_t graph_grid_v_color(GraphSensor sensor) {
-    switch (sensor) {
-        case GRAPH_TEMP:  return tft.color565(96, 42, 86);
-        case GRAPH_HUM:   return tft.color565(48, 72, 124);
-        case GRAPH_LIGHT: return tft.color565(104, 88, 24);
-        case GRAPH_SOUND: return tft.color565(92, 42, 108);
-        case GRAPH_SOIL:  return tft.color565(28, 86, 74);
-        case GRAPH_DS18:  return tft.color565(82, 66, 132);
-        default:          return tft.color565(70, 54, 112);
-    }
+    // ~35% of P2 — vivid retro grid; visible sensor tint without competing with the line
+    const uint16_t p2 = pb_secondary((uint8_t)sensor);
+    const uint8_t r = (uint8_t)(((p2 >> 11) & 0x1F) * 9 / 25);
+    const uint8_t g = (uint8_t)(((p2 >> 5)  & 0x3F) * 9 / 25);
+    const uint8_t b = (uint8_t)((p2         & 0x1F) * 9 / 25);
+    return (uint16_t)((r << 11) | (g << 5) | b);
 }
 
 static uint16_t graph_grid_h_color(GraphSensor sensor, int row) {
+    // Rows 0=bottom .. 4=top. Each sensor gets 5 dark shades that evoke its palette.
+    // Ranges: dim (bottom) → slightly brighter (top) to add vertical depth.
     switch (sensor) {
         case GRAPH_TEMP: {
+            // Orange-red tones (fire, heat) — dark at bottom, hotter toward top
             static const uint16_t rows[] = {
-                tft.color565(120, 28, 34),
-                tft.color565(136, 62, 18),
-                tft.color565(132, 102, 26),
-                tft.color565(20, 86, 110),
-                tft.color565(18, 44, 98),
+                tft.color565(60,  14,  0),
+                tft.color565(80,  22,  0),
+                tft.color565(100, 30,  4),
+                tft.color565(80,  10, 30),
+                tft.color565(60,   6, 48),
             };
             return rows[(row < 5) ? row : 4];
         }
         case GRAPH_HUM: {
+            // Cyan-blue tones (water, rain) — deeper at bottom, electric at top
             static const uint16_t rows[] = {
-                tft.color565(12, 30, 76),
-                tft.color565(16, 46, 96),
-                tft.color565(22, 62, 116),
-                tft.color565(30, 78, 132),
-                tft.color565(42, 96, 148),
+                tft.color565(0,  18,  60),
+                tft.color565(0,  28,  80),
+                tft.color565(0,  44, 100),
+                tft.color565(4,  60, 120),
+                tft.color565(8,  80, 140),
             };
             return rows[(row < 5) ? row : 4];
         }
         case GRAPH_LIGHT: {
+            // Yellow-amber tones (sun, energy) — dark gold at bottom, warmer top
             static const uint16_t rows[] = {
-                tft.color565(130, 104, 20),
-                tft.color565(114, 86, 16),
-                tft.color565(94, 72, 14),
-                tft.color565(66, 54, 12),
-                tft.color565(36, 32, 12),
+                tft.color565(50,  40,  0),
+                tft.color565(70,  54,  0),
+                tft.color565(90,  70,  0),
+                tft.color565(110, 86,  4),
+                tft.color565(130, 100, 8),
             };
             return rows[(row < 5) ? row : 4];
         }
         case GRAPH_SOUND: {
+            // Magenta-purple tones (VU, waves) — dark purple at bottom, hot pink top
             static const uint16_t rows[] = {
-                tft.color565(116, 24, 60),
-                tft.color565(98, 22, 88),
-                tft.color565(76, 28, 110),
-                tft.color565(42, 58, 108),
-                tft.color565(20, 80, 92),
+                tft.color565(30,  0,  50),
+                tft.color565(50,  0,  70),
+                tft.color565(70,  0,  90),
+                tft.color565(90,  0,  70),
+                tft.color565(110, 0,  50),
             };
             return rows[(row < 5) ? row : 4];
         }
         case GRAPH_SOIL: {
+            // Green tones (plant, growth) — dark earth at bottom, lime at top
             static const uint16_t rows[] = {
-                tft.color565(18, 66, 46),
-                tft.color565(24, 86, 58),
-                tft.color565(32, 106, 72),
-                tft.color565(52, 132, 90),
-                tft.color565(96, 166, 126),
+                tft.color565(8,  40,  8),
+                tft.color565(12, 56, 12),
+                tft.color565(18, 72, 18),
+                tft.color565(24, 90, 24),
+                tft.color565(30, 110, 30),
             };
             return rows[(row < 5) ? row : 4];
         }
         case GRAPH_DS18:
         default: {
+            // Violet-blue tones (crystal, precision) — dark indigo at bottom, amethyst top
             static const uint16_t rows[] = {
-                tft.color565(90, 34, 126),
-                tft.color565(76, 54, 138),
-                tft.color565(54, 78, 144),
-                tft.color565(34, 102, 150),
-                tft.color565(24, 130, 156),
+                tft.color565(40,  0, 70),
+                tft.color565(54,  0, 90),
+                tft.color565(40, 20, 110),
+                tft.color565(30, 40, 120),
+                tft.color565(20, 60, 130),
             };
             return rows[(row < 5) ? row : 4];
         }
@@ -198,65 +205,32 @@ static uint16_t graph_grid_h_color(GraphSensor sensor, int row) {
 }
 
 static uint16_t graph_line_color(GraphSensor sensor) {
-    switch (sensor) {
-        case GRAPH_TEMP:  return tft.color565(88, 255, 96);
-        case GRAPH_HUM:   return tft.color565(80, 255, 255);
-        case GRAPH_LIGHT: return TFT_YELLOW;
-        case GRAPH_SOUND: return TFT_MAGENTA;
-        case GRAPH_SOIL:  return TFT_GREEN;
-        case GRAPH_DS18:  return tft.color565(186, 132, 255);
-        default:          return TFT_WHITE;
-    }
+    // GraphSensor order matches SzSensorId — cast directly.
+    return pb_primary((uint8_t)sensor);
 }
 
 static uint16_t graph_band_label_color(GraphSensor sensor) {
-    switch (sensor) {
-        case GRAPH_TEMP:  return tft.color565(90, 240, 255);
-        case GRAPH_HUM:   return tft.color565(255, 110, 230);
-        case GRAPH_LIGHT: return tft.color565(255, 220, 96);
-        case GRAPH_SOUND: return tft.color565(255, 140, 220);
-        case GRAPH_SOIL:  return tft.color565(102, 255, 182);
-        case GRAPH_DS18:  return tft.color565(204, 170, 255);
-        default:          return TFT_CYAN;
-    }
+    // Secondary color provides contrast against the primary graph line.
+    return pb_secondary((uint8_t)sensor);
 }
 
 static uint16_t graph_border_color(GraphSensor sensor) {
-    switch (sensor) {
-        case GRAPH_TEMP:  return tft.color565(132, 74, 0);
-        case GRAPH_HUM:   return tft.color565(0, 84, 130);
-        case GRAPH_LIGHT: return tft.color565(126, 102, 0);
-        case GRAPH_SOUND: return tft.color565(120, 22, 110);
-        case GRAPH_SOIL:  return tft.color565(0, 96, 64);
-        case GRAPH_DS18:  return tft.color565(92, 66, 156);
-        default:          return TFT_DARKGREY;
-    }
+    // ~55% of P1 — vivid sensor border without competing with the data line
+    const uint16_t p1 = pb_primary((uint8_t)sensor);
+    const uint8_t r = (uint8_t)(((p1 >> 11) & 0x1F) * 14 / 25);
+    const uint8_t g = (uint8_t)(((p1 >> 5)  & 0x3F) * 14 / 25);
+    const uint8_t b = (uint8_t)((p1         & 0x1F) * 14 / 25);
+    return (uint16_t)((r << 11) | (g << 5) | b);
 }
 
 static uint16_t graph_max_label_color(GraphSensor sensor) {
-    switch (sensor) {
-        case GRAPH_TEMP:  return tft.color565(255, 214, 56);
-        case GRAPH_LIGHT: return TFT_YELLOW;
-        case GRAPH_SOUND: return TFT_ORANGE;
-        case GRAPH_SOIL:  return tft.color565(120, 255, 160);
-        case GRAPH_DS18:  return tft.color565(220, 190, 255);
-        case GRAPH_HUM:
-        default:
-            return TFT_WHITE;
-    }
+    // P3: acento cálido — resalta el máximo/pico de la gráfica.
+    return pb_accent_warm((uint8_t)sensor);
 }
 
 static uint16_t graph_min_label_color(GraphSensor sensor) {
-    switch (sensor) {
-        case GRAPH_TEMP:  return tft.color565(54, 202, 255);
-        case GRAPH_LIGHT: return tft.color565(200, 200, 140);
-        case GRAPH_SOUND: return tft.color565(100, 200, 255);
-        case GRAPH_SOIL:  return tft.color565(84, 220, 170);
-        case GRAPH_DS18:  return TFT_CYAN;
-        case GRAPH_HUM:
-        default:
-            return TFT_WHITE;
-    }
+    // P4: contraste frío — referencia del mínimo.
+    return pb_contrast_cool((uint8_t)sensor);
 }
 
 static void format_graph_value(char* out, size_t out_size, GraphSensor sensor, float raw_value) {
@@ -384,6 +358,11 @@ void graph_cycle_sensor() {
     runtime_request_ui_full_redraw();
 }
 
+void graph_set_sensor(uint8_t sensor_id) {
+    if (sensor_id >= (uint8_t)GRAPH_COUNT) return;
+    g_graph_sensor = (GraphSensor)sensor_id;
+}
+
 void draw_graph_screen(bool screen_changed, bool sensor_data_changed) {
     static GraphSensor last_sensor = (GraphSensor)0xFF;
     static float data_buf[GRAPH_BUFFER_SIZE];
@@ -396,17 +375,11 @@ void draw_graph_screen(bool screen_changed, bool sensor_data_changed) {
 
     if (need_full) {
         tft.fillScreen(TFT_BLACK);
-        drawHeader(L(TIT_GRAPH));
+        if (!sz_is_active()) drawHeader(L(TIT_GRAPH));
     }
 
     if (need_full) {
         tft.fillRect(0, L_CONTENT_TOP, tft.width(), LG_GRAPH_Y - L_CONTENT_TOP - 1, TFT_BLACK);
-        tft.drawRoundRect(LG_GRAPH_X,
-                          LG_GRAPH_Y,
-                          LG_GRAPH_W + 2,
-                          LG_GRAPH_H + 2,
-                          LC_CARD_RADIUS,
-                          graph_border_color(g_graph_sensor));
         last_sensor = g_graph_sensor;
     }
 
@@ -430,6 +403,13 @@ void draw_graph_screen(bool screen_changed, bool sensor_data_changed) {
         } else {
             render_graph(data_buf, n, g_graph_sensor);
         }
+        // Border drawn after sprite/content so rounded corners aren't overwritten.
+        tft.drawRoundRect(LG_GRAPH_X,
+                          LG_GRAPH_Y,
+                          LG_GRAPH_W + 2,
+                          LG_GRAPH_H + 2,
+                          LC_CARD_RADIUS,
+                          graph_border_color(g_graph_sensor));
 
         if (n > 0) {
             char value_buf[24];

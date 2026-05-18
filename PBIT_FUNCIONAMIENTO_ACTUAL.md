@@ -1,6 +1,6 @@
 # P-Bit: Funcionamiento Actual del Firmware
 
-Actualizado: 2026-04-10
+Actualizado: 2026-05-17
 
 Este documento explica qué hace hoy el P-Bit con el código actual, cómo se usa y qué posibilidades educativas ofrece en contextos STEAM ambientales.
 
@@ -51,17 +51,20 @@ Además, el sistema también muestra:
 
 La navegación entre pantallas se hace con el encoder rotatorio.
 
-Orden actual de pantallas:
+Orden actual de pantallas (carrusel circular de 12 posiciones):
 
-- `Temperatura`
-- `Humedad`
-- `Luz`
-- `Sonido`
-- `Suelo`
-- `DS18B20`
-- `Sistema`
-- `Timer`
-- `Gráfica`
+- `Home` — visión global de todos los sensores en cards
+- `Clima` — temperatura y humedad del aire en card combinado
+- `Multi` — vista de múltiples sensores con widgets
+- `Sonido VU` — nivel de sonido ambiental en barras apiladas
+- `Temperatura` — sensor individual con menú de límites y alertas
+- `Humedad` — sensor individual con menú de límites y alertas
+- `Luz` — sensor individual con menú de calibración y alertas
+- `Sonido` — sensor individual con menú de umbrales y alertas
+- `Suelo` — sensor individual con calibración y alertas
+- `DS18B20` — sonda externa con menú de offset y alertas
+- `Timer` — cronómetro y cuenta regresiva
+- `Sistema` — ajustes globales del dispositivo
 
 ### Botón del encoder
 
@@ -72,15 +75,33 @@ El encoder tiene dos tipos de acción:
 
 Acciones rápidas actuales:
 
-- `Temperatura`: alterna la unidad global compartida `C/F`
-- `DS18B20`: alterna la misma unidad global compartida `C/F`
-- `Sistema`: alterna `Sonido ON/OFF`
-- `Timer`: con pulsación corta inicia/pausa; con pulsación larga abre el selector de minutos si está idle y resetea si ya estaba corriendo o pausado
-- `Gráfica`: pulsación corta cambia el sensor mostrado (`Temperatura` ↔ `Humedad`)
+- `Home`, `Clima`, `Multi`, `Sonido VU`: sin acciones de pulsación — son pantallas de solo lectura
+- `Temperatura`, `Humedad`, `Luz`, `Sonido`, `Suelo`, `DS18B20`: pulsación corta alterna el modo de visualización del sensor; pulsación larga (~1.2 s) abre el menú de configuración del sensor
+- `Timer`: pulsación corta inicia/pausa; pulsación larga abre el editor de duración `HH:MM:SS` si está idle o resetea si ya estaba corriendo o pausado
+- `Sistema`: pulsación corta alterna `Sonido ON/OFF`
 
-En la mayoría de pantallas de sensores, la pulsación larga (~1.2 s) abre el menú propio de esa pantalla.
+Notas:
+
+- La unidad `C/F` es global y compartida entre `Temperatura` y `DS18B20`; se cambia desde el menú de cualquiera de los dos.
+- Desde `Sistema`, mantener el encoder presionado durante 60 s sin girarlo activa la pantalla oculta de configuración BLE.
 
 ## 4. Qué hace cada pantalla
+
+### Home
+
+Muestra una visión global de todos los sensores en formato de cards. Es la primera pantalla que aparece al encender el dispositivo (tras el selector de idioma en frío).
+
+### Clima
+
+Muestra temperatura ambiente y humedad del aire en un card combinado. Permite leer de un vistazo las dos variables principales del entorno.
+
+### Multi
+
+Vista de múltiples sensores con widgets. Combina varias lecturas en una sola pantalla para una lectura rápida del estado ambiental completo.
+
+### Sonido VU
+
+Muestra el nivel de sonido ambiental en barras apiladas estilo VU meter. Útil para detectar de forma visual e inmediata el nivel de ruido del entorno.
 
 ### Temperatura
 
@@ -184,9 +205,11 @@ La pantalla normal muestra:
 
 - nombre del dispositivo
 - uptime
-- estado BLE
+- estado BLE (solo visible si el BLE está habilitado en NVS)
 - idioma activo
 - estado de sonido
+
+La fila de BLE desaparece cuando el Bluetooth está desactivado, para no confundir a los usuarios en un dispositivo que sale de fábrica sin BLE.
 
 Menú actual:
 
@@ -202,6 +225,35 @@ Desde aquí se puede:
 - elegir tiempo de reposo
 - cambiar idioma
 - resetear configuraciones
+
+### Pantalla BLE Toggle (oculta)
+
+Esta pantalla es una función de fábrica interna que no aparece en la navegación normal.
+
+Para activarla:
+
+1. Navegar a la pantalla `Sistema`.
+2. Mantener el encoder presionado durante **60 segundos** (sin girar).
+3. El dispositivo emite un tono corto agudo y entra automáticamente en la pantalla BLE.
+
+Qué muestra:
+
+- fondo azul completo
+- ícono de Bluetooth grande en blanco
+- selector de opción: `OFF` / `ON`
+
+Qué hace:
+
+- El encoder gira entre `OFF` y `ON`.
+- Una pulsación corta confirma la selección, guarda en NVS y reinicia el dispositivo.
+- Si se elige `ON`, el Bluetooth se activa en el siguiente arranque.
+- Si se elige `OFF`, el Bluetooth queda desactivado.
+
+Comportamiento por defecto:
+
+- De fábrica, el Bluetooth siempre sale `OFF`.
+- Cada vez que se instala un nuevo firmware, el estado BLE vuelve automáticamente a `OFF` (reset por build-hash).
+- El valor persiste entre reinicios normales si no se instala un nuevo firmware.
 
 ### Timer
 
@@ -223,20 +275,9 @@ El valor `00:00:00` funciona como cronómetro ascendente. Cualquier otro valor f
 
 ### Gráfica
 
-Muestra la evolución temporal de un sensor como gráfica de línea en pantalla completa.
+La pantalla `GRAPH_SCREEN` existe en el firmware pero no forma parte del carrusel de producción actual. Los buffers circulares de los 6 sensores siguen siendo llenados por el sensor task (160 muestras a 1 muestra/s) y la infraestructura de gráfica permanece activa en código.
 
-Funciones actuales:
-
-- historial de las últimas ~2 min 40 s (160 muestras a 1 muestra/s)
-- auto-escalado del eje Y con rango mínimo y margen de respiración
-- cambio de sensor (Temperatura ↔ Humedad) con pulsación corta del encoder
-- etiquetas dimmed de valor mínimo y máximo en las esquinas de la gráfica
-- render sin parpadeo mediante sprite de hardware
-- sensores disponibles actualmente: `Temperatura` y `Humedad`
-
-Nota:
-
-- la pantalla no tiene menú de configuración; en futuras versiones podría añadirse un rango fijo o más sensores
+El acceso a histórico por sensor se está integrando en las vistas de las pantallas de sensor individuales como modo de visualización adicional.
 
 ## 5. Alertas y feedback
 
@@ -453,7 +494,7 @@ Aunque el firmware ya es funcional y útil, todavía hay aspectos en evolución:
 - la UX visual todavía puede refinarse más
 - el timer ya permite editar `HH:MM:SS`, pero aún no tiene funciones de experimento más avanzadas
 - la pantalla de sonido sigue siendo interpretación por umbrales, no calibración física
-- la pantalla de gráfica es un prototipo funcional validado en hardware; quedan ajustes visuales finos y la ampliación a más sensores
+- la pantalla de gráfica ya cubre los 6 sensores; quedan ajustes visuales finos opcionales
 
 Esto no impide su uso educativo actual, pero sí marca oportunidades claras para las siguientes iteraciones.
 
@@ -466,7 +507,7 @@ Hoy el P-Bit ya es una plataforma educativa ambiental funcional que:
 - guarda ajustes
 - usa alertas visuales, LED y sonido
 - gestiona reposo automático
-- muestra la evolución temporal de sensores como gráfica de línea interactiva
+- muestra la evolución temporal de los 6 sensores como gráfica de línea interactiva con paleta por sensor
 - sirve para actividades STEAM reales con plantas, clima, luz, ruido y análisis del entorno
 
 En su estado actual, ya puede usarse como herramienta de observación, experimentación y aprendizaje en educación ambiental.

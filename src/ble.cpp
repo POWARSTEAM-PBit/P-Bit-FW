@@ -2,8 +2,9 @@
 #include <esp_system.h>     // esp_read_mac()
 #include <NimBLEDevice.h>
 #include <atomic>
-#include "io.h" // <-- ¡CAMBIO 1: AÑADIDO INCLUDE!
+#include "io.h"
 #include "hw.h"
+#include "config.h"
 
 
 constexpr int DATA_PACKET_LEN = 20;
@@ -149,5 +150,5 @@ void init_ble() {
     adv->addServiceUUID(NimBLEUUID(LEGACY_SERVICE_UUID16));
     adv->start();
 
-    Serial.println("[BLE] Advertising started");
+    DPRINTLN("[BLE] Advertising started");
 }

@@ -226,6 +226,9 @@ static const char* const STRINGS[LANG_KEY_COUNT][3] = {
 /* TIT_LAB_ICON_SZ_EXT */ { "TAM ICONO EXT",     "MIDA ICONA EXT",       "ICON SIZE EXT"      },
 /* TIT_LAB_HOME_CARDS  */ { "HOME",               "HOME",                 "HOME"               },
 /* TIT_LAB_LINEAR_DASH */ { "PLANT LAB",          "PLANT LAB",            "PLANT LAB"          },
+/* SOIL_ZONE_DRY       */ { "Sec",                "Sec",                  "Dry"                },
+/* SOIL_ZONE_OK        */ { "Ok",                 "Bé",                   "Ok"                 },
+/* SOIL_ZONE_WET       */ { "Hum",                "Hum",                  "Wet"                },
 };
 
 // ---------------------------------------------------------------

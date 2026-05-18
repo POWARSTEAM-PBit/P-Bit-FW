@@ -94,8 +94,8 @@ constexpr int LS_LABEL_X    = 20;   // X position for the fixed left-side labels
 constexpr int LS_VALUE_X    = 52;   // X position for the dynamic right-side values.
 constexpr int LS_ROW_DEV    = 40;   // DEV row baseline.
 constexpr int LS_ROW_UP     = 54;   // UP row baseline.
-constexpr int LS_ROW_BLE    = 68;   // BLE row baseline.
-constexpr int LS_ROW_LAN    = 82;   // Language row baseline.
+constexpr int LS_ROW_BLE    = 82;   // BLE row baseline (last — hidden when disabled, no gap).
+constexpr int LS_ROW_LAN    = 68;   // Language row baseline.
 constexpr int LS_FOOTER_Y   = 116;  // Footer baseline below the card.
 
 // ── Card layout system ─────────────────────────────────────

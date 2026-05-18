@@ -1,7 +1,8 @@
 // led_control.cpp
 // Shared RGB LED and passive buzzer driver.
 #include "led_control.h"
-#include "hw.h" 
+#include "hw.h"
+#include "config.h"
 
 // --- Pin mapping ---
 constexpr int RGB_R_PIN = 5;
@@ -66,7 +67,7 @@ void init_leds_and_buzzer() {
     // 4. Start with the RGB LED off.
     set_rgb(0, 0, 0);
 
-    Serial.println("[Hardware] RGB LED and passive buzzer initialized.");
+    DPRINTLN("[Hardware] RGB LED and passive buzzer initialized.");
 }
 
 /**

@@ -17,16 +17,12 @@ void pbit_draw_light_icon       (int cx, int cy, uint16_t color);
 void pbit_draw_sound_icon       (int cx, int cy, uint16_t color);
 void pbit_draw_plant_icon       (int cx, int cy, uint16_t color);
 
-void pbit_draw_temp_icon_large      (int cx, int cy, uint16_t color);
-void pbit_draw_probe_icon_large     (int cx, int cy, uint16_t color);
-void pbit_draw_humidity_icon_large  (int cx, int cy, uint16_t color);
-void pbit_draw_light_icon_large     (int cx, int cy, uint16_t color);
-void pbit_draw_sound_icon_large     (int cx, int cy, uint16_t color);
-void pbit_draw_plant_icon_large     (int cx, int cy, uint16_t color);
-
 void pbit_draw_temp_icon_xl         (int cx, int cy, uint16_t color);
 void pbit_draw_probe_icon_xl        (int cx, int cy, uint16_t color);
 void pbit_draw_humidity_icon_xl     (int cx, int cy, uint16_t color);
 void pbit_draw_light_icon_xl        (int cx, int cy, uint16_t color);
 void pbit_draw_sound_icon_xl        (int cx, int cy, uint16_t color);
 void pbit_draw_plant_icon_xl        (int cx, int cy, uint16_t color);
+
+void pbit_draw_bluetooth_icon   (int cx, int cy, uint16_t color);
+void pbit_draw_bluetooth_icon_xl(int cx, int cy, uint16_t color);

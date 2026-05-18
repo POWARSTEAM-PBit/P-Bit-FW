@@ -31,16 +31,6 @@ void drawCard(int x, int y, int w, int h, uint16_t color);
 void drawHeader(const char* title);
 void drawMasterCardHeader(const char* title, uint16_t line_color = TFT_WHITE);
 void drawFooterHint(const char* text, int cx, int y, uint16_t color = TFT_CYAN);
-void drawMasterFooterHint(const char* text, uint16_t color = TFT_DARKGREY);
-void drawSensorChip(int x,
-                    int y,
-                    int w,
-                    int h,
-                    const char* label,
-                    uint16_t accent,
-                    SensorIconDrawFn icon_fn,
-                    uint16_t bg = TFT_BLACK,
-                    uint16_t text_color = TFT_WHITE);
 // Clear the shared menu title/body/footer bands before drawing a new state.
 void clearMenuBands();
 // Draw the common centered menu frame: title at the top band and footer hint at the bottom.
@@ -77,7 +67,6 @@ void drawCenteredMenuBodyLines(const char* const* lines,
                                MenuTextFont text_font,
                                int start_y,
                                int gap_y);
-void drawStringFit(const char* str, int x, int y, uint8_t bigFont, uint8_t smallFont, int maxW);
 void drawFillTank(int x, int y, int w, int h, uint16_t fixedColor, float value, float minVal, float maxVal, int radius = 0);
 void drawBarGraph(int x, int y, int w, int h, uint16_t color, float value, float minVal, float maxVal);
 void drawSplitDecimalValue(float value, int cx, int topY, uint16_t color, uint16_t bg_color);

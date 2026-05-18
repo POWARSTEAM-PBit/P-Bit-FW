@@ -12,6 +12,7 @@
 #include <esp_sleep.h> // Sleep modes and wake-up helpers
 #include <esp_system.h>
 #include <esp_timer.h>
+#include <nvs_flash.h>
 #include <driver/rtc_io.h>
 #include <stdio.h>
 #include "ui_widgets.h" // Owns the global TFT instance
@@ -26,9 +27,13 @@
 #include "ui_system.h"
 #include "lang_select.h" // Cold-boot language selector
 #include "config.h"
+#include "settings_store.h"
 #include "layout.h"
 #include "runtime_events.h"
 #include "alert_engine.h"
+#if PBIT_ENABLE_GRAPH_LAB
+#include "sensor_zone.h"
+#endif
 
 #define SERIAL_BAUD_RATE 115200
 
@@ -131,7 +136,7 @@ static void playSleepSignal(uint8_t flashes, uint8_t r, uint8_t g, uint8_t b, in
 static void enterIdleMode() {
     if (g_power_mode == POWER_IDLE) return;
 
-    Serial.println("[Power] Entering IDLE mode.");
+    DPRINTLN("[Power] Entering IDLE mode.");
     saveCurrentScreenForSleep();
     playSleepSignal(2, 255, 80, 0, IDLE_BEEP_HZ);
     set_rgb(0, 0, 0);
@@ -142,98 +147,41 @@ static void enterIdleMode() {
 }
 
 static void logBootDiagnostics(esp_sleep_wakeup_cause_t wakeup_reason, esp_reset_reason_t reset_reason) {
-    Serial.printf("[Boot] Reset reason: %d\n", (int)reset_reason);
-    Serial.printf("[Boot] Wakeup cause: %d\n", (int)wakeup_reason);
-    Serial.printf("[Boot] RTC last screen: %u\n", g_rtc_last_active_screen);
-    Serial.printf("[Boot] RTC last power mode: %u\n", g_rtc_last_power_mode);
-    Serial.printf("[Boot] RTC last sleep intent: %u\n", g_rtc_last_sleep_intent);
-    Serial.printf("[Boot] RTC boot counter: %lu\n", (unsigned long)g_rtc_boot_counter);
+    DPRINT("[Boot] Reset reason: %d\n", (int)reset_reason);
+    DPRINT("[Boot] Wakeup cause: %d\n", (int)wakeup_reason);
+    DPRINT("[Boot] RTC last screen: %u\n", g_rtc_last_active_screen);
+    DPRINT("[Boot] RTC last power mode: %u\n", g_rtc_last_power_mode);
+    DPRINT("[Boot] RTC last sleep intent: %u\n", g_rtc_last_sleep_intent);
+    DPRINT("[Boot] RTC boot counter: %lu\n", (unsigned long)g_rtc_boot_counter);
 }
 
 static void failFastOnTaskCreateError(const char* task_name) {
-    Serial.printf("[RTOS] ERROR: No se pudo crear la tarea %s\n", task_name);
+    DPRINT("[RTOS] ERROR: No se pudo crear la tarea %s\n", task_name);
     delay(200);
     esp_restart();
 }
 
 void setup() {
     Serial.begin(SERIAL_BAUD_RATE);
+    {
+        esp_err_t nvs_ret = nvs_flash_init();
+        if (nvs_ret == ESP_ERR_NVS_NO_FREE_PAGES || nvs_ret == ESP_ERR_NVS_NEW_VERSION_FOUND) {
+            nvs_flash_erase();
+            nvs_flash_init();
+        }
+    }
     g_rtc_boot_counter++;
     
     // Module initialization.
     set_devicename();
     init_tft_display();
 
-    // ── LAYOUT VALIDATION TEST ── enable only when recalibrating master geometry ──
-    constexpr bool kShowStartupLayoutValidation = false;
-    if (kShowStartupLayoutValidation) {
-        extern const GFXfont Roboto_Medium10pt8b;
-        extern const GFXfont Roboto_Regular7pt8b;
-        extern const GFXfont Roboto_Light6pt8b;
-
-        tft.fillScreen(TFT_BLACK);
-
-        // Pixel boundary reference: red dot at each corner
-        tft.fillRect(0,   0,   1, 1, TFT_RED);
-        tft.fillRect(159, 0,   1, 1, TFT_RED);
-        tft.fillRect(0,   127, 1, 1, TFT_RED);
-        tft.fillRect(159, 127, 1, 1, TFT_RED);
-
-        // ── Header: C_BASELINE y=16 → text top=3, bottom=17 ──────────
-        // TC/MC datums use glyph_ab=18 (global font max, char Å), not string ascent=13.
-        // C_BASELINE bypasses that: y IS the baseline. top = y - 13 = 3.
-        tft.setTextDatum(C_BASELINE);
-        tft.setTextColor(TFT_WHITE, TFT_BLACK);
-        tft.setFreeFont(&Roboto_Medium10pt8b);
-        tft.drawString("SENSOR LAB", 80, LC_MASTER_HEADER_BASELINE);
-        tft.setTextFont(0);
-        tft.drawFastHLine(LC_MASTER_HEADER_LINE_X,
-                          LC_MASTER_HEADER_LINE_Y,
-                          LC_MASTER_HEADER_LINE_W,
-                          TFT_WHITE);
-
-        // ── Mock 2x2 card grid ─────────────────────────────────────────
-        // margin=2px, gap=4px, card=76x48, row0 y=27, row1 y=79
-        const uint16_t kFrame = tft.color565(50, 70, 110);
-        tft.drawRoundRect(LC_MASTER_CARD_X0, LC_MASTER_CARD_Y0,
-                          LC_MASTER_CARD_W, LC_MASTER_CARD_H,
-                          LC_MASTER_CARD_RADIUS, kFrame);
-        tft.drawRoundRect(LC_MASTER_CARD_X1, LC_MASTER_CARD_Y0,
-                          LC_MASTER_CARD_W, LC_MASTER_CARD_H,
-                          LC_MASTER_CARD_RADIUS, kFrame);
-        tft.drawRoundRect(LC_MASTER_CARD_X0, LC_MASTER_CARD_Y1,
-                          LC_MASTER_CARD_W, LC_MASTER_CARD_H,
-                          LC_MASTER_CARD_RADIUS, kFrame);
-        tft.drawRoundRect(LC_MASTER_CARD_X1, LC_MASTER_CARD_Y1,
-                          LC_MASTER_CARD_W, LC_MASTER_CARD_H,
-                          LC_MASTER_CARD_RADIUS, kFrame);
-
-        // Card size labels
-        char card_label[16];
-        snprintf(card_label, sizeof(card_label), "%dx%d", LC_MASTER_CARD_W, LC_MASTER_CARD_H);
-        tft.setTextDatum(MC_DATUM);
-        tft.setFreeFont(&Roboto_Regular7pt8b);
-        tft.setTextColor(tft.color565(90, 90, 90), TFT_BLACK);
-        tft.drawString(card_label, LC_MASTER_CARD_CX0, LC_MASTER_CARD_CY0);
-        tft.drawString(card_label, LC_MASTER_CARD_CX1, LC_MASTER_CARD_CY0);
-        tft.drawString(card_label, LC_MASTER_CARD_CX0, LC_MASTER_CARD_CY1);
-        tft.drawString(card_label, LC_MASTER_CARD_CX1, LC_MASTER_CARD_CY1);
-        tft.setTextFont(0);
-
-        // ── Y-axis markers on right edge (1px wide) ───────────────────
-        // Each dot shows a key layout boundary
-        tft.fillRect(159, LC_MASTER_HEADER_TEXT_TOP,  1, 1, TFT_YELLOW);
-        tft.fillRect(159, LC_MASTER_HEADER_LINE_Y,    1, 1, TFT_CYAN);
-        tft.fillRect(159, LC_MASTER_CARD_Y0,          1, 1, TFT_WHITE);
-        tft.fillRect(159, LC_MASTER_CARD_Y1,          1, 1, TFT_WHITE);
-        tft.fillRect(159, LC_MASTER_CARD_BOTTOM,      1, 1, TFT_WHITE);
-        tft.fillRect(159, LC_MASTER_FOOTER_TEXT_TOP,  1, 1, TFT_MAGENTA);
-
-        delay(15000);
+    // BLE is factory-disabled. The build-hash reset above clears ble_en on every
+    // new flash, so the device always ships with BLE off until unlocked via the
+    // secret 60 s hold gesture on SYSTEM_SCREEN.
+    if (load_ble_enabled_store()) {
+        init_ble();
     }
-    // ── END LAYOUT VALIDATION TEST ──────────────────────────────────────
-
-    init_ble();
     init_leds_and_buzzer();
     alert_engine_reset();
     init_hw();
@@ -248,11 +196,34 @@ void setup() {
     wakeup_reason = esp_sleep_get_wakeup_cause();
     esp_reset_reason_t reset_reason = esp_reset_reason();
     logBootDiagnostics(wakeup_reason, reset_reason);
+    if (reset_reason == ESP_RST_PANIC ||
+        reset_reason == ESP_RST_TASK_WDT ||
+        reset_reason == ESP_RST_INT_WDT) {
+        DPRINTLN("[Boot] WARNING: Previous boot ended abnormally (panic/WDT).");
+    }
+
+    // Factory reset guard: wipe NVS every time a new binary is flashed.
+    // Uses FNV-1a hash of the compile timestamp — unique per build, no manual versioning needed.
+    auto fw_build_hash = []() -> uint32_t {
+        const char* s = __DATE__ " " __TIME__;
+        uint32_t h = 2166136261u;
+        for (; *s; ++s) h = (h ^ (uint8_t)*s) * 16777619u;
+        return h;
+    };
+    const uint32_t kBuildHash = fw_build_hash();
+    const uint32_t stored_stamp = load_fw_build_stamp_store();
+    const bool settings_wiped = (stored_stamp != kBuildHash);
+    if (settings_wiped) {
+        DPRINT("[Boot] New firmware detected (stamp %08X->%08X) -- wiping NVS.\n",
+               stored_stamp, kBuildHash);
+        clear_all_settings_store();
+        save_fw_build_stamp_store(kBuildHash);
+    }
 
     switch(wakeup_reason)
     {
         case ESP_SLEEP_WAKEUP_EXT0 : // Woke up from the encoder button (GPIO 13)
-            Serial.println("[Power] Waking up from Deep Sleep (Button).");
+            DPRINTLN("[Power] Waking up from Deep Sleep (Button).");
             loadLanguage();           // Restore the last language without showing the selector
             restorePersistedScreen();
             g_is_fahrenheit = false;
@@ -261,14 +232,20 @@ void setup() {
             break;
 
         default : // Cold boot / power-on
-            Serial.println("[Power] Cold Boot detected. Running boot sequence.");
+            DPRINTLN("[Power] Cold Boot detected. Running boot sequence.");
             run_boot_sequence();
             active_screen = FIRST_APP_SCREEN;
             runtime_set_last_active_screen_before_sleep(active_screen);
             g_is_fahrenheit = false;
             g_power_mode = POWER_ACTIVE;
             persistPowerState(POWER_ACTIVE, SLEEP_INTENT_NONE);
-            showLanguageMenu();       // Always show the language menu on first boot.
+            if (settings_wiped) {
+                // First boot with this firmware version — force language selection.
+                showLanguageMenu();
+            } else {
+                // Returning cold boot — language already confirmed, load silently.
+                loadLanguage();
+            }
             tft.fillScreen(TFT_BLACK); // Force a clean slate before the first app screen redraw.
             delay(25);                // Give the display driver time to settle.
             tft.fillScreen(TFT_BLACK);
@@ -276,6 +253,11 @@ void setup() {
             break;
     }
     // -----------------------------------------------------------------
+
+    // Load sensor-zone NVS state (sensor selection + per-sensor viz modes).
+#if PBIT_ENABLE_GRAPH_LAB
+    sz_init();
+#endif
 
     // Reconfigure the encoder for the main app after boot/restore flow.
     init_rotary();

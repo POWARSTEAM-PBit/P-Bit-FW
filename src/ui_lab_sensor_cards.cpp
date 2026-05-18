@@ -1,4 +1,6 @@
 #include "ui_lab_sensor_cards.h"
+#include "sensor_zone.h"
+#include "palette.h"
 
 #include "alert_engine.h"
 #include "fonts.h"
@@ -52,24 +54,14 @@ constexpr int kUnitTopY  = kCardY + 26;          // = 53
 constexpr int kUnitGapX  = 4;
 constexpr int kInvalidValueY = kCardY + 23;      // = 50
 
-constexpr int kVizLabelY = kCardY + 63;          // = 90
+constexpr int kVizLabelY = kCardY + 65;          // = 92
 constexpr int kVizX      = kCardX + 8;           // = 10
 constexpr int kVizW      = kCardW - 16;          // = 140
-constexpr int kVizBarH   = 16;                   // Altura estándar unificada (agrandada 1px arriba)
-constexpr int kVizBottomY = kCardY + 89;         // = 116
-constexpr int kVizBarY   = kVizBottomY - kVizBarH + 1; // = 101
+constexpr int kVizBarH   = 16;                   // Altura estándar unificada
+constexpr int kVizBottomY = kCardY + 91;         // = 118
+constexpr int kVizBarY   = kVizBottomY - kVizBarH + 1; // = 103
 
-// ── Canonical secondary palette ───────────────────────────────────────
-constexpr uint16_t kTempSecondary  = 0xF81F;
-constexpr uint16_t kHumSecondary   = 0x881F;
-constexpr uint16_t kLightSecondary = 0xFD20;
-constexpr uint16_t kSoundSecondary = 0x3FE8;
-constexpr uint16_t kSoilSecondary  = 0x35FF;
-
-constexpr uint16_t kHumPrimary   = 0x069F;
-constexpr uint16_t kLightPrimary = 0xFFE0;
-constexpr uint16_t kSoundPrimary = 0xF81F;
-constexpr uint16_t kSoilPrimary  = 0x2F85;
+// Colors sourced from palette.h — do not add local overrides here.
 
 constexpr uint16_t kVizTrack = 0x1084;
 
@@ -176,27 +168,27 @@ static uint16_t ds18_accent(bool valid, float temp_c, uint8_t alert_code) {
 }
 
 static uint16_t hum_accent(bool valid, float, uint8_t alert_code) {
-    if (!valid) return TFT_DARKGREY;
+    if (!valid) return PB_HUM_P4;
     if (alert_code == ALERT_CODE_LOW)  return TFT_BLUE;
     if (alert_code == ALERT_CODE_HIGH || alert_code == ALERT_CODE_CRITICAL) return TFT_RED;
-    return kHumPrimary;
+    return PB_HUM_P1;
 }
 
 static uint16_t light_accent(bool valid, float, uint8_t alert_code) {
-    if (!valid) return TFT_DARKGREY;
+    if (!valid) return PB_LUZ_P4;
     if (alert_code == ALERT_CODE_HIGH || alert_code == ALERT_CODE_CRITICAL) return TFT_RED;
-    return kLightPrimary;
+    return PB_LUZ_P1;
 }
 
 static uint16_t sound_accent(bool valid, float, uint8_t alert_code) {
-    if (!valid) return TFT_DARKGREY;
+    if (!valid) return PB_SOUND_P4;
     if (alert_code == ALERT_CODE_HIGH || alert_code == ALERT_CODE_CRITICAL) return TFT_RED;
-    return kSoundPrimary;
+    return PB_SOUND_P1;
 }
 
 static uint16_t soil_accent(bool valid, float, uint8_t alert_code) {
-    if (!valid) return TFT_DARKGREY;
-    return kSoilPrimary;
+    if (!valid) return PB_SOIL_P4;
+    return PB_SOIL_P1;
 }
 
 static uint16_t temp_bar_color(float t) {
@@ -248,7 +240,7 @@ static uint16_t jewel_color(AlertJewelState state, uint16_t accent) {
 
 static void draw_lab_card_shell(const char* title) {
     tft.fillScreen(kBg);
-    drawHeader(title);
+    if (!sz_is_active()) drawHeader(title);
 }
 
 // ── Header strip (icon + device label) ────────────────────────────────
@@ -304,11 +296,11 @@ static void draw_value_compact(bool sensor_valid,
         : constrain(centered_x, min_x, max_x);
 
     tft.setTextDatum(TL_DATUM);
-    tft.setTextColor(accent, kCardBg);
+    tft.setTextColor(TFT_WHITE, kCardBg);
     tft.setFreeFont(FONT_VALUE);
     tft.drawString(value_str, start_x, kValueTopY);
 
-    tft.setTextColor(0x8C71, kCardBg);
+    tft.setTextColor(accent, kCardBg);
     tft.setFreeFont(FONT_BODY);
     tft.drawString(compact_unit, start_x + value_w + kUnitGapX, kUnitTopY);
     tft.setTextFont(0);
@@ -343,10 +335,10 @@ static void draw_temp_viz(bool sv, float temp_c, uint16_t accent) {
         }
     }
 
-    // End labels
+    // End labels: P4 (cool reference) — scale markers use cold contrast color
     tft.setFreeFont(FONT_SMALL);
     tft.setTextDatum(TL_DATUM);
-    tft.setTextColor(0x6B6D, kCardBg);
+    tft.setTextColor(PB_TEMP_P4, kCardBg);
     tft.drawString("0\xb0", kVizX, kVizLabelY);
     tft.setTextDatum(TR_DATUM);
     tft.drawString("50\xb0", kVizX + kVizW, kVizLabelY);
@@ -391,10 +383,10 @@ static void draw_probe_viz(bool sv, float temp_c, uint16_t accent) {
     const int zero_x = kVizX + zero_seg * (sw + gap) - 1;
     tft.drawFastVLine(zero_x, by, bh, TFT_WHITE);
 
-    // End labels
+    // End labels: P4 of DS18 (cold cyan — reference for a wide-range probe)
     tft.setFreeFont(FONT_SMALL);
     tft.setTextDatum(TL_DATUM);
-    tft.setTextColor(0x6B6D, kCardBg);
+    tft.setTextColor(PB_DS18_P4, kCardBg);
     tft.drawString("-55\xb0", kVizX, kVizLabelY);
     tft.setTextDatum(TR_DATUM);
     tft.drawString("+125\xb0", kVizX + kVizW, kVizLabelY);
@@ -415,25 +407,37 @@ static void draw_hum_viz(bool sv, float value, uint16_t accent) {
         const int sx = kVizX + i * (sw + gap);
         uint16_t c;
         if (i < filled) {
+            // blanco (seco/invisible) → cian (húmedo) → azul cobalto (saturado)
             const float t = (float)i / (float)(segs - 1);
-            c = tft.color565(
-                (uint8_t)roundf(245 - t * 215),
-                (uint8_t)roundf(250 - t * 170),
-                (uint8_t)roundf(255 - t * 20));
+            uint8_t r, g, b;
+            if (t < 0.5f) {
+                // blanco → cian claro
+                const float u = t / 0.5f;
+                r = (uint8_t)roundf(255 - u * 175);  // 255 → 80
+                g = (uint8_t)roundf(255 - u * 55);   // 255 → 200
+                b = 255;
+            } else {
+                // cian claro → azul cobalto
+                const float u = (t - 0.5f) / 0.5f;
+                r = (uint8_t)roundf(80  - u * 50);   // 80 → 30
+                g = (uint8_t)roundf(200 - u * 120);  // 200 → 80
+                b = (uint8_t)roundf(255 - u * 35);   // 255 → 220
+            }
+            c = tft.color565(r, g, b);
         } else {
             c = kVizTrack;
         }
-        // Rounder top pill to suggest droplets
+        // Píldoras para sugerir gotas de agua
         tft.fillRoundRect(sx, by, sw, bh, sw / 2, c);
-        // Highlight dot inside filled segments
+        // Highlight punto interior en segmentos llenos
         if (i < filled && sw > 6) {
-            tft.fillCircle(sx + sw / 2 - 1, by + 4, 1,
-                tft.color565(100, 220, 255));
+            tft.fillCircle(sx + sw / 2 - 1, by + 4, 1, tft.color565(220, 240, 255));
         }
     }
 
+    // End labels: P4 of HUM (ocean blue — scale reference for humidity)
     tft.setFreeFont(FONT_SMALL);
-    tft.setTextColor(0x6B6D, kCardBg);
+    tft.setTextColor(PB_HUM_P4, kCardBg);
     tft.setTextDatum(TL_DATUM);
     tft.drawString("0%", kVizX, kVizLabelY);
     tft.setTextDatum(TR_DATUM);
@@ -489,12 +493,12 @@ static void draw_sound_viz(bool sv, float value, uint16_t accent) {
         // Track
         tft.fillRoundRect(sx, base_y - max_h + 1, cw, max_h, 2, kVizTrack);
         if (!sv || bar_h == 0) continue;
-        // Filled: color depends on column position (simulate VU zones)
+        // VU zones: quiet=P2(acid green) → mid=P1(magenta) → peak=P3(neon red)
         const float zone = (float)(i + 1) / (float)cols;
         uint16_t c;
-        if (zone > 0.72f)      c = TFT_RED;
-        else if (zone > 0.43f) c = 0xFD20;  // orange
-        else                   c = 0x27E0;  // acid green
+        if (zone > 0.72f)      c = PB_SOUND_P3;  // neon red — peak/danger
+        else if (zone > 0.43f) c = PB_SOUND_P1;  // magenta — mid level
+        else                   c = PB_SOUND_P2;  // acid green — quiet/safe
         tft.fillRoundRect(sx, base_y - bar_h + 1, cw, bar_h, 2, c);
         // Peak pixel
         if (base_y - bar_h >= kVizBarY) {
@@ -526,11 +530,11 @@ static void draw_soil_viz(bool sv, float value, uint16_t accent) {
     tft.setFreeFont(FONT_SMALL);
     tft.setTextDatum(MC_DATUM);
     tft.setTextColor(TFT_BLACK, dry_color);
-    tft.drawString("DRY", kVizX + dry_w / 2, label_y);
+    tft.drawString(L(SOIL_ZONE_DRY), kVizX + dry_w / 2, label_y);
     tft.setTextColor(TFT_BLACK, good_color);
-    tft.drawString("OK",  kVizX + dry_w + good_w / 2, label_y);
+    tft.drawString(L(SOIL_ZONE_OK),  kVizX + dry_w + good_w / 2, label_y);
     tft.setTextColor(TFT_BLACK, wet_color);
-    tft.drawString("WET", kVizX + dry_w + good_w + wet_w / 2, label_y);
+    tft.drawString(L(SOIL_ZONE_WET), kVizX + dry_w + good_w + wet_w / 2, label_y);
     tft.setTextFont(0);
 
     // DIBUJAR FLECHA INDICADORA (Capa superior, pisa texto y barra)
@@ -550,37 +554,37 @@ static void draw_soil_viz(bool sv, float value, uint16_t accent) {
 
 static const LabSensorCardSpec kCardSpecs[CARD_COUNT] = {
     {
-        CARD_TEMP, TIT_LAB_TEMP_CARD, "DHT11", kTempSecondary,
+        CARD_TEMP, TIT_LAB_TEMP_CARD, "DHT11", PB_TEMP_P2,
         ST_NO_SENSOR, TFT_DARKGREY, AlertSensor::Temp, true,
         temp_is_valid, temp_value_c, get_temp_alerts_enabled, unit_temp_compact,
         temp_accent, draw_temp_viz, pbit_draw_temp_icon
     },
     {
-        CARD_DS18, TIT_LAB_PROBE_CARD, "DS18B20", kTempSecondary,
-        ST_CHECK_DS18, TFT_CYAN, AlertSensor::Ds18, true,
+        CARD_DS18, TIT_LAB_PROBE_CARD, "DS18B20", PB_DS18_P2,
+        ST_CHECK_DS18, PB_DS18_P1, AlertSensor::Ds18, true,
         ds18_is_valid, ds18_value_c, get_ds18_alerts_enabled, unit_temp_compact,
         ds18_accent, draw_probe_viz, pbit_draw_probe_icon
     },
     {
-        CARD_HUM, TIT_LAB_HUM_CARD, "DHT11", kHumSecondary,
+        CARD_HUM, TIT_LAB_HUM_CARD, "DHT11", PB_HUM_P2,
         ST_NO_SENSOR, TFT_DARKGREY, AlertSensor::Humidity, false,
         hum_is_valid, hum_value_c, get_humidity_alerts_enabled, unit_pct_compact,
         hum_accent, draw_hum_viz, pbit_draw_humidity_icon
     },
     {
-        CARD_LIGHT, TIT_LAB_LIGHT_CARD, "LDR", kLightSecondary,
+        CARD_LIGHT, TIT_LAB_LIGHT_CARD, "LDR", PB_LUZ_P2,
         ST_NO_SENSOR, TFT_DARKGREY, AlertSensor::Light, false,
         light_is_valid, light_value_c, get_light_alerts_enabled, unit_lux_compact,
         light_accent, draw_light_viz, pbit_draw_light_icon
     },
     {
-        CARD_SOUND, TIT_LAB_SOUND_CARD, "MIC", kSoundSecondary,
+        CARD_SOUND, TIT_LAB_SOUND_CARD, "MIC", PB_SOUND_P2,
         ST_NO_SENSOR, TFT_DARKGREY, AlertSensor::Sound, false,
         sound_is_valid, sound_value_c, get_sound_alerts_enabled, unit_pct_compact,
         sound_accent, draw_sound_viz, pbit_draw_sound_icon
     },
     {
-        CARD_SOIL, TIT_LAB_SOIL_CARD, "SOIL", kSoilSecondary,
+        CARD_SOIL, TIT_LAB_SOIL_CARD, "SOIL", PB_SOIL_P2,
         ST_CHECK_SOIL, TFT_DARKGREY, AlertSensor::Soil, false,
         soil_is_valid, soil_value_c, get_soil_alerts_enabled, unit_pct_compact,
         soil_accent, draw_soil_viz, pbit_draw_plant_icon
@@ -690,6 +694,12 @@ void lab_sensor_card_cycle() {
     g_selected_card = (LabSensorCardId)(((uint8_t)g_selected_card + 1) % (uint8_t)CARD_COUNT);
     g_card_cache[g_selected_card].valid = false;
     runtime_request_ui_full_redraw();
+}
+
+void lab_sensor_card_set_sensor(uint8_t card_id) {
+    if (card_id >= (uint8_t)CARD_COUNT) return;
+    g_selected_card = (LabSensorCardId)card_id;
+    g_card_cache[g_selected_card].valid = false;
 }
 
 void draw_lab_sensor_card_screen(bool screen_changed, bool sensor_data_changed) {

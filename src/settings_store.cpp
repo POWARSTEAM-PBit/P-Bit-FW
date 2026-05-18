@@ -191,3 +191,48 @@ void clear_all_settings_store() {
     ScopedPrefs prefs(false);
     prefs.prefs.clear();
 }
+
+// Sensor zone — keys: "sz_sen", "sz_v0".."sz_v5"
+uint8_t load_sz_sensor_store() {
+    ScopedPrefs prefs(true);
+    return prefs.prefs.getUChar("sz_sen", 0);
+}
+
+void save_sz_sensor_store(uint8_t sensor_id) {
+    ScopedPrefs prefs(false);
+    prefs.prefs.putUChar("sz_sen", sensor_id);
+}
+
+uint8_t load_sz_viz_store(uint8_t sensor_id) {
+    char key[6];
+    snprintf(key, sizeof(key), "sz_v%u", (unsigned)sensor_id);
+    ScopedPrefs prefs(true);
+    return prefs.prefs.getUChar(key, 0);
+}
+
+void save_sz_viz_store(uint8_t sensor_id, uint8_t viz_mode) {
+    char key[6];
+    snprintf(key, sizeof(key), "sz_v%u", (unsigned)sensor_id);
+    ScopedPrefs prefs(false);
+    prefs.prefs.putUChar(key, viz_mode);
+}
+
+bool load_ble_enabled_store() {
+    ScopedPrefs prefs(true);
+    return prefs.prefs.getBool("ble_en", false);
+}
+
+void save_ble_enabled_store(bool enabled) {
+    ScopedPrefs prefs(false);
+    prefs.prefs.putBool("ble_en", enabled);
+}
+
+uint32_t load_fw_build_stamp_store() {
+    ScopedPrefs prefs(true);
+    return prefs.prefs.getUInt("fw_stamp", 0);
+}
+
+void save_fw_build_stamp_store(uint32_t stamp) {
+    ScopedPrefs prefs(false);
+    prefs.prefs.putUInt("fw_stamp", stamp);
+}

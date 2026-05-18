@@ -101,7 +101,7 @@ void init_hw() {
     load_temp_settings();
     load_light_settings();
     load_system_settings();
-    Serial.printf("[DS18B20] init: %d dispositivo(s) en bus\n", sensors.getDeviceCount());
+    DPRINT("[DS18B20] init: %d dispositivo(s) en bus\n", sensors.getDeviceCount());
 }
 
 void set_devicename() {
@@ -673,7 +673,7 @@ float read_ds18b20_temp() {
             return -999.0f;
         }
         sensors.setResolution(9);
-        Serial.printf("[DS18B20] Re-detectado: %d dispositivo(s)\n", sensors.getDeviceCount());
+        DPRINT("[DS18B20] Re-detectado: %d dispositivo(s)\n", sensors.getDeviceCount());
     }
 
     sensors.requestTemperatures();

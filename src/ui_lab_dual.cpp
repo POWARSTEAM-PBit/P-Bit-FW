@@ -112,7 +112,7 @@ static uint16_t hum_unit_color(bool valid) {
 }
 
 static uint16_t footer_bg_color() {
-    return tft.color565(8, 12, 18);
+    return tft.color565(14, 6, 24);
 }
 
 static void draw_climate_footer(float temp_c, bool no_temp, float hum, bool no_hum) {
@@ -144,9 +144,10 @@ static void draw_climate_footer(float temp_c, bool no_temp, float hum, bool no_h
     }
 
     const uint16_t bg = footer_bg_color();
+    const uint16_t card_border = tft.color565(160, 0, 255);
     tft.fillRect(kFooterX - 1, kFooterY - 1, kFooterW + 2, kFooterH + 2, TFT_BLACK);
     tft.fillRoundRect(kFooterX, kFooterY, kFooterW, kFooterH, 4, bg);
-    tft.drawRoundRect(kFooterX, kFooterY, kFooterW, kFooterH, 4, footer_color);
+    tft.drawRoundRect(kFooterX, kFooterY, kFooterW, kFooterH, 4, card_border);
     tft.fillCircle(kFooterX + 8, kFooterY + (kFooterH / 2), 2, footer_color);
     tft.setTextDatum(MC_DATUM);
     tft.setFreeFont(FONT_SMALL);

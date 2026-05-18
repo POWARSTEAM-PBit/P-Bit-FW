@@ -67,17 +67,6 @@ void pbit_draw_sound_icon   (int cx, int cy, uint16_t c) { impl_sound   (cx, cy,
 void pbit_draw_plant_icon   (int cx, int cy, uint16_t c) { impl_plant   (cx, cy, c, 1); }
 
 // ---------------------------------------------------------------------------
-// Public large API — s=2, ~28×28 px.
-// ---------------------------------------------------------------------------
-
-void pbit_draw_temp_icon_large    (int cx, int cy, uint16_t c) { impl_temp    (cx, cy, c, 2); }
-void pbit_draw_probe_icon_large   (int cx, int cy, uint16_t c) { impl_probe   (cx, cy, c, 2); }
-void pbit_draw_humidity_icon_large(int cx, int cy, uint16_t c) { impl_humidity(cx, cy, c, 2); }
-void pbit_draw_light_icon_large   (int cx, int cy, uint16_t c) { impl_light   (cx, cy, c, 2); }
-void pbit_draw_sound_icon_large   (int cx, int cy, uint16_t c) { impl_sound   (cx, cy, c, 2); }
-void pbit_draw_plant_icon_large   (int cx, int cy, uint16_t c) { impl_plant   (cx, cy, c, 2); }
-
-// ---------------------------------------------------------------------------
 // Public XL API — s=3, ~42×42 px. Used for gauge screen center icon.
 // ---------------------------------------------------------------------------
 
@@ -87,3 +76,36 @@ void pbit_draw_humidity_icon_xl(int cx, int cy, uint16_t c) { impl_humidity(cx, 
 void pbit_draw_light_icon_xl   (int cx, int cy, uint16_t c) { impl_light   (cx, cy, c, 3); }
 void pbit_draw_sound_icon_xl   (int cx, int cy, uint16_t c) { impl_sound   (cx, cy, c, 3); }
 void pbit_draw_plant_icon_xl   (int cx, int cy, uint16_t c) { impl_plant   (cx, cy, c, 3); }
+
+// ---------------------------------------------------------------------------
+// Bluetooth icon — classic ᛒ rune shape: spine + two right-pointing ">" wings
+// + short left tips from top/bottom endpoints.
+// ---------------------------------------------------------------------------
+
+static void impl_bluetooth(int cx, int cy, uint16_t c, int s) {
+    // Spine: 3px wide for s>=3, 2px for s>=2, 1px for s=1
+    tft.drawFastVLine(cx, cy - 7*s, 14*s + 1, c);
+    if (s >= 2) tft.drawFastVLine(cx + 1, cy - 7*s, 14*s + 1, c);
+    if (s >= 3) tft.drawFastVLine(cx - 1, cy - 7*s, 14*s + 1, c);
+    // Upper right wing: top → right-mid → center
+    tft.drawLine(cx, cy - 7*s, cx + 5*s, cy - 2*s, c);
+    tft.drawLine(cx + 5*s, cy - 2*s, cx, cy, c);
+    // Lower right wing: center → right-mid → bottom
+    tft.drawLine(cx, cy, cx + 5*s, cy + 2*s, c);
+    tft.drawLine(cx + 5*s, cy + 2*s, cx, cy + 7*s, c);
+    // Left tips from spine endpoints
+    tft.drawLine(cx, cy - 7*s, cx - 4*s, cy - 4*s, c);
+    tft.drawLine(cx, cy + 7*s, cx - 4*s, cy + 4*s, c);
+    // Thicker diagonals for s>=2: repeat each segment shifted +1 in x
+    if (s >= 2) {
+        tft.drawLine(cx + 1, cy - 7*s, cx + 5*s + 1, cy - 2*s, c);
+        tft.drawLine(cx + 5*s + 1, cy - 2*s, cx + 1, cy, c);
+        tft.drawLine(cx + 1, cy, cx + 5*s + 1, cy + 2*s, c);
+        tft.drawLine(cx + 5*s + 1, cy + 2*s, cx + 1, cy + 7*s, c);
+        tft.drawLine(cx + 1, cy - 7*s, cx - 4*s + 1, cy - 4*s, c);
+        tft.drawLine(cx + 1, cy + 7*s, cx - 4*s + 1, cy + 4*s, c);
+    }
+}
+
+void pbit_draw_bluetooth_icon   (int cx, int cy, uint16_t c) { impl_bluetooth(cx, cy, c, 1); }
+void pbit_draw_bluetooth_icon_xl(int cx, int cy, uint16_t c) { impl_bluetooth(cx, cy, c, 3); }

@@ -15,7 +15,8 @@ enum Screen {
     DS18B20_SCREEN,
     SYSTEM_SCREEN,
     TIMER_SCREEN,
-    GRAPH_SCREEN
+    GRAPH_SCREEN,
+    BLE_TOGGLE_SCREEN  // hidden — only reachable via secret 60s hold on SYSTEM_SCREEN
 #if PBIT_ENABLE_GRAPH_LAB
     ,
     LAB_DASH_OVERVIEW_SCREEN,
@@ -36,13 +37,14 @@ enum Screen {
     LAB_ICON_SIZES_EXT_SCREEN,
     LAB_HOME_CARDS_SCREEN,
     LAB_LINEAR_DASH_SCREEN,
-    LAB_ICON_TEST_SCREEN
+    LAB_ICON_TEST_SCREEN,
+    SENSOR_ZONE_SCREEN
 #endif
 };
 
 #if PBIT_ENABLE_GRAPH_LAB
 constexpr Screen FIRST_APP_SCREEN = LAB_HOME_CARDS_SCREEN;
-constexpr Screen LAST_APP_SCREEN = LAB_ICON_TEST_SCREEN;
+constexpr Screen LAST_APP_SCREEN = SENSOR_ZONE_SCREEN;
 #else
 constexpr Screen FIRST_APP_SCREEN = TEMP_SCREEN;
 constexpr Screen LAST_APP_SCREEN = GRAPH_SCREEN;
@@ -62,7 +64,7 @@ enum PowerMode {
     POWER_IDLE
 };
 
-extern Screen active_screen;
+extern volatile Screen active_screen;
 extern Reading g_ui_readings_snapshot;
 extern volatile UiOverlayState g_ui_overlay_state;
 extern volatile bool g_ui_force_full_redraw;

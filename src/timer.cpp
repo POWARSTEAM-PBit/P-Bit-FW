@@ -1,6 +1,7 @@
 #include <Arduino.h>
 #include "timer.h"
 #include "led_control.h"
+#include "config.h"
 
 extern bool g_sound_enabled;
 
@@ -109,7 +110,7 @@ void confirmTimerMenu() {
     g_timer_menu_editing = false;
     g_timer_just_reset = true;
     g_timer_just_finished = false;
-    Serial.printf("[Timer] Duration -> %lus\n", g_timer_duration_seconds);
+    DPRINT("[Timer] Duration -> %lus\n", g_timer_duration_seconds);
 }
 
 void handleTimerMenuButton() {
@@ -207,14 +208,14 @@ void startUserTimer() {
     userTimerRunning = true;
     g_timer_just_reset = false; 
     g_timer_just_finished = false;
-    Serial.println("[Timer] Started");
+    DPRINTLN("[Timer] Started");
 }
 
 void stopUserTimer() {
     if (userTimerRunning) {
         userTimerElapsed = millis() - userTimerStart;
         userTimerRunning = false;
-        Serial.printf("[Timer] Stopped. Elapsed: %.2f s\n", userTimerElapsed / 1000.0);
+        DPRINT("[Timer] Stopped. Elapsed: %.2f s\n", userTimerElapsed / 1000.0);
     }
 }
 
@@ -229,7 +230,7 @@ void resetUserTimer() {
     g_timer_just_reset = true;
     g_timer_just_finished = false;
     
-    Serial.println("[Timer] Reset");
+    DPRINTLN("[Timer] Reset");
 }
 
 void serviceUserTimer() {
@@ -258,7 +259,7 @@ void serviceUserTimer() {
         };
         play_tone_sequence(timer_alarm_steps, sizeof(timer_alarm_steps) / sizeof(timer_alarm_steps[0]));
     }
-    Serial.println("[Timer] Countdown finished");
+    DPRINTLN("[Timer] Countdown finished");
 }
 
 unsigned long getTimerDurationSeconds() {

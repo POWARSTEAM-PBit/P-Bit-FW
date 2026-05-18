@@ -62,43 +62,6 @@ void drawFooterHint(const char* text, int cx, int y, uint16_t color) {
     tft.setTextFont(0);
 }
 
-void drawMasterFooterHint(const char* text, uint16_t color) {
-    tft.fillRect(0, LC_MASTER_FOOTER_TEXT_TOP, tft.width(), tft.height() - LC_MASTER_FOOTER_TEXT_TOP, TFT_BLACK);
-    tft.setTextDatum(C_BASELINE);
-    tft.setFreeFont(FONT_SMALL);
-    tft.setTextColor(color);
-    if (tft.textWidth(text) > tft.width() - 4) {
-        tft.setTextFont(1);
-    }
-    tft.drawString(text, tft.width() / 2, LC_MASTER_FOOTER_BASELINE);
-    tft.setTextFont(0);
-}
-
-void drawSensorChip(int x,
-                    int y,
-                    int w,
-                    int h,
-                    const char* label,
-                    uint16_t accent,
-                    SensorIconDrawFn icon_fn,
-                    uint16_t bg,
-                    uint16_t text_color) {
-    tft.fillRoundRect(x, y, w, h, 4, bg);
-    tft.drawRoundRect(x, y, w, h, 4, accent);
-
-    int text_x = x + 8;
-    if (icon_fn) {
-        icon_fn(x + 9, y + (h / 2), accent);
-        text_x = x + 18;
-    }
-
-    tft.setTextDatum(TL_DATUM);
-    tft.setFreeFont(FONT_SMALL);
-    tft.setTextColor(text_color, bg);
-    tft.drawString(label, text_x, y + 4);
-    tft.setTextFont(0);
-}
-
 void clearMenuBands() {
     // Clear the shared menu layout bands independently to avoid ghosting.
     tft.fillRect(0, LM_MENU_TITLE_BAND_Y, tft.width(), LM_MENU_TITLE_BAND_H, TFT_BLACK);
@@ -203,13 +166,6 @@ void drawCenteredMenuBodyLines(const char* const* lines,
         tft.drawString(line, cx, start_y + (gap_y * i));
     }
     tft.setTextFont(0);
-}
-
-// Draw a string using bigFont when it fits, otherwise fall back to smallFont.
-// The caller owns the text datum and alignment setup.
-void drawStringFit(const char* str, int x, int y, uint8_t bigFont, uint8_t smallFont, int maxW) {
-    uint8_t font = (tft.textWidth(str, bigFont) <= maxW) ? bigFont : smallFont;
-    tft.drawString(str, x, y, font);
 }
 
 void drawBarGraph(int x, int y, int w, int h, uint16_t color, float value, float minVal, float maxVal) {

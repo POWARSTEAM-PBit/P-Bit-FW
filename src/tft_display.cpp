@@ -17,6 +17,7 @@
 
 // --- Screen modules ---
 #include "ui_boot.h"
+#include "ui_ble_toggle.h"
 #include "ui_temp.h"
 #include "ui_humidity.h"
 #include "ui_light.h"
@@ -27,6 +28,7 @@
 #include "ui_timer.h"
 #include "ui_graph.h"
 #if PBIT_ENABLE_GRAPH_LAB
+#include "sensor_zone.h"
 #include "ui_lab_dash.h"
 #include "ui_lab_focus.h"
 #include "ui_lab_dual.h"
@@ -42,7 +44,7 @@
 // ----------------------------------------------------
 
 // --- Global TFT/UI state ---
-Screen active_screen;
+volatile Screen active_screen;
 Reading g_ui_readings_snapshot;
 volatile UiOverlayState g_ui_overlay_state = UI_OVERLAY_NONE;
 volatile bool g_ui_force_full_redraw = false;
@@ -94,6 +96,9 @@ static void apply_global_alert_rgb(const GlobalAlertSummary& summary) {
                 break;
             case SYSTEM_SCREEN:
                 set_rgb(0, 255, 0);
+                break;
+            case BLE_TOGGLE_SCREEN:
+                set_rgb(0, 80, 255);
                 break;
             case GRAPH_SCREEN:
                 set_rgb(0, 80, 80); // Teal neutro para la pantalla de gráfica
@@ -150,6 +155,12 @@ static void apply_global_alert_rgb(const GlobalAlertSummary& summary) {
             case LAB_ICON_TEST_SCREEN:
                 set_rgb(255, 165, 0);
                 break;
+            case SENSOR_ZONE_SCREEN: {
+                uint8_t r, g, b;
+                sz_sensor_rgb(sz_get_sensor(), r, g, b);
+                set_rgb(r, g, b);
+                break;
+            }
 #endif
             case TIMER_SCREEN:
                 if (userTimerRunning) {
@@ -250,7 +261,7 @@ void init_tft_display() {
 // --- Main display task (FreeRTOS) ---
 
 void switch_screen(void *param) {
-    Serial.println("[Display] UI router task started on core 1.");
+    DPRINTLN("[Display] UI router task started on core 1.");
     
     bool screen_changed = true; 
     Screen last_drawn = BOOT_SCREEN; 
@@ -385,6 +396,11 @@ void switch_screen(void *param) {
                 case GRAPH_SCREEN:
                     draw_graph_screen(screen_changed, sensor_data_changed);
                     break;
+
+                case BLE_TOGGLE_SCREEN:
+                    draw_ble_toggle_screen(screen_changed, sensor_data_changed);
+                    break;
+
 #if PBIT_ENABLE_GRAPH_LAB
                 case LAB_DASH_OVERVIEW_SCREEN:
                     draw_lab_dash_screen(screen_changed, sensor_data_changed);
@@ -460,6 +476,32 @@ void switch_screen(void *param) {
 
                 case LAB_ICON_TEST_SCREEN:
                     draw_lab_icon_test_screen(screen_changed, sensor_data_changed);
+                    break;
+
+                case SENSOR_ZONE_SCREEN:
+                    sz_set_active(true);
+                    sz_sync_renderer(screen_changed);
+                    switch (sz_get_viz()) {
+                        case SZ_VIZ_CARD:
+                            draw_lab_sensor_card_screen(screen_changed, sensor_data_changed);
+                            break;
+                        case SZ_VIZ_VALOR:
+                            draw_lab_value_modern_screen(screen_changed, sensor_data_changed);
+                            break;
+                        case SZ_VIZ_FOCUS:
+                            draw_lab_focus_screen(screen_changed, sensor_data_changed);
+                            break;
+                        case SZ_VIZ_GRAPH:
+                            draw_graph_screen(screen_changed, sensor_data_changed);
+                            break;
+                        case SZ_VIZ_GAUGE:
+                            draw_lab_gauge_temp_screen(screen_changed, sensor_data_changed);
+                            break;
+                        default:
+                            break;
+                    }
+                    if (screen_changed) drawHeader(sz_header_name());
+                    sz_set_active(false);
                     break;
 #endif
 
