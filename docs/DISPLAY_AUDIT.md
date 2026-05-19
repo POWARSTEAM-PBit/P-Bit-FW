@@ -214,10 +214,11 @@ Implementado chrome/value separation en todas las pantallas afectadas:
 | LDR `analogRead` + cálculo | 30 Hz | ~5.5 Hz | ~83% de las llamadas |
 | Suelo 12× `analogRead` (~2.4 ms) | 30 Hz | ~1.1 Hz | ~70 ms/s de blocking |
 
-### FASE D — UX polish ⏳ PENDIENTE
-12. Idle pulse del VU sonido cuando silencio (P2-3).
-13. `clearMenuBands` con bitmask (P2-4).
-14. Smoothing/EWMA del VU para que samples tarde-llegados no salten (P0-3 mejora UX).
+### FASE D — UX polish ✅ COMPLETADA (2026-05-19)
+
+- ✅ **Idle pulse VU** — cuando silencio total, cada columna del stack meter muestra 1 segmento verde tenue pulsante (~1 Hz, onda triangular 32 pasos). Feedback visual de "estoy escuchando".
+- ✅ **EWMA asimétrico VU** — subida instantánea, caída suave (~250 ms stack / ~200 ms wave). Comportamiento "balístico" clásico de VU meter. El badge numérico sigue mostrando el valor real del sensor, no el suavizado.
+- ✅ **`clearMenuBands` bitmask** — nueva firma `clearMenuBands(uint8_t bands = kMenuBand_All)`. `drawCenteredMenuList` ahora solo limpia `kMenuBand_Title | kMenuBand_Body`, dejando el footer intacto en cada tick del encoder.
 
 ---
 

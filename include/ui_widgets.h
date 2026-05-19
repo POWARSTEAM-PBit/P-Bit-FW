@@ -31,8 +31,16 @@ void drawCard(int x, int y, int w, int h, uint16_t color);
 void drawHeader(const char* title);
 void drawMasterCardHeader(const char* title, uint16_t line_color = TFT_WHITE);
 void drawFooterHint(const char* text, int cx, int y, uint16_t color = TFT_CYAN);
-// Clear the shared menu title/body/footer bands before drawing a new state.
-void clearMenuBands();
+
+// Bitmask flags for clearMenuBands — combine with | to clear only what changed.
+constexpr uint8_t kMenuBand_Title  = 0x01;   // y 26..59  — titles and subtitles
+constexpr uint8_t kMenuBand_Body   = 0x02;   // y 60..107 — editable content / list items
+constexpr uint8_t kMenuBand_Footer = 0x04;   // y 108..123 — footer hints
+constexpr uint8_t kMenuBand_All    = 0x07;   // shorthand: all three bands
+
+// Clear selected menu layout bands before drawing a new state.
+// Default kMenuBand_All is backward-compatible with all existing callers.
+void clearMenuBands(uint8_t bands = kMenuBand_All);
 // Draw the common centered menu frame: title at the top band and footer hint at the bottom.
 void drawCenteredMenuFrame(const char* title,
                            uint16_t title_color,

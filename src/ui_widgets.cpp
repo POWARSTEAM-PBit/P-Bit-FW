@@ -62,11 +62,14 @@ void drawFooterHint(const char* text, int cx, int y, uint16_t color) {
     tft.setTextFont(0);
 }
 
-void clearMenuBands() {
-    // Clear the shared menu layout bands independently to avoid ghosting.
-    tft.fillRect(0, LM_MENU_TITLE_BAND_Y, tft.width(), LM_MENU_TITLE_BAND_H, TFT_BLACK);
-    tft.fillRect(0, LM_MENU_BODY_BAND_Y, tft.width(), LM_MENU_BODY_BAND_H, TFT_BLACK);
-    tft.fillRect(0, LM_MENU_FOOTER_Y - 10, tft.width(), 16, TFT_BLACK);
+void clearMenuBands(uint8_t bands) {
+    // Clear only the requested bands to avoid unnecessary ghosting and footer flicker.
+    if (bands & kMenuBand_Title)
+        tft.fillRect(0, LM_MENU_TITLE_BAND_Y, tft.width(), LM_MENU_TITLE_BAND_H, TFT_BLACK);
+    if (bands & kMenuBand_Body)
+        tft.fillRect(0, LM_MENU_BODY_BAND_Y, tft.width(), LM_MENU_BODY_BAND_H, TFT_BLACK);
+    if (bands & kMenuBand_Footer)
+        tft.fillRect(0, LM_MENU_FOOTER_Y - 10, tft.width(), 16, TFT_BLACK);
 }
 
 void drawCenteredMenuFrame(const char* title,
@@ -94,7 +97,11 @@ void drawCenteredMenuList(const char* const* items,
                           uint16_t selected_color,
                           uint16_t normal_color) {
     const int cx = tft.width() / 2;
-    clearMenuBands();
+    // Items span title+body bands (y=36..~100 depending on count).
+    // Skip kMenuBand_Footer — the hint "Turn to navigate / press to select"
+    // is drawn once by drawCenteredMenuFrame and never changes during navigation.
+    // This eliminates footer flicker on every encoder tick.
+    clearMenuBands(kMenuBand_Title | kMenuBand_Body);
     tft.setTextDatum(MC_DATUM);
 
     for (int i = 0; i < item_count; ++i) {

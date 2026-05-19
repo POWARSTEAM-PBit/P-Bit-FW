@@ -154,10 +154,22 @@ static void draw_stack_meter(int x, int y, int w, int h) {
     const int seg_h = (h - ((kStackSegments - 1) * seg_gap)) / kStackSegments;
     const uint16_t kDark = g_stack_spr.color565(12, 20, 16);
     g_stack_spr.fillSprite(kDark);
+
+    // Idle pulse: triangular wave ~1 Hz (32 steps × ~30 ms ≈ 960 ms period).
+    // Shown as one dim teal-green segment at the base of every silent column.
+    static uint8_t s_pulse = 0;
+    s_pulse = (s_pulse + 1) % 32;
+    const uint8_t t = (s_pulse < 16) ? s_pulse : (32 - s_pulse);  // 0→15→0
+    const uint16_t idle_color = g_stack_spr.color565(0, (uint8_t)(8 + t * 4), 4);
+
     for (int i = 0; i < kStackCols; ++i) {
         const int lit = (int)roundf(((float)g_stack_history[i] / 100.0f) * (float)kStackSegments);
-        if (lit == 0) continue;
         const int sx = i * (col_w + col_gap);
+        if (lit == 0) {
+            // Idle pulse: one breathing segment at the bottom — signals "listening".
+            g_stack_spr.fillRect(sx, h - seg_h, col_w, seg_h, idle_color);
+            continue;
+        }
         for (int seg = 0; seg < lit; ++seg) {
             const int sy = h - seg_h - (seg * (seg_h + seg_gap));
             uint16_t color = stack_segment_color(seg);
@@ -272,6 +284,11 @@ void draw_lab_sound_vu_stack_screen(bool screen_changed, bool sensor_data_change
     const bool alerts_enabled = get_sound_alerts_enabled();
     const SoundVisual visual = describe_sound(valid, level);
 
+    // Asymmetric EWMA for the scrolling history: instant rise, smooth ~250 ms decay.
+    // Gives the classic VU "ballistic" feel — meter rises fast, falls gracefully.
+    // The badge value (numeral) always shows the real level, not the smoothed one.
+    static float s_stack_smooth = 0.0f;
+
     // meta_dirty: card chrome must refresh (category, alert state, or valid state changed).
     const bool meta_dirty = !g_stack_cache.valid
         || (g_stack_cache.sound_valid != valid)
@@ -282,6 +299,7 @@ void draw_lab_sound_vu_stack_screen(bool screen_changed, bool sensor_data_change
     const bool badge_dirty = meta_dirty || (g_stack_cache.level != (int)level);
 
     if (screen_changed) {
+        s_stack_smooth = (float)level;  // reset EWMA on screen enter — no stale hold
         fill_history(g_stack_history, kStackCols, level);
         draw_stack_shell();
         draw_stack_chrome(visual, alert_code, alerts_enabled);
@@ -293,9 +311,19 @@ void draw_lab_sound_vu_stack_screen(bool screen_changed, bool sensor_data_change
 
     if (!sensor_data_changed) return;
 
+    // Apply asymmetric EWMA then push the smoothed value into the scrolling history.
+    if (!valid) {
+        s_stack_smooth = 0.0f;                                          // instant zero on no-sensor
+    } else if ((float)level > s_stack_smooth) {
+        s_stack_smooth = (float)level;                                  // instant rise
+    } else {
+        s_stack_smooth = 0.78f * s_stack_smooth + 0.22f * (float)level; // smooth decay (~250 ms)
+    }
+    const uint8_t smooth_level = (uint8_t)lroundf(s_stack_smooth);
+
     // Always push history and redraw the sprite — scrolling columns animate every sample
     // regardless of whether the rounded integer changed (fixes the intermittent freeze).
-    push_history(g_stack_history, kStackCols, level);
+    push_history(g_stack_history, kStackCols, smooth_level);
     if (meta_dirty)  draw_stack_chrome(visual, alert_code, alerts_enabled);
     if (badge_dirty) draw_value_badge(150, 24, valid, level, visual.color);
     draw_stack_meter(16, 57, 128, 48);  // single DMA pushSprite — no chrome flicker
@@ -309,6 +337,9 @@ void draw_lab_sound_vu_wave_screen(bool screen_changed, bool sensor_data_changed
     const bool alerts_enabled = get_sound_alerts_enabled();
     const SoundVisual visual = describe_sound(valid, level);
 
+    // Asymmetric EWMA: instant rise, smooth ~200 ms decay (faster than stack — wave feels "live").
+    static float s_wave_smooth = 0.0f;
+
     const bool meta_dirty = !g_wave_cache.valid
         || (g_wave_cache.sound_valid != valid)
         || (g_wave_cache.alert_code != alert_code)
@@ -317,6 +348,7 @@ void draw_lab_sound_vu_wave_screen(bool screen_changed, bool sensor_data_changed
     const bool badge_dirty = meta_dirty || (g_wave_cache.level != (int)level);
 
     if (screen_changed) {
+        s_wave_smooth = (float)level;  // reset EWMA on screen enter
         fill_history(g_wave_history, kWaveHistory, level);
         draw_wave_shell();
         draw_wave_chrome(visual, alert_code, alerts_enabled);
@@ -328,7 +360,17 @@ void draw_lab_sound_vu_wave_screen(bool screen_changed, bool sensor_data_changed
 
     if (!sensor_data_changed) return;
 
-    push_history(g_wave_history, kWaveHistory, level);
+    // Apply asymmetric EWMA then push smoothed value into the wave history.
+    if (!valid) {
+        s_wave_smooth = 0.0f;
+    } else if ((float)level > s_wave_smooth) {
+        s_wave_smooth = (float)level;                                    // instant rise
+    } else {
+        s_wave_smooth = 0.75f * s_wave_smooth + 0.25f * (float)level;   // smooth decay (~200 ms)
+    }
+    const uint8_t smooth_wave_level = (uint8_t)lroundf(s_wave_smooth);
+
+    push_history(g_wave_history, kWaveHistory, smooth_wave_level);
     if (meta_dirty)  draw_wave_chrome(visual, alert_code, alerts_enabled);
     if (badge_dirty) draw_value_badge(150, 24, valid, level, visual.color);
     draw_wave_meter(16, 81, 128, 20);
