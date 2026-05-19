@@ -409,7 +409,7 @@ void draw_system_screen(bool screen_changed, bool data_changed) {
 
     if (screen_changed || g_sound_enabled != last_sound_enabled) {
         // Footer status is always kept in sync with the persisted sound flag.
-        tft.fillRect(0, LS_FOOTER_Y - 10, tft.width(), 16, TFT_BLACK);
+        tft.fillRect(0, LS_FOOTER_Y - 10, tft.width(), tft.height() - (LS_FOOTER_Y - 10), TFT_BLACK);
         drawFooterHint(g_sound_enabled ? L(ST_SND_ON) : L(ST_SND_OFF),
                        cx,
                        LS_FOOTER_Y,

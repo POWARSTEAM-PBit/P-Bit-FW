@@ -397,6 +397,8 @@ void draw_sound_screen(bool screen_changed, bool data_changed) {
     static int last_category_id = -1;
     static uint8_t last_alert_state = ALERT_CODE_OFF;
     static bool last_alerts_enabled = false;
+    static uint8_t last_jewel_code = 255;
+    static bool last_jewel_alerts_en = false;
     int sound_cache = (int)roundf(level);
     if (!screen_changed
         && sound_cache == last_sound_drawn
@@ -418,8 +420,9 @@ void draw_sound_screen(bool screen_changed, bool data_changed) {
     char levelStr[5];
     snprintf(levelStr, sizeof(levelStr), "%.0f", level);
 
-    tft.fillRect(0, LB_VALUE_TOP - 4, tft.width(), 52, BACKGROUND_COLOR);
     tft.setFreeFont(FONT_VALUE);
+    int valueLineH = tft.fontHeight();
+    tft.fillRect(0, LB_VALUE_TOP - 2, tft.width(), valueLineH + 4, BACKGROUND_COLOR);
     int numW = tft.textWidth(levelStr);
     tft.setFreeFont(FONT_BODY);
     int unitW = tft.textWidth("%");
@@ -441,7 +444,11 @@ void draw_sound_screen(bool screen_changed, bool data_changed) {
     tft.drawString(categoryText, cx, LB_CATEGORY_Y - 5);
     tft.setTextFont(0);
 
-    draw_sound_alert_jewel(alert_state, alerts_enabled);
+    if (alert_state != last_jewel_code || alerts_enabled != last_jewel_alerts_en) {
+        draw_sound_alert_jewel(alert_state, alerts_enabled);
+        last_jewel_code = alert_state;
+        last_jewel_alerts_en = alerts_enabled;
+    }
 
     last_alerts_enabled = alerts_enabled;
 }

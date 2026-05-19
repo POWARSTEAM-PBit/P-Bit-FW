@@ -1,6 +1,7 @@
 // tft_display.cpp
 // UI router: decides which screen to draw and manages global overlays.
 
+#include <math.h>
 #include "tft_display.h"
 #include "config.h"     
 #include "alert_engine.h"
@@ -217,21 +218,97 @@ static void render_global_alert_badge() {
 
 } // namespace
 
-// Overlay shown shortly before the device enters idle. It explains that the
-// screen is going to sleep and how to wake it back up.
-static void draw_sleep_warning_overlay() {
-    tft.fillScreen(TFT_BLACK);
+// Animated sleep screen — "Respira" design.
+// Breathing teal orb at center + ZZZ appearing left-to-right on the same baseline.
+// Colors fade from brand blue (z1) through teal (z2) to vivid green (z3).
+// Called every ~10 ms frame; first_frame=true resets all animation state.
+static void draw_sleep_warning_overlay(bool first_frame) {
+    static uint32_t t_start    = 0;
+    static int      last_r     = -1;
+    static uint8_t  z_phase    = 0;   // 0=pause, 1=z1 visible, 2=+z2, 3=+z3 hold
+    static uint32_t z_phase_ms = 0;
+
+    // Z zone: all three glyphs share Y=26 (MC_DATUM baseline).
+    // Glyph extents (worst-case FONT_BODY ~14 px tall): y≈19..33, x≈46..92.
+    // Clear rect adds 7 px padding on all sides to kill any sub-pixel tail.
+    static constexpr int ZY   = 26;         // shared baseline for all three glyphs
+    static constexpr int ZX1  = 54;         // center-x  z  (FONT_SMALL)
+    static constexpr int ZX2  = 70;         // center-x  Z  (FONT_BODY)
+    static constexpr int ZX3  = 86;         // center-x  Z  (FONT_BODY)
+    static constexpr int ZCX  = 38;         // clear rect left
+    static constexpr int ZCYW = 12;         // clear rect top
+    static constexpr int ZCWW = 62;         // clear rect width  (38..99)
+    static constexpr int ZCHH = 30;         // clear rect height (12..41)
+
+    if (first_frame) {
+        tft.fillScreen(TFT_BLACK);
+        tft.setTextDatum(MC_DATUM);
+        // "Durmiendo" — primary status label, dim white
+        tft.setFreeFont(FONT_BODY);
+        tft.setTextColor(tft.color565(160, 160, 160), TFT_BLACK);
+        tft.drawString(L(ST_SLEEPING), 80, 96);
+        // "Pulsa para despertar" — secondary hint, very dim
+        tft.setFreeFont(FONT_SMALL);
+        tft.setTextColor(tft.color565(55, 55, 55), TFT_BLACK);
+        tft.drawString(L(ST_PUSH_TO_WAKE), 80, 113);
+        tft.setTextFont(0);
+        t_start    = millis();
+        last_r     = -1;
+        z_phase    = 0;
+        z_phase_ms = millis();
+    }
+
+    const uint32_t now = millis();
+
+    // --- Breathing orb (center 80,68, r = 6..16, period 4 s) ---
+    const float t_sec = (float)(now - t_start) / 4000.0f;
+    const int r = 6 + (int)(10.0f * 0.5f * (1.0f + sinf(t_sec * 6.2832f - 1.5708f)));
+    if (r != last_r) {
+        tft.fillCircle(80, 68, 17, TFT_BLACK);                           // erase previous
+        tft.fillCircle(80, 68, r,  tft.color565(0, 80, 110));            // body — teal blue
+        if (r >= 5) tft.fillCircle(80, 68, 3, tft.color565(0, 190, 230)); // core — bright cyan
+        last_r = r;
+    }
+
+    // --- ZZZ: three glyphs on same baseline, blue → teal → vivid green ---
+    const uint32_t age = now - z_phase_ms;
     tft.setTextDatum(MC_DATUM);
-    tft.setFreeFont(FONT_VALUE);
-    tft.setTextColor(TFT_CYAN, TFT_BLACK);
-    tft.drawString("ZZZ", tft.width() / 2, 50);
-    tft.setFreeFont(FONT_BODY);
-    tft.setTextColor(TFT_WHITE, TFT_BLACK);
-    tft.drawString(L(ST_SLEEPING), tft.width() / 2, 88);
-    tft.setFreeFont(FONT_SMALL);
-    tft.setTextColor(TFT_DARKGREY, TFT_BLACK);
-    tft.drawString(L(ST_PUSH_TO_WAKE), tft.width() / 2, 108);
-    tft.setTextFont(0);
+    switch (z_phase) {
+        case 0:  // pause between cycles
+            if (age >= 500) {
+                tft.fillRect(ZCX, ZCYW, ZCWW, ZCHH, TFT_BLACK);
+                tft.setFreeFont(FONT_SMALL);
+                tft.setTextColor(tft.color565(0, 100, 220), TFT_BLACK);  // brand blue
+                tft.drawString("z", ZX1, ZY);
+                tft.setTextFont(0);
+                z_phase = 1; z_phase_ms = now;
+            }
+            break;
+        case 1:  // z1 visible — wait 700 ms then add z2
+            if (age >= 700) {
+                tft.setFreeFont(FONT_BODY);
+                tft.setTextColor(tft.color565(0, 175, 125), TFT_BLACK);  // teal transition
+                tft.drawString("Z", ZX2, ZY);
+                tft.setTextFont(0);
+                z_phase = 2; z_phase_ms = now;
+            }
+            break;
+        case 2:  // z1+z2 visible — wait 700 ms then add z3
+            if (age >= 700) {
+                tft.setFreeFont(FONT_BODY);
+                tft.setTextColor(tft.color565(30, 220, 50), TFT_BLACK);  // vivid green
+                tft.drawString("Z", ZX3, ZY);
+                tft.setTextFont(0);
+                z_phase = 3; z_phase_ms = now;
+            }
+            break;
+        case 3:  // all visible — hold 1200 ms then clear and pause
+            if (age >= 1200) {
+                tft.fillRect(ZCX, ZCYW, ZCWW, ZCHH, TFT_BLACK);
+                z_phase = 0; z_phase_ms = now;
+            }
+            break;
+    }
 }
 
 // Overlay used while the firmware is restarting after a language change or reset.
@@ -278,11 +355,11 @@ void switch_screen(void *param) {
         UiOverlayState overlay_state = runtime_get_ui_overlay();
 
         if (overlay_state != UI_OVERLAY_NONE) {
-            if (overlay_state != last_overlay_state) {
+            if (overlay_state == UI_OVERLAY_SLEEP_WARNING) {
+                // Animated — called every frame; function self-limits redraws internally.
+                draw_sleep_warning_overlay(last_overlay_state != UI_OVERLAY_SLEEP_WARNING);
+            } else if (overlay_state != last_overlay_state) {
                 switch (overlay_state) {
-                    case UI_OVERLAY_SLEEP_WARNING:
-                        draw_sleep_warning_overlay();
-                        break;
                     case UI_OVERLAY_RESTARTING:
                         draw_restarting_overlay();
                         break;

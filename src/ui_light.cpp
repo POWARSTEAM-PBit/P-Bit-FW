@@ -454,6 +454,8 @@ void draw_light_screen(bool screen_changed, bool data_changed) {
     static int last_display_mode = -1;
     static uint8_t last_alert_state = ALERT_CODE_OFF;
     static bool last_alerts_enabled = false;
+    static uint8_t last_jewel_code = 255;
+    static bool last_jewel_alerts_en = false;
 
     int display_cache = (int)roundf(display_val);
     if (!screen_changed
@@ -478,8 +480,9 @@ void draw_light_screen(bool screen_changed, bool data_changed) {
         snprintf(value_str, sizeof(value_str), "%.0f", display_val);
     }
 
-    tft.fillRect(0, LB_VALUE_TOP - 4, tft.width(), 52, BACKGROUND_COLOR);
     tft.setFreeFont(FONT_VALUE);
+    int valueLineH = tft.fontHeight();
+    tft.fillRect(0, LB_VALUE_TOP - 2, tft.width(), valueLineH + 4, BACKGROUND_COLOR);
     int numW = tft.textWidth(value_str);
     tft.setFreeFont(FONT_BODY);
     int unitW = tft.textWidth(unit_str);
@@ -501,5 +504,9 @@ void draw_light_screen(bool screen_changed, bool data_changed) {
     tft.drawString(categoryText, cx, LB_CATEGORY_Y);
     tft.setTextFont(0);
 
-    draw_light_alert_jewel(alert_state, alerts_enabled);
+    if (alert_state != last_jewel_code || alerts_enabled != last_jewel_alerts_en) {
+        draw_light_alert_jewel(alert_state, alerts_enabled);
+        last_jewel_code = alert_state;
+        last_jewel_alerts_en = alerts_enabled;
+    }
 }

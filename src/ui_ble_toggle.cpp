@@ -40,18 +40,18 @@ static void draw_selector(bool full) {
     // OFF button (left half)
     const uint16_t off_bg = (g_ble_selection == 0) ? TFT_WHITE : BLE_BG;
     const uint16_t off_fg = (g_ble_selection == 0) ? BLE_BG    : TFT_DARKGREY;
-    tft.fillRoundRect(10, 94, 62, 22, 4, off_bg);
-    if (g_ble_selection != 0) tft.drawRoundRect(10, 94, 62, 22, 4, TFT_DARKGREY);
+    tft.fillRoundRect(10, 94, 62, 24, 4, off_bg);
+    if (g_ble_selection != 0) tft.drawRoundRect(10, 94, 62, 24, 4, TFT_DARKGREY);
     tft.setTextColor(off_fg, off_bg);
-    tft.drawString("OFF", 41, 106);
+    tft.drawString("OFF", 41, 104);
 
     // ON button (right half)
     const uint16_t on_bg = (g_ble_selection == 1) ? TFT_WHITE : BLE_BG;
     const uint16_t on_fg = (g_ble_selection == 1) ? BLE_BG    : TFT_DARKGREY;
-    tft.fillRoundRect(88, 94, 62, 22, 4, on_bg);
-    if (g_ble_selection != 1) tft.drawRoundRect(88, 94, 62, 22, 4, TFT_DARKGREY);
+    tft.fillRoundRect(88, 94, 62, 24, 4, on_bg);
+    if (g_ble_selection != 1) tft.drawRoundRect(88, 94, 62, 24, 4, TFT_DARKGREY);
     tft.setTextColor(on_fg, on_bg);
-    tft.drawString("ON", 119, 106);
+    tft.drawString("ON", 119, 104);
 
     tft.setTextFont(0);
 }
@@ -64,12 +64,12 @@ void draw_ble_toggle_screen(bool screen_changed, bool data_changed) {
     if (screen_changed) {
         tft.fillScreen(BLE_BG);
         // Large Bluetooth icon, white, centered in upper portion
-        pbit_draw_bluetooth_icon_xl(80, 44, TFT_WHITE);
+        pbit_draw_bluetooth_icon_xl(80, 42, TFT_WHITE);
         // Label
         tft.setTextDatum(MC_DATUM);
         tft.setFreeFont(FONT_BODY);
         tft.setTextColor(TFT_WHITE, BLE_BG);
-        tft.drawString("BLUETOOTH", 80, 76);
+        tft.drawString("BLUETOOTH", 80, 74);
         tft.setTextFont(0);
         draw_selector(true);
     } else if (g_ble_selection != last_selection) {

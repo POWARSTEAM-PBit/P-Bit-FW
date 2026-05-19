@@ -83,27 +83,27 @@ void pbit_draw_plant_icon_xl   (int cx, int cy, uint16_t c) { impl_plant   (cx, 
 // ---------------------------------------------------------------------------
 
 static void impl_bluetooth(int cx, int cy, uint16_t c, int s) {
-    // Spine: 3px wide for s>=3, 2px for s>=2, 1px for s=1
-    tft.drawFastVLine(cx, cy - 7*s, 14*s + 1, c);
+    // Spine: 3px wide for s>=2, 1px for s=1.
+    tft.drawFastVLine(cx,     cy - 7*s, 14*s + 1, c);
+    if (s >= 2) tft.drawFastVLine(cx - 1, cy - 7*s, 14*s + 1, c);
     if (s >= 2) tft.drawFastVLine(cx + 1, cy - 7*s, 14*s + 1, c);
-    if (s >= 3) tft.drawFastVLine(cx - 1, cy - 7*s, 14*s + 1, c);
-    // Upper right wing: top → right-mid → center
-    tft.drawLine(cx, cy - 7*s, cx + 5*s, cy - 2*s, c);
-    tft.drawLine(cx + 5*s, cy - 2*s, cx, cy, c);
-    // Lower right wing: center → right-mid → bottom
-    tft.drawLine(cx, cy, cx + 5*s, cy + 2*s, c);
-    tft.drawLine(cx + 5*s, cy + 2*s, cx, cy + 7*s, c);
-    // Left tips from spine endpoints
-    tft.drawLine(cx, cy - 7*s, cx - 4*s, cy - 4*s, c);
-    tft.drawLine(cx, cy + 7*s, cx - 4*s, cy + 4*s, c);
-    // Thicker diagonals for s>=2: repeat each segment shifted +1 in x
-    if (s >= 2) {
-        tft.drawLine(cx + 1, cy - 7*s, cx + 5*s + 1, cy - 2*s, c);
-        tft.drawLine(cx + 5*s + 1, cy - 2*s, cx + 1, cy, c);
-        tft.drawLine(cx + 1, cy, cx + 5*s + 1, cy + 2*s, c);
-        tft.drawLine(cx + 5*s + 1, cy + 2*s, cx + 1, cy + 7*s, c);
-        tft.drawLine(cx + 1, cy - 7*s, cx - 4*s + 1, cy - 4*s, c);
-        tft.drawLine(cx + 1, cy + 7*s, cx - 4*s + 1, cy + 4*s, c);
+
+    // Wings: elbows at (cx+4s, cy∓3s).
+    //   Outer segments T→E1 and E2→B: 45°  (Δx=4s, Δy=4s).
+    //   Inner segments E1→M and M→E2: ~37°  (Δx=4s, Δy=3s — gives proper B arc).
+    // For s>=2: 4 parallel lines per segment (d = −1, 0, +1, +2) to match spine weight.
+    const int d0 = (s >= 2) ? -1 : 0;
+    const int d1 = (s >= 2) ?  2 : 0;
+    for (int d = d0; d <= d1; ++d) {
+        // Upper wing: T → E1 → M
+        tft.drawLine(cx + d,       cy - 7*s, cx + 4*s + d, cy - 3*s, c);
+        tft.drawLine(cx + 4*s + d, cy - 3*s, cx + d,       cy,       c);
+        // Lower wing: M → E2 → B
+        tft.drawLine(cx + d,       cy,       cx + 4*s + d, cy + 3*s, c);
+        tft.drawLine(cx + 4*s + d, cy + 3*s, cx + d,       cy + 7*s, c);
+        // Tips: 45° from spine endpoints toward center-left
+        tft.drawLine(cx + d,       cy - 7*s, cx - 3*s + d, cy - 4*s, c);
+        tft.drawLine(cx + d,       cy + 7*s, cx - 3*s + d, cy + 4*s, c);
     }
 }
 

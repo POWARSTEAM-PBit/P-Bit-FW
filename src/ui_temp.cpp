@@ -454,11 +454,6 @@ void draw_temp_screen(bool screen_changed, bool data_changed) {
         label_color = TFT_RED;
     }
 
-    if (screen_changed) {
-        tft.fillScreen(TFT_BLACK);
-        drawHeader(L(TIT_TEMP));
-    }
-
     static int last_temp_drawn = INT16_MIN;
     static uint8_t last_alert_state = ALERT_CODE_OFF;
     static bool last_no_dht = false;
@@ -474,14 +469,23 @@ void draw_temp_screen(bool screen_changed, bool data_changed) {
         return;
     }
 
-    if (screen_changed || alert_state != last_alert_state) {
-        apply_temp_rgb(alert_state);
-    }
+    bool meta_dirty = screen_changed
+        || alert_state != last_alert_state
+        || no_dht != last_no_dht
+        || g_is_fahrenheit != last_unit_mode
+        || alerts_enabled != last_alerts_enabled;
 
-    // Card trial: wrap the hint and main value inside a compact panel.
-    tft.fillRect(0, LA_HINT_Y - 4, LEFT_PANEL_W, 72, TFT_BLACK);
-    tft.fillRect(0, LA_CATEGORY_Y - 10, LEFT_PANEL_W, 28, TFT_BLACK);
-    draw_temp_info_card(no_dht ? TFT_DARKGREY : temp_color);
+    if (meta_dirty) {
+        if (screen_changed) {
+            tft.fillScreen(TFT_BLACK);
+            drawHeader(L(TIT_TEMP));
+        }
+        apply_temp_rgb(alert_state);
+
+        tft.fillRect(0, LA_HINT_Y - 4, LEFT_PANEL_W, 72, TFT_BLACK);
+        tft.fillRect(0, LA_CATEGORY_Y - 10, LEFT_PANEL_W, 28, TFT_BLACK);
+        draw_temp_info_card(no_dht ? TFT_DARKGREY : temp_color);
+    }
 
     if (no_dht) {
         tft.setTextDatum(TC_DATUM);
@@ -518,7 +522,15 @@ void draw_temp_screen(bool screen_changed, bool data_changed) {
         tft.drawRoundRect(LA_TANK_X, LA_TANK_Y, LA_TANK_W, LA_TANK_H, 3, temp_color);
     }
 
-    draw_temp_alert_jewel(alert_state, alerts_enabled, no_dht);
+    static uint8_t last_jewel_code = 255;
+    static bool last_jewel_no_dht = false;
+    static bool last_jewel_alerts_en = false;
+    if (alert_state != last_jewel_code || no_dht != last_jewel_no_dht || alerts_enabled != last_jewel_alerts_en) {
+        draw_temp_alert_jewel(alert_state, alerts_enabled, no_dht);
+        last_jewel_code = alert_state;
+        last_jewel_no_dht = no_dht;
+        last_jewel_alerts_en = alerts_enabled;
+    }
 
     last_temp_drawn = temp_cache;
     last_alert_state = alert_state;

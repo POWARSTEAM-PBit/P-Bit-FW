@@ -137,11 +137,13 @@ struct HomeCardsCache {
 
 static HomeCardsCache g_last;
 
-static void draw_card_dynamic(const CardData& d) {
+// Draws the static chrome of a card: full interior clear, icon, tag label,
+// and tank border only. Call when valid-state changes or on screen_changed.
+static void draw_card_chrome(const CardData& d) {
     const int x = kCol[d.col];
     const int y = kRow[d.row];
 
-    // clear dynamic area
+    // clear full card interior
     tft.fillRoundRect(x + 1, y + 1, kCardW - 2, kCardH - 2, 3, 0x0841);
 
     // icon
@@ -156,9 +158,27 @@ static void draw_card_dynamic(const CardData& d) {
     tft.drawString(d.tag, x + 29, y + 6);
     tft.setTextFont(0);
 
+    // tank border only (fill is drawn by draw_card_value_and_tank)
     const int tank_x = x + kCardW - 12;
-    const int value_x = x + kValueXPad + 3;
+    const int tank_y = y + 6;
+    const int tank_h = kCardH - 12;
+    tft.drawRoundRect(tank_x, tank_y, kTankW, tank_h, 1, 0x2104);
+}
+
+// Draws only the dynamic parts (value text and tank fill) with a targeted clear
+// so the static chrome (icon, tag) is not disturbed every sensor update.
+static void draw_card_value_and_tank(const CardData& d) {
+    const int x = kCol[d.col];
+    const int y = kRow[d.row];
+
+    const int tank_x     = x + kCardW - 12;
+    const int value_x    = x + kValueXPad + 3;
     const int value_max_w = tank_x - value_x - 3;
+
+    // targeted clear of value text area only
+    tft.setFreeFont(FONT_BODY);
+    const int fh = tft.fontHeight();
+    tft.fillRect(value_x, y + 22, value_max_w, fh + 4, 0x0841);
 
     // value
     tft.setTextDatum(TL_DATUM);
@@ -179,10 +199,9 @@ static void draw_card_dynamic(const CardData& d) {
     }
     tft.setTextFont(0);
 
-    // right vertical tank reflects the logical range of each sensor.
+    // tank fill
     const int tank_y = y + 6;
     const int tank_h = kCardH - 12;
-    tft.drawRoundRect(tank_x, tank_y, kTankW, tank_h, 1, 0x2104);
     if (d.valid) {
         drawFillTank(tank_x, tank_y, kTankW, tank_h, d.accent, d.value, d.min_value, d.max_value, 1);
     } else {
@@ -252,7 +271,9 @@ void draw_lab_home_cards_screen(bool screen_changed, bool sensor_data_changed) {
     if (screen_changed) {
         draw_shell();
         for (int i = 0; i < 4; ++i) {
-            draw_card_dynamic(build_card_data(i));
+            const CardData d = build_card_data(i);
+            draw_card_chrome(d);
+            draw_card_value_and_tank(d);
             g_last.card_valid[i] = card_valid_now(i);
             g_last.value_key[i] = card_value_key(i);
         }
@@ -276,7 +297,11 @@ void draw_lab_home_cards_screen(bool screen_changed, bool sensor_data_changed) {
 
     for (int i = 0; i < 4; ++i) {
         if (!dirty[i]) continue;
-        draw_card_dynamic(build_card_data(i));
+        const CardData d = build_card_data(i);
+        // Redraw chrome only when the valid state changes (icon colour flips accent↔grey)
+        const bool meta = !g_last.valid || (g_last.card_valid[i] != card_valid_now(i));
+        if (meta) draw_card_chrome(d);
+        draw_card_value_and_tank(d);
         g_last.card_valid[i] = card_valid_now(i);
         g_last.value_key[i] = card_value_key(i);
     }

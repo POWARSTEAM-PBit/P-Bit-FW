@@ -446,11 +446,6 @@ void draw_ds18_screen(bool screen_changed, bool data_changed) {
         }
     }
 
-    if (screen_changed) {
-        tft.fillScreen(BACKGROUND_COLOR);
-        drawHeader(L(TIT_THERM));
-    }
-
     static int last_display_cache = INT16_MIN;
     static uint8_t last_alert_state = ALERT_CODE_OFF;
     static bool last_no_sensor = false;
@@ -466,21 +461,46 @@ void draw_ds18_screen(bool screen_changed, bool data_changed) {
         return;
     }
 
-    if (screen_changed || alert_state != last_alert_state) {
+    bool meta_dirty = screen_changed
+        || alert_state != last_alert_state
+        || no_sensor != last_no_sensor
+        || g_is_fahrenheit != last_unit_mode
+        || alerts_enabled != last_alerts_enabled;
+
+    if (meta_dirty) {
+        if (screen_changed) {
+            tft.fillScreen(BACKGROUND_COLOR);
+            drawHeader(L(TIT_THERM));
+        }
         apply_ds18_rgb(alert_state);
+
+        tft.fillRect(0, LA_HINT_Y - 4, LEFT_PANEL_W, 18, BACKGROUND_COLOR);
+        tft.fillRect(0, LA_CATEGORY_Y - 10, LEFT_PANEL_W, 28, BACKGROUND_COLOR);
+
+        if (no_sensor) {
+            tft.setTextDatum(TC_DATUM);
+            tft.setFreeFont(FONT_SMALL);
+            tft.setTextColor(TFT_RED, BACKGROUND_COLOR);
+            tft.drawString(L(ST_NO_SENSOR), LA_LEFT_CX, LA_HINT_Y);
+            tft.setTextFont(0);
+        } else {
+            const char* instruction = g_is_fahrenheit ? L(INSTR_C) : L(INSTR_F);
+            tft.setTextDatum(TC_DATUM);
+            tft.setFreeFont(FONT_SMALL);
+            tft.setTextColor(TFT_DARKGREY, BACKGROUND_COLOR);
+            tft.drawString(instruction, LA_LEFT_CX, LA_HINT_Y);
+            tft.setTextFont(0);
+
+            tft.setTextDatum(TC_DATUM);
+            tft.setFreeFont(FONT_BODY);
+            tft.setTextColor(label_color, BACKGROUND_COLOR);
+            tft.drawString(unit_name(), LA_LEFT_CX, LA_CATEGORY_Y);
+            tft.setTextFont(0);
+        }
     }
 
-    tft.fillRect(0, LA_HINT_Y - 4, LEFT_PANEL_W, 18, BACKGROUND_COLOR);
     tft.fillRect(0, LA_VALUE_TOP - 1, LEFT_PANEL_W, 46, BACKGROUND_COLOR);
-    tft.fillRect(0, LA_CATEGORY_Y - 10, LEFT_PANEL_W, 28, BACKGROUND_COLOR);
-
     if (no_sensor) {
-        tft.setTextDatum(TC_DATUM);
-        tft.setFreeFont(FONT_SMALL);
-        tft.setTextColor(TFT_RED, BACKGROUND_COLOR);
-        tft.drawString(L(ST_NO_SENSOR), LA_LEFT_CX, LA_HINT_Y);
-        tft.setTextFont(0);
-
         tft.setTextDatum(TC_DATUM);
         tft.setFreeFont(FONT_VALUE);
         tft.setTextColor(TFT_DARKGREY, BACKGROUND_COLOR);
@@ -492,23 +512,18 @@ void draw_ds18_screen(bool screen_changed, bool data_changed) {
         tft.drawString(L(ST_CHECK_DS18), LA_LEFT_CX, LA_CATEGORY_Y);
         tft.setTextFont(0);
     } else {
-        const char* instruction = g_is_fahrenheit ? L(INSTR_C) : L(INSTR_F);
-        tft.setTextDatum(TC_DATUM);
-        tft.setFreeFont(FONT_SMALL);
-        tft.setTextColor(TFT_DARKGREY, BACKGROUND_COLOR);
-        tft.drawString(instruction, LA_LEFT_CX, LA_HINT_Y);
-        tft.setTextFont(0);
-
         drawSplitDecimalValue(to_display(temp_c), LA_LEFT_CX, LA_VALUE_TOP, value_color, BACKGROUND_COLOR);
-
-        tft.setTextDatum(TC_DATUM);
-        tft.setFreeFont(FONT_BODY);
-        tft.setTextColor(label_color, BACKGROUND_COLOR);
-        tft.drawString(unit_name(), LA_LEFT_CX, LA_CATEGORY_Y);
-        tft.setTextFont(0);
     }
 
-    draw_ds18_alert_jewel(alert_state, alerts_enabled, no_sensor);
+    static uint8_t last_jewel_code = 255;
+    static bool last_jewel_no_sensor = false;
+    static bool last_jewel_alerts_en = false;
+    if (alert_state != last_jewel_code || no_sensor != last_jewel_no_sensor || alerts_enabled != last_jewel_alerts_en) {
+        draw_ds18_alert_jewel(alert_state, alerts_enabled, no_sensor);
+        last_jewel_code = alert_state;
+        last_jewel_no_sensor = no_sensor;
+        last_jewel_alerts_en = alerts_enabled;
+    }
 
     {
         const int inner_h = LA_TANK_H - 2;

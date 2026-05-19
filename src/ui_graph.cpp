@@ -328,12 +328,22 @@ static void render_graph(const float* data, size_t n, GraphSensor sensor) {
     g_sprite.pushSprite(LG_GRAPH_X + 1, LG_GRAPH_Y + 1);
 }
 
+// full_clear=true on sensor switch or first draw — clears whole band and redraws label.
+// full_clear=false on value-only updates — clears only the right portion where the value
+// text lives; the label is redrawn with bg=TFT_BLACK so it self-erases.
 static void draw_graph_band(bool valid,
                             GraphSensor sensor,
-                            const char* value) {
+                            const char* value,
+                            bool full_clear) {
     const int band_y = L_CONTENT_TOP;
     const int band_h = LG_GRAPH_Y - L_CONTENT_TOP - 2;
-    tft.fillRect(0, band_y, tft.width(), band_h, TFT_BLACK);
+    if (full_clear) {
+        tft.fillRect(0, band_y, tft.width(), band_h, TFT_BLACK);
+    } else {
+        // Targeted clear: right half where the value string lives.
+        // The label (left side) uses setTextColor with bg so it self-erases.
+        tft.fillRect(LG_GRAPH_X + LG_GRAPH_W / 2, band_y, LG_GRAPH_W / 2 + 8, band_h, TFT_BLACK);
+    }
     tft.setFreeFont(FONT_SMALL);
     tft.setTextColor(valid ? graph_band_label_color(sensor) : TFT_DARKGREY, TFT_BLACK);
     tft.setTextDatum(TL_DATUM);
@@ -419,7 +429,7 @@ void draw_graph_screen(bool screen_changed, bool sensor_data_changed) {
                 || !last_band_valid
                 || strcmp(last_band_value, value_buf) != 0;
             if (band_changed) {
-                draw_graph_band(true, g_graph_sensor, value_buf);
+                draw_graph_band(true, g_graph_sensor, value_buf, need_full);
                 strncpy(last_band_value, value_buf, sizeof(last_band_value) - 1);
                 last_band_value[sizeof(last_band_value) - 1] = '\0';
                 last_band_valid = true;
@@ -428,7 +438,7 @@ void draw_graph_screen(bool screen_changed, bool sensor_data_changed) {
         } else {
             const bool band_changed = need_full || last_band_sensor != g_graph_sensor || last_band_valid;
             if (band_changed) {
-                draw_graph_band(false, g_graph_sensor, "");
+                draw_graph_band(false, g_graph_sensor, "", need_full);
                 last_band_value[0] = '\0';
                 last_band_valid = false;
                 last_band_sensor = g_graph_sensor;

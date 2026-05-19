@@ -409,13 +409,6 @@ void draw_humidity_screen(bool screen_changed, bool data_changed) {
         tankFillColor = TFT_RED;
     }
 
-    // --- Estáticos ---
-    if (screen_changed) {
-        tft.fillScreen(BACKGROUND_COLOR);
-        drawHeader(L(TIT_HUM));
-    }
-
-    // Salida temprana si el valor ni el estado cambiaron
     static int last_hum_drawn = -1;
     static int last_status_id = -1;
     static uint8_t last_alert_state = ALERT_CODE_OFF;
@@ -428,20 +421,26 @@ void draw_humidity_screen(bool screen_changed, bool data_changed) {
         && status_id == last_status_id
         && alert_state == last_alert_state
         && alerts_enabled == last_alerts_enabled) return;
-    last_hum_drawn = hum_cache;
-    last_status_id = status_id;
 
-    if (screen_changed || alert_state != last_alert_state) {
+    bool meta_dirty = screen_changed
+        || alert_state != last_alert_state
+        || no_dht_h != last_no_sensor
+        || alerts_enabled != last_alerts_enabled;
+
+    if (meta_dirty) {
+        if (screen_changed) {
+            tft.fillScreen(BACKGROUND_COLOR);
+            drawHeader(L(TIT_HUM));
+        }
         apply_humidity_rgb(alert_state);
         last_alert_state = alert_state;
-    }
 
-    // --- Dinámicos ---
-    tft.fillRect(0, LA_HINT_Y - 4, LEFT_PANEL_W, 72, BACKGROUND_COLOR);
-    draw_hum_info_card((alert_state == ALERT_CODE_HIGH) ? TFT_RED
-                       : (alert_state == ALERT_CODE_LOW) ? TFT_ORANGE
-                       : HUMIDITY_COLOR);
-    draw_hum_card_title(L(SUB_AIR_REL));
+        tft.fillRect(0, LA_HINT_Y - 4, LEFT_PANEL_W, 72, BACKGROUND_COLOR);
+        draw_hum_info_card((alert_state == ALERT_CODE_HIGH) ? TFT_RED
+                           : (alert_state == ALERT_CODE_LOW) ? TFT_ORANGE
+                           : HUMIDITY_COLOR);
+        draw_hum_card_title(L(SUB_AIR_REL));
+    }
 
     if (no_dht_h) {
         drawFillTank(LA_TANK_X, LA_TANK_Y, LA_TANK_W, LA_TANK_H, HUMIDITY_COLOR, 0.0f, 0.0f, 100.0f, 3);
@@ -458,8 +457,18 @@ void draw_humidity_screen(bool screen_changed, bool data_changed) {
         draw_hum_card_status(statusText, statusColor);
     }
 
-    draw_humidity_alert_jewel(alert_state, alerts_enabled, no_dht_h);
+    static uint8_t last_jewel_code = 255;
+    static bool last_jewel_no_sensor = false;
+    static bool last_jewel_alerts_en = false;
+    if (alert_state != last_jewel_code || no_dht_h != last_jewel_no_sensor || alerts_enabled != last_jewel_alerts_en) {
+        draw_humidity_alert_jewel(alert_state, alerts_enabled, no_dht_h);
+        last_jewel_code = alert_state;
+        last_jewel_no_sensor = no_dht_h;
+        last_jewel_alerts_en = alerts_enabled;
+    }
 
+    last_hum_drawn = hum_cache;
+    last_status_id = status_id;
     last_no_sensor = no_dht_h;
     last_alerts_enabled = alerts_enabled;
 }

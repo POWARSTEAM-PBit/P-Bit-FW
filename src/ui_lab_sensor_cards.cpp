@@ -84,6 +84,7 @@ struct CardCache {
     uint8_t alert_code  = ALERT_CODE_OFF;
     bool unit_mode    = false;
     bool alerts_enabled = false;
+    uint16_t accent   = TFT_DARKGREY;
 };
 
 struct CardRenderState {
@@ -631,6 +632,15 @@ static void commit_cache(CardCache& cache, const CardRenderState& state) {
     cache.alert_code     = state.alert_code;
     cache.unit_mode      = g_is_fahrenheit;
     cache.alerts_enabled = state.alerts_enabled;
+    cache.accent         = state.accent;
+}
+
+static bool chrome_dirty(const CardCache& cache, const CardRenderState& state) {
+    return !cache.valid
+        || (cache.sensor_valid   != state.sensor_valid)
+        || (cache.alert_code     != state.alert_code)
+        || (cache.alerts_enabled != state.alerts_enabled)
+        || (cache.accent         != state.accent);
 }
 
 // ── Dynamic draw ──────────────────────────────────────────────────────
@@ -663,6 +673,27 @@ static void draw_card_dynamic(const LabSensorCardSpec& spec, const CardRenderSta
     spec.icon_fn(kIconCx, kIconCy, state.accent);
 }
 
+static void draw_card_content(const LabSensorCardSpec& spec, const CardRenderState& state) {
+    // Clear value zone (from kValueTopY to kVizLabelY, within card width)
+    tft.fillRect(kCardX + 1, kValueTopY, kCardW - 2, kVizLabelY - kValueTopY, kCardBg);
+    // Clear viz zone (labels + bars, from kVizLabelY to kVizBottomY+4)
+    tft.fillRect(kCardX + 1, kVizLabelY, kCardW - 2, kVizBottomY - kVizLabelY + 4, kCardBg);
+
+    draw_value_compact(state.sensor_valid,
+                       state.shown_value,
+                       state.accent,
+                       spec.is_temperature,
+                       spec.compact_unit_fn(),
+                       L(spec.invalid_bottom_key));
+    spec.draw_viz(state.sensor_valid, state.temp_c, state.accent);
+
+    // Header strip + icon drawn LAST (matches the layering rule of draw_card_dynamic).
+    // Without this the value zone clear at y=kValueTopY=43 clips the FONT_SMALL device
+    // label at kDevLabelY=33 (text bottom ≈ y=45) and the icon at kIconCy=40 (bottom ≈ y=47).
+    draw_header_strip(spec.device_label, spec.secondary);
+    spec.icon_fn(kIconCx, kIconCy, state.accent);
+}
+
 static void draw_card_screen_for(LabSensorCardId id,
                                  bool screen_changed,
                                  bool sensor_data_changed,
@@ -681,7 +712,11 @@ static void draw_card_screen_for(LabSensorCardId id,
     }
 
     if (dirty && (sensor_data_changed || !cache.valid)) {
-        draw_card_dynamic(spec, state);
+        if (chrome_dirty(cache, state)) {
+            draw_card_dynamic(spec, state);   // full redraw (infrequent: state/alert change)
+        } else {
+            draw_card_content(spec, state);   // targeted clears only (common case)
+        }
         commit_cache(cache, state);
     }
 }

@@ -21,16 +21,16 @@ constexpr int L_ALERT_JEWEL_Y = 118; // Y position for the runtime alert indicat
 // - compact cards may consume the lower band when no footer hint is present
 
 // ── Menus / shared layout bands ───────────────────────────
-constexpr int LM_MENU_TITLE_BAND_Y = 38;  // Shared top band for titles and subtitles.
-constexpr int LM_MENU_TITLE_BAND_H = 22;  // Height of the shared title band.
+constexpr int LM_MENU_TITLE_BAND_Y = 26;  // Shared top band for titles and subtitles (starts 3 px below header line).
+constexpr int LM_MENU_TITLE_BAND_H = 34;  // Height of the shared title band (covers 26..59).
 constexpr int LM_MENU_BODY_BAND_Y = 60;   // Shared body band for editable content or centered lists.
 constexpr int LM_MENU_BODY_BAND_H = 48;   // Height of the shared body band.
 constexpr int LM_MENU_FOOTER_Y = 118;     // Shared footer line for hints such as "Turn and push".
-constexpr int LM_MENU4_Y0 = 46;           // First row used by 4-item menus.
+constexpr int LM_MENU4_Y0 = 36;           // First row used by 4-item menus (center of first item).
 constexpr int LM_MENU4_GAP = 16;          // Vertical spacing between rows in 4-item menus.
-constexpr int LM_MENU3_Y0 = 50;           // First row used by 3-item menus.
+constexpr int LM_MENU3_Y0 = 36;           // First row used by 3-item menus.
 constexpr int LM_MENU3_GAP = 22;           // Vertical spacing between rows in 3-item menus.
-constexpr int LM_MENU5_Y0 = 46;           // First row used by 5-item menus.
+constexpr int LM_MENU5_Y0 = 36;           // First row used by 5-item menus.
 constexpr int LM_MENU5_GAP = 14;           // Vertical spacing between rows in 5-item menus.
 constexpr int LM_SUMMARY2_Y0 = 70;        // First row used by 2-line summaries.
 constexpr int LM_SUMMARY2_GAP = 18;       // Vertical spacing between rows in 2-line summaries.

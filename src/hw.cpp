@@ -93,6 +93,15 @@ void init_hw() {
     delay(10);
     sensors.begin();
     sensors.setResolution(9);
+    // Non-blocking conversion mode: requestTemperatures() returns immediately instead of
+    // blocking ~94 ms for the 9-bit conversion. We use a two-step async pattern in
+    // read_ds18b20_temp() — see that function for details.
+    sensors.setWaitForConversion(false);
+    if (sensors.getDeviceCount() > 0) {
+        // Kick off the first conversion at boot so the first read() returns valid data
+        // (the result will be ready ~94 ms later, well before sensor_reading_task's first slow cycle).
+        sensors.requestTemperatures();
+    }
     load_soil_calibration();
     load_soil_thresholds();
     load_humidity_thresholds();
@@ -585,8 +594,9 @@ int read_soil_raw_average() {
 int read_sound_level() {
     // GM19767P: AC-coupled signal centered near 1.65V
     // (inverting LM358 stage, 0-20x gain, RV2 bias).
-    // Measure peak-to-peak amplitude over 50 ms to capture more complete audio cycles.
-    const uint32_t WINDOW_US = 50000;
+    // Measure peak-to-peak amplitude over 20 ms — covers 2+ full cycles of anything
+    // above 50 Hz (voice, ambient noise, music). Shorter window = faster VU response.
+    const uint32_t WINDOW_US = 20000;
     const uint16_t YIELD_EVERY_SAMPLES = 32;
     uint32_t t0 = micros();
     int hi = 0, lo = 4095;
@@ -663,6 +673,17 @@ float read_soil_moisture() {
 }
 
 float read_ds18b20_temp() {
+    // Async two-step pattern (since init_hw set setWaitForConversion(false)):
+    //   step 1: read whatever the previous requestTemperatures() finished cooking (~6 ms)
+    //   step 2: issue a fresh requestTemperatures() that will be ready ~94 ms later
+    //
+    // The caller MUST invoke this at intervals >= 94 ms so that step 1 always reads a
+    // completed conversion. sensor_reading_task calls it once per SENSOR_READ_INTERVAL_MS
+    // (1000 ms), so this constraint is satisfied with plenty of margin.
+    //
+    // This removes the ~94 ms synchronous block per call that was freezing the sound VU
+    // visualization once per second.
+
     // If sensors.begin() did not detect the sensor at boot (bus still unstable),
     // try scanning again. This covers hot-plugged sensors or a startup that was
     // too fast for the 1-Wire bus to settle.
@@ -673,15 +694,21 @@ float read_ds18b20_temp() {
             return -999.0f;
         }
         sensors.setResolution(9);
+        sensors.setWaitForConversion(false);  // re-apply async mode after re-detect
+        sensors.requestTemperatures();         // kick first conversion — result ready next call
         DPRINT("[DS18B20] Re-detectado: %d dispositivo(s)\n", sensors.getDeviceCount());
+        return -999.0f;  // no valid reading yet — wait one cycle for the new conversion
     }
 
-    sensors.requestTemperatures();
+    // Step 1: read the result of the conversion issued ~1 s ago (already complete).
     float tempC = sensors.getTempCByIndex(0);
+
+    // Step 2: kick off the next conversion (returns immediately in async mode).
+    sensors.requestTemperatures();
 
     if (tempC == DEVICE_DISCONNECTED_C || tempC < -55.0f || tempC > 125.0f) {
         return -999.0f;
     }
-    
+
     return tempC + (g_ds18_offset_x10 / 10.0f);
 }

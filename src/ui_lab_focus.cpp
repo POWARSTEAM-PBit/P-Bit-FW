@@ -472,12 +472,16 @@ static void draw_graph_panel(LabFocusSensor sensor, bool valid, bool shell_redra
 
     if (shell_redraw) {
         tft.fillRoundRect(LF_GRAPH_X, LF_GRAPH_Y, LF_GRAPH_W, LF_GRAPH_H, 4, graph_bg_color(sensor));
-    } else {
-        tft.fillRect(LF_GRAPH_X + 1, LF_GRAPH_Y + 1, LF_GRAPH_W - 2, LF_GRAPH_H - 2, graph_bg_color(sensor));
     }
+    // No pre-clear on non-shell updates: render_graph_sprite covers the interior with
+    // fillSprite(), so a redundant fillRect here only causes a visible black flash.
     tft.drawRoundRect(LF_GRAPH_X, LF_GRAPH_Y, LF_GRAPH_W, LF_GRAPH_H, 4, border);
 
     if (!valid) {
+        // Sprite won't run; clear interior before drawing the no-sensor label.
+        if (!shell_redraw) {
+            tft.fillRect(LF_GRAPH_X + 1, LF_GRAPH_Y + 1, LF_GRAPH_W - 2, LF_GRAPH_H - 2, graph_bg_color(sensor));
+        }
         tft.setTextDatum(MC_DATUM);
         tft.setFreeFont(FONT_SMALL);
         tft.setTextColor(TFT_DARKGREY, TFT_BLACK);

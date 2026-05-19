@@ -107,57 +107,84 @@ void sensor_reading_task(void *param) {
       static bool _hwm_reported = false;
       if (!_hwm_reported) { _hwm_reported = true; DPRINT("[Stack] SensorTask HWM: %u words\n", uxTaskGetStackHighWaterMark(NULL)); }
 #endif
-      vTaskDelay(pdMS_TO_TICKS(100));
+      vTaskDelay(pdMS_TO_TICKS(10)); // 20 ms sound window + 10 ms delay ≈ 30 Hz fast-sensor rate
    }
 }
 
 static void read_fast_sensors(Reading &r) {
-    // LDR front-end: 10k pull-up to 3.3V, LDR to GND, with a hardware RC filter.
-    // Logic is inverted: bright light -> lower ADC, darkness -> higher ADC.
-    float ldr_raw = analogRead(PIN_LDR_SIGNAL);
-    float ldr_new;
-    if (ldr_raw >= ADC_SATURATION_THRESHOLD) {
-        ldr_new = 20000.0f;
-    } else {
-        float v   = (ldr_raw / 4095.0f) * VCC_SUPPLY_VOLTAGE;
-        float res = (v > 0 && (VCC_SUPPLY_VOLTAGE - v) > 0) ?
-                    (REF_RESISTANCE * (VCC_SUPPLY_VOLTAGE - v)) / v : 999999.0f;
-        float log_r = log10(res);
-        ldr_new = pow(10.0f, (log_r - LUX_CALIBRATION_LOG) / LUX_CALIBRATION_GAMMA);
+    // LDR: sample at ~5 Hz (every 6 fast cycles ≈ 180 ms) instead of 30 Hz.
+    // Light conditions change slowly — 5 Hz is more than enough for a smooth display.
+    // Sound is the only sensor that benefits from the full 30 Hz rate (VU accuracy).
+    static uint8_t ldr_cycle = 0;
+    if (++ldr_cycle >= 6) {
+        ldr_cycle = 0;
+        // LDR front-end: 10k pull-up to 3.3V, LDR to GND, with a hardware RC filter.
+        // Logic is inverted: bright light -> lower ADC, darkness -> higher ADC.
+        float ldr_raw = analogRead(PIN_LDR_SIGNAL);
+        float ldr_new;
+        if (ldr_raw >= ADC_SATURATION_THRESHOLD) {
+            ldr_new = 20000.0f;
+        } else {
+            float v   = (ldr_raw / 4095.0f) * VCC_SUPPLY_VOLTAGE;
+            float res = (v > 0 && (VCC_SUPPLY_VOLTAGE - v) > 0) ?
+                        (REF_RESISTANCE * (VCC_SUPPLY_VOLTAGE - v)) / v : 999999.0f;
+            float log_r = log10(res);
+            ldr_new = pow(10.0f, (log_r - LUX_CALIBRATION_LOG) / LUX_CALIBRATION_GAMMA);
+        }
+        ldr_new = constrain(ldr_new, 0.0f, 20000.0f);
+        r.ldr_raw = ldr_raw;
+
+        // Software EMA on top of the hardware filter: smooths the reading without lagging too much.
+        static float ldr_ema = -1.0f;
+        if (ldr_ema < 0.0f) ldr_ema = ldr_new; // Initialize on the first sample.
+        ldr_ema = 0.7f * ldr_ema + 0.3f * ldr_new;
+        r.ldr = ldr_ema;
     }
-    ldr_new = constrain(ldr_new, 0.0f, 20000.0f);
-    r.ldr_raw = ldr_raw;
+    // else: r.ldr and r.ldr_raw retain their previous values — no display update needed.
 
-    // Software EMA on top of the hardware filter: smooths the reading without lagging too much.
-    static float ldr_ema = -1.0f;
-    if (ldr_ema < 0.0f) ldr_ema = ldr_new; // Initialize on the first sample.
-    ldr_ema = 0.7f * ldr_ema + 0.3f * ldr_new;
-    r.ldr = ldr_ema;
-
-    // Delegate the remaining sensor reads to the hardware layer.
+    // Sound: always sample at full rate (20 ms window is required for VU accuracy).
     r.mic = read_sound_level();
-    r.soil_humidity = read_soil_moisture();
+
+    // Soil: sample at ~1 Hz (every 30 fast cycles ≈ 900 ms).
+    // Moisture changes on the timescale of minutes — 1 Hz is more than enough,
+    // and skipping 29 of 30 calls (each costing ~2.4 ms) saves ~70 ms/s of CPU time.
+    static uint8_t soil_cycle = 0;
+    if (++soil_cycle >= 30) {
+        soil_cycle = 0;
+        r.soil_humidity = read_soil_moisture();
+    }
+    // else: r.soil_humidity retains its previous value.
 }
 
 static void read_slow_sensors(Reading &r) {
-    // Local DHT11 read.
-   float h = dht.readHumidity();
-   float t = dht.readTemperature(); 
-   if (!isnan(h) && h >= 0 && h <= 100) {
-      r.humidity = h;
-      dht_hum_fail_count = 0;
-   } else {
-      if (dht_hum_fail_count < 2) dht_hum_fail_count++;
-      if (dht_hum_fail_count >= 2) r.humidity = NAN;
-   }
-   if (!isnan(t) && t >= -20 && t <= 80) {
-      r.temperature = t;
-      dht_temp_fail_count = 0;
-   } else {
-      if (dht_temp_fail_count < 2) dht_temp_fail_count++;
-      if (dht_temp_fail_count >= 2) r.temperature = NAN;
-   }
+    // DHT11 hardware caps internal sampling at ~1 Hz — reading more often just returns
+    // cached values. To halve the per-cycle blocking, alternate humidity and temperature
+    // reads so each individual call costs ~25 ms instead of ~50 ms. Each channel ends
+    // up refreshed every 2 s, which is fine for room conditions that change slowly.
+    static uint8_t dht_slot = 0;  // 0 = humidity, 1 = temperature
+    if (dht_slot == 0) {
+        float h = dht.readHumidity();
+        if (!isnan(h) && h >= 0 && h <= 100) {
+            r.humidity = h;
+            dht_hum_fail_count = 0;
+        } else {
+            if (dht_hum_fail_count < 2) dht_hum_fail_count++;
+            if (dht_hum_fail_count >= 2) r.humidity = NAN;
+        }
+        dht_slot = 1;
+    } else {
+        float t = dht.readTemperature();
+        if (!isnan(t) && t >= -20 && t <= 80) {
+            r.temperature = t;
+            dht_temp_fail_count = 0;
+        } else {
+            if (dht_temp_fail_count < 2) dht_temp_fail_count++;
+            if (dht_temp_fail_count >= 2) r.temperature = NAN;
+        }
+        dht_slot = 0;
+    }
 
-    // Always refresh DS18B20; the UI maps -999 to "No sensor".
-   r.temp_ds18b20 = read_ds18b20_temp();
+    // DS18B20 in async mode (set up by init_hw): this read returns the conversion issued
+    // ~1 s ago and kicks off a new one in the background. Total cost ~7 ms (vs ~94 ms sync).
+    r.temp_ds18b20 = read_ds18b20_temp();
 }
