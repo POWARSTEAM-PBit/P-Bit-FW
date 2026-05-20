@@ -33,7 +33,6 @@ constexpr int kStackCols = 10;
 constexpr int kStackSegments = 11;
 constexpr int kWavePairs = 6;
 constexpr int kWaveHistory = kWavePairs + 1;
-constexpr const char* kSoundLabTitle = "SOUND LAB";
 
 // IBMPlexMono_Regular12pt8b at TR_DATUM x=150, y=24.
 // "100%" worst-case width ≈ 76 px, height ≈ 20 px. Extra margin avoids ghost left digit.
@@ -249,12 +248,12 @@ static void draw_wave_chrome(const SoundVisual& visual, uint8_t alert_code, bool
 
 static void draw_stack_shell() {
     tft.fillScreen(kBg);
-    drawHeader(kSoundLabTitle);
+    drawHeader(L(TIT_LAB_VU_STACK));
 }
 
 static void draw_wave_shell() {
     tft.fillScreen(kBg);
-    drawHeader(kSoundLabTitle);
+    drawHeader(L(TIT_LAB_VU_WAVE));
 }
 
 static void commit_stack_cache(bool valid, uint8_t level, uint8_t alert_code, bool alerts_enabled, uint8_t category_id) {

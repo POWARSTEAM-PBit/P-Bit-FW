@@ -17,3 +17,10 @@ Escenas previstas en este grupo:
 - `12_ds18_saved_unit.cpp`
 - `13_ds18_saved_alerts.cpp`
 - `14_ds18_saved_reset.cpp`
+
+Notas de estado:
+
+- `DS18B20_SCREEN` ya no es parada directa del carrusel visible.
+- Se abre como menú/configuración desde Sensor Zone con `SZ_DS18` mediante pulsación larga.
+- En la UI visible, DS18 aparece como sensor dentro de Sensor Zone y como parte de Multi/Temp Lab.
+- `DS18B20` puede quedar hardcodeado como identificador técnico; textos de estado deben usar `LangKey`.

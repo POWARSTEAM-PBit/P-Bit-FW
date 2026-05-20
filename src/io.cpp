@@ -16,7 +16,8 @@
 #define REF_RESISTANCE      10000.0 
 #define LUX_CALIBRATION_LOG    1.8 
 #define LUX_CALIBRATION_GAMMA   1.4 
-#define ADC_SATURATION_THRESHOLD 4050 
+#define ADC_LOW_RAIL_THRESHOLD 10
+#define ADC_HIGH_RAIL_THRESHOLD 4050
 
 Reading global_readings;
 volatile bool g_sensor_data_ready = false;
@@ -42,8 +43,9 @@ void sensor_reading_task(void *param) {
    local_r.temperature  = NAN;
    local_r.humidity     = NAN;
    local_r.soil_humidity = NAN;
-   local_r.ldr = 0.0f;
-   local_r.mic = 0.0f;
+   local_r.ldr = NAN;
+   local_r.ldr_raw = NAN;
+   local_r.mic = NAN;
 
    portENTER_CRITICAL(&readings_mux);
    global_readings = local_r;
@@ -51,6 +53,7 @@ void sensor_reading_task(void *param) {
 
    uint32_t last_slow_read_ms = 0;
    float mic_peak_accum = 0.0f;
+   TickType_t last_wake_tick = xTaskGetTickCount();
 
    while (1) {
       uint32_t current_ms = millis();
@@ -84,10 +87,7 @@ void sensor_reading_task(void *param) {
 
        runtime_mark_sensor_data_ready();
 
-      // Skip BLE packet assembly entirely when nobody is connected.
-      if (client_connected.load()) {
-          notifyAll();
-      }
+      ble_service();
 
 #if PBIT_ENABLE_SERIAL_PLOTTER
        // --- STEAM / Serial Plotter mode ---
@@ -107,7 +107,7 @@ void sensor_reading_task(void *param) {
       static bool _hwm_reported = false;
       if (!_hwm_reported) { _hwm_reported = true; DPRINT("[Stack] SensorTask HWM: %u words\n", uxTaskGetStackHighWaterMark(NULL)); }
 #endif
-      vTaskDelay(pdMS_TO_TICKS(10)); // 20 ms sound window + 10 ms delay ≈ 30 Hz fast-sensor rate
+      vTaskDelayUntil(&last_wake_tick, pdMS_TO_TICKS(30)); // 20 ms sound window + stable 30 Hz cadence
    }
 }
 
@@ -118,18 +118,20 @@ static void read_fast_sensors(Reading &r) {
     static uint8_t ldr_cycle = 0;
     if (++ldr_cycle >= 6) {
         ldr_cycle = 0;
-        // LDR front-end: 10k pull-up to 3.3V, LDR to GND, with a hardware RC filter.
-        // Logic is inverted: bright light -> lower ADC, darkness -> higher ADC.
-        float ldr_raw = analogRead(PIN_LDR_SIGNAL);
+        // LDR front-end used by the current board maps higher ADC counts to higher lux.
+        // Keep the conversion polarity aligned with the analog divider fitted in hardware.
+        float ldr_raw = read_adc_raw(PIN_LDR_SIGNAL);
         float ldr_new;
-        if (ldr_raw >= ADC_SATURATION_THRESHOLD) {
+        if (ldr_raw <= ADC_LOW_RAIL_THRESHOLD) {
+            ldr_new = 0.0f;
+        } else if (ldr_raw >= ADC_HIGH_RAIL_THRESHOLD) {
             ldr_new = 20000.0f;
         } else {
             float v   = (ldr_raw / 4095.0f) * VCC_SUPPLY_VOLTAGE;
             float res = (v > 0 && (VCC_SUPPLY_VOLTAGE - v) > 0) ?
                         (REF_RESISTANCE * (VCC_SUPPLY_VOLTAGE - v)) / v : 999999.0f;
-            float log_r = log10(res);
-            ldr_new = pow(10.0f, (log_r - LUX_CALIBRATION_LOG) / LUX_CALIBRATION_GAMMA);
+            float base_lux = powf(10.0f, LUX_CALIBRATION_LOG);
+            ldr_new = base_lux * powf(REF_RESISTANCE / res, LUX_CALIBRATION_GAMMA);
         }
         ldr_new = constrain(ldr_new, 0.0f, 20000.0f);
         r.ldr_raw = ldr_raw;

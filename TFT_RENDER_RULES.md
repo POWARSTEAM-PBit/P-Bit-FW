@@ -3,6 +3,10 @@
 Reglas permanentes para todas las pantallas TFT del P-Bit.
 Cualquier pantalla nueva debe seguir este documento desde el primer commit, no como corrección posterior.
 
+Actualizado: 2026-05-20
+
+Estado actual: el protocolo anti-flicker ya está aplicado en dials/gauges, cards, `Sound VU`, `Graph`, `Valor`, `Home` y pantallas de sensor clásicas. Las tareas abiertas asociadas a render no son reimplementar el patrón, sino validar en hardware real que no hay flicker, ghost pixels, scan-line ni recorte de textos localizados.
+
 ---
 
 ## 1. Sistema de coordenadas
@@ -14,9 +18,9 @@ X: 0 ─────────────────────────
 Y:
  0  ┌─────────────────────────────────────┐
     │  HEADER  (título, fuente interna)   │
-28  ├─────────────────────────────────────┤  ← L_HEADER_LINE
+23  ├─────────────────────────────────────┤  ← L_HEADER_LINE
     │  franja de respiración              │
-32  ├─────────────────────────────────────┤  ← L_CONTENT_TOP
+27  ├─────────────────────────────────────┤  ← L_CONTENT_TOP
     │                                     │
     │  ÁREA DE CONTENIDO                  │
     │                                     │
@@ -30,8 +34,8 @@ Y:
 | Zona    | Y inicio | Y fin | Notas                                  |
 | ------- | -------- | ----- | -------------------------------------- |
 | Header  | 0        | 27    | Solo titulo de pantalla                |
-| Divider | 28       | 31    | L_HEADER_LINE, no dibujar encima       |
-| Content | 32       | 117   | Toda la UI de datos vive aqui          |
+| Divider | 23       | 26    | L_HEADER_LINE, no dibujar encima       |
+| Content | 27       | 117   | Toda la UI de datos vive aqui          |
 | Footer  | 118      | 127   | Hints, alert jewel, labels secundarios |
 
 **Márgenes laterales obligatorios:**
@@ -337,6 +341,17 @@ No usar sprite cuando:
 - El layout ya es estable sin buffering extra
 - El sprite solo añade coste de RAM sin reducir flicker
 
+### 8.1.1 Zonas ya resueltas con sprite
+
+| Zona | Estado |
+| ---- | ------ |
+| `Sound VU` STACK/WAVE | Sprite + EWMA asimétrico + idle pulse |
+| `DIAL/GAUGE` | Ring sprite 64×64 |
+| `VALOR` | Sparkline sprite |
+| `Graph` | Sprite de gráfica |
+
+Estas zonas siguen necesitando aceptación en pantalla real antes de cerrar la validación de producción.
+
 ### 8.2 El sprite debe tener las mismas dimensiones que su región destino
 
 ```cpp
@@ -406,6 +421,8 @@ Solo después de responder todo lo anterior se empieza a codificar.
 - [ ] ¿La pantalla no vibra al cambiar datos en hardware real?
 - [ ] ¿Los textos son legibles a distancia y en movimiento?
 - [ ] ¿Los bordes del card no se repintan en cada frame?
+- [ ] ¿Los dials/cards/VU no muestran scan-line ni flash negro en ST7735 real?
+- [ ] ¿Los textos localizados ES/CAT/EN caben en cabeceras, footers y cards?
 
 ---
 

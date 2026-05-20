@@ -2,6 +2,8 @@
 
 Documento de referencia para futuras iteraciones del firmware del P-Bit.
 
+Actualizado: 2026-05-20
+
 Objetivos:
 - dejar registradas las mejoras sugeridas y acordadas
 - separar deuda técnica de mejoras de producto
@@ -30,11 +32,11 @@ Objetivos:
 - La pasada fina de UX ya homogeneizó mejor el marco de menús: los menús de 4 y 5 opciones usan espaciado compartido, los prompts de `Reset` ya muestran el footer/hint con el mismo patrón en todas las pantallas, y los resúmenes multilinea de `Saved` ahora reutilizan helpers comunes en vez de dibujarse cada uno con posiciones mágicas distintas (`include/layout.h`, `include/ui_widgets.h`, `src/ui_widgets.cpp`, `src/ui_temp.cpp`, `src/ui_humidity.cpp`, `src/ui_light.cpp`, `src/ui_sound.cpp`, `src/ui_soil.cpp`, `src/ui_ds18.cpp`, `src/ui_system.cpp`).
 - Ya existe un `AlertEngine` compartido que centraliza clasificación/transiciones de alertas y emisión de audio, se refresca desde el `sensor task` con getters estables y ahora además resuelve un estado global real: alerta principal por severidad y prioridad de sensor, conteo de alertas adicionales, cooldown de audio y `entry notice` breve para la UI (`src/alert_engine.cpp`, `include/alert_engine.h`, `src/io.cpp`, `src/tft_display.cpp`).
 - La base técnica de alertas globales ya está implementada en runtime: el router puede reaccionar al estado global del `AlertEngine`, y el RGB puede seguir la alerta principal sin contaminar la lectura del LDR en la pantalla de `Light`; la capa visual global quedó desactivada temporalmente hasta cerrar una ubicación/layout que no invada las pantallas (`src/tft_display.cpp`, `src/ui_widgets.cpp`, `include/layout.h`, `include/ui_widgets.h`).
-- La salida tipo `Serial Plotter` ya está en formato CSV limpio y ahora además queda detrás del flag `PBIT_ENABLE_SERIAL_PLOTTER`, para que el firmware normal no tenga que emitirla siempre; falta solo documentarla mejor si se quiere enseñar como modo laboratorio (`src/io.cpp`, `include/config.h`).
+- La salida tipo `Serial Plotter` ya está en formato CSV limpio y queda detrás del flag `PBIT_ENABLE_SERIAL_PLOTTER`; la activación de laboratorio queda documentada en `MANUAL_TECNICO_PBIT.md` y el control de producción en `docs/PRODUCTION_CHECKLIST.md` (`src/io.cpp`, `include/config.h`).
 - Ya existe documentación funcional de alto nivel del firmware actual y su potencial educativo en `PBIT_FUNCIONAMIENTO_ACTUAL.md`.
-- Los manuales largos ya quedaron resincronizados con el firmware real: tiempos de pulsación, menús actuales, alertas, suelo `Muy húmedo`, unidad global compartida `TEMP/DS18`, `Timer v2` con editor directo `HH:MM:SS` y modelo de reposo visible con `ZZZ` ya están alineados en `MANUAL_TECNICO_PBIT.md`, `MANUAL_DE_USUARIO_PBIT.md` y `PBIT_FUNCIONAMIENTO_ACTUAL.md`.
+- Los manuales largos ya quedaron resincronizados con el firmware real: carrusel `PBIT_ENABLE_GRAPH_LAB=1`, `SENSOR_ZONE_SCREEN`, gráfica como modo por sensor, BLE oculto/desactivado por defecto, tiempos de pulsación, menús actuales, `Timer v2` y reposo visible con `ZZZ` ya están alineados en `MANUAL_TECNICO_PBIT.md`, `MANUAL_DE_USUARIO_PBIT.md` y `PBIT_FUNCIONAMIENTO_ACTUAL.md`.
 - Ya quedó contrastado firmware vs hardware con KiCad V3.1: la TFT usa `IO21/IO22` para `RST/DC`, mientras el bus I2C externo de placa vive en `IO26/IO27` (`SDA/SCL`). El firmware actual todavía no inicializa `Wire`, así que un futuro sensor I2C como `SCD41` deberá entrar con `Wire.begin(26, 27)` y no asumir I2C por defecto en `21/22`.
-- La localización quedó prácticamente centralizada en `L(KEY)`: se eliminaron el placeholder muerto `ST_SOIL_THRESH_TODO`, los `tr(...)` dispersos y las funciones locales `tr()` de las pantallas de UI. Añadir un cuarto idioma requiere tocar sobre todo `include/languages.h` y `src/lang_select.cpp`; aun así, conviene asumir que pueden quedar cadenas residuales puntuales en módulos nuevos como la gráfica (`src/ui_temp.cpp`, `src/ui_humidity.cpp`, `src/ui_light.cpp`, `src/ui_sound.cpp`, `src/ui_soil.cpp`, `src/ui_ds18.cpp`, `src/ui_system.cpp`, `include/languages.h`, `src/lang_select.cpp`).
+- La localización de la UI actual quedó completada sobre `L(KEY)`: se eliminaron el placeholder muerto `ST_SOIL_THRESH_TODO`, los `tr(...)` dispersos y las funciones locales `tr()` de las pantallas de UI; `Graph`, `Sensor Zone`, sufijos de vista, BLE oculto, menús y pantallas lab visibles ya usan `LangKey` en ES/CAT/EN. Añadir un cuarto idioma requiere tocar sobre todo `include/languages.h` y `src/lang_select.cpp`; lo pendiente ya no es i18n funcional, sino validar en hardware que textos largos como `TERMÓMETRO`, `TEMPORIZADOR` o sufijos `TARJETA/GRAF/DIAL` caben en 160 px (`include/languages.h`, `src/lang_select.cpp`, `src/sensor_zone.cpp`, `src/ui_graph.cpp`, `src/ui_*`).
 - `Timer v2` ya está aterrizado sin romper los gestos existentes: cronómetro en `00:00:00`, editor directo `HH:MM:SS` con encoder, layout mas limpio del card, duracion activa centrada debajo del card solo en cuenta regresiva, formato adaptativo `MM:SS:CC` / `HH:MM:SS`, final en rojo y alarma intermitente al terminar cuenta regresiva (`src/timer.cpp`, `include/timer.h`, `src/ui_timer.cpp`, `src/rotary.cpp`, `src/main.cpp`, `src/tft_display.cpp`).
 - El runtime del `Timer` ya recompone mejor el valor grande sobre el card real: la banda del tiempo se limpia primero, el sprite se empuja con negro transparente y el borde se repinta al final para que la caja no quede “cortada” por el fondo del sprite en hardware (`include/layout.h`, `src/ui_timer.cpp`).
 - El layout runtime del `Timer` siguió afinándose en hardware: el card bajó unos píxeles más y el estado acompañó ese ajuste, pero el tiempo grande se mantuvo donde mejor respiraba para abrir aire real arriba y abajo dentro del card (`include/layout.h`).
@@ -43,19 +45,22 @@ Objetivos:
 - Las dos pantallas temporales de calibración tipográfica que se usaron para ajustar el visualizador externo ya cumplieron su función y se retiraron del carrusel del firmware, dejando otra vez el producto centrado solo en las pantallas reales de uso (`include/tft_display.h`, `src/tft_display.cpp`, `src/rotary.cpp`, `src/main.cpp`).
 - El selector de idioma también recibió un ajuste visual conservador: la flecha `>` mantiene la fuente interna `2`, pero baja `2 px` para respirar mejor frente al texto del idioma sin cambiar aún de tamaño ni mover su anclaje X (`src/lang_select.cpp`).
 - El runtime del `Timer` también redujo trabajo por frame: la banda del tiempo ya no obliga a repintar el card completo en cada tick, y el refresco de centésimas se relajó un poco para reducir ghosting sin perder la lectura fina del cronómetro (`src/ui_timer.cpp`, `src/tft_display.cpp`).
-- La pantalla de **Gráfica** ya está integrada en el carrusel como una nueva pantalla de runtime. La v1 actual cubre Temperatura y Humedad, usa buffers circulares para histórico reciente, auto-escala Y con rango mínimo por sensor y render en sprite para reducir parpadeo; hoy la escritura de muestras depende del ciclo lento del `sensor task` (~1 s) y la interacción de usuario se limita a pulsación corta para cambiar de sensor (`include/graph_buffer.h`, `src/graph_buffer.cpp`, `include/ui_graph.h`, `src/ui_graph.cpp`, `src/io.cpp`, `src/tft_display.cpp`, `src/rotary.cpp`, `include/layout.h`, `include/languages.h`, `src/lang_select.cpp`).
+- La lectura de **LDR** ya se expresa como lux en rango `0..20000`: la conversión calibrada queda acotada en `read_fast_sensors()`, se suaviza con EMA, se submuestrea a ~5 Hz y las visualizaciones nuevas usan ese mismo rango para cards, dials, gráficas y listas (`src/io.cpp`, `src/ui_light.cpp`, `src/ui_lab_home_cards.cpp`, `src/ui_lab_linear_dash.cpp`, `src/ui_lab_sensor_cards.cpp`, `src/ui_lab_widget_showcase.cpp`).
+- La **Sensor Zone** actual ya está integrada como seis posiciones del carrusel cuando `PBIT_ENABLE_GRAPH_LAB=1`, con sensor persistido, vista persistida por sensor, `FOCUS` como default y ciclo corto entre `FOCUS`, `VALOR`, `GRAPH`, `GAUGE` y `CARD`. `sz_header_name()` compone cabeceras localizadas por sensor/vista y `sz_is_active()` evita el antiguo doble `drawHeader` de los sub-renderers (`include/sensor_zone.h`, `src/sensor_zone.cpp`, `src/tft_display.cpp`, `src/rotary.cpp`).
+- La **Gráfica** ya está integrada como modo visual por sensor dentro de `SENSOR_ZONE_SCREEN`. La v1 actual cubre los 6 sensores, usa buffers circulares para histórico reciente, auto-escala Y con rango mínimo por sensor, render en sprite para reducir parpadeo y etiquetas localizadas. `GRAPH_SCREEN` queda como renderer reutilizable y como pantalla independiente solo en el carrusel clásico con el flag a `0` (`include/graph_buffer.h`, `src/graph_buffer.cpp`, `include/ui_graph.h`, `src/ui_graph.cpp`, `include/sensor_zone.h`, `src/sensor_zone.cpp`, `src/io.cpp`, `src/tft_display.cpp`, `src/rotary.cpp`).
 - El **BLE ya tiene feature gate de fábrica y pantalla de control oculta**: el flag `ble_en` (NVS, bool, default `false`) impide que el stack NimBLE se inicie si no está habilitado explícitamente; el flag se resetea a `false` en cada nuevo flash por el mecanismo de build-hash existente. La pantalla `BLE_TOGGLE_SCREEN` es accesible solo con un gesto secreto de 60 s de pulsación mantenida sobre la pantalla `Sistema`; muestra un fondo azul full-screen, ícono Bluetooth XL y selector `OFF/ON` que guarda en NVS y reinicia el dispositivo. La fila de BLE en la pantalla de Sistema ahora solo aparece si `ble_en == true` (`src/settings_store.cpp`, `include/settings_store.h`, `src/main.cpp`, `src/rotary.cpp`, `include/ui_ble_toggle.h`, `src/ui_ble_toggle.cpp`, `src/ui_system.cpp`, `include/ui_icons.h`, `src/ui_icons.cpp`, `include/tft_display.h`, `src/tft_display.cpp`).
+- El anti-flicker de las pantallas lab sensibles ya está cerrado en código: `Sound VU` usa sprite, EWMA asimétrico e idle pulse; `DIAL/GAUGE` usa sprite de anillo; `VALOR` usa sprite de sparkline; `SENSOR CARD` y `HOME` separan chrome/data con reglas de redibujado acotadas. Lo que queda es validación física en ST7735 real, no una tarea de implementación abierta (`src/ui_lab_sound_vu.cpp`, `src/ui_lab_widget_showcase.cpp`, `src/ui_lab_sensor_cards.cpp`, `src/ui_lab_home_cards.cpp`, `docs/TFT_RENDER_RULES.md`).
 - Hardening de producción aplicado: `volatile` en `active_screen` (thread safety entre Core 0 y Core 1), guard de corrupción NVS con `nvs_flash_erase` + reinit en `setup()`, detección de reset por panic/WDT al arrancar, todos los logs de boot y power envueltos en `DPRINT`/`DPRINTLN` (silenciosos en producción, activos con `#define FIRMWARE_DEBUG`), flags de optimización `-Os -DCORE_DEBUG_LEVEL=1 -DCONFIG_ARDUHAL_LOG_DEFAULT_LEVEL=1` en `platformio.ini`, código muerto eliminado (6 funciones `icon_large`, `drawMasterFooterHint`, `drawSensorChip`, `drawStringFit`), bloque `kShowStartupLayoutValidation` movido a `tools/layout_validation_snippet.cpp` fuera del build de producción, `#include "config.h"` añadido a `ble.cpp`, `led_control.cpp` y `timer.cpp` para acceso uniforme a las macros de debug (`src/main.cpp`, `platformio.ini`, `src/tft_display.cpp`, `include/tft_display.h`, `src/io.cpp`, `src/rotary.cpp`, `src/hw.cpp`, `src/ble.cpp`, `src/led_control.cpp`, `src/timer.cpp`, `src/ui_icons.cpp`, `include/ui_icons.h`, `src/ui_widgets.cpp`, `include/ui_widgets.h`, `tools/layout_validation_snippet.cpp`).
 
 ### Parcial
 
-- La limpieza visual sigue siendo parcial: hay redraw selectivo, bandas de limpieza más claras, reset prompts homogéneos, resúmenes `Saved` más consistentes y mejor ubicación del indicador mínimo, pero todavía falta una validación final en hardware pixel a pixel.
+- La limpieza visual ya está implementada en código con redraw selectivo, bandas de limpieza más claras, reset prompts homogéneos, resúmenes `Saved`, sprites y caches por campo; se mantiene como parcial solo porque falta una validación final en hardware pixel a pixel.
 - El menú de sonido no es una calibración física real del micrófono; hoy edita umbrales y activa/desactiva alertas (`src/ui_sound.cpp`, `src/hw.cpp`).
 - El `Timer v2` ya existe con cronómetro y editor `HH:MM:SS`, pero todavía no tiene automatizaciones o flujos más ricos para laboratorio/experimentos (`src/rotary.cpp`, `src/timer.cpp`, `src/ui_timer.cpp`).
 - El modelo global de alertas ya existe, pero sigue siendo deliberadamente simple: una alerta principal, contador `+N` y aviso corto. Si el producto crece, todavía podría evolucionar a una cola o política más rica.
 - El framework de menús ya cubre listas, pantallas de valor, prompts de reset y buena parte de los resúmenes `Saved` en `System`, `Temp`, `Humidity`, `Light`, `Sound`, `Soil` y `DS18`, pero aún quedan detalles de contenido específicos por sensor que siguen siendo intencionalmente bespoke.
-- La pantalla de **Gráfica** ya funciona como v1 de producto, pero todavía no participa en el marco común de menús/subestados y sigue necesitando una pasada fina de UX y localización antes de considerarla completamente asentada.
-- Las pantallas `Home`, `Clima`, `Multi` y `Sonido VU` ya son pantallas de producción definitivas y forman los primeros 4 puestos del carrusel. Aún quedan detalles de UX fino y localización antes de darlas por completas. La referencia de diseño para el visualizador se mantiene en [LAB_GRAPH_UI_HANDOFF.md](/c:/POWAR-GIT/P-Bit-FW%20-%20edit/LAB_GRAPH_UI_HANDOFF.md).
+- El modo **Gráfica** ya funciona como v1 de producto dentro de cada sensor y ya está localizado; sigue necesitando pasada fina de UX y validación en hardware antes de considerarlo completamente asentado.
+- Las pantallas `Home`, `Clima`, `Multi` y `Sonido VU` ya son pantallas de producción definitivas y forman los primeros 4 puestos del carrusel. Aún quedan detalles de UX fino y validación en hardware antes de darlas por completas. La referencia de diseño para el visualizador se mantiene en [LAB_GRAPH_UI_HANDOFF.md](/c:/POWAR-GIT/P-Bit-FW%20-%20edit/LAB_GRAPH_UI_HANDOFF.md).
 
 ### Pendiente
 
@@ -67,13 +72,20 @@ Objetivos:
 
 #### Hardening técnico
 - **TWDT (Task Watchdog Timer)**: pendiente para iteración pre-producción. El TWDT permite que el dispositivo se recupere automáticamente si una tarea FreeRTOS se cuelga (bucle sin `vTaskDelay`, deadlock, espera infinita). En condiciones normales nunca dispara. Activarlo requiere suscribir `sensor_reading_task` y `switch_screen` al watchdog con `esp_task_wdt_add()`, llamar `esp_task_wdt_reset()` en cada iteración, y hacer un test de 24 h en hardware antes de producción. Timeout sugerido: 10 s. Cuando llegue ese momento, puede convenir montar un modo demo de ciclo continuo (lecturas y navegación automática) para el test de 24 h sin intervención manual.
-- `PBIT_ENABLE_SERIAL_PLOTTER`: ya está detrás de flag en `config.h` (default OFF). Documentar mejor como modo laboratorio con instrucciones de activación para STEAM.
+- Ejecutar y firmar `docs/PRODUCTION_CHECKLIST.md` para cada build candidata.
 
 #### Calidad
 - Seguir reduciendo bloques bespoke del contenido de menús solo cuando valga la pena, sin forzar una abstracción peor que el layout específico del sensor.
 - Renombrar `PBIT_ENABLE_GRAPH_LAB` a un nombre más representativo del producto final (por ejemplo `PBIT_ENABLE_FULL_NAV`) cuando se limpie el código de referencias `LAB_` en enums y constantes de `tft_display.h` y `rotary.cpp`.
 
-#### Estado actual de la pantalla Gráfica (v1 completa)
+#### Validación en hardware real
+- Firmar ausencia de parpadeo en `Sound VU` (STACK/WAVE), `DIAL/GAUGE`, `VALOR`, `SENSOR CARD`, `HOME` y `Graph` sobre ST7735 real.
+- Confirmar que BLE sale de fábrica apagado tras flash nuevo: sin advertising, sin fila BLE visible en `Sistema` y solo accesible con gesto secreto de 60 s.
+- Confirmar rango de luz `0..20000 lux` en entorno oscuro/interior/luz intensa y que el RGB permanece apagado en pantalla de luz para no contaminar el LDR.
+- Confirmar que cabeceras localizadas y sufijos de `Sensor Zone` no se recortan en ES/CAT/EN.
+- Ejecutar una navegación completa de las seis posiciones de `SENSOR_ZONE_SCREEN`: encoder cambia sensor, pulsación corta cambia vista, pulsación larga abre el menú del sensor correcto y vuelve al slot correcto al salir.
+
+#### Estado actual del modo Gráfica (v1 completa)
 - Los 6 sensores (`Temperatura`, `Humedad`, `Luz`, `Sonido`, `Suelo`, `DS18B20`) ya tienen buffer circular propio, se alimentan desde el sensor task y son seleccionables con pulsación corta.
 - Cada sensor tiene paleta de color propia para línea, grid y etiquetas.
 - Auto-escalado Y con rango mínimo por sensor y 5 % de padding. Etiquetas min/max en esquinas.
@@ -83,7 +95,7 @@ Objetivos:
 - Ajuste visual fino en hardware si se detectan problemas de contraste o legibilidad de etiquetas.
 - Evaluar si el auto-escalado Y necesita un modo `fijo` (rango absoluto del sensor) además del modo `adaptativo`.
 - Considerar mostrar el tiempo cubierto o número de muestras como texto de apoyo.
-- Escena del visualizador externo para la pantalla Gráfica: no existe escena canon todavía.
+- Escena del visualizador externo para el modo Gráfica: no existe escena canon todavía.
 
 ## Roadmap Paralelo: Visualizador / TFT Workstation
 
@@ -203,7 +215,7 @@ Criterio de clasificación:
 1. Mantener estables los menús ya existentes antes de añadir más complejidad.
 2. Resolver solo una iteración nueva por pantalla cuando haya una necesidad clara.
 3. Revisar primero si el sensor admite calibración real o solo umbrales de interpretación.
-4. Consolidar visualmente la pantalla Gráfica actual antes de ampliar sensores o modos.
+4. Consolidar visualmente el modo Gráfica actual antes de ampliar sensores o modos.
 5. No volver a planificar como futuro lo que ya está implementado en código.
 
 ## Observaciones

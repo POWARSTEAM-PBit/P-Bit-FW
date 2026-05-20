@@ -1,17 +1,25 @@
 # Paleta e Iconos — Propuesta P-Bit
 
-**Fecha:** 2026-05-16
-**Estado:** PROPUESTA — pendiente de validación en hardware
+**Fecha:** 2026-05-16 | **Actualizado:** 2026-05-20
+**Estado:** PARCIALMENTE IMPLEMENTADO — paleta canónica activa en Sensor Zone; validación hardware pendiente
 
 ---
 
 ## Contexto
 
-Este documento recoge el análisis completo de la sesión 2026-05-16 sobre el sistema de color e iconografía del firmware P-Bit. Los cambios descritos aquí **NO están implementados en producción**. El código activo sigue usando la paleta inventariada en la sección "Paleta actual".
+Este documento recoge el análisis completo de la sesión 2026-05-16 sobre el sistema de color e iconografía del firmware P-Bit. Ya no debe leerse como una propuesta intacta: desde entonces se creó `include/palette.h` y las vistas de Sensor Zone (`FOCUS`, `CARD`, `VALOR`, `GRAPH`, `GAUGE`) ya consumen la paleta P1/P2/P3/P4.
 
-Las nuevas entradas de pantalla SENSOR CARD y VALOR LAB son el banco de prueba de esta propuesta: son código nuevo que se implementa directamente con la paleta propuesta, de modo que si se ve bien en hardware, la paleta queda validada sin riesgo de regresión en las pantallas existentes.
+`SENSOR CARD` y `VALOR LAB` ya funcionan como banco de prueba real de esta paleta. Lo pendiente es validar en hardware ST7735 si esos colores se leen bien en condiciones reales y decidir si se extienden a pantallas madre (`HOME`, `CLIMA LAB`) o si esas mantienen su lógica responsiva.
 
 Este documento es el handoff canónico para agentes y sesiones futuras. Antes de tocar cualquier color o icono en archivos de producción, leer la sección "Estrategia de implementación".
+
+## Resumen de estado 2026-05-20
+
+- **Implementado:** `include/palette.h` con P1/P2/P3/P4 y helpers `pb_primary`, `pb_secondary`, `pb_accent_warm`, `pb_contrast_cool`.
+- **Implementado:** uso de paleta en `ui_lab_focus.cpp`, `ui_graph.cpp`, `ui_lab_widget_showcase.cpp` y `ui_lab_sensor_cards.cpp`.
+- **Implementado:** iconos `humidity`, `probe` y `plant` rediseñados en `src/ui_icons.cpp`; icono Bluetooth añadido para BLE oculto.
+- **Pendiente hardware:** validar contraste, diferencias entre sensores, legibilidad de `off` segments y comportamiento real sobre fondos navy.
+- **Pendiente técnico menor:** revisar si el termómetro debe recibir fondo como parámetro para eliminar el `TFT_BLACK` interior sobre navy.
 
 ---
 
@@ -119,24 +127,24 @@ DS18 usa purple como primary en SENSOR LAB pero electricBlue+hotPink en GAUGE LA
 
 ---
 
-## Paleta propuesta — sistema canónico
+## Paleta canónica — sistema implementado en Sensor Zone
 
 Un color primario por sensor (identidad) más un color secundario (complemento para efectos dual-color: sparklines, gauge rings, bordes degradados, highlights).
 
 ### Tabla maestra de identidad
 
-Actualizada 2026-05-17: añadidos P3 (acento cálido) y P4 (contraste frío), extraídos de los colores ya presentes en `ui_graph.cpp` (max-label, min-label, band-label). Son colores **existentes en el código** — no inventados. La columna "Fuente" indica el módulo de origen.
+Actualizada 2026-05-20: la tabla refleja `include/palette.h`. P1/P2/P3/P4 ya no son solo propuesta; son la fuente de verdad para `FOCUS`, `CARD`, `VALOR`, `GRAPH` y `GAUGE`.
 
 | Sensor | P1 · Primary | Hex | P2 · Secondary | Hex | P3 · Acento cálido | Hex | P4 · Contraste frío | Hex |
 |--------|-------------|-----|----------------|-----|--------------------|-----|---------------------|-----|
-| **TEMP** | Naranja ácido | `0xFB20` | Magenta punk | `0xF81F` | Amarillo cálido *(graph max-label)* | `0xFFD8` | Azul frío *(graph min-label)* | `0x069F` |
-| **HUMEDAD** | Cian eléctrico | `0x069F` | Cobalto | `0x3BDF` | Rosa *(graph band-label)* | `0xFBAE` | Azul marino *(graph grid-v)* | `0x0318` |
-| **LUZ** | Amarillo | `0xFFE0` | Ámbar | `0xFDA0` | Dorado claro *(graph band-label)* | `0xFF86` | Dorado oscuro *(graph border)* | `0x7E60` |
-| **SONIDO** | Magenta punk | `0xF81F` | Verde neón | `0x07E0` | Naranja *(graph max-label)* | `0xFD20` | Púrpura oscuro *(graph grid-v)* | `0x5C2C` |
-| **SUELO** | Verde cálido | `0x2F85` | Cian menta *(focus secondary)* | `0x07FF` | Menta claro *(graph band-label)* | `0x6FD6` | Verde oscuro *(graph border)* | `0x0300` |
-| **TERMÓMETRO** | Violeta eléctrico | `0xA1FF` | Azul eléctrico *(gauge primary)* | `0x35FF` | Lila claro *(graph band-label)* | `0xCABF` | Cian frío *(graph min-label)* | `0x07FF` |
+| **TEMP** | Naranja ácido | `0xFA80` | Rosa eléctrico | `0xF814` | Oro eléctrico | `0xFE45` | Azul hielo | `0x055F` |
+| **HUMEDAD** | Cian eléctrico | `0x075F` | Cobalto láser | `0x2A9F` | Aqua brillante | `0x8FFF` | Azul océano | `0x01F4` |
+| **LUZ** | Amarillo puro | `0xFFE0` | Ámbar eléctrico | `0xFC40` | Oro neón | `0xFE40` | Dorado oscuro | `0x7A40` |
+| **SONIDO** | Magenta punk | `0xF81F` | Verde ácido | `0x07E8` | Rojo neón | `0xF8A0` | Púrpura oscuro | `0x4011` |
+| **SUELO** | Lima ácido | `0x47E8` | Tierra cálida | `0xCC04` | Menta claro | `0x87F0` | Verde oscuro | `0x0300` |
+| **TERMÓMETRO** | Violeta eléctrico | `0xA01F` | Azul láser | `0x045F` | Amatista claro | `0xCC5F` | Cian frío | `0x0659` |
 
-> Los hex565 de P3/P4 son aproximaciones de los valores `tft.color565(r,g,b)` que ya usa `ui_graph.cpp`. Los valores exactos se calculan en runtime — ver las funciones `graph_band_label_color()`, `graph_max_label_color()`, `graph_min_label_color()` en ese archivo.
+> Los nombres semánticos son la intención visual; los valores exactos viven en `include/palette.h`.
 
 ### Uso semántico de los 4 colores
 
@@ -163,40 +171,29 @@ Actualizada 2026-05-17: añadidos P3 (acento cálido) y P4 (contraste frío), ex
 - `TFT_GREEN` para SOUND secondary: ya está bien
 - Todos los fondos navy: son la mejor decisión del sistema actual, no tocar
 
-### Propuesta de `include/palette.h`
+### `include/palette.h` actual
 
 ```cpp
-// P-Bit sensor identity palette — propuesta 2026-05-16
-// PENDIENTE DE APROBACIÓN EN HARDWARE
-// Este archivo no existe aún en el proyecto — es la propuesta canónica.
+// P-Bit sensor identity palette — retro arcade edition 2026-05-17
+// Fuente de verdad para colores de sensores en todas las viz del sensor zone.
+// Aplicar SOLO a: FOCUS, CARD, VALOR, GRAPH, GAUGE.
 #pragma once
-#include <TFT_eSPI.h>
+#include <stdint.h>
 
-// ── Sensor identity: primary colors ──────────────────────────────────────────
-constexpr uint16_t PB_TEMP_PRIMARY    = 0xFB20;  // naranja ácido (255,100,0)
-constexpr uint16_t PB_HUM_PRIMARY     = 0x069F;  // cian eléctrico (0,210,255)
-constexpr uint16_t PB_LUZ_PRIMARY     = 0xFFE0;  // amarillo (255,255,0)
-constexpr uint16_t PB_SOUND_PRIMARY   = 0xF81F;  // magenta punk (255,0,255)
-constexpr uint16_t PB_SOIL_PRIMARY    = 0x2F85;  // verde cálido (40,240,40)
-constexpr uint16_t PB_DS18_PRIMARY    = 0xA1FF;  // violeta eléctrico (160,60,255)
+constexpr uint16_t PB_TEMP_P1  = 0xFA80;
+constexpr uint16_t PB_TEMP_P2  = 0xF814;
+constexpr uint16_t PB_TEMP_P3  = 0xFE45;
+constexpr uint16_t PB_TEMP_P4  = 0x055F;
 
-// ── Sensor identity: secondary colors ────────────────────────────────────────
-constexpr uint16_t PB_TEMP_SECONDARY  = 0xF81F;  // magenta punk
-constexpr uint16_t PB_HUM_SECONDARY   = 0x3BDF;  // cobalto (60,120,255)
-constexpr uint16_t PB_LUZ_SECONDARY   = 0xFDA0;  // ámbar (255,180,0)
-constexpr uint16_t PB_SOUND_SECONDARY = 0x07E0;  // verde neón (0,255,0)
-constexpr uint16_t PB_SOIL_SECONDARY  = 0xCC07;  // tierra (200,130,60)
-constexpr uint16_t PB_DS18_SECONDARY  = 0xF81F;  // magenta punk
+// ... idem para HUM, LUZ, SOUND, SOIL y DS18.
 
-// ── Shared UI colors ──────────────────────────────────────────────────────────
-constexpr uint16_t PB_UNIT_COLOR      = 0xFD20;  // kWarmOrange — etiquetas de unidades
-constexpr uint16_t PB_CARD_BG         = 0x0841;  // card interior dark
-constexpr uint16_t PB_CARD_BORDER     = 0x2945;  // dark blue-grey border
-constexpr uint16_t PB_PANEL_NAV_BG    = 0x0862;  // (8,12,18) navy oscuro principal
-constexpr uint16_t PB_GRAPH_BG        = 0x0042;  // (4,8,20) navy más oscuro para gráficas
+inline uint16_t pb_primary(uint8_t sensor_id);
+inline uint16_t pb_secondary(uint8_t sensor_id);
+inline uint16_t pb_accent_warm(uint8_t sensor_id);
+inline uint16_t pb_contrast_cool(uint8_t sensor_id);
 ```
 
-> Nota sobre `PB_PANEL_NAV_BG`: el valor `0x0862` es la aproximación RGB565 de `(8,12,18)`. Verificar contra el valor calculado por `tft.color565(8,12,18)` en hardware antes de hacer canónico.
+Los fondos navy siguen siendo compartidos por convención visual, pero no se centralizaron aquí como constantes públicas.
 
 ---
 
@@ -204,9 +201,11 @@ constexpr uint16_t PB_GRAPH_BG        = 0x0042;  // (4,8,20) navy más oscuro pa
 
 Todos los iconos del sistema son procedurales (dibujados con primitivas de TFT_eSPI en runtime). No hay bitmaps ni sprites. Están definidos principalmente en `ui_icons.cpp` con variantes `_large` y `_xxl` en `ui_lab_widget_showcase.cpp`.
 
-### Problema transversal a todos los iconos
+### Problema transversal pendiente
 
 `TFT_BLACK` hardcodeado como color de detalle interior. Esto funciona solo sobre fondo negro puro. Sobre los fondos navy del sistema `(8,12,18)` o `(4,8,20)`, los detalles negros crean manchas visibles y rompen la lectura del icono.
+
+Estado 2026-05-20: el riesgo principal que queda visible en código es el canal interior del termómetro. Los iconos de humedad, planta y sonda ya fueron simplificados/rediseñados.
 
 ---
 
@@ -224,11 +223,11 @@ Todos los iconos del sistema son procedurales (dibujados con primitivas de TFT_e
 
 **Construcción actual:** `fillTriangle` (punta hacia arriba) + `fillCircle` (bulbo inferior) + `fillCircle` negro superpuesto (efecto ring interior). Versión large: triángulo base en `cy-3`, círculo top en `cy-6`.
 
-**Problema 1:** el círculo negro interior que crea el efecto donut. A tamaños pequeños, a 160×128px, lee como agujero o mancha oscura, no como brillo de gota.
+**Problema histórico 1:** el círculo negro interior que creaba el efecto donut. A tamaños pequeños, a 160×128px, leía como agujero o mancha oscura.
 
-**Problema 2 (versión large):** la transición de 3px entre el borde del triángulo y el círculo es visible. La gota se ve partida en dos piezas.
+**Problema histórico 2 (versión large):** la transición de 3px entre el borde del triángulo y el círculo era visible. La gota se veía partida en dos piezas.
 
-**Veredicto:** REHACERLO. Confirmado por producto.
+**Estado actual:** rehecho en `src/ui_icons.cpp`: gota sólida sin donut, triángulo con base ±3*s tangente al círculo.
 
 ---
 
@@ -246,9 +245,9 @@ Todos los iconos del sistema son procedurales (dibujados con primitivas de TFT_e
 
 **Construcción actual:** cuerpo redondeado 6×9 + pie vertical de 3px + base horizontal de 9px.
 
-**Problema:** la base de 9px es más ancha que el cuerpo de 6px. El resultado visual es una mesa o un seta, no el pie de un micrófono. La proporción correcta sería base de 5–7px máximo.
+**Problema histórico:** la base era demasiado dominante frente al cuerpo.
 
-**Veredicto:** Reconocible pero con proporciones incorrectas. Corregir ancho de base.
+**Estado actual:** sigue siendo reconocible y se usa en Sensor Zone; validar en hardware si la base actual se lee como micrófono a 1× y XL antes de tocarla otra vez.
 
 ---
 
@@ -256,9 +255,9 @@ Todos los iconos del sistema son procedurales (dibujados con primitivas de TFT_e
 
 **Construcción actual:** base horizontal 11×2 + tallo vertical 2×7 + 2 hojas como `fillTriangle` anguladas a cada lado.
 
-**Problema:** los triángulos agudos de las hojas leen como flechas o puntas a tamaño pequeño. No hay ninguna curva que sugiera hoja vegetal.
+**Problema histórico:** los triángulos agudos de las hojas leían como flechas o puntas a tamaño pequeño. No había ninguna curva que sugiriera hoja vegetal.
 
-**Veredicto:** MEJORAR. Confirmado por producto.
+**Estado actual:** mejorado en `src/ui_icons.cpp` con hojas redondeadas (`fillRoundRect`) y base/pot redondeado.
 
 ---
 
@@ -266,30 +265,30 @@ Todos los iconos del sistema son procedurales (dibujados con primitivas de TFT_e
 
 **Construcción actual:** cuerpo horizontal 9×5 + conector derecho 4×3 + cable en diagonal hacia la izquierda.
 
-**Problema:** la orientación horizontal con conector y cable diagonal hace que lea como relé eléctrico, bloque de terminales o conector, no como sonda de temperatura. Un DS18B20 físico es un componente vertical cilíndrico con punta.
+**Problema histórico:** la orientación horizontal con conector y cable diagonal hacía que leyera como relé eléctrico, bloque de terminales o conector, no como sonda de temperatura.
 
-**Veredicto:** REDISEÑAR completamente. Confirmado por producto.
+**Estado actual:** rediseñado como cápsula vertical con cable superior en `src/ui_icons.cpp`. Validar en hardware si necesita punta más marcada.
 
 ---
 
-### Iconos grandes (`_large`, `_xxl` en `ui_lab_widget_showcase.cpp`)
+### Iconos grandes (`_xl` en `ui_icons.cpp`)
 
-Replican los mismos diseños con dimensiones ampliadas. Los mismos problemas se escalan: el negro hardcodeado en el termómetro es más visible, el donut de la gota es más obvio, la base ancha del micro es más notoria, la sonda horizontal no mejora con el tamaño.
+Replican los mismos diseños con factor `s=3` para el centro del gauge. Problemas históricos ya cerrados: gota sin donut, sonda vertical y planta con hojas redondeadas. Pendiente: validar termómetro sobre navy y proporciones del micrófono XL en hardware.
 
 ---
 
 ## Propuestas de rediseño de iconos
 
-### HUM — gota corregida (todas las tallas)
+### HUM — gota corregida (aplicado)
 
 Cambios a aplicar:
 - Eliminar el `fillCircle` negro interior. La gota queda como silueta sólida, limpia.
 - Agregar highlight de agua: 2 píxeles en color blanco o muy claro en posición superior-izquierda del bulbo.
 - En versión large: cambiar `cy - 18` a `cy - 15` en el triángulo superior para que el solapamiento con el círculo cierre la gota sin costura visible.
 
-Resultado esperado: gota reconocible a cualquier tamaño, sin artefactos negros.
+Estado actual: aplicado como silueta sólida; queda validación visual en hardware.
 
-### DS18 — sonda vertical con punta (todas las tallas)
+### DS18 — sonda vertical (aplicado parcialmente)
 
 ```
 Cuerpo cilíndrico vertical + punta metálica hacia abajo + conector corto arriba
@@ -302,15 +301,15 @@ Versión pequeña:
 Versión large/xxl: escalar proporcionalmente
 ```
 
-Esto lee como sonda tipo TO-92 o sensor de inserción, que es exactamente lo que es el DS18B20. Reconocible también para niños sin conocimiento técnico porque es "la aguja que va en el agua/tierra".
+Estado actual: la orientación vertical/cápsula ya está aplicada. La punta triangular explícita no está en el código actual; añadirla solo si la validación en hardware muestra que la cápsula no se reconoce como sonda.
 
-### SOIL/PLANT — hojas redondeadas (todas las tallas)
+### SOIL/PLANT — hojas redondeadas (aplicado)
 
-Reemplazar cada `fillTriangle` de hoja por `fillRoundRect` horizontal pequeño con radio de esquina igual a la mitad del alto. Esto convierte la hoja de triángulo agudo a forma oval reconocible como hoja vegetal. Mantener base, tallo y posición XY general sin cambios.
+Ya se reemplazaron hojas triangulares por `fillRoundRect`, convirtiendo la hoja a forma oval reconocible. Mantener base, tallo y posición XY general salvo hallazgo en hardware.
 
 ### SOUND — proporciones corregidas (todas las tallas)
 
-Reducir la base horizontal de 9px a 5–7px (centrada bajo el pie). El cuerpo 6×9 y el pie de 3px permanecen sin cambios. Solo el ancho de la base cambia.
+Estado actual: no tocar sin captura de hardware. Si se ve demasiado pesado, reducir la base manteniendo cuerpo y pie.
 
 ### TEMP — eliminar TFT_BLACK hardcodeado
 
@@ -349,31 +348,29 @@ Aplicar el mismo patrón a los 4 rayos diagonales.
 
 La pantalla ST7735 a 160×128px tiene comportamiento diferente al simulador y al ojo humano analizando código hexadecimal. Un color que parece bien en papel puede verse apagado, demasiado similar a otro, o perder contraste sobre el fondo navy en condiciones reales de iluminación.
 
-### Orden de implementación
+### Orden de implementación actualizado
 
-**Fase 1 — Banco de prueba en código nuevo (sin riesgo de regresión)**
+**Fase 1 — Banco de prueba en código nuevo (hecho)**
 
-Las pantallas SENSOR CARD y VALOR LAB son entradas nuevas que aún no existen en producción. Se implementan directamente con la paleta propuesta. Si se ven bien en hardware, la paleta está validada en contexto real sin haber tocado ningún archivo existente.
+Las pantallas SENSOR CARD y VALOR LAB ya usan la paleta canónica. Si se ven bien en hardware, la paleta queda validada en contexto real sin haber tocado pantallas madre.
 
-**Fase 2 — Prototipos de iconos en pantalla de test**
+**Fase 2 — Prototipos de iconos en pantalla de test (parcial)**
 
-Agregar las variantes rediseñadas (HUM, DS18, SOIL, SOUND, TEMP, LUZ) como pantalla `LAB_ICON_TEST_SCREEN` que muestre ambas versiones en paralelo: actual vs propuesta. Validar en hardware sensor por sensor.
+Variantes HUM, DS18 y SOIL ya están aplicadas en la biblioteca común. `LAB_ICON_TEST_SCREEN` sigue siendo útil para comparar en hardware si se quiere tocar SOUND, TEMP o LUZ.
 
-**Fase 3 — Migración a producción**
+**Fase 3 — Migración a producción (pendiente de decisión)**
 
 Solo los cambios aprobados en hardware, un sensor a la vez, actualizando HOME → SENSOR LAB → GAUGE LAB en ese orden para cada sensor. Verificar cada pantalla después de cada cambio.
 
-**Fase 4 — Crear `include/palette.h`**
+**Fase 4 — Crear `include/palette.h` (hecho)**
 
-Solo después de que todos los colores estén validados. Crear el archivo canónico y migrar las constantes locales de cada `.cpp` para que usen las constantes de `palette.h`.
+El archivo canónico ya existe y Sensor Zone lo consume. Lo pendiente es decidir si se amplía su uso a pantallas madre o se mantiene acotado.
 
 ### Por qué las pantallas nuevas primero
 
-- SENSOR CARD necesita iconos y colores para HUM, LUZ, SOUND y SOIL (entradas nuevas)
-- VALOR LAB necesita shell per-sensor con icono y color de identidad
-- Son código nuevo: usar la paleta propuesta desde el inicio es la implementación correcta
-- Si se ve bien en hardware, la paleta queda aprobada sin riesgo de romper nada existente
-- Si algo no funciona, se ajusta solo en el código nuevo antes de migrar
+- SENSOR CARD y VALOR LAB ya usan color de identidad por sensor.
+- Son el lugar correcto para validar la paleta sin romper pantallas existentes.
+- Si algo no funciona en hardware, ajustar primero Sensor Zone antes de migrar la paleta a más pantallas.
 
 ---
 
@@ -383,21 +380,21 @@ Ver también `ANALISIS_PANTALLAS_EXPERIMENTALES_PBIT.md` sección 8 y `LAB_GRAPH
 
 ### Paleta — decisiones abiertas
 
-- [ ] ¿Aprobar naranja ácido `(255,100,0)` para TEMP P1? — requiere ver en hardware vs TFT_ORANGE actual
-- [ ] ¿Aprobar cobalto `(60,120,255)` como P2 de HUMEDAD? — clave para diferenciar HUMEDAD vs TERMÓMETRO
-- [ ] ¿Aprobar violeta eléctrico `(160,60,255)` para TERMÓMETRO P1? — diferenciación vs HUM y purple actual
-- [ ] ¿Tierra `(200,130,60)` como P2 de SUELO o mantener cian menta? — decisión estética
-- [ ] ¿Crear `include/palette.h`? — Fase 4 según estrategia. Bloqueada hasta validar P1/P2 en hardware.
-- [ ] P3/P4 añadidos a tabla (2026-05-17): verificar valores hex565 exactos vs `tft.color565()` en hardware.
+- [x] Crear `include/palette.h` y helpers por índice de sensor.
+- [x] Aplicar paleta a Sensor Zone (`FOCUS`, `CARD`, `VALOR`, `GRAPH`, `GAUGE`).
+- [ ] Aprobar en hardware TEMP/HUM/DS18 como identidades realmente distinguibles.
+- [ ] Validar si `PB_SOIL_P2` tierra cálida funciona mejor que cian menta en ST7735 real.
+- [ ] Decidir si `HOME` y `CLIMA LAB` migran a paleta canónica o mantienen colores responsivos propios.
+- [ ] Verificar P3/P4 en hardware, especialmente labels min/max y segmentos apagados.
 
 ### Iconos — decisiones abiertas
 
-- [ ] ¿Rediseño de DS18 como sonda vertical (TO-92)? — requiere prototipo en `LAB_ICON_TEST_SCREEN`
-- [ ] ¿Rediseño de HUM como gota limpia sin donut? — requiere prototipo
-- [ ] ¿Mejora de SOIL con hojas redondeadas? — requiere prototipo
-- [ ] ¿Corrección de proporciones de SOUND (base horizontal)? — cambio menor, bajo riesgo
+- [x] Rediseño de DS18 como sonda vertical/cápsula.
+- [x] Rediseño de HUM como gota limpia sin donut.
+- [x] Mejora de SOIL con hojas redondeadas.
+- [ ] Corrección de proporciones de SOUND (base horizontal) solo si hardware lo pide.
 - [ ] ¿Firma de `pbit_draw_temp_icon` con parámetro `bg` para eliminar TFT_BLACK hardcodeado? — decisión de API interna
 
 ---
 
-*Documento generado en sesión 2026-05-16. Próxima acción: implementar SENSOR CARD y VALOR LAB con paleta propuesta y validar en hardware.*
+*Documento generado en sesión 2026-05-16 y reclasificado el 2026-05-20. Próxima acción: validar Sensor Zone en hardware real antes de ampliar la paleta o tocar más iconos.*

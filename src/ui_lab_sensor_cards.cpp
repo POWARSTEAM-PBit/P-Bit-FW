@@ -35,7 +35,7 @@ constexpr int kCardH = LC_SCREEN_BOTTOM - LC_CARD_TOP + 1; // = 100
 
 // ── Layout zones ──────────────────────────────────────────────────────
 // Header strip  y = 27..43: icon + device label + jewel
-// Value zone    y = 44..80: large value + compact unit
+// Value zone    y = 47..84: large value + compact unit
 // Viz labels    y = 90..97
 // Viz bars      y = 101..116
 
@@ -49,10 +49,11 @@ constexpr int kAlertJewelX = kCardX + kCardW - 11; // = 147
 constexpr int kAlertJewelY = kCardY + 10;          // = 37
 
 constexpr int kValueGroupCx = 80;
-constexpr int kValueTopY = kCardY + 16;          // = 43
-constexpr int kUnitTopY  = kCardY + 26;          // = 53
+constexpr int kValueTopY = kCardY + 20;          // = 47
+constexpr int kUnitTopY  = kCardY + 30;          // = 57
 constexpr int kUnitGapX  = 4;
-constexpr int kInvalidValueY = kCardY + 23;      // = 50
+constexpr int kInvalidValueY = kCardY + 25;      // = 52
+constexpr int kInvalidLabelGapY = 24;
 
 constexpr int kVizLabelY = kCardY + 65;          // = 92
 constexpr int kVizX      = kCardX + 8;           // = 10
@@ -60,6 +61,7 @@ constexpr int kVizW      = kCardW - 16;          // = 140
 constexpr int kVizBarH   = 16;                   // Altura estándar unificada
 constexpr int kVizBottomY = kCardY + 91;         // = 118
 constexpr int kVizBarY   = kVizBottomY - kVizBarH + 1; // = 103
+constexpr float kLightLuxMax = 20000.0f;
 
 // Colors sourced from palette.h — do not add local overrides here.
 
@@ -85,6 +87,10 @@ struct CardCache {
     bool unit_mode    = false;
     bool alerts_enabled = false;
     uint16_t accent   = TFT_DARKGREY;
+    int value_x       = 0;
+    int value_y       = 0;
+    int value_w       = 0;
+    int value_h       = 0;
 };
 
 struct CardRenderState {
@@ -126,11 +132,16 @@ static float to_display(float temp_c) {
 }
 
 static const char* unit_temp_compact() {
-    return g_is_fahrenheit ? "F" : "C";
+    return g_is_fahrenheit ? L(ST_UNIT_F_SHORT) : L(ST_UNIT_C_SHORT);
 }
 
-static const char* unit_lux_compact() { return "lux"; }
+static const char* unit_lux_compact() { return L(ST_LUX_UNIT); }
 static const char* unit_pct_compact() { return "%"; }
+
+static const char* card_device_label(const LabSensorCardSpec& spec) {
+    if (spec.id == CARD_SOIL) return L(LAB_SOIL_SHORT);
+    return spec.device_label ? spec.device_label : "";
+}
 
 // ── Validity and value helpers ────────────────────────────────────────
 
@@ -256,6 +267,103 @@ static void draw_header_strip(const char* device_label, uint16_t secondary) {
 
 // ── Value zone (large value + compact unit) ──────────────────────────
 
+static void format_card_value(char* out, size_t out_len,
+                              bool is_temperature, float shown_value) {
+    if (is_temperature) {
+        snprintf(out, out_len, "%.1f", shown_value);
+    } else {
+        snprintf(out, out_len, "%.0f", shown_value);
+    }
+}
+
+static int card_value_start_x(const char* value_str, const char* compact_unit,
+                              int& value_w, int& unit_w, int& group_w) {
+    tft.setFreeFont(FONT_VALUE);
+    value_w = tft.textWidth(value_str);
+
+    tft.setFreeFont(FONT_BODY);
+    unit_w = tft.textWidth(compact_unit);
+    group_w = value_w + kUnitGapX + unit_w;
+
+    const int min_x = kCardX + 10;
+    const int max_x = kCardX + kCardW - 10 - group_w;
+    const int centered_x = kValueGroupCx - group_w / 2;
+    return (group_w > kCardW - 20)
+        ? min_x
+        : constrain(centered_x, min_x, max_x);
+}
+
+static void compute_value_rect(const LabSensorCardSpec& spec,
+                               const CardRenderState& state,
+                               int& x, int& y, int& w, int& h) {
+    if (!state.sensor_valid) {
+        x = kCardX + 22;
+        y = kInvalidValueY - 2;
+        w = kCardW - 44;
+        h = min(36, kVizLabelY - 3 - y);
+        return;
+    }
+
+    char value_str[12];
+    format_card_value(value_str, sizeof(value_str), spec.is_temperature, state.shown_value);
+
+    int value_w = 0;
+    int unit_w = 0;
+    int group_w = 0;
+    const int start_x = card_value_start_x(value_str, spec.compact_unit_fn(),
+                                           value_w, unit_w, group_w);
+
+    tft.setFreeFont(FONT_VALUE);
+    const int value_h = tft.fontHeight();
+    tft.setFreeFont(FONT_BODY);
+    const int unit_h = tft.fontHeight();
+    tft.setTextFont(0);
+
+    x = max(kCardX + 4, start_x - 3);
+    y = max(kCardY + 21, kValueTopY + 1);
+    const int right = min(kCardX + kCardW - 4, start_x + group_w + 3);
+    const int bottom = min(kVizLabelY - 2,
+                           max(kValueTopY + value_h, kUnitTopY + unit_h) + 3);
+    w = max(1, right - x);
+    h = max(1, bottom - y);
+}
+
+static void remember_value_rect(CardCache& cache,
+                                const LabSensorCardSpec& spec,
+                                const CardRenderState& state) {
+    compute_value_rect(spec, state, cache.value_x, cache.value_y,
+                       cache.value_w, cache.value_h);
+}
+
+static void clear_value_union(const CardCache& cache,
+                              const LabSensorCardSpec& spec,
+                              const CardRenderState& state) {
+    int next_x = 0;
+    int next_y = 0;
+    int next_w = 0;
+    int next_h = 0;
+    compute_value_rect(spec, state, next_x, next_y, next_w, next_h);
+
+    int x = next_x;
+    int y = next_y;
+    int right = next_x + next_w;
+    int bottom = next_y + next_h;
+    if (cache.value_w > 0 && cache.value_h > 0) {
+        x = min(x, cache.value_x);
+        y = min(y, cache.value_y);
+        right = max(right, cache.value_x + cache.value_w);
+        bottom = max(bottom, cache.value_y + cache.value_h);
+    }
+
+    x = max(x, kCardX + 1);
+    y = max(y, kCardY + 19);
+    right = min(right, kCardX + kCardW - 1);
+    bottom = min(bottom, kVizLabelY - 1);
+    if (right > x && bottom > y) {
+        tft.fillRect(x, y, right - x, bottom - y, kCardBg);
+    }
+}
+
 static void draw_value_compact(bool sensor_valid,
                                float shown_value,
                                uint16_t accent,
@@ -265,43 +373,32 @@ static void draw_value_compact(bool sensor_valid,
     if (!sensor_valid) {
         tft.setTextDatum(TC_DATUM);
         tft.setFreeFont(FONT_VALUE);
-        tft.setTextColor(TFT_DARKGREY, kCardBg);
+        tft.setTextColor(TFT_DARKGREY);
         tft.drawString("---", kCardX + kCardW / 2, kInvalidValueY);
 
         tft.setTextDatum(TC_DATUM);
         tft.setFreeFont(FONT_SMALL);
-        tft.setTextColor(TFT_DARKGREY, kCardBg);
-        tft.drawString(invalid_str, kCardX + kCardW / 2, kInvalidValueY + 30);
+        tft.setTextColor(TFT_DARKGREY);
+        tft.drawString(invalid_str, kCardX + kCardW / 2, kInvalidValueY + kInvalidLabelGapY);
         tft.setTextFont(0);
         return;
     }
 
     char value_str[12];
-    if (is_temperature) {
-        snprintf(value_str, sizeof(value_str), "%.1f", shown_value);
-    } else {
-        snprintf(value_str, sizeof(value_str), "%.0f", shown_value);
-    }
+    format_card_value(value_str, sizeof(value_str), is_temperature, shown_value);
 
-    tft.setFreeFont(FONT_VALUE);
-    const int value_w = tft.textWidth(value_str);
-
-    tft.setFreeFont(FONT_BODY);
-    const int unit_w = tft.textWidth(compact_unit);
-    const int group_w = value_w + kUnitGapX + unit_w;
-    const int min_x = kCardX + 10;
-    const int max_x = kCardX + kCardW - 10 - group_w;
-    const int centered_x = kValueGroupCx - group_w / 2;
-    const int start_x = (group_w > kCardW - 20)
-        ? min_x
-        : constrain(centered_x, min_x, max_x);
+    int value_w = 0;
+    int unit_w = 0;
+    int group_w = 0;
+    const int start_x = card_value_start_x(value_str, compact_unit,
+                                           value_w, unit_w, group_w);
 
     tft.setTextDatum(TL_DATUM);
-    tft.setTextColor(TFT_WHITE, kCardBg);
+    tft.setTextColor(TFT_WHITE);
     tft.setFreeFont(FONT_VALUE);
     tft.drawString(value_str, start_x, kValueTopY);
 
-    tft.setTextColor(accent, kCardBg);
+    tft.setTextColor(accent);
     tft.setFreeFont(FONT_BODY);
     tft.drawString(compact_unit, start_x + value_w + kUnitGapX, kUnitTopY);
     tft.setTextFont(0);
@@ -451,7 +548,9 @@ static void draw_light_viz(bool sv, float value, uint16_t accent) {
     constexpr int bars = 8;
     const int gap = 4;
     const int bw  = (kVizW - (bars - 1) * gap) / bars;
-    const float norm = sv ? constrain(value, 0.0f, 1023.0f) / 1023.0f : 0.0f;
+    const float norm = (sv && value >= 1.0f)
+        ? constrain(log10f(value) / log10f(kLightLuxMax), 0.0f, 1.0f)
+        : 0.0f;
     const int max_h  = kVizBarH;
     const int base_y = kVizBottomY;
 
@@ -585,7 +684,7 @@ static const LabSensorCardSpec kCardSpecs[CARD_COUNT] = {
         sound_accent, draw_sound_viz, pbit_draw_sound_icon
     },
     {
-        CARD_SOIL, TIT_LAB_SOIL_CARD, "SOIL", PB_SOIL_P2,
+        CARD_SOIL, TIT_LAB_SOIL_CARD, nullptr, PB_SOIL_P2,
         ST_CHECK_SOIL, TFT_DARKGREY, AlertSensor::Soil, false,
         soil_is_valid, soil_value_c, get_soil_alerts_enabled, unit_pct_compact,
         soil_accent, draw_soil_viz, pbit_draw_plant_icon
@@ -625,7 +724,9 @@ static bool cache_dirty(const CardCache& cache, const CardRenderState& state) {
         || (cache.alerts_enabled != state.alerts_enabled);
 }
 
-static void commit_cache(CardCache& cache, const CardRenderState& state) {
+static void commit_cache(CardCache& cache,
+                         const LabSensorCardSpec& spec,
+                         const CardRenderState& state) {
     cache.valid          = true;
     cache.sensor_valid   = state.sensor_valid;
     cache.value_key      = state.value_key;
@@ -633,6 +734,7 @@ static void commit_cache(CardCache& cache, const CardRenderState& state) {
     cache.unit_mode      = g_is_fahrenheit;
     cache.alerts_enabled = state.alerts_enabled;
     cache.accent         = state.accent;
+    remember_value_rect(cache, spec, state);
 }
 
 static bool chrome_dirty(const CardCache& cache, const CardRenderState& state) {
@@ -651,9 +753,8 @@ static void draw_card_dynamic(const LabSensorCardSpec& spec, const CardRenderSta
     tft.fillRoundRect(kCardX, kCardY, kCardW, kCardH, LC_CARD_RADIUS, kCardBg);
     tft.drawRoundRect(kCardX, kCardY, kCardW, kCardH, LC_CARD_RADIUS, state.accent);
 
-    // Value zone drawn first: FONT_VALUE background fill (setTextColor with bg) can
-    // reach slightly above kValueTopY due to GFX glyph yOffset > declared font ascent.
-    // Drawing the header strip after guarantees the device label is never erased.
+    // Value zone drawn before chrome on full redraw. Incremental redraws keep this
+    // area isolated so the header strip/icon are not repainted on every value tick.
     draw_value_compact(state.sensor_valid,
                        state.shown_value,
                        state.accent,
@@ -669,15 +770,14 @@ static void draw_card_dynamic(const LabSensorCardSpec& spec, const CardRenderSta
                    state.jewel, jewel_color(state.jewel, state.accent));
 
     // Header strip and icon drawn last — nothing above can erase them
-    draw_header_strip(spec.device_label, spec.secondary);
+    draw_header_strip(card_device_label(spec), spec.secondary);
     spec.icon_fn(kIconCx, kIconCy, state.accent);
 }
 
-static void draw_card_content(const LabSensorCardSpec& spec, const CardRenderState& state) {
-    // Clear value zone (from kValueTopY to kVizLabelY, within card width)
-    tft.fillRect(kCardX + 1, kValueTopY, kCardW - 2, kVizLabelY - kValueTopY, kCardBg);
-    // Clear viz zone (labels + bars, from kVizLabelY to kVizBottomY+4)
-    tft.fillRect(kCardX + 1, kVizLabelY, kCardW - 2, kVizBottomY - kVizLabelY + 4, kCardBg);
+static void draw_card_content(const LabSensorCardSpec& spec,
+                              const CardRenderState& state,
+                              const CardCache& cache) {
+    clear_value_union(cache, spec, state);
 
     draw_value_compact(state.sensor_valid,
                        state.shown_value,
@@ -685,13 +785,14 @@ static void draw_card_content(const LabSensorCardSpec& spec, const CardRenderSta
                        spec.is_temperature,
                        spec.compact_unit_fn(),
                        L(spec.invalid_bottom_key));
-    spec.draw_viz(state.sensor_valid, state.temp_c, state.accent);
 
-    // Header strip + icon drawn LAST (matches the layering rule of draw_card_dynamic).
-    // Without this the value zone clear at y=kValueTopY=43 clips the FONT_SMALL device
-    // label at kDevLabelY=33 (text bottom ≈ y=45) and the icon at kIconCy=40 (bottom ≈ y=47).
-    draw_header_strip(spec.device_label, spec.secondary);
-    spec.icon_fn(kIconCx, kIconCy, state.accent);
+    // Soil has a moving cursor triangle above the bar; clear only that viz region
+    // before redrawing. Other cards redraw their own tracks/segments in place.
+    if (spec.id == CARD_SOIL) {
+        tft.fillRect(kCardX + 1, kVizLabelY, kCardW - 2,
+                     kVizBottomY - kVizLabelY + 4, kCardBg);
+    }
+    spec.draw_viz(state.sensor_valid, state.temp_c, state.accent);
 }
 
 static void draw_card_screen_for(LabSensorCardId id,
@@ -707,7 +808,7 @@ static void draw_card_screen_for(LabSensorCardId id,
     if (needs_shell) {
         draw_lab_card_shell(L(spec.title_key));
         draw_card_dynamic(spec, state);
-        commit_cache(cache, state);
+        commit_cache(cache, spec, state);
         return;
     }
 
@@ -715,9 +816,9 @@ static void draw_card_screen_for(LabSensorCardId id,
         if (chrome_dirty(cache, state)) {
             draw_card_dynamic(spec, state);   // full redraw (infrequent: state/alert change)
         } else {
-            draw_card_content(spec, state);   // targeted clears only (common case)
+            draw_card_content(spec, state, cache);   // targeted clears only (common case)
         }
-        commit_cache(cache, state);
+        commit_cache(cache, spec, state);
     }
 }
 

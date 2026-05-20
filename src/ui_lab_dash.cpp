@@ -51,11 +51,11 @@ struct LabDashCache {
 };
 
 static LabDashCache g_last;
-static const char* kSensorLabels[4] = {
-    L(LAB_TEMP_SHORT),
-    L(LAB_HUM_SHORT),
-    L(LAB_LIGHT_SHORT),
-    L(LAB_SOUND_SHORT),
+static const LangKey kSensorLabels[4] = {
+    LAB_TEMP_SHORT,
+    LAB_HUM_SHORT,
+    LAB_LIGHT_SHORT,
+    LAB_SOUND_SHORT,
 };
 
 static int row_top(int row_index);
@@ -143,7 +143,7 @@ static void draw_row_static(int row_index) {
     tft.setTextDatum(ML_DATUM);
     tft.setFreeFont(FONT_BODY);
     tft.setTextColor(title, TFT_BLACK);
-    tft.drawString(kSensorLabels[row_index], kLabelX, cy - 1);
+    tft.drawString(L(kSensorLabels[row_index]), kLabelX, cy - 1);
     tft.setTextFont(0);
 }
 
@@ -272,8 +272,12 @@ void draw_lab_dash_screen(bool screen_changed, bool sensor_data_changed) {
     const float hum = g_ui_readings_snapshot.humidity;
     const bool hum_valid = !isnan(hum);
     const int hum_i = hum_valid ? (int)lroundf(hum) : INT_MIN;
-    const int light_i = (int)lroundf(g_ui_readings_snapshot.ldr);
-    const int sound_i = (int)lroundf(g_ui_readings_snapshot.mic);
+    const float light_lux = g_ui_readings_snapshot.ldr;
+    const bool light_valid = isfinite(light_lux);
+    const int light_i = light_valid ? (int)lroundf(light_lux) : INT_MIN;
+    const float sound_pct = g_ui_readings_snapshot.mic;
+    const bool sound_valid = isfinite(sound_pct);
+    const int sound_i = sound_valid ? (int)lroundf(sound_pct) : INT_MIN;
     const bool fahrenheit = g_is_fahrenheit;
     const bool temp_dirty = !g_last.valid
         || g_last.temp_valid != temp_valid

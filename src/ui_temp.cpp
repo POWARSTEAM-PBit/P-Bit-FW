@@ -483,7 +483,8 @@ void draw_temp_screen(bool screen_changed, bool data_changed) {
         apply_temp_rgb(alert_state);
 
         tft.fillRect(0, LA_HINT_Y - 4, LEFT_PANEL_W, 72, TFT_BLACK);
-        tft.fillRect(0, LA_CATEGORY_Y - 10, LEFT_PANEL_W, 28, TFT_BLACK);
+        const int category_clear_x = L_ALERT_JEWEL_X + 10;
+        tft.fillRect(category_clear_x, LA_CATEGORY_Y - 10, LEFT_PANEL_W - category_clear_x, 28, TFT_BLACK);
         draw_temp_info_card(no_dht ? TFT_DARKGREY : temp_color);
     }
 
@@ -525,7 +526,7 @@ void draw_temp_screen(bool screen_changed, bool data_changed) {
     static uint8_t last_jewel_code = 255;
     static bool last_jewel_no_dht = false;
     static bool last_jewel_alerts_en = false;
-    if (alert_state != last_jewel_code || no_dht != last_jewel_no_dht || alerts_enabled != last_jewel_alerts_en) {
+    if (screen_changed || alert_state != last_jewel_code || no_dht != last_jewel_no_dht || alerts_enabled != last_jewel_alerts_en) {
         draw_temp_alert_jewel(alert_state, alerts_enabled, no_dht);
         last_jewel_code = alert_state;
         last_jewel_no_dht = no_dht;

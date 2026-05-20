@@ -475,7 +475,8 @@ void draw_ds18_screen(bool screen_changed, bool data_changed) {
         apply_ds18_rgb(alert_state);
 
         tft.fillRect(0, LA_HINT_Y - 4, LEFT_PANEL_W, 18, BACKGROUND_COLOR);
-        tft.fillRect(0, LA_CATEGORY_Y - 10, LEFT_PANEL_W, 28, BACKGROUND_COLOR);
+        const int category_clear_x = L_ALERT_JEWEL_X + 10;
+        tft.fillRect(category_clear_x, LA_CATEGORY_Y - 10, LEFT_PANEL_W - category_clear_x, 28, BACKGROUND_COLOR);
 
         if (no_sensor) {
             tft.setTextDatum(TC_DATUM);
@@ -518,7 +519,7 @@ void draw_ds18_screen(bool screen_changed, bool data_changed) {
     static uint8_t last_jewel_code = 255;
     static bool last_jewel_no_sensor = false;
     static bool last_jewel_alerts_en = false;
-    if (alert_state != last_jewel_code || no_sensor != last_jewel_no_sensor || alerts_enabled != last_jewel_alerts_en) {
+    if (screen_changed || alert_state != last_jewel_code || no_sensor != last_jewel_no_sensor || alerts_enabled != last_jewel_alerts_en) {
         draw_ds18_alert_jewel(alert_state, alerts_enabled, no_sensor);
         last_jewel_code = alert_state;
         last_jewel_no_sensor = no_sensor;

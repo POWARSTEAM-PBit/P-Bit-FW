@@ -1,5 +1,7 @@
 # Informe completo de UX/UI para dashboards ambientales en pantallas TFT 1.8" 160x128 con ESP32 y TFT_eSPI
 
+Nota de vigencia (2026-05-20): este informe es investigación previa de patrones visuales, no la descripción del firmware actual. La UI vigente se documenta en `ANALISIS_PANTALLAS_EXPERIMENTALES_PBIT.md` y en `visualizer_scenes/README.md`: Home, Clima, Multi, Sonido VU, Sensor Zone, Timer y Sistema; LDR en `0..20000 lux`; i18n ES/CAT/EN centralizado; BLE factory-off oculto.
+
 ## Resumen ejecutivo
 
 Las pantallas TFT de 1.8" con resolución 160x128 o 128x160 píxeles se utilizan habitualmente con ESP32 a través de controladores como ST7735 y librerías optimizadas como TFT_eSPI, lo que permite mostrar información a color con una tasa de refresco suficiente para interfaces sencillas y animadas.[web:5][web:8] La librería TFT_eSPI incluye ejemplos de diales animados, medidores lineales y soporte de sprites, que permiten construir dashboards visuales con agujas, barras de progreso y gráficos sin sacrificar demasiado rendimiento.[web:1][web:20][web:17]

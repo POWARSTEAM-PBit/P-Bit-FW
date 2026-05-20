@@ -5,7 +5,8 @@
 enum Language : uint8_t {
     LANG_ES  = 0,
     LANG_CAT = 1,
-    LANG_EN  = 2
+    LANG_EN  = 2,
+    LANG_COUNT
 };
 
 // String keys grouped by screen, shared states, and helper labels.
@@ -82,6 +83,7 @@ enum LangKey : uint8_t {
     ST_UNIT_F_SHORT,
     ST_LUX_UNIT,
     ST_RAW_ADC,
+    ST_ADC_UNIT,
     ST_LOG_PCT,
 
     // Soil calibration
@@ -228,6 +230,14 @@ enum LangKey : uint8_t {
     LAB_TEMP_DIFF,
     TIT_LAB_ICON_SZ_ENV,
     TIT_LAB_ICON_SZ_EXT,
+    TIT_LAB_ICON_TEST,
+    LAB_ICON_SIZE_S,
+    LAB_ICON_SIZE_M,
+    LAB_ICON_SIZE_L,
+    LAB_ICON_TEST_PROC_SHORT,
+    LAB_ICON_TEST_BITMAP,
+    LAB_ICON_TEST_PRIMITIVES,
+    LAB_ICON_TEST_FOOTER,
     TIT_LAB_HOME_CARDS,
     TIT_LAB_LINEAR_DASH,
 
@@ -235,6 +245,12 @@ enum LangKey : uint8_t {
     SOIL_ZONE_DRY,
     SOIL_ZONE_OK,
     SOIL_ZONE_WET,
+
+    // Sensor Zone dynamic header suffixes
+    SZ_SUFFIX_CARD,
+    SZ_SUFFIX_VALUE,
+    SZ_SUFFIX_GRAPH,
+    SZ_SUFFIX_DIAL,
 
     LANG_KEY_COUNT  // Centinela — debe ser el último
 };
@@ -244,3 +260,9 @@ extern Language g_language;
 
 // Returns the translated string for the requested key.
 const char* L(LangKey key);
+
+// Returns a translation for a specific language, with safe fallback to Spanish.
+const char* LIn(Language language, LangKey key);
+
+// Normalizes any raw language value to a supported language.
+Language normalizeLanguage(Language language);

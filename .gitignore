@@ -1,1 +1,25 @@
-.pio
+.pio/
+.vscode/
+.claude/
+
+# Local logs and generated diagnostics
+logs/
+*.log
+
+# Local build/export artifacts
+*.zip
+!releases/**/*.zip
+*.bin
+*.elf
+*.map
+*.exe
+*.rep
+*.tmp
+*.bak
+dl_temp/
+firmware-artifacts/
+SHA256SUMS.txt
+
+# OS/editor noise
+.DS_Store
+Thumbs.db

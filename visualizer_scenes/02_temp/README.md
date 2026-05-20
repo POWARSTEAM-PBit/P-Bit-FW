@@ -16,3 +16,11 @@ Escenas previstas en este grupo:
 - `11_temp_saved_unit.cpp`
 - `12_temp_saved_alerts.cpp`
 - `13_temp_saved_reset.cpp`
+
+Notas de estado:
+
+- `TEMP_SCREEN` ya no es parada directa del carrusel visible.
+- Se abre como menú/configuración desde Sensor Zone con `SZ_TEMP` mediante pulsación larga.
+- Las vistas de detalle visibles para temperatura viven dentro de Sensor Zone: focus, valor, graph, dial y card.
+- Los snippets runtime de este grupo son útiles como `config-menu` o referencia legacy, no como Home actual.
+- Textos traducibles deben mapear a `TIT_TEMP`, `MENU_*`, `ST_UNIT_*` y claves relacionadas.

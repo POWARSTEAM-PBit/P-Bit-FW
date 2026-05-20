@@ -39,11 +39,15 @@ void apply_sound_rgb(uint8_t alert_state) {
     }
 }
 
-static void draw_sound_alert_jewel(uint8_t alert_state, bool alerts_enabled) {
+static bool sound_level_valid(float level) {
+    return !isnan(level) && level >= 0.0f && level <= 100.0f;
+}
+
+static void draw_sound_alert_jewel(uint8_t alert_state, bool alerts_enabled, bool no_sensor) {
     AlertJewelState jewel_state = ALERT_JEWEL_OK;
     uint16_t jewel_color = TFT_GREEN;
 
-    if (!alerts_enabled) {
+    if (no_sensor || !alerts_enabled) {
         jewel_state = ALERT_JEWEL_OFF;
         jewel_color = TFT_DARKGREY;
     } else if (alert_state == ALERT_CODE_HIGH) {
@@ -359,6 +363,7 @@ void draw_sound_screen(bool screen_changed, bool data_changed) {
     const uint16_t TITLE_COLOR = TFT_MAGENTA;
     const uint16_t BACKGROUND_COLOR = TFT_BLACK;
     float level = (float)g_ui_readings_snapshot.mic;
+    const bool sound_valid = sound_level_valid(level);
 
     int quiet_max = get_sound_threshold_quiet();
     int normal_max = get_sound_threshold_normal();
@@ -368,7 +373,11 @@ void draw_sound_screen(bool screen_changed, bool data_changed) {
     const char* categoryText;
     uint16_t categoryColor;
     int category_id = 0;
-    if (level < quiet_max) {
+    if (!sound_valid) {
+        categoryText = L(ST_NO_SENSOR);
+        categoryColor = TFT_RED;
+        category_id = -1;
+    } else if (level < quiet_max) {
         categoryText = L(ST_QUIET);
         categoryColor = TFT_GREEN;
         category_id = 0;
@@ -399,7 +408,8 @@ void draw_sound_screen(bool screen_changed, bool data_changed) {
     static bool last_alerts_enabled = false;
     static uint8_t last_jewel_code = 255;
     static bool last_jewel_alerts_en = false;
-    int sound_cache = (int)roundf(level);
+    static bool last_jewel_no_sensor = false;
+    int sound_cache = sound_valid ? (int)roundf(level) : -32768;
     if (!screen_changed
         && sound_cache == last_sound_drawn
         && category_id == last_category_id
@@ -418,36 +428,48 @@ void draw_sound_screen(bool screen_changed, bool data_changed) {
 
     const int cx = tft.width() / 2;
     char levelStr[5];
-    snprintf(levelStr, sizeof(levelStr), "%.0f", level);
+    const char* unitStr = "%";
+    if (sound_valid) {
+        snprintf(levelStr, sizeof(levelStr), "%.0f", level);
+    } else {
+        snprintf(levelStr, sizeof(levelStr), "---");
+        unitStr = "";
+    }
 
     tft.setFreeFont(FONT_VALUE);
     int valueLineH = tft.fontHeight();
-    tft.fillRect(0, LB_VALUE_TOP - 2, tft.width(), valueLineH + 4, BACKGROUND_COLOR);
+    const int value_clear_x = 12;
+    tft.fillRect(value_clear_x, LB_VALUE_TOP - 2, tft.width() - (value_clear_x * 2), valueLineH + 4, BACKGROUND_COLOR);
     int numW = tft.textWidth(levelStr);
     tft.setFreeFont(FONT_BODY);
-    int unitW = tft.textWidth("%");
+    int unitW = tft.textWidth(unitStr);
     int startX = cx - (numW + unitW) / 2;
     tft.setTextDatum(TL_DATUM);
     tft.setFreeFont(FONT_VALUE);
-    tft.setTextColor(categoryColor, BACKGROUND_COLOR);
+    tft.setTextColor(sound_valid ? categoryColor : TFT_DARKGREY, BACKGROUND_COLOR);
     tft.drawString(levelStr, startX, LB_VALUE_TOP);
     tft.setFreeFont(FONT_BODY);
     tft.setTextColor(TFT_DARKGREY, BACKGROUND_COLOR);
-    tft.drawString("%", startX + numW, LB_VALUE_TOP);
+    tft.drawString(unitStr, startX + numW, LB_VALUE_TOP);
 
-    drawBarGraph(LB_BAR_X, LB_BAR_Y, LB_BAR_W, LB_BAR_H, categoryColor, level, 0.0f, 100.0f);
+    drawBarGraph(LB_BAR_X, LB_BAR_Y, LB_BAR_W, LB_BAR_H, sound_valid ? categoryColor : TFT_DARKGREY, sound_valid ? level : 0.0f, 0.0f, 100.0f);
 
-    tft.fillRect(0, LB_CATEGORY_Y - 8, tft.width(), 18, BACKGROUND_COLOR);
+    const int category_clear_x = L_ALERT_JEWEL_X + 10;
+    tft.fillRect(category_clear_x, LB_CATEGORY_Y - 8, tft.width() - category_clear_x, 18, BACKGROUND_COLOR);
     tft.setTextDatum(TC_DATUM);
     tft.setFreeFont(FONT_BODY);
     tft.setTextColor(categoryColor, BACKGROUND_COLOR);
     tft.drawString(categoryText, cx, LB_CATEGORY_Y - 5);
     tft.setTextFont(0);
 
-    if (alert_state != last_jewel_code || alerts_enabled != last_jewel_alerts_en) {
-        draw_sound_alert_jewel(alert_state, alerts_enabled);
+    if (screen_changed
+        || alert_state != last_jewel_code
+        || alerts_enabled != last_jewel_alerts_en
+        || (!sound_valid) != last_jewel_no_sensor) {
+        draw_sound_alert_jewel(alert_state, alerts_enabled, !sound_valid);
         last_jewel_code = alert_state;
         last_jewel_alerts_en = alerts_enabled;
+        last_jewel_no_sensor = !sound_valid;
     }
 
     last_alerts_enabled = alerts_enabled;

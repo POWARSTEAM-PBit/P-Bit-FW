@@ -128,6 +128,11 @@ void reset_all_settings();
 
 
 /**
+ * Read one ADC sample through the shared ADC guard.
+ */
+int read_adc_raw(uint8_t pin);
+
+/**
  * Return a stable raw average from the soil sensor ADC.
  */
 int read_soil_raw_average();

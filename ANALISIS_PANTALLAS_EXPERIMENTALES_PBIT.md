@@ -1,327 +1,230 @@
 # Análisis de Pantallas Experimentales del P-Bit
 
-Actualizado: 2026-05-16
+Actualizado: 2026-05-20
 
-## Estado actual del código
+## Estado tras revisión de producción/i18n
 
-Todo el trabajo de ajuste visual documentado en las rondas anteriores está commiteado en `ce41581` (2026-05-16). El árbol git está limpio. Build verificado:
+Este documento es secundario: resume el estado visual actual para no arrastrar decisiones de laboratorio antiguas. No es una release histórica y no debe usarse para justificar el carrusel anterior de 18 pantallas.
 
-- `py -3 -m platformio run --project-dir "c:/POWAR-GIT/P-Bit-FW - edit"` → `SUCCESS`
-- RAM: `14.1%` — Flash: `69.8%` (915281 bytes)
+La UI actual ya no expone las pantallas individuales como paradas principales. El producto se organiza en cuatro pantallas de contexto y una zona unificada por sensor:
 
-Hay pendientes tanto de código (galerías incompletas) como de validación en hardware y decisiones de producto. Ver hoja de ruta en sección 10.
+- `HOME` / `INICIO` (`LAB_HOME_CARDS_SCREEN`)
+- `CLIMA LAB` (`LAB_DUAL_TH_SCREEN`)
+- `MULTI LAB` / `TEMP LAB` (`LAB_WIDGET_MIX_SCREEN`)
+- `SONIDO VU` / `RUIDO LAB` (`LAB_SOUND_VU_STACK_SCREEN`)
+- `SENSOR_ZONE_SCREEN` para Temp, Hum, Luz, Sonido, Suelo y DS18
+- `TIMER_SCREEN`
+- `SYSTEM_SCREEN`
+
+`GRAPH_SCREEN`, `LAB_SENSOR_FOCUS_SCREEN`, `LAB_VALUE_MODERN_SCREEN`, `LAB_GAUGE_TEMP_SCREEN` y `LAB_SENSOR_CARD_SCREEN` siguen siendo renderers activos, pero entran como modos de `SENSOR_ZONE_SCREEN`, no como paradas top-level del carrusel.
 
 ---
 
 ## 1. Carrusel visible actual
 
-Orden real definido en `src/rotary.cpp` → `kVisibleAppScreens[]`:
+Orden real en `src/rotary.cpp` -> `kCarousel[]`:
 
-1. `HOME` (`LAB_HOME_CARDS_SCREEN`) — aprobada
-2. `CLIMA LAB` (`LAB_DUAL_TH_SCREEN`) — aprobada
-3. `TEMP LAB` (`LAB_WIDGET_MIX_SCREEN`) — pendiente de hardware
-4. `SOUND LAB` (`LAB_SOUND_VU_STACK_SCREEN`) — pendiente de hardware
-5. `PLANT LAB` (`LAB_LINEAR_DASH_SCREEN`) — pendiente de hardware
-6. `SENSOR LAB` (`LAB_SENSOR_FOCUS_SCREEN`) — referencia visual fuerte
-7. `GRÁFICA` (`GRAPH_SCREEN`) — aprobada
-8. `TEMP` — pantalla individual real
-9. `HUM` — pantalla individual real
-10. `LUZ` — pantalla individual real
-11. `SONIDO` — pantalla individual real
-12. `SUELO` — pantalla individual real
-13. `DS18` — pantalla individual real
-14. `SISTEMA` — pantalla individual real
-15. `TIMER` — pantalla individual real
-16. `GAUGE LAB` (`LAB_GAUGE_TEMP_SCREEN`) — pendiente de hardware; biblioteca de widgets
-17. `VALOR LAB` (`LAB_VALUE_MODERN_SCREEN`) — pendiente de hardware; plantilla de referencia
-18. `SENSOR CARD` (`LAB_SENSOR_CARD_SCREEN`) — pendiente de hardware
+1. `LAB_HOME_CARDS_SCREEN` - Home 2x2
+2. `LAB_DUAL_TH_SCREEN` - Clima
+3. `LAB_WIDGET_MIX_SCREEN` - Multi / comparación DHT11 vs DS18B20
+4. `LAB_SOUND_VU_STACK_SCREEN` - Sonido VU
+5. `SENSOR_ZONE_SCREEN` con `SZ_TEMP`
+6. `SENSOR_ZONE_SCREEN` con `SZ_HUM`
+7. `SENSOR_ZONE_SCREEN` con `SZ_LIGHT`
+8. `SENSOR_ZONE_SCREEN` con `SZ_SOUND`
+9. `SENSOR_ZONE_SCREEN` con `SZ_SOIL`
+10. `SENSOR_ZONE_SCREEN` con `SZ_DS18`
+11. `TIMER_SCREEN`
+12. `SYSTEM_SCREEN`
 
-### Sub-vistas internas (no entran al carrusel directamente)
+### Interacciones
 
-- `LAB_SOUND_VU_WAVE_SCREEN` — accesible desde SOUND LAB con pulsación corta
-- `LAB_TEMP_CARD_SCREEN` — accesible desde SENSOR CARD con pulsación corta
-- `LAB_DS18_CARD_SCREEN` — accesible desde SENSOR CARD con pulsación corta
-
-### Pantallas compiladas y ocultas del carrusel
-
-Definido en `isHiddenRestoreScreen()` en `src/rotary.cpp`:
-
-- `LAB_DASH_OVERVIEW_SCREEN` — ESTADO LAB (4 filas, tooling de referencia)
-- `LAB_ICON_SET_A/B/C_SCREEN` — galerías de iconos (OUTLINE/SOLID/PIXEL)
-- `LAB_ICON_SIZES_ENV_SCREEN` / `EXT` — tamaños de iconos (S/M/L)
-- `LAB_ICON_TEST_SCREEN` — comparativa procedural vs bitmap
+- Girar fuera de menús cambia entre los 12 slots del carrusel.
+- Pulsación corta en un slot de Sensor Zone cambia el modo visual del sensor.
+- Pulsación larga en un slot de Sensor Zone abre el menú/configuración del sensor correspondiente.
+- Pulsación corta en `SYSTEM_SCREEN` conmuta el sonido global.
+- Pulsación larga en `SYSTEM_SCREEN` abre ajustes.
+- Mantener pulsado `SYSTEM_SCREEN` 60 s desbloquea la pantalla oculta de BLE.
 
 ---
 
-## 2. Clasificación actual por rol
+## 2. Sensor Zone
 
-### Aprobadas como referencia visual estable
+`SENSOR_ZONE_SCREEN` concentra la navegación de detalle por sensor. El sensor activo es:
 
-Estas pantallas no deben recibir más ajustes sin motivo concreto:
+- `SZ_TEMP`
+- `SZ_HUM`
+- `SZ_LIGHT`
+- `SZ_SOUND`
+- `SZ_SOIL`
+- `SZ_DS18`
 
-- **`HOME`** (`LAB_HOME_CARDS_SCREEN`) — candidata real de producto como portada. Dashboard 2×2 con Temp, Hum, Luz, Sound. No cubre Suelo ni DS18.
-- **`CLIMA LAB`** (`LAB_DUAL_TH_SCREEN`) — candidata condicional de producto. Temp + Hum + banda de estado climático. Solo tiene sentido si el producto adopta navegación por familias.
-- **`GRÁFICA`** (`GRAPH_SCREEN`) — candidata real de producto. Gráfica histórica de 6 sensores con pulsación corta para ciclar.
+Cada sensor conserva su modo visual en NVS. Modos disponibles:
 
-### Pendientes de validación en hardware
-
-Código aplicado y correcto. Solo falta ver en pantalla real:
-
-- **`TEMP LAB`** (`LAB_WIDGET_MIX_SCREEN`) — compara DHT11 vs DS18B20. Barra diferencial izquierda/derecha. Riesgo: textos apretados en idiomas largos.
-- **`SOUND LAB`** (`LAB_SOUND_VU_STACK_SCREEN` + WAVE) — VU meter con alternancia por pulsación corta. Footer de estado.
-- **`PLANT LAB`** (`LAB_LINEAR_DASH_SCREEN`) — lista de 5 sensores. Candidata para modo técnico/docente.
-- **`GAUGE LAB`** (`LAB_GAUGE_TEMP_SCREEN`) — gauge circular con icono blanco y unidad naranja. Biblioteca de widgets.
-- **`VALOR LAB`** (`LAB_VALUE_MODERN_SCREEN`) — dato grande + barra + sparkline. Plantilla de referencia de composición.
-- **`SENSOR CARD`** (`LAB_SENSOR_CARD_SCREEN`) — galería de TEMP CARD y PROBE CARD. Rail triple, card completa.
-
-### Referencia visual fuerte (no promover como pantalla extra)
-
-- **`SENSOR LAB`** (`LAB_SENSOR_FOCUS_SCREEN`) — carrusel interno de 6 sensores con sparkline. La mejor plantilla para una futura v2 de pantallas individuales. Hoy visible en el carrusel como posición 6 para facilitar evaluación.
-
-### Tooling interno (bien ocultas)
-
-- `ESTADO LAB` (`LAB_DASH_OVERVIEW_SCREEN`) — 4 filas sin Suelo/DS18. Referencia de layout de lista.
-- `LAB_ICON_SET_A/B/C_SCREEN` — familias de iconos.
-- `LAB_ICON_SIZES_*_SCREEN` — tamaños de iconos.
-- `LAB_ICON_TEST_SCREEN` — comparativa de pipeline de iconos.
-
----
-
-## 3. Reglas visuales vigentes en código
-
-Todas definidas en `include/layout.h`:
-
-**Header (todas las pantallas):**
-
-- Baseline título: `L_HEADER_Y = 18`
-- Línea divisoria: `L_HEADER_LINE = 23`
-- Primera Y útil: `L_CONTENT_TOP = 27`
-- Línea: `x=4`, `w=152`
-- Títulos con `C_BASELINE` (no `TC_DATUM`)
-
-**Cards externas (lab screens):**
-
-- `LC_SCREEN_X=2`, `LC_SCREEN_W=156`, `LC_SCREEN_BOTTOM=126`, `LC_CARD_RADIUS=4`, `LC_GAP=4`
-
-**Cards 2×2 (HOME y familia):**
-
-- `LC_MASTER_CARD_X0=2`, `LC_MASTER_CARD_X1=82`
-- `LC_MASTER_CARD_Y0=27`, `LC_MASTER_CARD_Y1=79`
-- `LC_MASTER_CARD_W=76`, `LC_MASTER_CARD_H=48`, `LC_MASTER_CARD_GAP=4`
-- Bottom común: `126`
-
-**Gráfica:**
-
-- Banda sensor/valor: `LG_SENSOR_Y=27`
-- Marco exterior: `x=2`, `y=46`, `w=156`, `h=66`, radio `4`
-- Sprite interior: `154×64 px`
-
----
-
-## 4. Lo que está resuelto (no volver a tocar)
-
-- Dead code eliminado: las 6 funciones `draw_icon_*_big` ya no existen en `ui_lab_widget_showcase.cpp`.
-- Colores GAUGE LAB: icono `TFT_WHITE`, unidad `kWarmOrange` cuando sensor válido — ya aplicado.
-- Pantalla gris de startup: `kShowStartupLayoutValidation = false` — ya aplicado.
-- Footer `Vista experimental` retirado de pantallas donde no aportaba acción.
-- `LAB_SOUND_VU_WAVE_SCREEN` ya no es una parada del carrusel — es sub-vista interna de SOUND LAB.
-
----
-
-## 5. Solapes detectados (sin resolver aún)
-
-Estos solapes no requieren código ahora, pero condicionan decisiones de producto:
-
-**Tres candidatos a overview** — no deben convivir en el producto final:
-
-- `HOME` (2×2, solo ambientales) — recomendado
-- `PLANT LAB` (lista, 5 sensores) — modo técnico
-- `ESTADO LAB` (4 filas, tooling) — oculto
-
-**Tres candidatos a detalle de sensor** — solo uno debe ser pantalla de producto:
-
-- Pantallas individuales actuales (TEMP, HUM, etc.)
-- `SENSOR LAB` (carrusel interno unificado)
-- `VALOR LAB` / `GAUGE LAB` (plantillas)
-
-**Tendencia** — esto sí puede convivir si los roles quedan claros:
-
-- `GRÁFICA` como pantalla de análisis dedicado
-- Sparklines en `SENSOR LAB` y `VALOR LAB` como contexto rápido
-
----
-
-## 6. Pendiente de validación en hardware
-
-Solo flashear y anotar — no requiere código:
-
-1. Distancia línea–card `3 px` y bottom `126` — confirmar en todas las pantallas.
-2. **TEMP LAB** — barra diferencial izquierda/derecha; colores; textos en idioma inglés (`Sense sensor` vs `Sonda`).
-3. **Títulos largos** — `TEMPORIZADOR`, `TERMÓMETRO`, `TEMPERATURA` sin recorte con el header aprobado.
-4. **SOUND LAB** — texto de estado, posición del indicador de límites.
-5. **GAUGE LAB** — legibilidad del valor dentro del anillo; contraste icono blanco.
-6. **VALOR LAB** — distinción visual sparkline/barra; tamaño del dato. (Nota: VALOR LAB aún no cicla por sensores; esta validación aplica solo al estado actual con temperatura fija.)
-7. **SENSOR CARD / TEMP CARD / PROBE CARD** — rail, escala, marca de cero. (Nota: SENSOR CARD aún solo cicla entre TEMP y DS18; esta validación aplica al estado actual.)
-8. Parpadeo en redraw rápido (SENSOR LAB, ESTADO LAB).
-
----
-
-## 7. Pendientes de código
-
-### Galerías de sensores incompletas
-
-El plan es que GAUGE LAB, VALOR LAB y SENSOR CARD sean galerías que ciclan por todos los sensores con pulsación corta. Estado actual:
-
-| Pantalla | Archivo | Estado galería |
+| Modo | Renderer reutilizado | Rol visual |
 | --- | --- | --- |
-| **GAUGE LAB** | `ui_lab_widget_showcase.cpp` | ✅ Completo — cicla 6 sensores: Temp, Hum, Luz, Sound, Suelo, DS18 |
-| **SENSOR CARD** | `ui_lab_sensor_cards.cpp` | ⚠️ Parcial — solo `CARD_TEMP` ↔ `CARD_DS18`. Faltan: Hum, Luz, Sound, Suelo |
-| **VALOR LAB** | `ui_lab_widget_showcase.cpp` | ❌ No implementado — fijo en temperatura DHT11. Shell y lógica de ciclo pendientes |
+| `SZ_VIZ_FOCUS` | `draw_lab_focus_screen()` | detalle con valor y sparkline |
+| `SZ_VIZ_VALOR` | `draw_lab_value_modern_screen()` | valor grande + barra + sparkline |
+| `SZ_VIZ_GRAPH` | `draw_graph_screen()` | gráfica histórica |
+| `SZ_VIZ_GAUGE` | `draw_lab_gauge_temp_screen()` | dial/gauge por sensor |
+| `SZ_VIZ_CARD` | `draw_lab_sensor_card_screen()` | card compacta con indicador específico |
 
-Lo que requiere SENSOR CARD: ampliar `LabSensorCardId` con 4 sensores más y sus specs en `kCardSpecs[]`.
-
-Lo que requiere VALOR LAB: añadir enum de sensor activo (al estilo de `GaugeLabSensor`), adaptar `draw_lab_value_shell()` para icono/etiqueta/colores por sensor, y conectar `lab_value_cycle_sensor()` en `rotary.cpp`.
-
-### Pantallas madre (TEMP, HUM, LUZ, SOUND, SUELO, DS18)
-
-Las pantallas individuales actuales recibieron ajustes experimentales (cards, chips de icono, etc.) durante las rondas de lab. Antes de cerrar el producto, hay que revisar si estas pantallas quedaron en su estado original limpio o si acumularon cambios que no forman parte del diseño aprobado. No hacer ahora — es el paso 2 de la hoja de ruta.
+El header lo dibuja Sensor Zone con `sz_header_name()`. Los renderers internos deben respetar `sz_is_active()` para no duplicar cabeceras.
 
 ---
 
-## 8. Decisiones de producto pendientes
+## 3. Pantallas de producción visual
 
-Antes de mover más pantallas o hacer más ajustes, conviene cerrar estas:
+### Home
 
-1. **¿TEMP CARD, PROBE CARD y TEMP LAB se mantienen visibles en el carrusel o se ocultan?**
-2. **¿GAUGE LAB, VALOR LAB y SENSOR CARD quedan como laboratorio permanente o se promueven?**
-3. **¿La portada cubre solo sensores ambientales integrados o también los externos (Suelo y DS18)?**
-4. **¿SENSOR LAB es candidata a sustituir las pantallas individuales en v2 o solo referencia de diseño?**
-5. **¿Qué hacer con las pantallas madre?** — ver paso 2 de la hoja de ruta.
+`LAB_HOME_CARDS_SCREEN` es la portada actual. Muestra cuatro cards:
 
----
+- Temp
+- Hum
+- Luz
+- Sonido
 
-## 8. Estructura de navegación recomendada
+La luz usa escala `0..20000 lux`. El valor ADC `0..4095` queda como dato técnico/calibración, no como magnitud principal de Home.
 
-### Opción actual (mínimo cambio, árbol claro)
+### Clima
 
-```text
-HOME → CLIMA LAB → TEMP LAB → SOUND LAB → PLANT LAB → SENSOR LAB →
-GRÁFICA → TEMP → HUM → LUZ → SONIDO → SUELO → DS18 → SISTEMA → TIMER →
-GAUGE LAB → VALOR LAB → SENSOR CARD
-```
+`LAB_DUAL_TH_SCREEN` agrupa temperatura y humedad en lectura de confort ambiental. Es la pantalla semántica para "cómo se siente el entorno".
 
-Condición: aceptar que HOME resume solo sensores ambientales integrados.
+### Multi
 
-### Opción futura v2 (menos pantallas, más unificado)
+`LAB_WIDGET_MIX_SCREEN` compara DHT11 y DS18B20 con cards y barra diferencial. En idioma puede seguir viéndose como `TEMP LAB`; documentar como Multi/Temp para evitar confundirlo con la antigua pantalla individual `TEMP_SCREEN`.
 
-```text
-HOME → SENSOR LAB (detalle genérico) → GRÁFICA → TIMER → SISTEMA
-```
+### Sonido VU
 
-Coste: requiere refactor real de navegación y menús contextuales por sensor.
+`LAB_SOUND_VU_STACK_SCREEN` es la parada visible de sonido dinámico. La sub-vista `LAB_SOUND_VU_WAVE_SCREEN` sigue compilada y se alterna por pulsación corta desde Sonido VU.
+
+El VU usa historial suavizado, sprite y badge de porcentaje con limpieza acotada para evitar congelaciones y ghost digits.
 
 ---
 
-## 9. Hoja de ruta acordada
+## 4. Pantallas compiladas pero no top-level
 
-Orden de trabajo definido. No avanzar al siguiente paso sin cerrar el anterior:
+Estas pantallas existen porque se reutilizan como renderers, menús o tooling, pero no deben documentarse como paradas visibles directas:
 
-### Paso 1 — Completar galerías de sensores (código pendiente)
-
-- Ampliar SENSOR CARD para ciclar por los 6 sensores (no solo TEMP y DS18).
-- Implementar ciclo de sensores en VALOR LAB (hoy fijo en temperatura DHT11).
-- GAUGE LAB ya está completo — no tocar.
-- Validar build y hacer prueba básica en hardware antes de pasar al paso 2.
-
-### Paso 2 — Revisar y definir pantallas madre
-
-- Revisar el estado actual de TEMP, HUM, LUZ, SOUND, SUELO y DS18.
-- Identificar si acumularon cambios experimentales no aprobados (cards, chips, etc.).
-- Decidir si se revierten a su estado original o si los cambios se aprueban.
-- No implementar cambios hasta tener una decisión clara por pantalla.
-
-### Paso 3 — Reorganizar el carrusel
-
-- Decidir qué pantallas lab sobreviven como pantallas de producto y cuáles se ocultan.
-- Ajustar `kVisibleAppScreens[]` en `src/rotary.cpp` con el orden final aprobado.
-- Cerrar las decisiones pendientes de la sección 8.
-
-### Paso 4 — Revisión final de idioma y funcionalidad
-
-- Verificar que todas las claves de `include/languages.h` tienen traducción completa en todos los idiomas.
-- Comprobar que todas las pantallas visibles funcionan correctamente (lectura de sensores, caché, redraw, sleep/wake).
-- Validar en hardware el resultado completo antes de declarar el ciclo cerrado.
+- `TEMP_SCREEN`, `HUMIDITY_SCREEN`, `LIGHT_SCREEN`, `SOUND_SCREEN`, `SOIL_SCREEN`, `DS18B20_SCREEN`: pantallas/menús de configuración abiertos desde Sensor Zone.
+- `GRAPH_SCREEN`: renderer del modo `SZ_VIZ_GRAPH`.
+- `LAB_SENSOR_FOCUS_SCREEN`: renderer del modo `SZ_VIZ_FOCUS`.
+- `LAB_VALUE_MODERN_SCREEN`: renderer del modo `SZ_VIZ_VALOR`.
+- `LAB_GAUGE_TEMP_SCREEN`: renderer del modo `SZ_VIZ_GAUGE`.
+- `LAB_SENSOR_CARD_SCREEN`: renderer del modo `SZ_VIZ_CARD`.
+- `LAB_DASH_OVERVIEW_SCREEN`, `LAB_LINEAR_DASH_SCREEN`, galerías de iconos y tamaños: tooling interno/legacy.
+- `BLE_TOGGLE_SCREEN`: oculta; solo accesible con gesto secreto de 60 s en Sistema.
 
 ---
 
-## 10. Protocolo para siguientes sesiones
+## 5. i18n vigente
 
-- No reescribir pantallas desde cero sin pedirlo.
-- Respetar el contrato de header y zonas seguras de `include/layout.h`.
-- Documentar cada ajuste con: archivo, motivo, build, pendiente de hardware.
-- Si una pantalla sigue pisando texto o bordes tras dos microajustes, proponer ocultarla del carrusel en lugar de seguir acumulando parches.
-- Cada ajuste nuevo debe quedar reflejado en `LAB_GRAPH_UI_HANDOFF.md` con: archivo tocado, motivo, estado de build y qué queda pendiente de validar en pantalla real.
+La fuente de verdad de idiomas está centralizada:
+
+- `include/languages.h` define `Language` y `LangKey`.
+- `src/lang_select.cpp` contiene las traducciones ES/CAT/EN.
+- `L(key)` se usa en runtime para el idioma activo.
+- `LIn(language, key)` se usa cuando hace falta leer un idioma concreto.
+
+Idiomas soportados:
+
+- `LANG_ES`
+- `LANG_CAT`
+- `LANG_EN`
+
+Regla para nuevas pantallas/snippets: no introducir textos de UI hardcodeados si ya existe o debe existir una `LangKey`. Se aceptan etiquetas técnicas cortas como `DHT11`, `DS18B20`, `LDR`, `MIC` cuando son identificadores de hardware.
+
+El selector de idioma se muestra en primer arranque tras borrado de NVS por cambio de build. El idioma también se ajusta desde Sistema.
 
 ---
 
-## 11. Análisis de paleta de colores e iconos — 2026-05-16
+## 6. BLE y estado de fábrica
 
-### Estado
-Análisis completado. Propuesta documentada en `PALETTE_AND_ICONS_PROPOSAL.md`. Ningún cambio aplicado en producción. Las entradas nuevas de SENSOR CARD y VALOR LAB usarán la paleta propuesta como banco de prueba.
+BLE está factory-off:
 
-### Problemas detectados en paleta
+- `ble_en` se borra con el reset por build hash al flashear firmware nuevo.
+- `init_ble()` solo se llama si `load_ble_enabled_store()` devuelve true.
+- `BLE_TOGGLE_SCREEN` no está en el carrusel visible.
+- La pantalla BLE se desbloquea solo manteniendo pulsado `SYSTEM_SCREEN` 60 s.
+- No restaurar ni documentar BLE como flujo visible normal de usuario.
 
-**HUM y DS18 indistinguibles (crítico):**
-En SENSOR LAB, HUM = cyan(primario)+purple(secundario) y DS18 = purple(primario)+cyan(secundario). Mismo par de colores con roles intercambiados. Un niño no puede distinguirlos.
+En visualizer, las escenas `system_runtime_ble_connected/disconnected` deben tratarse como legacy/debug o estado oculto, no como pantalla visible de producto.
 
-**SOIL y HUM comparten cian:**
-HUM primary = TFT_CYAN. SOIL secondary = TFT_CYAN. Dos sensores hídricos con el mismo color dominante.
+---
 
-**TFT_ORANGE es dorado, no ácido:**
-TFT_ORANGE = (255,165,0) — el canal G=165 lo hace amber/dorado. Para el estilo punk/Nintendo, (255,100,0) es más encendido.
+## 7. LDR y luz
 
-**Sin fuente de verdad:**
-Cada pantalla define sus constantes locales. Hay drift de color entre screens para el mismo sensor.
+La lectura actual de luz es lux calibrado y acotado:
 
-### Paleta canónica propuesta
+- Entrada ADC: `0..4095` (`ldr_raw`)
+- Magnitud de UI: `0..20000 lux`
+- Saturación alta: `20000 lux`
+- Porcentaje logarítmico: `log10(lux) / log10(20000) * 100`
 
-| Sensor | Primary propuesto | Hex | Secondary propuesto | Hex |
-|--------|-----------------|-----|---------------------|-----|
-| TEMP | Naranja ácido (255,100,0) | 0xFB20 | Magenta punk | 0xF81F |
-| HUM | Cian eléctrico (0,210,255) | 0x069F | Cobalto (60,120,255) | 0x3BDF |
-| LUZ | Amarillo (sin cambio) | 0xFFE0 | Ámbar (255,180,0) | 0xFDA0 |
-| SOUND | Magenta (sin cambio) | 0xF81F | Verde neón (sin cambio) | 0x07E0 |
-| SOIL | Verde cálido (40,240,40) | 0x2F85 | Tierra (200,130,60) | 0xCC07 |
-| DS18 | Violeta (160,60,255) | 0xA1FF | Magenta punk | 0xF81F |
+Documentación y visualizer deben priorizar `lux` como magnitud de usuario. El modo raw ADC existe para calibración/depuración.
 
-Los fondos navy `(8,12,18)` y `(4,8,20)` **no cambian** — están bien y son parte del carácter visual del sistema.
+---
 
-### Problemas detectados en iconos
+## 8. Reglas anti-flicker vigentes
 
-| Icono | Problema | Decisión |
-|-------|---------|---------|
-| HUM | Ring negro interior crea efecto donut. En versión large, triángulo y círculo no se unen suavemente (brecha 3px) | Confirmado: REHACERLO |
-| DS18 | Sonda horizontal con cables lee como conector eléctrico, no sonda de temperatura | Confirmado: REDISEÑAR como sonda vertical |
-| SOIL | Hojas triangulares agudas leen como flechas a pequeño tamaño | Confirmado: MEJORAR con hojas ovales |
-| SOUND | Base de micrófono de 9px sobre cuerpo de 6px — parece mesa | Pendiente: propuesta de 7px |
-| LUZ | Rayos diagonales de 1px desaparecen a tamaños pequeños | Pendiente: rayos de 2px |
-| TEMP | TFT_BLACK hardcodeado en detalle interior — se rompe sobre fondos navy | Pendiente: parámetro bg_color |
+Patrón común:
 
-### Estrategia de validación
+- `screen_changed`: dibuja shell completo, header, cards, bordes, labels fijos e iconos.
+- `sensor_data_changed`: redibuja solo valor, barra, dial, sparkline, VU o estados que cambian.
+- Caches por pantalla deciden si se redibuja chrome o solo data.
+- Clears acotados antes de valores variables para evitar ghosting.
+- Sprites para gráfica, sparkline, dial/ring y VU cuando el widget produce muchos draw calls.
 
-**No cambiar producción sin validación en hardware.** Proceso aprobado:
+Piezas relevantes:
 
-1. Implementar variantes `_v2` en `LAB_ICON_TEST_SCREEN` (ya existe)
-2. Comparar en hardware: icono actual vs propuesto lado a lado
-3. Aprobar uno a uno — nunca en batch
-4. Solo tras aprobación, reemplazar función original en `ui_icons.cpp`
+- Home: cards 2x2 con chrome estable y tanque/valor dinámico.
+- Sensor Card: cache por sensor, limpieza de unión de rects para valores.
+- Valor Lab: badges/chrome separados de data; sparkline en sprite.
+- Gauge/Dial: ring en sprite, escala y unidad como chrome.
+- Sonido VU: stack/wave en sprite con suavizado asimétrico.
+- Graph: sprite para el área de curva y banda superior con clears parciales.
 
-Para paletas: las entradas nuevas de SENSOR CARD (HUM, LUZ, SOUND, SUELO) y el ciclo de sensores de VALOR LAB usan la paleta propuesta. Si se ven bien en hardware → paleta aprobada.
+---
 
-### Documentación completa
+## 9. Visualizer: estado esperado
 
-Ver `PALETTE_AND_ICONS_PROPOSAL.md` en este mismo directorio para:
-- Inventario completo de colores por pantalla
-- Pseudocódigo de redesign de cada icono
-- Propuesta de `include/palette.h`
-- Lista de decisiones pendientes de producto
+`visualizer_scenes/` es auxiliar y no forma parte del build. Tras la revisión de producción/i18n, sus README deben reflejar:
+
+- UI visible: Home, Clima, Multi, Sonido VU, Sensor Zone, Timer y Sistema.
+- Sensor Zone como contenedor de detalle por sensor.
+- LDR mostrado en `0..20000 lux`.
+- Textos sincronizados con `LangKey` ES/CAT/EN.
+- BLE como factory-off oculto.
+- Anti-flicker mediante shell/data, caches y sprites.
+
+Escenas individuales antiguas siguen siendo útiles para menús de configuración, pero ya no representan paradas directas del carrusel.
+
+---
+
+## 10. Qué queda pendiente para visualizer
+
+Prioridad alta:
+
+- Añadir escenas de Home 2x2 actual.
+- Añadir Clima actual si el snippet no cubre la geometría final.
+- Añadir Multi/Temp Lab actual.
+- Añadir Sonido VU stack y wave.
+- Añadir ejemplos de Sensor Zone: focus, valor, graph, gauge y card.
+- Revisar escenas de luz para que `lux` use escala `0..20000`.
+- Marcar escenas BLE como ocultas/debug en Sistema.
+
+Prioridad baja:
+
+- Regenerar galerías legacy si se decide conservarlas como tooling.
+- Archivar o comentar snippets que dependan del carrusel de 18 pantallas.
+
+---
+
+## 11. Reglas para siguientes sesiones
+
+- No reintroducir el carrusel antiguo como estado actual.
+- No convertir pantallas legacy en visibles salvo decisión explícita de producto.
+- No hardcodear textos traducibles fuera de `languages.h` / `lang_select.cpp`.
+- Mantener LDR como lux `0..20000` en documentación de usuario.
+- Mantener BLE fuera del flujo normal.
+- Cualquier nueva escena visualizer debe declarar si es `production-current`, `sensor-zone-renderer`, `config-menu`, `hidden-debug` o `legacy-lab`.

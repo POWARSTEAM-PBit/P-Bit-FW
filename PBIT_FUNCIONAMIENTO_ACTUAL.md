@@ -1,8 +1,21 @@
 # P-Bit: Funcionamiento Actual del Firmware
 
-Actualizado: 2026-05-17
+Actualizado: 2026-05-20
 
 Este documento explica qué hace hoy el P-Bit con el código actual, cómo se usa y qué posibilidades educativas ofrece en contextos STEAM ambientales.
+
+## Estado de revisión de producción/i18n
+
+- Build OK `esp32dev` con PlatformIO.
+- Flags de producción revisadas: `PBIT_ENABLE_GRAPH_LAB=1`, `PBIT_ENABLE_SERIAL_PLOTTER=0` y `FIRMWARE_DEBUG` comentado.
+- i18n centralizado para `ES/CAT/EN` mediante el diccionario de `languages.h` y `lang_select.cpp`.
+- Cambio de idioma completo desde el selector inicial y desde `Sistema > Idioma`.
+- LDR corregido para la polaridad de la placa actual y validado en firmware al rango `0..20000 lux`.
+- BLE factory-off: apagado por defecto, oculto en carrusel y accesible solo con gesto de 60 s en `Sistema`.
+- Sensor Zone activo para los 6 sensores con modos `Focus`, `Valor`, `Gráfica`, `Dial` y `Card`.
+- Refresco de UI acotado y orientado a anti-flicker: shell estático, campos dinámicos y cadencias específicas por pantalla.
+
+La build y la validación de rango del LDR constan a nivel de firmware. Este documento no afirma una calibración física certificada ni una validación con luxómetro de cada unidad.
 
 ## 1. Qué es el P-Bit
 
@@ -21,7 +34,7 @@ El firmware actual ya integra estas lecturas:
 
 - Temperatura ambiente con `DHT11`
 - Humedad relativa del aire con `DHT11`
-- Luz con `LDR`
+- Luz con `LDR`, corregido en firmware y limitado a `0..20000 lux`
 - Sonido ambiental con micrófono analógico
 - Humedad del suelo con sensor capacitivo externo en `J6`
 - Temperatura externa con sonda `DS18B20`
@@ -34,7 +47,7 @@ Importante a nivel de hardware:
 
 Además, el sistema también muestra:
 
-- estado BLE
+- estado BLE, solo si Bluetooth está activado
 - idioma activo
 - tiempo de encendido (`UP`)
 - cronómetro independiente
@@ -45,24 +58,25 @@ Además, el sistema también muestra:
 
 - En encendido en frío, primero aparece el selector de idioma.
 - El usuario puede elegir `Español`, `Catalán` o `English`.
+- La selección de idioma usa el mismo diccionario central que el resto de la interfaz, de modo que títulos, menús, estados e instrucciones cambian como conjunto.
 - El código conserva soporte para wake desde `deep sleep`, pero el reposo automático actual del producto se queda en un modo visible con `ZZZ` y no usa deep sleep automático.
 
 ### Navegación principal
 
 La navegación entre pantallas se hace con el encoder rotatorio.
 
-Orden actual de pantallas (carrusel circular de 12 posiciones):
+Orden actual de pantallas (carrusel circular de 12 posiciones con `PBIT_ENABLE_GRAPH_LAB=1`):
 
-- `Home` — visión global de todos los sensores en cards
-- `Clima` — temperatura y humedad del aire en card combinado
-- `Multi` — vista de múltiples sensores con widgets
-- `Sonido VU` — nivel de sonido ambiental en barras apiladas
-- `Temperatura` — sensor individual con menú de límites y alertas
-- `Humedad` — sensor individual con menú de límites y alertas
-- `Luz` — sensor individual con menú de calibración y alertas
-- `Sonido` — sensor individual con menú de umbrales y alertas
-- `Suelo` — sensor individual con calibración y alertas
-- `DS18B20` — sonda externa con menú de offset y alertas
+- `Home` — vista Lab de visión global de sensores en cards
+- `Clima` — vista Lab de temperatura y humedad del aire en card combinado
+- `Multi` — vista Lab de múltiples sensores con widgets
+- `Sonido VU` — vista Lab de nivel de sonido ambiental en barras apiladas
+- `Temperatura` — zona de sensor con modos visuales y menú de límites/alertas
+- `Humedad` — zona de sensor con modos visuales y menú de límites/alertas
+- `Luz` — zona de sensor con modos visuales y menú de calibración/alertas
+- `Sonido` — zona de sensor con modos visuales y menú de umbrales/alertas
+- `Suelo` — zona de sensor con modos visuales, calibración y alertas
+- `DS18B20` — zona de sensor para sonda externa con offset y alertas
 - `Timer` — cronómetro y cuenta regresiva
 - `Sistema` — ajustes globales del dispositivo
 
@@ -84,6 +98,8 @@ Notas:
 
 - La unidad `C/F` es global y compartida entre `Temperatura` y `DS18B20`; se cambia desde el menú de cualquiera de los dos.
 - Desde `Sistema`, mantener el encoder presionado durante 60 s sin girarlo activa la pantalla oculta de configuración BLE.
+- Si `PBIT_ENABLE_GRAPH_LAB` se compila a `0`, el carrusel vuelve a las pantallas clásicas y `GRAPH_SCREEN` queda como pantalla independiente al final.
+- `LAB_LINEAR_DASH_SCREEN` sigue compilado como renderer Lab disponible para iteración visual, pero no aparece como posición independiente en el carrusel de usuario actual.
 
 ## 4. Qué hace cada pantalla
 
@@ -102,6 +118,33 @@ Vista de múltiples sensores con widgets. Combina varias lecturas en una sola pa
 ### Sonido VU
 
 Muestra el nivel de sonido ambiental en barras apiladas estilo VU meter. Útil para detectar de forma visual e inmediata el nivel de ruido del entorno.
+
+### Pantallas Lab compiladas
+
+La revisión mantiene una familia de pantallas Lab para probar y estabilizar formatos visuales:
+
+- `Home Cards`
+- `Dual TH` / `Clima`
+- `Widget Mix` / `Multi`
+- `Linear Dash`
+- `Sound VU`
+- `Sensor Focus`, `Valor`, `Gauge/Dial`, `Sensor Card` y `Graph`, usados desde `SENSOR_ZONE_SCREEN`
+
+No todas son posiciones independientes del carrusel de uso normal. Las expuestas al usuario son `Home`, `Clima`, `Multi`, `Sonido VU` y los modos de Sensor Zone.
+
+### Zona de sensores
+
+Las seis posiciones de sensor (`Temperatura`, `Humedad`, `Luz`, `Sonido`, `Suelo`, `DS18B20`) comparten `SENSOR_ZONE_SCREEN`.
+
+Cada sensor recuerda su propio modo visual:
+
+- `Focus`: lectura protagonista
+- `Valor`: valor grande con contexto visual
+- `Gráfica`: histórico reciente del sensor
+- `Dial`: lectura tipo gauge
+- `Card`: tarjeta compacta
+
+La pulsación corta avanza entre esos modos. La pulsación larga abre el menú de configuración real del sensor activo.
 
 ### Temperatura
 
@@ -144,10 +187,13 @@ Funciones actuales:
 - modos visibles: `Lux`, `% log`, `Raw ADC`
 - categorización visual: `Oscuro`, `Tenue`, `Interior`, `Brillante`, `Luz solar`
 - guardado persistente
+- conversión corregida para que más ADC corresponda a más lux en la placa actual
+- recorte de seguridad a `0..20000 lux`
 
 Nota:
 
 - en esta pantalla el LED RGB se apaga para no interferir con la medición del LDR
+- el rango y la polaridad están validados por firmware/build; la comprobación física de cada unidad debe hacerse como parte de producción
 
 ### Sonido
 
@@ -223,7 +269,7 @@ Desde aquí se puede:
 
 - encender o apagar sonido global
 - elegir tiempo de reposo
-- cambiar idioma
+- cambiar idioma de forma completa entre `ES`, `CAT` y `EN`
 - resetear configuraciones
 
 ### Pantalla BLE Toggle (oculta)
@@ -254,6 +300,7 @@ Comportamiento por defecto:
 - De fábrica, el Bluetooth siempre sale `OFF`.
 - Cada vez que se instala un nuevo firmware, el estado BLE vuelve automáticamente a `OFF` (reset por build-hash).
 - El valor persiste entre reinicios normales si no se instala un nuevo firmware.
+- Con BLE en `OFF`, la pantalla normal de `Sistema` oculta la fila BLE y el dispositivo no debería anunciarse en escaneos BLE.
 
 ### Timer
 
@@ -273,11 +320,13 @@ Funciones actuales:
 
 El valor `00:00:00` funciona como cronómetro ascendente. Cualquier otro valor funciona como cuenta regresiva.
 
-### Gráfica
+### Modo Gráfica
 
-La pantalla `GRAPH_SCREEN` existe en el firmware pero no forma parte del carrusel de producción actual. Los buffers circulares de los 6 sensores siguen siendo llenados por el sensor task (160 muestras a 1 muestra/s) y la infraestructura de gráfica permanece activa en código.
+Con `PBIT_ENABLE_GRAPH_LAB=1`, la gráfica ya no se presenta como pantalla separada del carrusel: aparece como modo `Gráfica` dentro de cada sensor de `SENSOR_ZONE_SCREEN`.
 
-El acceso a histórico por sensor se está integrando en las vistas de las pantallas de sensor individuales como modo de visualización adicional.
+Los 6 sensores tienen buffer circular propio, con 160 muestras a 1 muestra/s. La vista de gráfica selecciona el sensor activo, autoescala el eje Y y usa paleta propia por sensor.
+
+`GRAPH_SCREEN` sigue existiendo en el firmware como renderer reutilizable y como pantalla independiente cuando se compila sin el carrusel lab/sensor-zone.
 
 ## 5. Alertas y feedback
 
@@ -301,7 +350,21 @@ Ejemplos:
 - sonido alto: naranja o rojo
 - humedad del suelo óptima: verde
 
-## 6. Gestión de energía
+## 6. Refresco de pantalla y anti-flicker
+
+La UI actual está organizada para reducir parpadeos en la TFT:
+
+- cada pantalla recibe `screen_changed` y `sensor_data_changed`
+- los elementos fijos se dibujan al entrar en pantalla
+- los valores cambiantes limpian y redibujan solo zonas acotadas
+- Sensor Zone sincroniza el renderer solo cuando cambia el sensor o el modo visual
+- el LDR se muestrea a unos 5 Hz, el suelo a alrededor de 1 Hz y el sonido mantiene la cadencia rápida necesaria para VU
+- `Timer` refresca a 40 ms cuando muestra centésimas y a 100 ms en el resto de formatos
+- `Sistema` refresca su información periódica sin redibujar toda la pantalla cada ciclo
+
+Esto mejora la lectura en aula y evita que números, barras o gráficas produzcan parpadeo innecesario.
+
+## 7. Gestión de energía
 
 El firmware actual ya implementa reposo automático visible.
 
@@ -318,7 +381,7 @@ Además:
 - si hay un menú abierto, el reposo automático se bloquea
 - si el timer está corriendo, el reposo automático también se bloquea
 
-## 7. Persistencia
+## 8. Persistencia
 
 El P-Bit guarda configuraciones importantes en memoria no volátil (`NVS`).
 
@@ -334,10 +397,12 @@ Esto incluye:
 - offset y alertas de DS18B20
 - tiempo de reposo
 - estado global de sonido
+- estado BLE (`ble_en`)
+- sensor activo y modo visual por sensor (`sz_sen`, `sz_v0..sz_v5`)
 
 Esto significa que el equipo recuerda la configuración entre reinicios.
 
-## 8. Qué valor educativo tiene hoy
+## 9. Qué valor educativo tiene hoy
 
 Con el firmware actual, el P-Bit ya sirve para actividades STEAM ambientales reales.
 
@@ -377,7 +442,7 @@ Permite trabajar con:
 - tiempo
 - registro y análisis de datos
 
-## 9. Ejemplos de uso STEAM ambiental
+## 10. Ejemplos de uso STEAM ambiental
 
 ### Ejemplo 1: Diario de una planta
 
@@ -487,7 +552,7 @@ Aprendizajes:
 - uso de sonda externa
 - precisión y calibración
 
-## 10. Estado actual y límites
+## 11. Estado actual y límites
 
 Aunque el firmware ya es funcional y útil, todavía hay aspectos en evolución:
 
@@ -495,19 +560,24 @@ Aunque el firmware ya es funcional y útil, todavía hay aspectos en evolución:
 - el timer ya permite editar `HH:MM:SS`, pero aún no tiene funciones de experimento más avanzadas
 - la pantalla de sonido sigue siendo interpretación por umbrales, no calibración física
 - la pantalla de gráfica ya cubre los 6 sensores; quedan ajustes visuales finos opcionales
+- el LDR está corregido y acotado en firmware, pero no se documenta aquí una calibración física certificada por luxómetro
+- BLE debe comprobarse apagado con escaneo externo antes de entregar unidades, aunque el firmware lo fuerce `OFF` de fábrica
 
 Esto no impide su uso educativo actual, pero sí marca oportunidades claras para las siguientes iteraciones.
 
-## 11. Resumen breve
+## 12. Resumen breve
 
 Hoy el P-Bit ya es una plataforma educativa ambiental funcional que:
 
 - mide variables relevantes del entorno
 - permite navegar y configurar cada sensor
+- ofrece interfaz completa en Español, Catalán e Inglés
 - guarda ajustes
 - usa alertas visuales, LED y sonido
 - gestiona reposo automático
 - muestra la evolución temporal de los 6 sensores como gráfica de línea interactiva con paleta por sensor
+- mantiene BLE oculto y apagado de fábrica
+- compila correctamente para `esp32dev`
 - sirve para actividades STEAM reales con plantas, clima, luz, ruido y análisis del entorno
 
 En su estado actual, ya puede usarse como herramienta de observación, experimentación y aprendizaje en educación ambiental.

@@ -2,9 +2,11 @@
 #include "settings_store.h"
 #include "ui_icons.h"
 #include "fonts.h"
+#include "languages.h"
 #include "runtime_events.h"
 #include <TFT_eSPI.h>
 #include <esp_system.h>
+#include <stdio.h>
 
 extern TFT_eSPI tft;
 
@@ -43,7 +45,7 @@ static void draw_selector(bool full) {
     tft.fillRoundRect(10, 94, 62, 24, 4, off_bg);
     if (g_ble_selection != 0) tft.drawRoundRect(10, 94, 62, 24, 4, TFT_DARKGREY);
     tft.setTextColor(off_fg, off_bg);
-    tft.drawString("OFF", 41, 104);
+    tft.drawString(L(ST_OFF), 41, 104);
 
     // ON button (right half)
     const uint16_t on_bg = (g_ble_selection == 1) ? TFT_WHITE : BLE_BG;
@@ -51,7 +53,7 @@ static void draw_selector(bool full) {
     tft.fillRoundRect(88, 94, 62, 24, 4, on_bg);
     if (g_ble_selection != 1) tft.drawRoundRect(88, 94, 62, 24, 4, TFT_DARKGREY);
     tft.setTextColor(on_fg, on_bg);
-    tft.drawString("ON", 119, 104);
+    tft.drawString(L(ST_ON), 119, 104);
 
     tft.setTextFont(0);
 }
@@ -69,7 +71,7 @@ void draw_ble_toggle_screen(bool screen_changed, bool data_changed) {
         tft.setTextDatum(MC_DATUM);
         tft.setFreeFont(FONT_BODY);
         tft.setTextColor(TFT_WHITE, BLE_BG);
-        tft.drawString("BLUETOOTH", 80, 74);
+        tft.drawString(L(SYS_BLE_LABEL), 80, 74);
         tft.setTextFont(0);
         draw_selector(true);
     } else if (g_ble_selection != last_selection) {
@@ -86,8 +88,10 @@ uint8_t handle_ble_toggle_button() {
     tft.setTextDatum(MC_DATUM);
     tft.setFreeFont(FONT_BODY);
     tft.setTextColor(TFT_WHITE, BLE_BG);
-    tft.drawString(g_ble_selection == 1 ? "BT ON" : "BT OFF", 80, 55);
-    tft.drawString("REINICIANDO...", 80, 78);
+    char status[16];
+    snprintf(status, sizeof(status), "%s %s", L(SYS_BLE_LABEL), g_ble_selection == 1 ? L(ST_ON) : L(ST_OFF));
+    tft.drawString(status, 80, 55);
+    tft.drawString(L(ST_RESTARTING), 80, 78);
     tft.setTextFont(0);
     delay(700);
     esp_restart();

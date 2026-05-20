@@ -4,6 +4,7 @@
 #include "ui_widgets.h"
 #include "fonts.h"      // GFXfont Inter (Latin-1: á é í ó ú ñ à è ç...)
 #include "layout.h"
+#include <math.h>
 #include <stdio.h>      // Para snprintf()
 
 // Global TFT object definition shared by all modules.
@@ -176,11 +177,27 @@ void drawCenteredMenuBodyLines(const char* const* lines,
 }
 
 void drawBarGraph(int x, int y, int w, int h, uint16_t color, float value, float minVal, float maxVal) {
+    const int inner_w = w - 4;
+    const int inner_h = h - 4;
+    if (inner_w <= 0 || inner_h <= 0 || maxVal <= minVal) return;
+
     tft.drawRoundRect(x, y, w, h, 3, TFT_DARKGREY);
-    value = constrain(value, minVal, maxVal); 
-    int fill_w = map(value, minVal, maxVal, 0, w - 4);
-    tft.fillRoundRect(x + 2, y + 2, fill_w, h - 4, 2, color);
-    tft.fillRect(x + 2 + fill_w, y + 2, (w - 4) - fill_w, h - 4, TFT_BLACK);
+    if (isnan(value)) value = minVal;
+    value = constrain(value, minVal, maxVal);
+    int fill_w = (int)roundf(((value - minVal) / (maxVal - minVal)) * inner_w);
+    fill_w = constrain(fill_w, 0, inner_w);
+
+    tft.fillRect(x + 2, y + 2, inner_w, inner_h, TFT_BLACK);
+    if (fill_w <= 0) return;
+
+    int radius = 2;
+    if (radius > fill_w / 2) radius = fill_w / 2;
+    if (radius > inner_h / 2) radius = inner_h / 2;
+    if (radius > 0) {
+        tft.fillRoundRect(x + 2, y + 2, fill_w, inner_h, radius, color);
+    } else {
+        tft.fillRect(x + 2, y + 2, fill_w, inner_h, color);
+    }
 }
 
 void drawFillTank(int x, int y, int w, int h, uint16_t fixedColor, float value, float minVal, float maxVal, int radius) {

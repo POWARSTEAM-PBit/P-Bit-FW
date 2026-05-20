@@ -1,8 +1,19 @@
 # Manual de Usuario del P-Bit
 
-Actualizado: 2026-03-27
+Actualizado: 2026-05-20
 
 Este manual explica qué es el P-Bit, cómo usarlo y cómo aprovecharlo en actividades de observación ambiental, aula, laboratorio escolar y proyectos STEAM.
+
+Estado de esta revisión:
+
+- build OK `esp32dev`
+- interfaz disponible en Español, Catalán e Inglés
+- cambio de idioma centralizado para toda la interfaz
+- lectura de luz corregida y validada en firmware al rango `0..20000 lux`
+- Bluetooth oculto y apagado de fábrica
+- nuevas vistas Lab y Sensor Zone activas
+- refresco de pantalla acotado para reducir parpadeos
+- Timer y reposo visible con `ZZZ` incluidos en el flujo normal
 
 ## 1. ¿Qué es el P-Bit?
 
@@ -22,7 +33,7 @@ Con el código actual, el P-Bit puede medir:
 
 - temperatura ambiente
 - humedad del aire
-- luz ambiental
+- luz ambiental en rango de firmware `0..20000 lux`
 - sonido ambiental
 - humedad del suelo
 - temperatura externa con sonda
@@ -31,7 +42,7 @@ Además, muestra información general del sistema:
 
 - nombre del dispositivo
 - tiempo encendido
-- estado BLE
+- estado BLE solo si Bluetooth está activado
 - idioma activo
 - estado del sonido
 - cronómetro
@@ -52,7 +63,7 @@ Además, muestra información general del sistema:
 - pantalla
 - LED RGB
 - buzzer
-- BLE
+- BLE oculto y desactivado por defecto
 
 ## 4. Primer uso
 
@@ -69,6 +80,8 @@ Idiomas disponibles:
 - Español
 - Catalán
 - English
+
+El idioma se aplica de forma centralizada: los títulos, menús, estados, instrucciones y pantallas principales usan el mismo diccionario de textos. También puedes cambiarlo más tarde desde `Sistema > Idioma`.
 
 El reposo automático actual del equipo mantiene una pantalla visible con `ZZZ`. El código conserva soporte técnico para deep sleep, pero en esta revisión el flujo normal de uso es ese reposo visible, no el apagado profundo automático.
 
@@ -88,26 +101,45 @@ Sirve para:
 
 - confirmar opciones en menús
 - activar algunas funciones rápidas según la pantalla
+- en las pantallas de sensor, cambiar el modo visual del sensor
 
 ### Pulsación larga
 
 Sirve para:
 
 - abrir el menú de configuración de una pantalla
-- en `Timer`, abrir el selector de minutos si está en reposo o resetear si ya estaba corriendo/pausado
+- en `Timer`, abrir el editor `HH:MM:SS` si está en reposo o resetear si ya estaba corriendo/pausado
 
 ## 6. Orden de pantallas
 
-El orden actual de navegación es:
+El firmware actual está compilado con `PBIT_ENABLE_GRAPH_LAB=1`. Con ese flag, el carrusel visible para uso normal es:
 
-1. `Temperatura`
-2. `Humedad`
-3. `Luz`
-4. `Sonido`
-5. `Suelo`
-6. `DS18B20`
-7. `Sistema`
-8. `Timer`
+1. `Home`
+2. `Clima`
+3. `Multi`
+4. `Sonido VU`
+5. `Temperatura`
+6. `Humedad`
+7. `Luz`
+8. `Sonido`
+9. `Suelo`
+10. `DS18B20`
+11. `Timer`
+12. `Sistema`
+
+Las seis posiciones de sensor usan una zona común llamada `SENSOR_ZONE_SCREEN`. Giras el encoder para pasar de un sensor a otro; dentro de cada sensor, la pulsación corta cambia el modo visual:
+
+- `Focus`
+- `Valor`
+- `Gráfica`
+- `Dial`
+- `Card`
+
+La gráfica no aparece como una pantalla separada del carrusel actual: es uno de los modos de cada sensor.
+
+La revisión también conserva pantallas Lab de exploración visual, como `Home Cards`, `Linear Dash` y `Sound VU`. Para el usuario, las vistas Lab estabilizadas aparecen como `Home`, `Clima`, `Multi` y `Sonido VU`; `Linear Dash` queda como vista Lab disponible en firmware, no como posición independiente del carrusel de uso normal.
+
+Para evitar parpadeos, las pantallas separan elementos fijos y datos cambiantes. El P-Bit solo refresca las zonas necesarias: por ejemplo, el `Timer` actualiza el tiempo con una cadencia rápida, `Sistema` refresca su información periódica y los sensores se actualizan al recibir datos nuevos.
 
 ## 7. Reglas generales de los menús
 
@@ -136,7 +168,8 @@ Importante:
 
 ### Acción rápida
 
-- pulsación corta: cambia entre `Celsius` y `Fahrenheit`
+- pulsación corta: cambia el modo visual del sensor
+- la unidad `Celsius/Fahrenheit` se cambia desde el menú `Unidad`
 - ese cambio también afecta a `DS18B20`, porque ambas pantallas comparten la misma unidad global
 
 ### Menú
@@ -226,6 +259,7 @@ Activa o desactiva las alertas.
 - valor principal de luz
 - barra visual
 - categoría interpretada
+- lectura en lux limitada por firmware a `0..20000 lux`
 
 ### Menú
 
@@ -262,6 +296,9 @@ Permite elegir:
 - no tapes el sensor con la mano al medir
 - recuerda que el P-Bit apaga el LED RGB en esta pantalla para no afectar la lectura
 - usa el modo `Lux` para interpretación más intuitiva y `Raw ADC` para exploración técnica
+- usa la lectura como referencia educativa y comparativa; no sustituye a un luxómetro calibrado
+
+Nota de revisión: la conversión del LDR se ha corregido para la placa actual y el firmware recorta la lectura al rango `0..20000 lux`. Esto evita valores fuera de escala en pantalla y gráficas; las unidades físicas concretas siguen necesitando una comprobación de plausibilidad antes de entrega.
 
 ## 11. Pantalla de Sonido
 
@@ -368,7 +405,8 @@ Permite activar o desactivar las alertas del suelo. Cuando el valor sale del ran
 
 ### Acción rápida
 
-- pulsación corta: cambia entre `Celsius` y `Fahrenheit`
+- pulsación corta: cambia el modo visual del sensor
+- la unidad `Celsius/Fahrenheit` se cambia desde el menú `Unidad`
 - ese cambio también afecta a `Temperatura`, porque ambas pantallas comparten la misma unidad global
 
 ### Menú
@@ -416,7 +454,7 @@ Permite activar o desactivar alertas.
 
 - nombre del dispositivo
 - tiempo encendido (`UP`)
-- estado BLE
+- estado BLE solo si Bluetooth está activado
 - idioma
 - estado del sonido
 
@@ -455,7 +493,7 @@ Si eliges `Nunca`, el P-Bit no duerme automáticamente.
 
 #### Idioma
 
-Permite cambiar el idioma del sistema.
+Permite cambiar el idioma del sistema entre Español, Catalán e Inglés. El cambio se guarda y afecta a toda la interfaz traducida, no solo a esta pantalla.
 
 #### Reset
 
@@ -466,6 +504,19 @@ Restaura configuraciones y calibraciones a valores por defecto.
 - si estás haciendo una actividad larga, considera usar `5 min`, `10 min` o `Nunca`
 - si el grupo cambia de idioma, ajusta esto desde aquí
 - usa `Reset` solo cuando realmente quieras volver a empezar configuraciones
+
+### Bluetooth oculto
+
+El Bluetooth sale desactivado de fábrica y no aparece como opción normal del carrusel. En ese estado no debe anunciarse como dispositivo BLE durante el uso educativo normal.
+
+Para entrar en la pantalla interna de BLE:
+
+1. ve a `Sistema`
+2. mantén el encoder presionado durante 60 segundos sin girarlo
+3. elige `OFF` u `ON`
+4. confirma con una pulsación corta
+
+El equipo guarda la selección y reinicia. Para uso normal y producción, el estado esperado es `OFF`. Si se activa para pruebas, conviene devolverlo a `OFF` antes de entregar una unidad.
 
 ## 15. Pantalla de Timer
 
@@ -542,6 +593,8 @@ El reposo automático se bloquea cuando:
 - hay un menú abierto
 - el timer está corriendo
 
+El reposo visible está pensado para el aula: la pantalla no se apaga de forma profunda automáticamente, sino que muestra el estado de descanso y vuelve al uso normal con una interacción del encoder.
+
 ## 18. Consejos de uso en aula y proyectos
 
 ### Para explorar plantas
@@ -617,3 +670,4 @@ El P-Bit ayuda a aprender:
 - `Menues.MD`
 - `ROADMAP_PBIT.md`
 - `MANUAL_TECNICO_PBIT.md`
+- `docs/PRODUCTION_CHECKLIST.md`

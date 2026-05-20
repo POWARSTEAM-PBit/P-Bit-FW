@@ -15,3 +15,11 @@ Escenas previstas en este grupo:
 - `10_sound_saved_calibration.cpp`
 - `11_sound_saved_alerts.cpp`
 - `12_sound_saved_reset.cpp`
+
+Notas de estado:
+
+- La parada visible de sonido es `LAB_SOUND_VU_STACK_SCREEN` (Sonido VU), no `SOUND_SCREEN`.
+- `LAB_SOUND_VU_WAVE_SCREEN` es sub-vista alternable por pulsación corta desde Sonido VU.
+- `SOUND_SCREEN` queda como menú/configuración desde Sensor Zone con `SZ_SOUND` mediante pulsación larga.
+- Las escenas runtime antiguas son referencia/config-menu; falta representar VU stack/wave como producción actual.
+- El VU debe documentar sprite, historial suavizado y badge con clear acotado.

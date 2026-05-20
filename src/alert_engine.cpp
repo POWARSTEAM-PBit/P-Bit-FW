@@ -1,6 +1,7 @@
 #include "alert_engine.h"
 #include "hw.h"
 #include "led_control.h"
+#include <math.h>
 
 namespace {
 
@@ -227,14 +228,14 @@ uint8_t classify_humidity_alert(float humidity, bool no_sensor, bool alerts_enab
 }
 
 uint8_t classify_light_alert(float lux, bool alerts_enabled, int dim_max, int bright_max) {
-    if (!alerts_enabled) return ALERT_CODE_OFF;
+    if (!alerts_enabled || !isfinite(lux)) return ALERT_CODE_OFF;
     if (lux < (float)dim_max) return ALERT_CODE_LOW;
     if (lux >= (float)bright_max) return ALERT_CODE_HIGH;
     return ALERT_CODE_OK;
 }
 
 uint8_t classify_sound_alert(float level, bool alerts_enabled, int normal_max, int loud_max) {
-    if (!alerts_enabled) return ALERT_CODE_OFF;
+    if (!alerts_enabled || !isfinite(level)) return ALERT_CODE_OFF;
     if (level >= (float)loud_max) return ALERT_CODE_CRITICAL;
     if (level >= (float)normal_max) return ALERT_CODE_HIGH;
     return ALERT_CODE_OK;

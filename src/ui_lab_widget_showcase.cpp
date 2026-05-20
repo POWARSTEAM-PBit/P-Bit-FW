@@ -311,7 +311,7 @@ static void gauge_sensor_range(GaugeLabSensor sensor, float& min_value, float& m
             break;
         case GAUGE_SENSOR_LIGHT:
             min_value = 0.0f;
-            max_value = 1023.0f;
+            max_value = 20000.0f;
             break;
         default:
             min_value = 0.0f;
@@ -352,6 +352,10 @@ static void format_gauge_value(char* out, size_t out_len, GaugeLabSensor sensor,
     }
     const GaugeSensorSpec& spec = gauge_spec(sensor);
     const float value = gauge_sensor_value(sensor);
+    if (sensor == GAUGE_SENSOR_LIGHT && value >= 10000.0f) {
+        snprintf(out, out_len, "%.0fk", value / 1000.0f);
+        return;
+    }
     if (spec.decimal) {
         snprintf(out, out_len, "%.1f", value);
     } else {
@@ -360,6 +364,10 @@ static void format_gauge_value(char* out, size_t out_len, GaugeLabSensor sensor,
 }
 
 static void format_gauge_limit(char* out, size_t out_len, float value, const char* unit) {
+    if (unit && strcmp(unit, "lux") == 0 && value >= 10000.0f) {
+        snprintf(out, out_len, "%.0fk%s", value / 1000.0f, unit);
+        return;
+    }
     snprintf(out, out_len, "%.0f%s", value, unit ? unit : "");
 }
 
@@ -387,9 +395,15 @@ constexpr int kGaugeCy = 76;
 constexpr int kGaugeR  = 31;
 constexpr int kGaugeIconCx = 34;
 constexpr int kGaugeIconCy = 76;
-// Value text clear box centered on (kGaugeCx, kGaugeCy+1), wide enough for FONT_MENU "1023".
+// Value text clear box centered on (kGaugeCx, kGaugeCy+1), wide enough for compact values.
 constexpr int kGaugeValueClearW = 60;
 constexpr int kGaugeValueClearH = 24;
+constexpr int kGaugeUnitX = 148;
+constexpr int kGaugeUnitY = 27;
+constexpr int kGaugeUnitClearX = kGaugeUnitX - 42;
+constexpr int kGaugeUnitClearY = 22;
+constexpr int kGaugeUnitClearW = 46;
+constexpr int kGaugeUnitClearH = 20;
 
 // Chrome = card border + sensor label + icon + unit + min/max scale labels.
 // Static unless sensor switches, validity flips, or unit mode toggles.
@@ -412,11 +426,12 @@ static void draw_lab_gauge_chrome(const GaugeSensorSpec& spec, bool valid,
     draw_gauge_icon(g_gauge_sensor, kGaugeIconCx, kGaugeIconCy, primary);
 
     // Unit (top-right)
-    tft.fillRect(148 - 40, 32, 44, 18, kBg);
+    tft.fillRect(kGaugeUnitClearX, kGaugeUnitClearY,
+                 kGaugeUnitClearW, kGaugeUnitClearH, kBg);
     tft.setFreeFont(FONT_BODY);
     tft.setTextColor(primary, kBg);
     tft.setTextDatum(TR_DATUM);
-    tft.drawString(gauge_sensor_unit(g_gauge_sensor), 148, 34);
+    tft.drawString(gauge_sensor_unit(g_gauge_sensor), kGaugeUnitX, kGaugeUnitY);
     tft.setTextFont(0);
 
     // Min/max scale labels (below ring)
@@ -507,16 +522,8 @@ static void draw_lab_gauge_data(bool valid, float ratio, uint16_t primary) {
     // Single DMA burst — no scan-line "vibration".
     g_ring_spr.pushSprite(kGaugeCx - kRingSprSize / 2, kGaugeCy - kRingSprSize / 2);
 
-    // The unit label at TR_DATUM (148, 34) extends down to ~y=47, and the sprite
-    // top edge is at y=44 — restore the unit so the sprite doesn't clip its bottom row.
-    const GaugeSensorSpec& spec = gauge_spec(g_gauge_sensor);
-    const uint16_t unit_col = valid ? spec.primary : pb_contrast_cool((uint8_t)g_gauge_sensor);
-    tft.fillRect(148 - 40, 32, 44, 18, kBg);
-    tft.setFreeFont(FONT_BODY);
-    tft.setTextColor(unit_col, kBg);
-    tft.setTextDatum(TR_DATUM);
-    tft.drawString(gauge_sensor_unit(g_gauge_sensor), 148, 34);
-    tft.setTextFont(0);
+    // Unit label is chrome. It lives above the ring sprite and is not repainted on
+    // every value tick, avoiding a black rectangle over the dial.
 }
 
 // Kept for screen_changed path: draws full chrome + data in one shot.
@@ -589,7 +596,7 @@ static void draw_lab_value_chrome() {
             break;
         case VALUE_SENSOR_SOIL:
             icon_fn = pbit_draw_plant_icon; label_key = LAB_SOIL_SHORT;
-            device_str = "SOIL";
+            device_str = L(LAB_SOIL_SHORT);
             icon_badge_bg = tft.color565(4, 36, 6);
             break;
         case VALUE_SENSOR_DS18:

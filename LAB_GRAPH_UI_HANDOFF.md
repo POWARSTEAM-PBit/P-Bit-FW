@@ -1,22 +1,24 @@
 # Handoff: Pantallas Lab / Graph
 
-Actualizado: 2026-05-17
+Actualizado: 2026-05-20
 
-## Build actual verificada
+## Build registrado
 
-- Herramienta: `py -3 -m platformio run --project-dir "c:/POWAR-GIT/P-Bit-FW - edit"`
+- Herramienta: `py -m platformio run -e esp32dev`
 - Resultado: `SUCCESS`
-- RAM: `14.1%` (46044 / 327680 bytes)
-- Flash: `70.4%` (922773 / 1310720 bytes)
-- Fecha: `2026-05-17`
+- RAM: `14.7%` (48028 / 327680 bytes)
+- Flash: `70.6%` (925873 / 1310720 bytes)
+- Fecha: `2026-05-20`
 
-Sesión 2026-05-17: implementada arquitectura Sensor Zone completa (carrusel plano de 12 posiciones, `sensor_zone.h/cpp`, persistencia NVS, routing en `tft_display.cpp`, navegación en `rotary.cpp`). Ajustes visuales: medidor TEMP LAB ampliado 2px arriba, vizualizaciones Sensor Card bajadas 2px. Pending: naming system en idiomas, sz_is_active() para fix de title flash, paleta canónica P3/P4.
+Nota 2026-05-20: esta pasada sincroniza el handoff con Sensor Zone, i18n ES/CAT/EN, LDR `0..20000 lux`, BLE factory-off y anti-flicker de dials/cards/VU.
+
+Sesión 2026-05-17: implementada arquitectura Sensor Zone completa (carrusel plano de 12 posiciones, `sensor_zone.h/cpp`, persistencia NVS, routing en `tft_display.cpp`, navegación en `rotary.cpp`). Ajustes visuales: medidor TEMP LAB ampliado 2px arriba, visualizaciones Sensor Card bajadas 2px. Pendientes históricos ya resueltos: naming system en idiomas, `sz_is_active()` para evitar title flash y paleta canónica P1/P2/P3/P4.
 
 ---
 
 ## Alcance del build LAB
 
-Las pantallas de laboratorio y gráfica solo se compilan cuando `PBIT_ENABLE_GRAPH_LAB = 1` en `include/config.h`. Ese flag está activo en el build actual.
+Las pantallas de laboratorio y gráfica solo se compilan cuando `PBIT_ENABLE_GRAPH_LAB = 1` en `include/config.h`. Ese flag está activo en el código actual.
 
 Archivos principales:
 
@@ -25,7 +27,7 @@ Archivos principales:
 - `src/ui_lab_home_cards.cpp` — HOME CARDS
 - `src/ui_lab_dual.cpp` — CLIMA LAB
 - `src/ui_lab_widget_showcase.cpp` — TEMP LAB, GAUGE LAB, VALOR LAB
-- `src/ui_lab_sound_vu.cpp` — SOUND LAB (STACK + WAVE)
+- `src/ui_lab_sound_vu.cpp` — SONIDO VU / RUIDO LAB (STACK + WAVE)
 - `src/ui_lab_linear_dash.cpp` — PLANT LAB
 - `src/ui_lab_focus.cpp` — sub-renderer FOCUS (panel valor + mini-gráfica)
 - `src/ui_graph.cpp` — sub-renderer GRÁFICA
@@ -35,6 +37,7 @@ Archivos principales:
 - `src/ui_lab_icon_sizes.cpp` — tamaños de iconos (ocultas)
 - `src/ui_lab_icon_test.cpp` — icon test (oculto)
 - `src/ui_icons.cpp` + `include/ui_icons.h` — biblioteca de iconos procedurales
+- `include/palette.h` — paleta canónica P1/P2/P3/P4 para Sensor Zone (`FOCUS`, `CARD`, `VALOR`, `GRAPH`, `GAUGE`)
 - `include/layout.h` — constantes globales de geometría
 - `include/languages.h` — claves de texto multilenguaje
 - `src/tft_display.cpp` — router de pantallas
@@ -106,6 +109,13 @@ Iconos disponibles: `temp`, `probe`, `humidity`, `light`, `sound`, `plant`.
 
 **Bug crítico resuelto (mayo 2026):** ícono humidity — el triángulo de la gota requiere base ±3*s (tangente exacta al círculo, `sqrt(5²−4²)=3`). Con ±5*s o ±7*s la punta se ve separada del círculo. El linter del proyecto revirtió esta corrección varias veces; la versión correcta está en `src/ui_icons.cpp` linea `impl_humidity`.
 
+Estado actual de iconos:
+- `humidity`: gota limpia sin donut negro y con base tangente.
+- `probe`: sonda vertical tipo cápsula DS18B20.
+- `plant`: hojas redondeadas en lugar de triángulos.
+- `bluetooth`: icono XL usado por la pantalla secreta BLE.
+- Pendiente de validar: contraste de detalles negros del termómetro sobre fondos navy y legibilidad de rayos diagonales del sol en hardware real.
+
 ---
 
 ## Carrusel actual — arquitectura plana de 12 posiciones
@@ -117,7 +127,7 @@ Definido en `src/rotary.cpp` → `kCarousel[]` (struct `CarouselEntry{Screen, in
 | 1 | HOME | `LAB_HOME_CARDS_SCREEN` | — |
 | 2 | CLIMA LAB | `LAB_DUAL_TH_SCREEN` | — |
 | 3 | TEMP LAB | `LAB_WIDGET_MIX_SCREEN` | — |
-| 4 | SOUND LAB | `LAB_SOUND_VU_STACK_SCREEN` | — |
+| 4 | SONIDO VU / RUIDO LAB | `LAB_SOUND_VU_STACK_SCREEN` | — |
 | 5 | *(viz del sensor)* | `SENSOR_ZONE_SCREEN` | `SZ_TEMP` |
 | 6 | *(viz del sensor)* | `SENSOR_ZONE_SCREEN` | `SZ_HUM` |
 | 7 | *(viz del sensor)* | `SENSOR_ZONE_SCREEN` | `SZ_LIGHT` |
@@ -140,7 +150,7 @@ Las posiciones 5–10 comparten el mismo `Screen` (`SENSOR_ZONE_SCREEN`) pero ca
 - `LAB_VALUE_MODERN_SCREEN` — sub-renderer de `SENSOR_ZONE_SCREEN` (viz VALOR)
 - `LAB_SENSOR_CARD_SCREEN` — sub-renderer de `SENSOR_ZONE_SCREEN` (viz CARD)
 - `GRAPH_SCREEN` — sub-renderer de `SENSOR_ZONE_SCREEN` (viz GRAF)
-- `LAB_SOUND_VU_WAVE_SCREEN` — sub-vista interna de SOUND LAB (pulsación corta)
+- `LAB_SOUND_VU_WAVE_SCREEN` — sub-vista interna de SONIDO VU / RUIDO LAB (pulsación corta)
 
 ### Comportamiento de pulsación por pantalla
 
@@ -169,11 +179,11 @@ enum SzSensorId : uint8_t {
 };
 
 enum SzVizMode : uint8_t {
-    SZ_VIZ_FOCUS=0,  // PENDIENTE: cambiar default de CARD a FOCUS
-    SZ_VIZ_CARD,
+    SZ_VIZ_FOCUS=0,
     SZ_VIZ_VALOR,
     SZ_VIZ_GRAPH,
     SZ_VIZ_GAUGE,
+    SZ_VIZ_CARD,
     SZ_VIZ_COUNT
 };
 ```
@@ -190,7 +200,9 @@ enum SzVizMode : uint8_t {
 | `sz_prev_sensor()` | Retrocede sensor (wraps), persiste |
 | `sz_next_viz()` | Cicla viz mode del sensor activo, persiste |
 | `sz_sync_renderer(bool force)` | Sincroniza sub-renderer; tracking interno evita calls redundantes |
-| `sz_sensor_name(SzSensorId)` | Nombre display del sensor (actualmente hardcoded ES — **pendiente: usar LangKey**) |
+| `sz_sensor_name(SzSensorId)` | Nombre display localizado del sensor en modo FOCUS |
+| `sz_header_name()` | Cabecera localizada según sensor + vista (`Temp Graf`, `Hum Dial`, etc.) |
+| `sz_set_active(bool)` / `sz_is_active()` | Flag para que sub-renderers omitan su `drawHeader` cuando son llamados desde `SENSOR_ZONE_SCREEN` |
 | `sz_sensor_rgb(SzSensorId, r, g, b)` | Color LED para el sensor activo |
 
 #### Persistencia NVS
@@ -204,22 +216,21 @@ enum SzVizMode : uint8_t {
 
 ```cpp
 case SENSOR_ZONE_SCREEN:
+    sz_set_active(true);
     sz_sync_renderer(screen_changed);
     switch (sz_get_viz()) {
         case SZ_VIZ_CARD:  draw_lab_sensor_card_screen(...); break;
-        case SZ_VIZ_VALOR: draw_lab_value_modern_screen(...);
-                           if (screen_changed) drawHeader(sz_sensor_name(...)); break;
-        case SZ_VIZ_FOCUS: draw_lab_focus_screen(...);
-                           if (screen_changed) drawHeader(sz_sensor_name(...)); break;
-        case SZ_VIZ_GRAPH: draw_graph_screen(...);
-                           if (screen_changed) drawHeader(sz_sensor_name(...)); break;
-        case SZ_VIZ_GAUGE: draw_lab_gauge_temp_screen(...);
-                           if (screen_changed) drawHeader(sz_sensor_name(...)); break;
+        case SZ_VIZ_VALOR: draw_lab_value_modern_screen(...); break;
+        case SZ_VIZ_FOCUS: draw_lab_focus_screen(...); break;
+        case SZ_VIZ_GRAPH: draw_graph_screen(...); break;
+        case SZ_VIZ_GAUGE: draw_lab_gauge_temp_screen(...); break;
     }
+    if (screen_changed) drawHeader(sz_header_name());
+    sz_set_active(false);
     break;
 ```
 
-> **Bug conocido**: el `drawHeader` posterior al sub-renderer causa flash visible (dos draws en el mismo frame). Fix pendiente: flag `sz_is_active()` para que los sub-renderers salten su `drawHeader` interno.
+> **Resuelto**: el antiguo flash por doble `drawHeader` queda mitigado con `sz_set_active(true)` antes de llamar al sub-renderer y `sz_is_active()` dentro de `FOCUS`, `GRAPH`, `GAUGE`, `VALOR` y `CARD`.
 
 ---
 
@@ -240,20 +251,20 @@ El sensor activo determina el prefijo; el viz mode añade el sufijo. El viz FOCU
 
 > **Nota hardware**: `"Termómetro Card"` / `"Termómetro Graf"` son los títulos más largos (~15 chars). Verificar que no se recorten en pantalla real con `FONT_HEADER` a 160px de ancho.
 
-### Implementación pendiente
+### Implementación actual
 
-El sistema de nombres requiere:
-1. Añadir LangKeys `SZ_NAME_*` en `include/languages.h` y `src/lang_select.cpp` para que `sz_sensor_name()` retorne texto localizado (actualmente hardcoded ES).
-2. Añadir LangKeys `SZ_VIZ_SUFFIX_CARD`, `SZ_VIZ_SUFFIX_LAB`, `SZ_VIZ_SUFFIX_GRAF`, `SZ_VIZ_SUFFIX_DIAL` para los sufijos.
-3. `sz_sensor_name()` compondrá `sensor_name + " " + viz_suffix` según el viz activo (excepto FOCUS que retorna solo el nombre del sensor).
-4. Cambiar el default de `g_viz[i]` de `SZ_VIZ_CARD` a `SZ_VIZ_FOCUS`.
-5. Cambiar `GRAPH_PUSH_SENSOR` → nuevo LangKey `SZ_PUSH_CHANGE_VIZ` = `"Pulsa: cambiar vista"` en el footer de FOCUS.
+El sistema de nombres ya está implementado:
+1. `sz_sensor_name()` usa `LangKey` (`TIT_TEMP`, `TIT_HUM`, `TIT_LIGHT`, `TIT_SOUND`, `TIT_SOIL`, `TIT_THERM`) y retorna texto localizado.
+2. Los sufijos `SZ_SUFFIX_CARD`, `SZ_SUFFIX_VALUE`, `SZ_SUFFIX_GRAPH`, `SZ_SUFFIX_DIAL` viven en `include/languages.h` / `src/lang_select.cpp`.
+3. `sz_header_name()` compone `sensor short + suffix` según la vista activa; `FOCUS` usa solo el nombre del sensor.
+4. El default de `g_viz[i]` ya es `SZ_VIZ_FOCUS` para los 6 sensores.
+5. El footer conserva `GRAPH_PUSH_SENSOR` / `LAB_PUSH_VIEW` según renderer; está localizado, aunque el copy exacto puede revisarse como UX.
 
 ### Resolución de duplicaciones de título
 
-Los sub-renderers muestran internamente labels cortos del sensor (TEMP, HUM, SUELO…) que duplican el header cuando se llaman desde `SENSOR_ZONE_SCREEN`. El enfoque aprobado: flag `sz_is_active()` en `sensor_zone.h`. Cada sub-renderer lo chequea y sustituye su label interno por la **unidad de medida** (`°C`, `%`, `lux`) en lugar de suprimirlo — mantiene el peso visual sin duplicar información.
+Los sub-renderers muestran internamente labels cortos del sensor (TEMP, HUM, SUELO…) que pueden parecer repetidos con el header cuando se llaman desde `SENSOR_ZONE_SCREEN`. Lo que ya está resuelto es el problema grave: el doble `drawHeader` y su flash visible. Los labels internos compactos quedan como decisión visual por renderer; no deben tratarse como bug salvo que en hardware real se vea redundante o recortado.
 
-Pantallas afectadas y qué cambiar:
+Tabla histórica de la propuesta original:
 
 | Sub-renderer | Label interno actual | Reemplazar por |
 |-------------|---------------------|----------------|
@@ -274,7 +285,7 @@ Pantallas afectadas y qué cambiar:
 - Icono, etiqueta y valor de cada card en `x+2, y+2` del origen de la card.
 - Tanque lateral de humedad: doble ancho, crece hacia la izquierda.
 - Footer `Vista experimental` eliminado.
-- Bug conocido: artefacto en esquina superior derecha de la card MIC al arrancar desde el selector de idioma. No bloqueante para validación.
+- Observación histórica: se vio un artefacto en esquina superior derecha de la card MIC al arrancar desde el selector de idioma. No está clasificado como bug activo; validar si reaparece en hardware.
 - Estado: **aprobada como referencia visual**.
 
 ### CLIMA LAB (`LAB_DUAL_TH_SCREEN`)
@@ -297,7 +308,7 @@ Pantallas afectadas y qué cambiar:
 - Valor diferencial centrado abajo de la barra, posición Y ajustada `+3 px`.
 - Estado: **pendiente de validación en hardware** — especialmente legibilidad de la barra diferencial y textos en idiomas largos.
 
-### SOUND LAB (`LAB_SOUND_VU_STACK_SCREEN` / `LAB_SOUND_VU_WAVE_SCREEN`)
+### SONIDO VU / RUIDO LAB (`LAB_SOUND_VU_STACK_SCREEN` / `LAB_SOUND_VU_WAVE_SCREEN`)
 
 - Pantalla única de entrada: STACK. Pulsación corta alterna a WAVE (sub-vista interna).
 - Sin chip/card de MIC; `MIC` queda como etiqueta suelta.
@@ -315,9 +326,9 @@ Pantallas afectadas y qué cambiar:
 
 ### SENSOR LAB (`LAB_SENSOR_FOCUS_SCREEN`)
 
-- Carrusel interno de 6 sensores: Temp, Hum, Luz, Sound, Suelo, DS18.
-- Pulsación corta cicla entre ellos.
-- Visible en el carrusel principal (posición 6).
+- Renderer `FOCUS` de `SENSOR_ZONE_SCREEN` para 6 sensores: Temp, Hum, Luz, Sound, Suelo, DS18.
+- El carrusel principal tiene 6 slots `SENSOR_ZONE_SCREEN`, uno por sensor; el encoder cambia de sensor al moverse entre slots.
+- Pulsación corta dentro de un slot de sensor cicla la vista (`FOCUS` → `VALOR` → `GRAPH` → `GAUGE` → `CARD`).
 - Reutiliza buffers históricos reales.
 - Summary en `x=2`, `y=27`, `w=156`, `h=42`; gráfica en `x=2`, `y=73`, `w=156`, `h=42`.
 - Estado: **referencia visual fuerte para futura v2 de pantallas individuales**.
@@ -328,7 +339,7 @@ Pantallas afectadas y qué cambiar:
 - Banda superior: `LG_SENSOR_Y=27`.
 - Marco exterior: `x=2`, `y=46`, `w=156` (borde incluido), `h=66`, radio `4`.
 - Sprite interior: `LG_GRAPH_W=154`, `LG_GRAPH_H=64`.
-- Pulsación corta cicla entre 6 sensores: Temp aire, Hum aire, Luz, Sonido, Hum suelo, DS18.
+- En `SENSOR_ZONE_SCREEN`, el sensor lo fija el slot activo y la pulsación corta cambia de vista. Si `GRAPH_SCREEN` se usa como pantalla standalone antigua, su propio selector puede seguir ciclando sensores.
 - Líneas horizontales de humedad: progresión azul suave (sin llegar a blanco).
 - Etiquetas largas por sensor via claves `GRAPH_LABEL_*`.
 - Estado: **aprobada como referencia visual**.
@@ -374,7 +385,7 @@ Clave anti-overlap: `draw_card_dynamic` hace un `fillRect` completo antes de dib
 | TEMP (DHT11) | 12 segmentos gradiente azul→rojo | 0–50°C | Labels "0°"/"50°" |
 | DS18B20 | 14 segmentos, azul hielo/cálido | -55..+125°C | Tick blanco en 0°, labels "-55°"/"+125°" |
 | HUM (DHT11) | 10 gotas-pill en fila, cyan | 0–100% | Highlight dot interior, labels "0%"/"100%" |
-| LIGHT (LDR) | 8 barras verticales crecientes | 0–1023 lux | Oscuro→amarillo, estilo ecualizador |
+| LIGHT (LDR) | 8 barras verticales crecientes | 0–20000 lux | Oscuro→amarillo, estilo ecualizador |
 | SOUND (MIC) | 7 columnas VU misma altura | 0–100% | Verde/naranja/rojo por zona |
 | SOIL | 3 zonas fijas + marcador | 0–100% | DRY(rojo)/OK(verde)/WET(azul), diamante posición |
 
@@ -395,15 +406,17 @@ Estas tareas no requieren código adicional salvo los ajustes que surjan al ver 
 2. **VALOR LAB** — off-color segmentos de barra demasiado oscuro; ajustar si no se distingue del fondo.
 3. **TEMP LAB** — barra diferencial izquierda/derecha, colores, legibilidad en idiomas con textos largos.
 4. **Títulos largos** — confirmar que `TEMPORIZADOR`, `TERMÓMETRO`, `TEMPERATURA` no se recortan.
-5. **SOUND LAB** — posición y claridad del texto de estado con el ajuste Y-1.
+5. **SONIDO VU / RUIDO LAB** — posición y claridad del texto de estado con el ajuste Y-1.
 6. **GAUGE LAB** — ícono XL en centro, legibilidad del valor dentro del anillo, contraste.
-7. Confirmar ausencia de parpadeo en redraw rápido (especialmente SENSOR LAB y ESTADO LAB).
+7. Confirmar ausencia de parpadeo en redraw rápido (especialmente Sensor Zone: `FOCUS`, `VALOR`, `GRAPH`, `GAUGE`, `CARD`).
+8. Confirmar LDR `0..20000 lux` en `HOME`, `PLANT`, `CARD`, `VALOR`, `GAUGE` y `GRAPH`.
+9. Confirmar BLE factory-off en placa recién flasheada: sin advertising, sin fila BLE visible en `Sistema`, acceso solo con gesto secreto de 60 s.
 
 ### Decisión de producto pendiente
 
 - Decidir si `TEMP CARD`, `PROBE CARD` y `TEMP LAB` se mantienen visibles en el carrusel o se ocultan.
 - Decidir si `GAUGE LAB`, `VALOR LAB` y `SENSOR CARD` quedan como pantallas de laboratorio permanentes o se promueven.
-- Decidir paleta general de pantallas madre (revisión pendiente de colores de fondo, acento y contraste global).
+- La paleta canónica P1/P2/P3/P4 ya existe en `include/palette.h` para Sensor Zone. Queda pendiente validar en hardware si se extiende a pantallas madre (`HOME`, `CLIMA LAB`) o si esas mantienen paletas responsivas propias.
 
 ---
 

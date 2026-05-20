@@ -1,5 +1,6 @@
 #include <Arduino.h>
 #include <esp_system.h>
+#include <freertos/semphr.h>
 #include <OneWire.h>
 #include <DallasTemperature.h>
 #include "hw.h"
@@ -14,6 +15,12 @@ extern bool g_sound_enabled;
 // Shared DS18B20 bus instance.
 OneWire oneWire(PIN_TEMP_DS18B20);
 DallasTemperature sensors(&oneWire);
+
+namespace {
+
+SemaphoreHandle_t g_adc_mutex = nullptr;
+
+} // namespace
 
 constexpr int SOIL_DEFAULT_DRY = 3408;
 constexpr int SOIL_DEFAULT_WET = 1904;
@@ -75,6 +82,10 @@ static bool is_valid_sleep_timeout(uint32_t timeout_ms) {
 // --- Initialization ---
 
 void init_hw() {
+    if (!g_adc_mutex) {
+        g_adc_mutex = xSemaphoreCreateMutex();
+    }
+
     // 1. Configure the analog sensor inputs.
     pinMode(PIN_SENSOR_SONIDO, INPUT);
     pinMode(PIN_SENSOR_HUMEDAD, INPUT);
@@ -116,6 +127,18 @@ void init_hw() {
 void set_devicename() {
     esp_read_mac(mac, ESP_MAC_BT);
     snprintf(dev_name, sizeof(dev_name), "PBIT-%02X%02X", mac[4], mac[5]);
+}
+
+int read_adc_raw(uint8_t pin) {
+    if (g_adc_mutex && xSemaphoreTake(g_adc_mutex, pdMS_TO_TICKS(5)) == pdTRUE) {
+        int raw = analogRead(pin);
+        xSemaphoreGive(g_adc_mutex);
+        return raw;
+    }
+
+    // Early boot or transient contention fallback. This keeps UI alive if a
+    // calibration read races with the sound sampling window.
+    return analogRead(pin);
 }
 
 void load_soil_calibration() {
@@ -583,7 +606,7 @@ int read_soil_raw_average() {
     const uint8_t SAMPLE_COUNT = 16;
     uint32_t raw_sum = 0;
     for (uint8_t i = 0; i < SAMPLE_COUNT; ++i) {
-        raw_sum += (uint32_t)analogRead(PIN_SENSOR_HUMEDAD);
+        raw_sum += (uint32_t)read_adc_raw(PIN_SENSOR_HUMEDAD);
         delayMicroseconds(250);
     }
     return (int)(raw_sum / SAMPLE_COUNT);
@@ -602,7 +625,7 @@ int read_sound_level() {
     int hi = 0, lo = 4095;
     uint16_t sample_count = 0;
     while ((uint32_t)(micros() - t0) < WINDOW_US) {
-        int s = analogRead(PIN_SENSOR_SONIDO);
+        int s = read_adc_raw(PIN_SENSOR_SONIDO);
         if (s > hi) hi = s;
         if (s < lo) lo = s;
         if (++sample_count >= YIELD_EVERY_SAMPLES) {
@@ -638,12 +661,14 @@ float read_soil_moisture() {
     const uint8_t SAMPLE_COUNT = 12;
     const int DISCONNECT_LOW_THRESHOLD = 80;
     const int DISCONNECT_AVG_THRESHOLD = 1400;
+    const int DISCONNECT_HIGH_THRESHOLD = 3900;
+    const int DISCONNECT_NOISE_THRESHOLD = 900;
 
     int raw_min = 4095;
     int raw_max = 0;
     uint32_t raw_sum = 0;
     for (uint8_t i = 0; i < SAMPLE_COUNT; ++i) {
-        int raw = analogRead(PIN_SENSOR_HUMEDAD);
+        int raw = read_adc_raw(PIN_SENSOR_HUMEDAD);
         raw_sum += (uint32_t)raw;
         if (raw < raw_min) raw_min = raw;
         if (raw > raw_max) raw_max = raw;
@@ -656,7 +681,9 @@ float read_soil_moisture() {
     // del sensor. Usamos un umbral conservador basado en mediciones reales.
     bool likely_disconnected =
         raw_avg <= DISCONNECT_LOW_THRESHOLD ||
-        raw_avg < DISCONNECT_AVG_THRESHOLD;
+        raw_avg < DISCONNECT_AVG_THRESHOLD ||
+        raw_avg >= DISCONNECT_HIGH_THRESHOLD ||
+        (raw_max - raw_min) >= DISCONNECT_NOISE_THRESHOLD;
 
     if (likely_disconnected) {
         return NAN;

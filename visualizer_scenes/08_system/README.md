@@ -15,3 +15,11 @@ Escenas previstas en este grupo:
 - `10_system_saved_sleep.cpp`
 - `11_system_saved_language.cpp`
 - `12_system_saved_reset.cpp`
+
+Notas de estado:
+
+- `SYSTEM_SCREEN` sigue siendo parada visible top-level.
+- Sistema muestra sonido, sleep e idioma; el idioma está centralizado en ES/CAT/EN.
+- BLE está factory-off y oculto. Las escenas `02_system_runtime_ble_*` son `hidden-debug`/legacy, no flujo normal visible.
+- El desbloqueo BLE real ocurre con pulsación mantenida de 60 s en Sistema y entra en `BLE_TOGGLE_SCREEN`.
+- Nuevas escenas de sistema deben priorizar sonido on/off, sleep, idioma y reset.

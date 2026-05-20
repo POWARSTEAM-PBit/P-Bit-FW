@@ -194,9 +194,9 @@ static void draw_size_labels() {
     tft.setTextDatum(TC_DATUM);
     tft.setFreeFont(FONT_SMALL);
     tft.setTextColor(tft.color565(100, 110, 130), kBg);
-    tft.drawString("S", kColS, 30);
-    tft.drawString("M", kColM, 30);
-    tft.drawString("L", kColL, 30);
+    tft.drawString(L(LAB_ICON_SIZE_S), kColS, 30);
+    tft.drawString(L(LAB_ICON_SIZE_M), kColM, 30);
+    tft.drawString(L(LAB_ICON_SIZE_L), kColL, 30);
     tft.setTextFont(0);
 }
 
@@ -211,7 +211,7 @@ static void draw_row_label(const char* text, int y, uint16_t c) {
 typedef void (*DrawFn)(int, int, uint16_t);
 
 struct IconRow {
-    const char* label;
+    LangKey     label_key;
     uint16_t    color;
     DrawFn      fn_s;
     DrawFn      fn_m;
@@ -226,7 +226,7 @@ static void draw_size_page(LangKey title_key, const IconRow* rows, int n) {
 
     for (int i = 0; i < n; ++i) {
         const auto& r = rows[i];
-        draw_row_label(r.label, r.row_y, r.color);
+        draw_row_label(L(r.label_key), r.row_y, r.color);
         r.fn_s(kColS, r.row_y, r.color);
         r.fn_m(kColM, r.row_y, r.color);
         r.fn_l(kColL, r.row_y, r.color);
@@ -240,9 +240,9 @@ void draw_lab_icon_sizes_env_screen(bool screen_changed, bool sensor_data_change
     if (!screen_changed) return;
 
     static const IconRow kRows[3] = {
-        { "TEMP",  kOrange,  draw_s_temp,  draw_m_temp,  draw_l_temp,  kRow1 },
-        { "HUM",   kCyan,    draw_s_hum,   draw_m_hum,   draw_l_hum,   kRow2 },
-        { "LUZ",   kYellow,  draw_s_light, draw_m_light, draw_l_light, kRow3 },
+        { LAB_TEMP_SHORT,  kOrange,  draw_s_temp,  draw_m_temp,  draw_l_temp,  kRow1 },
+        { LAB_HUM_SHORT,   kCyan,    draw_s_hum,   draw_m_hum,   draw_l_hum,   kRow2 },
+        { LAB_LIGHT_SHORT, kYellow,  draw_s_light, draw_m_light, draw_l_light, kRow3 },
     };
     draw_size_page(TIT_LAB_ICON_SZ_ENV, kRows, 3);
 }
@@ -252,9 +252,9 @@ void draw_lab_icon_sizes_ext_screen(bool screen_changed, bool sensor_data_change
     if (!screen_changed) return;
 
     static const IconRow kRows[3] = {
-        { "MIC",   kMagenta, draw_s_sound, draw_m_sound, draw_l_sound, kRow1 },
-        { "SUELO", kGreen,   draw_s_soil,  draw_m_soil,  draw_l_soil,  kRow2 },
-        { "SONDA", kPurple,  draw_s_probe, draw_m_probe, draw_l_probe, kRow3 },
+        { LAB_SOUND_SHORT, kMagenta, draw_s_sound, draw_m_sound, draw_l_sound, kRow1 },
+        { LAB_SOIL_SHORT,  kGreen,   draw_s_soil,  draw_m_soil,  draw_l_soil,  kRow2 },
+        { LAB_PROBE_SHORT, kPurple,  draw_s_probe, draw_m_probe, draw_l_probe, kRow3 },
     };
     draw_size_page(TIT_LAB_ICON_SZ_EXT, kRows, 3);
 }

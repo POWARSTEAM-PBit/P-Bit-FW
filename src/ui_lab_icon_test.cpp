@@ -14,6 +14,7 @@
 #include "ui_lab_icon_test.h"
 #include "tft_display.h"
 #include "layout.h"
+#include "languages.h"
 #include "ui_icons.h"
 #include "icon_temp_32.h"
 #include <TFT_eSPI.h>
@@ -53,7 +54,7 @@ void draw_lab_icon_test_screen(bool screen_changed, bool /*sensor_data_changed*/
     // ── Header ────────────────────────────────────────────
     tft.setTextDatum(TC_DATUM);
     tft.setTextColor(C_HEADER, TFT_BLACK);
-    tft.drawString("ICON TEST", 80, L_HEADER_Y, 2);
+    tft.drawString(L(TIT_LAB_ICON_TEST), 80, L_HEADER_Y, 2);
     tft.drawFastHLine(0, L_HEADER_LINE, 160, C_DIVIDER);
 
     // ── Divider vertical ──────────────────────────────────
@@ -68,20 +69,20 @@ void draw_lab_icon_test_screen(bool screen_changed, bool /*sensor_data_changed*/
     tft.setTextColor(C_LABEL, TFT_BLACK);
     tft.drawString("RGB565", ZONE_L_CENTER_X, LABEL_Y, 1);
     tft.setTextColor(C_SUBLABEL, TFT_BLACK);
-    tft.drawString("pushImage", ZONE_L_CENTER_X, SUBLABEL_Y, 1);
+    tft.drawString(L(LAB_ICON_TEST_BITMAP), ZONE_L_CENTER_X, SUBLABEL_Y, 1);
 
     // ── Right: procedural icon ────────────────────────────
     pbit_draw_temp_icon(ICON_PROC_CX, ICON_PROC_CY, C_PROC_ICON);
 
     tft.setTextDatum(TC_DATUM);
     tft.setTextColor(C_LABEL, TFT_BLACK);
-    tft.drawString("PROC", ZONE_R_CENTER_X, LABEL_Y, 1);
+    tft.drawString(L(LAB_ICON_TEST_PROC_SHORT), ZONE_R_CENTER_X, LABEL_Y, 1);
     tft.setTextColor(C_SUBLABEL, TFT_BLACK);
-    tft.drawString("primitives", ZONE_R_CENTER_X, SUBLABEL_Y, 1);
+    tft.drawString(L(LAB_ICON_TEST_PRIMITIVES), ZONE_R_CENTER_X, SUBLABEL_Y, 1);
 
     // ── Footer ────────────────────────────────────────────
     tft.drawFastHLine(0, 118, 160, C_DIVIDER);
     tft.setTextDatum(TC_DATUM);
     tft.setTextColor(C_SUBLABEL, TFT_BLACK);
-    tft.drawString("32x32 / baked colors", 80, FOOTER_Y, 1);
+    tft.drawString(L(LAB_ICON_TEST_FOOTER), 80, FOOTER_Y, 1);
 }

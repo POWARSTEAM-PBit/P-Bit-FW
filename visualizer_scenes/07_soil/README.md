@@ -20,3 +20,11 @@ Escenas previstas en este grupo:
 - `15_soil_alerts_done.cpp`
 - `16_soil_reset_done.cpp`
 - `17_soil_error.cpp`
+
+Notas de estado:
+
+- `SOIL_SCREEN` ya no es parada directa del carrusel visible.
+- Se abre como calibración/configuración desde Sensor Zone con `SZ_SOIL` mediante pulsación larga.
+- En la UI visible, suelo aparece como sensor dentro de Sensor Zone.
+- Las escenas de calibración siguen siendo importantes para producto porque son flujo real, aunque no sean paradas top-level.
+- Usar las claves i18n de suelo (`SOIL_ZONE_*`, `ST_SOIL_*`, `MENU_SOIL_*`) en escenas nuevas.

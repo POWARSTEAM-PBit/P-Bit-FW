@@ -460,7 +460,7 @@ void draw_humidity_screen(bool screen_changed, bool data_changed) {
     static uint8_t last_jewel_code = 255;
     static bool last_jewel_no_sensor = false;
     static bool last_jewel_alerts_en = false;
-    if (alert_state != last_jewel_code || no_dht_h != last_jewel_no_sensor || alerts_enabled != last_jewel_alerts_en) {
+    if (screen_changed || alert_state != last_jewel_code || no_dht_h != last_jewel_no_sensor || alerts_enabled != last_jewel_alerts_en) {
         draw_humidity_alert_jewel(alert_state, alerts_enabled, no_dht_h);
         last_jewel_code = alert_state;
         last_jewel_no_sensor = no_dht_h;

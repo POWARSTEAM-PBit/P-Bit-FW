@@ -2,9 +2,21 @@
 
 **Protocolo anti-flicker para ST7735 160×128 px via SPI (TFT_eSPI)**
 
-Fecha: 2026-05-19 | Versión consolidada post-Fase B/C
+Fecha: 2026-05-20 | Versión consolidada post-Fase B/C/D
 
 ---
+
+## Estado actual
+
+Las reglas de este documento ya están aplicadas en las pantallas de mayor riesgo del firmware actual: dials/gauges, cards, `Sound VU`, `Graph`, `Valor`, `Home` y pantallas de sensor clásicas. La deuda activa no es repetir la implementación anti-flicker, sino **validar en hardware real** que el ST7735 no muestra scan-line, flash negro, ghost pixels ni recortes en textos localizados.
+
+Cambios cerrados desde la auditoría original:
+- `Sound VU`: sprite, EWMA asimétrico, scroll continuo e idle pulse.
+- `DIAL/GAUGE`: ring sprite 64×64 y chrome/data split.
+- `VALOR`: sparkline sprite y clears acotados.
+- `SENSOR CARD`: chrome-last rule para evitar recorte por overhang de glyphs.
+- `HOME` y cards lab: `draw_card_chrome` separado de `draw_card_value_and_tank`.
+- `LDR`: las vistas usan rango de producto `0..20000 lux`; el ADC crudo `0..4095` queda solo para calibración/debug.
 
 ## Por qué importa
 
@@ -183,6 +195,17 @@ tft.drawString(unit_str, 148, 34);
 | `ui_lab_dash.cpp` | L1 | per-row dirty flags |
 | `ui_lab_dual.cpp` | L1 | shell/content separation |
 | `ui_lab_linear_dash.cpp` | L1 | RowCache por fila |
+
+**Nota de aceptación:** "Nivel aplicado" significa que el patrón existe en código. La aceptación final para producción requiere probar esas pantallas en el P-Bit físico y firmar que no hay flicker perceptible.
+
+## Validaciones hardware pendientes
+
+- `LAB_SOUND_VU_STACK_SCREEN` y `LAB_SOUND_VU_WAVE_SCREEN`: scroll continuo, idle pulse visible en silencio, sin congelación periódica.
+- `SZ_VIZ_GAUGE`: ring sprite sin vibración, label de unidad restaurado después del `pushSprite()`.
+- `SZ_VIZ_CARD`: header, valor, visualización y footer sin recortes por clears dinámicos.
+- `SZ_VIZ_VALOR`: sparkline y barra segmentada sin flash negro y con contraste suficiente.
+- `SZ_VIZ_GRAPH`: etiquetas min/max y línea principal legibles en ES/CAT/EN.
+- `LIGHT`: rango `0..20000 lux` y RGB apagado para no contaminar el LDR.
 
 ---
 

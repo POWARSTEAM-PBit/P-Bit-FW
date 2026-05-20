@@ -164,10 +164,10 @@ static void draw_dynamic(bool force_all = false) {
     const char* d_u = g_is_fahrenheit ? L(ST_UNIT_F_SHORT) : L(ST_UNIT_C_SHORT);
 
     const RowData rows[5] = {
-        { pbit_draw_temp_icon,     "TEMP",  kOrange,  t_ok, t_d,                     t_min, t_max,   "%.1f", t_u  },
-        { pbit_draw_humidity_icon, "HUM",   kCyan,    h_ok, h_ok ? r.humidity : 0.0f, 0.0f, 100.0f,  "%.0f", "%"  },
-        { pbit_draw_light_icon,    "LUZ",   kYellow,  l_ok, l_ok ? r.ldr : 0.0f,      0.0f, 1023.0f, "%.0f", "lx" },
-        { pbit_draw_plant_icon,    "SUELO", kGreen,   o_ok, o_ok ? r.soil_humidity : 0.0f, 0.0f, 100.0f, "%.0f", "%" },
+        { pbit_draw_temp_icon,     L(LAB_TEMP_SHORT),  kOrange,  t_ok, t_d,                     t_min, t_max,   "%.1f", t_u  },
+        { pbit_draw_humidity_icon, L(LAB_HUM_SHORT),   kCyan,    h_ok, h_ok ? r.humidity : 0.0f, 0.0f, 100.0f,  "%.0f", "%"  },
+        { pbit_draw_light_icon,    L(LAB_LIGHT_SHORT), kYellow,  l_ok, l_ok ? r.ldr : 0.0f,      0.0f, 20000.0f, "%.0f", "lx" },
+        { pbit_draw_plant_icon,    L(LAB_SOIL_SHORT),  kGreen,   o_ok, o_ok ? r.soil_humidity : 0.0f, 0.0f, 100.0f, "%.0f", "%" },
         { pbit_draw_probe_icon,    "DS18",  kProbe,   d_ok, d_d,                       t_min, t_max,   "%.1f", d_u  },
     };
 

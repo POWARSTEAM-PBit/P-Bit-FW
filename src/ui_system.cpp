@@ -24,9 +24,6 @@ extern char dev_name[];
 extern TFT_eSPI tft;
 extern Reading g_ui_readings_snapshot;
 
-static const char* const LANG_CODES[] = { "ESP", "CAT", "ENG" };
-constexpr size_t LANG_CODES_COUNT = sizeof(LANG_CODES) / sizeof(LANG_CODES[0]);
-
 // Sleep presets are stored as raw milliseconds so the menu can stay simple.
 const uint32_t SLEEP_OPTIONS[] = { 30000, 60000, 120000, 300000, 600000, 0 };
 const int NUM_SLEEP_OPTIONS = sizeof(SLEEP_OPTIONS) / sizeof(SLEEP_OPTIONS[0]);
@@ -74,7 +71,7 @@ void start_system_menu() {
     g_sys_menu_state = SYS_MODE_MENU;
     g_sys_menu_index = 0;
     g_sys_sleep_ms = get_sleep_timeout();
-    g_sys_lang_index = (uint8_t)g_language;
+    g_sys_lang_index = (uint8_t)normalizeLanguage(g_language);
     g_sys_sound_enabled = g_sound_enabled;
     g_sys_reset_choice = 0;
     g_sys_saved_kind = 0;
@@ -96,7 +93,7 @@ int get_system_encoder_max() {
         case SYS_MODE_MENU: return 4;
         case SYS_MODE_EDIT_SOUND: return 1;
         case SYS_MODE_EDIT_SLEEP: return NUM_SLEEP_OPTIONS - 1;
-        case SYS_MODE_EDIT_LANG: return (int)LANG_CODES_COUNT - 1;
+        case SYS_MODE_EDIT_LANG: return (int)LANG_COUNT - 1;
         case SYS_MODE_CONFIRM_RESET: return 1;
         case SYS_MODE_SAVED: return 0;
         default: return 0;
@@ -191,6 +188,7 @@ uint8_t handle_system_button() {
             saveLanguage((Language)g_sys_lang_index);
             g_sys_saved_kind = 2;
             g_sys_menu_state = SYS_MODE_SAVED;
+            force_full = true;
             break;
         case SYS_MODE_CONFIRM_RESET:
             if (g_sys_reset_choice == 1) {
@@ -199,10 +197,11 @@ uint8_t handle_system_button() {
                 g_is_fahrenheit = false;
                 g_sys_sound_enabled = g_sound_enabled;
                 g_sys_sleep_ms = get_sleep_timeout();
-                g_sys_lang_index = (uint8_t)g_language;
+                g_sys_lang_index = (uint8_t)normalizeLanguage(g_language);
                 g_sys_reset_choice = 0;
                 g_sys_saved_kind = 3;
                 g_sys_menu_state = SYS_MODE_SAVED;
+                force_full = true;
             } else {
                 g_sys_menu_state = SYS_MODE_MENU;
             }
@@ -371,7 +370,7 @@ void draw_system_screen(bool screen_changed, bool data_changed) {
         tft.setTextColor(TFT_YELLOW, TFT_BLACK);
         tft.drawString(dev_name, x_val, y_dev);
         tft.setTextColor(TFT_WHITE, TFT_BLACK);
-        tft.drawString(LANG_CODES[(uint8_t)g_language], x_val, y_lang);
+        tft.drawString(get_language_name((uint8_t)normalizeLanguage(g_language)), x_val, y_lang);
         tft.setTextFont(0);
     }
 

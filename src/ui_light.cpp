@@ -27,12 +27,20 @@ void format_light_threshold_value(int value, char* out, size_t out_size) {
     snprintf(out, out_size, "< %d %s", value, L(ST_LUX_UNIT));
 }
 
+bool light_lux_valid(float lux) {
+    return !isnan(lux) && lux >= 0.0f && lux <= 20000.0f;
+}
+
+bool light_raw_valid(float raw) {
+    return !isnan(raw) && raw >= 0.0f && raw <= 4095.0f;
+}
+
 // Draw the tiny runtime alert indicator used by the light screen.
-void draw_light_alert_jewel(uint8_t alert_state, bool alerts_enabled) {
+void draw_light_alert_jewel(uint8_t alert_state, bool alerts_enabled, bool no_sensor) {
     AlertJewelState jewel_state = ALERT_JEWEL_OK;
     uint16_t jewel_color = TFT_GREEN;
 
-    if (!alerts_enabled) {
+    if (no_sensor || !alerts_enabled) {
         jewel_state = ALERT_JEWEL_OFF;
         jewel_color = TFT_DARKGREY;
     } else if (alert_state == ALERT_CODE_LOW) {
@@ -395,6 +403,8 @@ void draw_light_screen(bool screen_changed, bool data_changed) {
     const uint16_t BACKGROUND_COLOR = TFT_BLACK;
     float lux = g_ui_readings_snapshot.ldr;
     float raw = g_ui_readings_snapshot.ldr_raw;
+    const bool lux_valid = light_lux_valid(lux);
+    const bool raw_valid = light_raw_valid(raw);
 
     int dim_max = get_light_threshold_dim();
     int indoor_max = get_light_threshold_indoor();
@@ -406,7 +416,11 @@ void draw_light_screen(bool screen_changed, bool data_changed) {
     const char* categoryText;
     uint16_t categoryColor;
     int category_id = 0;
-    if (lux < 10.0f) {
+    if (!lux_valid) {
+        categoryText = L(ST_NO_SENSOR);
+        categoryColor = TFT_RED;
+        category_id = -1;
+    } else if (lux < 10.0f) {
         categoryText = L(ST_DARK);
         categoryColor = TFT_DARKGREY;
         category_id = 0;
@@ -428,20 +442,22 @@ void draw_light_screen(bool screen_changed, bool data_changed) {
         category_id = 4;
     }
 
-    float log_pct = (lux < 1.0f) ? 0.0f : (log10f(lux) / log10f(20000.0f)) * 100.0f;
+    float log_pct = (!lux_valid || lux < 1.0f) ? 0.0f : (log10f(lux) / log10f(20000.0f)) * 100.0f;
     log_pct = constrain(log_pct, 0.0f, 100.0f);
 
     const int cx = tft.width() / 2;
     char value_str[10];
-    const char* unit_str = "lux";
+    const char* unit_str = L(ST_LUX_UNIT);
     float display_val = lux;
+    bool display_valid = lux_valid;
 
     if (display_mode == 1) {
         display_val = log_pct;
         unit_str = "%";
     } else if (display_mode == 2) {
         display_val = raw;
-        unit_str = "raw";
+        unit_str = L(ST_ADC_UNIT);
+        display_valid = raw_valid;
     }
 
     if (screen_changed) {
@@ -456,8 +472,9 @@ void draw_light_screen(bool screen_changed, bool data_changed) {
     static bool last_alerts_enabled = false;
     static uint8_t last_jewel_code = 255;
     static bool last_jewel_alerts_en = false;
+    static bool last_jewel_no_sensor = false;
 
-    int display_cache = (int)roundf(display_val);
+    int display_cache = display_valid ? (int)roundf(display_val) : -32768;
     if (!screen_changed
         && display_cache == last_display_cache
         && category_id == last_category_id
@@ -473,7 +490,10 @@ void draw_light_screen(bool screen_changed, bool data_changed) {
     last_alert_state = alert_state;
     last_alerts_enabled = alerts_enabled;
 
-    if (display_mode == 0 && display_val >= 10000.0f) {
+    if (!display_valid) {
+        snprintf(value_str, sizeof(value_str), "---");
+        unit_str = "";
+    } else if (display_mode == 0 && display_val >= 10000.0f) {
         snprintf(value_str, sizeof(value_str), "%.0fk", display_val / 1000.0f);
         unit_str = "";
     } else {
@@ -482,31 +502,37 @@ void draw_light_screen(bool screen_changed, bool data_changed) {
 
     tft.setFreeFont(FONT_VALUE);
     int valueLineH = tft.fontHeight();
-    tft.fillRect(0, LB_VALUE_TOP - 2, tft.width(), valueLineH + 4, BACKGROUND_COLOR);
+    const int value_clear_x = 12;
+    tft.fillRect(value_clear_x, LB_VALUE_TOP - 2, tft.width() - (value_clear_x * 2), valueLineH + 4, BACKGROUND_COLOR);
     int numW = tft.textWidth(value_str);
     tft.setFreeFont(FONT_BODY);
     int unitW = tft.textWidth(unit_str);
     int startX = cx - (numW + unitW) / 2;
     tft.setTextDatum(TL_DATUM);
     tft.setFreeFont(FONT_VALUE);
-    tft.setTextColor(TFT_WHITE, BACKGROUND_COLOR);
+    tft.setTextColor(display_valid ? TFT_WHITE : TFT_DARKGREY, BACKGROUND_COLOR);
     tft.drawString(value_str, startX, LB_VALUE_TOP);
     tft.setFreeFont(FONT_BODY);
     tft.setTextColor(TFT_DARKGREY, BACKGROUND_COLOR);
     tft.drawString(unit_str, startX + numW, LB_VALUE_TOP);
 
-    drawBarGraph(LB_BAR_X, LB_BAR_Y, LB_BAR_W, LB_BAR_H, categoryColor, log_pct, 0.0f, 100.0f);
+    drawBarGraph(LB_BAR_X, LB_BAR_Y, LB_BAR_W, LB_BAR_H, lux_valid ? categoryColor : TFT_DARKGREY, log_pct, 0.0f, 100.0f);
 
-    tft.fillRect(0, LB_CATEGORY_Y - 8, tft.width(), 16, BACKGROUND_COLOR);
+    const int category_clear_x = L_ALERT_JEWEL_X + 10;
+    tft.fillRect(category_clear_x, LB_CATEGORY_Y - 8, tft.width() - category_clear_x, 16, BACKGROUND_COLOR);
     tft.setTextDatum(MC_DATUM);
     tft.setFreeFont(FONT_BODY);
     tft.setTextColor(categoryColor, BACKGROUND_COLOR);
     tft.drawString(categoryText, cx, LB_CATEGORY_Y);
     tft.setTextFont(0);
 
-    if (alert_state != last_jewel_code || alerts_enabled != last_jewel_alerts_en) {
-        draw_light_alert_jewel(alert_state, alerts_enabled);
+    if (screen_changed
+        || alert_state != last_jewel_code
+        || alerts_enabled != last_jewel_alerts_en
+        || (!lux_valid) != last_jewel_no_sensor) {
+        draw_light_alert_jewel(alert_state, alerts_enabled, !lux_valid);
         last_jewel_code = alert_state;
         last_jewel_alerts_en = alerts_enabled;
+        last_jewel_no_sensor = !lux_valid;
     }
 }

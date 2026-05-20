@@ -1,17 +1,17 @@
 # P-Bit Firmware — Display & Sensor Pipeline Audit
 
-**Fecha auditoría**: 2026-05-18 | **Actualizado**: 2026-05-19
-**Auditado por**: Opus 4.7 (deep review) + Sonnet 4.6 (implementación Fase B/C)
-**Versión firmware**: HEAD `f6414be` + cambios no-commit (sleep animation, sound sprites, anti-flicker Fase B/C)
+**Fecha auditoría**: 2026-05-18 | **Actualizado**: 2026-05-20
+**Auditado por**: Opus 4.7 (deep review) + Sonnet 4.6 (implementación Fase B/C/D) + pasada documental 2026-05-20
+**Versión firmware**: HEAD `f6414be` + cambios no-commit (Sensor Zone actual, i18n, BLE factory-off, anti-flicker Fase B/C/D)
 **Hardware target**: ESP32 + ST7735 160×128 px, sensores LDR / GM19767P / DHT11 / DS18B20 / suelo capacitivo
 
 ---
 
 ## TL;DR
 
-El firmware tiene **tres bugs sistémicos** que degradan la experiencia visual, y **un patrón de flicker** repetido en 6+ pantallas. El más visible para el usuario (lag del VU de sonido) NO es bug de la pantalla — es que el `sensor_reading_task` bloquea **94 ms cada segundo** en la conversión síncrona del DS18B20, durante los cuales no se publica nueva data al display.
+Esta auditoría empezó como una lista de bugs activos, pero a 2026-05-20 sus P0/P1/P2 principales ya están **resueltos en código**. El DS18B20 ya no bloquea el loop, el DHT se alterna, BLE sale del hot path, LDR y suelo están submuestreados, `Sound VU` tiene EWMA + idle pulse y las pantallas con dials/cards/sparklines aplican sprites o chrome/data split.
 
-**Fix más rentable (P0)**: convertir DS18B20 a modo async (`setWaitForConversion(false)`). Estimado: 1 h de trabajo, elimina el ~9 % de downtime visible cada segundo.
+Lo que sigue abierto no es una fase de implementación general, sino **validación en hardware real**: confirmar en ST7735 que no hay freezes perceptibles, flashes negros, ghost pixels ni recortes en textos localizados.
 
 ---
 
@@ -19,21 +19,20 @@ El firmware tiene **tres bugs sistémicos** que degradan la experiencia visual, 
 
 ```
 ┌─────────────────────────────────────────────────────────────────┐
-│ Core 0 — SensorTask (prio 1, 10 ms delay, ~30 ms loop real)     │
+│ Core 0 — SensorTask (prio 1, cadence estable ~30 ms)            │
 │  ┌─────────────────────────────────────────────────────────┐    │
 │  │ each iteration:                                         │    │
-│  │   read_fast_sensors()  ──► LDR (~0.1ms)                 │    │
-│  │                            read_sound_level (20 ms)     │    │
-│  │                            read_soil_moisture (~2.4 ms) │    │
+│  │   read_fast_sensors()  ──► LDR cada 6 ciclos (~5 Hz)    │    │
+│  │                            sound_level cada ciclo       │    │
+│  │                            soil cada 30 ciclos (~1 Hz)  │    │
 │  │   [every 1000 ms] read_slow_sensors():                  │    │
-│  │                            DHT humidity (~25 ms)        │    │
-│  │                            DHT temperature (~25 ms)     │    │
-│  │                            DS18B20  (~94 ms BLOCKING)   │    │
+│  │                            DHT alternado temp/hum       │    │
+│  │                            DS18B20 async two-step       │    │
 │  │   portENTER_CRITICAL → global_readings = local_r        │    │
 │  │   alert_engine_refresh(...)                             │    │
-│  │   runtime_mark_sensor_data_ready()  ◄── ★ aquí se       │    │
-│  │   if (ble_client) notifyAll() (5-15 ms)     publica     │    │
-│  │   vTaskDelay(10 ms)                                     │    │
+│  │   runtime_mark_sensor_data_ready()  ◄── publica snapshot│    │
+│  │   ble_service() rate-limited (BLE factory-off por def.) │    │
+│  │   vTaskDelayUntil(..., 30 ms)                           │    │
 │  └─────────────────────────────────────────────────────────┘    │
 └─────────────────────────────────────────────────────────────────┘
                               │
@@ -54,19 +53,20 @@ El firmware tiene **tres bugs sistémicos** que degradan la experiencia visual, 
 ```
 
 **Frame budget efectivo del display**:
-- Fast-only ciclo: ~30 ms entre `mark_sensor_data_ready` → tope teórico **~33 Hz**.
-- Slow ciclo (1 vez/s): ~145 ms sin publicar data → **el display queda quieto 14 % del segundo**.
+- Ciclo rápido: ~30 ms entre `mark_sensor_data_ready` → tope teórico **~33 Hz**.
+- Ciclo lento: DS18B20 async y DHT alternado reducen el parón histórico; la validación pendiente es medir p99 real en hardware con `FIRMWARE_DEBUG`.
+- LDR: lux calibrado y acotado a `0..20000`, suavizado por EMA.
 
 ---
 
-## 2. Hallazgos críticos (P0 — bloquean la experiencia)
+## 2. Hallazgos críticos históricos (P0 — cerrados en Fase A)
 
-### P0-1 — DS18B20 bloquea el publish loop 94 ms cada segundo
+### P0-1 — DS18B20 bloqueaba el publish loop 94 ms cada segundo
 
 **Archivo**: `src/hw.cpp:680` (`read_ds18b20_temp`)
-**Síntoma**: el VU de sonido (y cualquier animación de >5 Hz) se congela ~94 ms cada segundo. Visible como stutter periódico.
-**Causa**: `sensors.requestTemperatures()` es síncrono y bloquea el thread hasta que el DS18B20 termina la conversión (93.75 ms @ 9-bit).
-**Fix**:
+**Síntoma original**: el VU de sonido (y cualquier animación de >5 Hz) se congelaba ~94 ms cada segundo.
+**Causa original**: `sensors.requestTemperatures()` era síncrono y bloqueaba el thread hasta terminar la conversión.
+**Estado actual**: resuelto. `init_hw()` usa `setWaitForConversion(false)` y la lectura sigue un patrón two-step async.
 ```cpp
 // En init_hw():
 sensors.setWaitForConversion(false);
@@ -77,36 +77,34 @@ sensors.setWaitForConversion(false);
 ```
 Esto reduce el blocking del DS18B20 de **94 ms → ~1 ms** (solo el comando 1-Wire). El valor disponible llega 1 segundo después (en el próximo ciclo slow), lo cual es invisible para el usuario porque la temperatura no cambia visualmente entre samples a 1 Hz.
 
-### P0-2 — DHT11 bloquea ~25 ms × 2 cada segundo
+### P0-2 — DHT11 bloqueaba ~25 ms × 2 cada segundo
 
 **Archivo**: `src/io.cpp:144-145` (`read_slow_sensors`)
-**Síntoma**: ~50 ms adicionales de freeze cada segundo (encima del DS18B20).
-**Causa**: La librería `DHT` usa bit-banging sin yields, ~22-25 ms por read. Se hacen DOS reads consecutivos (humidity + temperature).
-**Fix opcional** (después de P0-1):
-- Alternar reads: leer humidity en un ciclo slow, temperature en el siguiente (cada uno cada 2 s en lugar de cada 1 s). DHT11 cachea de todos modos, no se gana resolución leyendo cada 1 s.
-- O mover lectura DHT a su propio task de baja prioridad en core 0.
+**Síntoma original**: ~50 ms adicionales de freeze cada segundo.
+**Causa original**: dos lecturas consecutivas de la librería `DHT`.
+**Estado actual**: resuelto. `read_slow_sensors()` alterna temperatura/humedad con `dht_slot`, de modo que cada canal se actualiza cada 2 s.
 
 ### P0-3 — `read_sound_level()` impone 20 ms blocking en cada fast cycle
 
 **Archivo**: `src/hw.cpp:585-616`
-**Síntoma**: tope dura del fast-sensor rate ≈ 33 Hz (cap teórico para VU smoothness).
-**Causa**: para medir peak-to-peak hay que samplear suficientes ciclos del audio. 20 ms cubre 1 ciclo de 50 Hz (zumbido eléctrico mínimo), 4 ciclos de voz (200 Hz).
-**Veredicto**: **NO tocar el window**. 33 Hz de update es suficiente para VU smoothness. Lo que duele es que cuando este sample cae dentro del slow cycle (que ya está bloqueando 145 ms), la latencia percibida es mucho mayor.
-**Mejora opcional**: añadir EWMA decay en la UI (push_history con interpolación) para que cuando un sample llega tarde, el meter no salte sino que "alcance" suavemente. Mejor todavía: hacer la animación del meter independiente del rate de sampling (animar el scroll a 30 FPS aunque no haya sample nuevo).
+**Síntoma original**: tope duro del fast-sensor rate ≈ 33 Hz.
+**Veredicto**: **NO tocar el window**. 33 Hz de update es suficiente para VU smoothness y la ventana de 20 ms sigue siendo necesaria.
+**Estado actual**: aceptado como diseño. La UX se suavizó en `ui_lab_sound_vu.cpp` con EWMA asimétrico, scroll constante e idle pulse cuando el nivel es bajo.
 
 ---
 
-## 3. Hallazgos altos (P1 — flicker y waste sistemáticos)
+## 3. Hallazgos altos históricos (P1 — cerrados en Fase B/C)
 
 ### P1-1 — Patrón "full-screen fillRect antes de redraw" en 6+ pantallas
 
-**Pantallas afectadas confirmadas**:
+**Pantallas afectadas originales**:
 - `ui_sound.cpp:421` — `fillRect(0, LB_VALUE_TOP-4, 160, 52, BG)` antes del número
 - `ui_lab_sound_vu.cpp` (ya parchado) — `fillRect(0, L_CONTENT_TOP, 160, 108, BG)` antes de la card
 - Probablemente `ui_temp.cpp`, `ui_light.cpp`, `ui_ds18.cpp`, `ui_humidity.cpp` con el mismo patrón (ver `clearMenuBands` también)
 
-**Síntoma**: flash negro visible cada vez que el valor cambia. Especialmente molesto si el redraw es a 33 Hz (sound).
-**Fix sistemático**: aplicar el patrón ya validado en `ui_lab_sound_vu.cpp`:
+**Síntoma original**: flash negro visible cada vez que el valor cambiaba. Especialmente molesto si el redraw era a 33 Hz (sound).
+**Estado actual**: resuelto en las pantallas auditadas mediante chrome/data split, clears acotados y caches por campo.
+**Patrón consolidado**:
 - Separar `draw_<screen>_chrome()` (estático, solo en `screen_changed` o `meta_dirty`) de `draw_<screen>_value()` (dinámico, con clear localizado de su propia área).
 - El clear del valor debe ser **del tamaño exacto del texto previo + margen**, no full-width.
 - Para variables de ancho variable (`"100%"` vs `"5%"`) calcular `tft.textWidth()` del peor caso y limpiar siempre ese ancho con BG.
@@ -120,31 +118,32 @@ tft.setTextColor(color, BG);   // bg-erase solo cubre el bounding box exacto
 tft.drawString(buf, x, y);     // ⚠ valor anterior más largo deja ghost characters
 ```
 **Síntoma**: cuando "100%" → "5%", quedan los píxeles de "10" colgando.
-**Fix**: siempre precede con `tft.fillRect(x_left, y, max_width, font_h, BG)` calculado al tamaño del valor más largo posible. Ver el fix aplicado en `draw_value_badge` (`ui_lab_sound_vu.cpp:113`).
+**Estado actual**: resuelto donde se detectó. Mantener como regla de code review: siempre preceder con `tft.fillRect(x_left, y, max_width, font_h, BG)` calculado al tamaño del valor más largo posible. Ver el fix aplicado en `draw_value_badge` (`ui_lab_sound_vu.cpp:113`).
 
 ### P1-3 — Sprite no usado donde reduciría 10–100× el SPI traffic
 
-**Candidatos identificados**:
+**Candidatos originales**:
 - `ui_graph.cpp` — la sparkline ya usa sprite (good), pero el `drawRoundRect` del borde se redibuja después del sprite cada frame.
 - `ui_lab_gauge_temp.cpp` — el arco (P4→P3 con `drawArc` o `fillCircle` segments) son típicamente 50+ SPI calls. Candidato fuerte a sprite.
 - `ui_lab_focus.cpp` y `ui_lab_value_modern.cpp` — si tienen meter/bar dinámico, vale la pena ver.
 - `ui_lab_sensor_cards.cpp` (3 cards con meters) — alto riesgo de flicker.
 
-**Recomendación**: política "si más de 20 SPI calls por frame en una zona de >50×30 px → sprite".
+**Estado actual**: resuelto para las zonas de mayor riesgo: ring sprite en `ui_lab_widget_showcase.cpp`, sparkline sprite en `VALOR`, sprite VU en `ui_lab_sound_vu.cpp`, y reglas chrome-last en `SENSOR CARD`.
+**Recomendación permanente**: política "si más de 20 SPI calls por frame en una zona de >50×30 px → sprite".
 
 ### P1-4 — Jewel de alerta se redibuja sin verificar cambio de estado
 
 **Archivos**: `ui_temp.cpp:521`, `ui_ds18.cpp:511` (probablemente otros).
-**Síntoma**: drawAlertJewel pinta antialiased circles cada frame → SPI waste y posible micro-flicker.
-**Fix**: añadir a la cache un campo `last_alert_state` y skip si no cambió.
+**Síntoma original**: drawAlertJewel pintaba círculos cada frame → SPI waste y posible micro-flicker.
+**Estado actual**: resuelto en la pasada de caches (`last_alert_state`/equivalentes). Mantener como regla: no redibujar jewels si no cambió sensor/alerta/enable.
 
 ---
 
 ## 4. Hallazgos medios (P2 — pulido)
 
-### P2-1 — Tasks con BLE y sensor en mismo core
+### P2-1 — BLE en el hot path del sensor task
 
-`notifyAll()` se ejecuta inline en el sensor task con cliente conectado. Asignación de packet + 2 notifies → 5-15 ms adicionales al ciclo. Mover a un timer task que tome snapshot cada 500 ms.
+Estado actual: mitigado. `ble_service()` es rate-limited, los callbacks no notifican inline, y además BLE queda factory-off (`ble_en=false`) en cada flash nuevo hasta desbloqueo explícito.
 
 ### P2-2 — Sobre-muestreo de sensores lentos
 
@@ -158,14 +157,16 @@ tft.drawString(buf, x, y);     // ⚠ valor anterior más largo deja ghost chara
 
 Reducir LDR a cada 5 fast cycles, soil a cada 30, DHT/DS a cada 2 s libera CPU y BLE bandwidth sin pérdida visual.
 
+Estado actual: aplicado para LDR (~5 Hz), suelo (~1 Hz), DHT alternado y DS18 async. El sonido conserva el muestreo rápido porque alimenta el VU.
+
 ### P2-3 — VU sin animación cuando silencio
 
 Cuando `level=0` constante, todas las columnas del stack meter están vacías. Aunque el código está pusheando samples, no hay nada visible que se mueva → el usuario percibe "congelado".
-**Fix UX**: cuando `level < 5`, mostrar siempre **1 segmento verde tenue** en la base de cada columna (idle pulse). Da feedback de "estoy vivo y escuchando".
+**Estado actual**: resuelto. Cuando `level < 5`, el VU muestra **1 segmento verde tenue** en la base de cada columna con pulso triangular ~1 Hz.
 
-### P2-4 — `clearMenuBands()` redibuja 3 bandas siempre
+### P2-4 — `clearMenuBands()` redibujaba 3 bandas siempre
 
-Pasar bitmask para limpiar solo la banda afectada. Menor flicker en menús.
+Estado actual: resuelto con bitmask (`clearMenuBands(uint8_t bands = kMenuBand_All)`).
 
 ### P2-5 — Sleep overlay redibuja el orb cada frame (5 ms ciclo)
 
@@ -180,7 +181,7 @@ El orb breathing se calcula en cada loop del display task, pero el sprite del or
 Verificado en código (`hw.cpp` + `io.cpp`):
 - ✅ **P0-1**: DS18B20 async — `setWaitForConversion(false)` en `init_hw()` + patrón two-step en `read_ds18b20_temp()`. Blocking: 94 ms → ~7 ms.
 - ✅ **P0-2**: DHT alterna reads — `dht_slot` en `read_slow_sensors()`. Cada canal se lee cada 2 s en lugar de juntos cada 1 s.
-- ✅ **Bonus P2-1**: `notifyAll()` ya está guardado por `client_connected.load()` — no se ejecuta si no hay cliente BLE conectado.
+- ✅ **Bonus P2-1**: BLE ya se sirve desde `ble_service()` con rate-limit y `client_connected.load()`; `notifyAll()` queda como camino interno protegido y no se llama desde callbacks NimBLE.
 
 ### FASE B — Patrón anti-flicker sistemático ✅ COMPLETADA (2026-05-19)
 
@@ -207,6 +208,7 @@ Implementado chrome/value separation en todas las pantallas afectadas:
 - ✅ LDR submuestreado a ~5 Hz (cada 6 ciclos fast ≈ 180 ms) — `ldr_cycle` en `read_fast_sensors()`
 - ✅ Suelo submuestreado a ~1 Hz (cada 30 ciclos fast ≈ 900 ms) — `soil_cycle` en `read_fast_sensors()`
 - ✅ `draw_gauge_ring()` eliminado de `ui_lab_widget_showcase.cpp` (era función sin llamadas)
+- ✅ LDR normalizado a lux `0..20000` en pipeline y UI lab.
 
 **Ahorro estimado por el submuestreo** (fast loop a 30 Hz):
 | Sensor | Antes | Después | CPU liberado |
@@ -237,12 +239,15 @@ Cada agente de FASE B puede recibir el mismo prompt-plantilla con el archivo obj
 
 ## 7. Criterios de éxito (acceptance)
 
-- [ ] VU de sonido scrollea sin freezes perceptibles a 30 Hz constantes (medir con `millis()` log). ← requiere Fase A
+- [ ] VU de sonido scrollea sin freezes perceptibles a 30 Hz constantes (medir con `millis()` log). ← requiere validación hardware
 - [x] Ninguna pantalla muestra flash negro cuando solo un valor cambia. ← Fase B/C completada (pendiente validación en hardware)
 - [x] Cambios de unidad o magnitud ("100%" → "5%") no dejan ghost pixels. ← Fase B completada
-- [ ] El sensor task loop p99 < 35 ms (vs ~145 ms actual). ← requiere Fase A
-- [ ] BLE notify no añade más de 2 ms al loop del sensor task. ← requiere Fase A bonus
-- [ ] La pantalla SOUND_SCREEN y LAB_SOUND_VU_STACK/WAVE responden a sonido <50 ms latencia (sample → píxel). ← requiere Fase A + validación hardware
+- [ ] El sensor task loop p99 < 35 ms con BLE apagado y conectado. ← requiere instrumentación `FIRMWARE_DEBUG`
+- [ ] BLE notify no añade más de 2 ms al loop del sensor task. ← requiere medición con BLE conectado
+- [ ] La pantalla SOUND_SCREEN y LAB_SOUND_VU_STACK/WAVE responden a sonido <50 ms latencia (sample → píxel). ← requiere validación hardware
+- [ ] BLE factory-off verificado en placa recién flasheada: sin advertising, sin fila BLE visible en `Sistema`, desbloqueo solo por gesto secreto de 60 s.
+- [ ] LDR validado en hardware con rango `0..20000 lux`, saturación controlada y RGB apagado en pantalla de luz.
+- [ ] Cabeceras i18n de `Sensor Zone` verificadas en ES/CAT/EN sin recorte visible.
 
 ---
 

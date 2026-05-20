@@ -1,6 +1,6 @@
 # Manual Técnico del P-Bit
 
-Actualizado: 2026-05-17
+Actualizado: 2026-05-20
 
 Este documento describe el estado técnico actual del P-Bit a partir del firmware y la configuración presentes en este repositorio. Está pensado como base de entrenamiento para desarrollo, integración, soporte, mantenimiento y despliegue educativo.
 
@@ -13,8 +13,16 @@ El P-Bit es un dispositivo educativo ambiental basado en ESP32 que integra senso
 - navegación con encoder rotatorio
 - alertas visuales, sonoras y RGB
 - persistencia de configuración en NVS
-- conectividad BLE
+- conectividad BLE opcional, oculta y desactivada por defecto
 - modos de ahorro de energía con reposo visible con `ZZZ`
+
+Estado de revisión de producción/i18n:
+
+- build local verificado con `py -m platformio run -e esp32dev`
+- resultado PlatformIO: `SUCCESS`
+- memoria reportada por build: RAM `14.7%` (`48028` bytes de `327680`) y Flash `70.6%` (`925873` bytes de `1310720`)
+- revisión estática de i18n, BLE factory-off, LDR, Sensor Zone y fixes anti-flicker completada
+- validaciones de hardware real siguen pendientes de unidad física
 
 ## 2. Plataforma base
 
@@ -64,7 +72,7 @@ Nota importante:
 - LED RGB
 - buzzer pasivo
 - pantalla TFT ST7735
-- BLE para visualización/lectura remota
+- BLE opcional para visualización/lectura remota, oculto y `OFF` por defecto
 
 ## 4. Pinout actual del firmware y buses confirmados por hardware
 
@@ -163,8 +171,8 @@ Orden real de `setup()`:
   - leer sensores rápidos y lentos
   - actualizar `global_readings`
   - marcar `g_sensor_data_ready`
-  - emitir datos por BLE
-  - enviar línea CSV por Serial
+  - emitir datos por BLE si `ble_en == true`
+  - enviar línea CSV por Serial solo si `PBIT_ENABLE_SERIAL_PLOTTER=1`
 
 #### Loop principal
 
@@ -174,7 +182,7 @@ Orden real de `setup()`:
   - `poll_rotary_aux()`
   - `loop_buzzer()`
   - lógica de inactividad
-  - transición entre `ACTIVE`, `IDLE` y `DEEP SLEEP`
+  - transición entre `ACTIVE` e `IDLE` visible
 
 ## 6. Modelo de datos
 
@@ -215,8 +223,12 @@ Lógica actual:
 - divisor resistivo con `R = 10k`
 - filtro hardware adicional con `C4 = 1uF`
 - conversión aproximada a lux por fórmula logarítmica calibrada
-- saturación tratada a partir de `ADC >= 4050`
+- rango útil normalizado a `0..20000 lux`
+- saturación alta tratada como `20000 lux`
+- lectura cruda disponible en `ldr_raw` para el modo `Raw ADC`
 - filtrado software por EMA
+
+La UI de luz ofrece tres modos de display: `Lux`, `% log` y `Raw ADC`. El modo `Raw ADC` muestra la lectura ADC directa, mientras que las vistas de cards, dials y gráficas usan el rango de lux limitado a `0..20000`.
 
 #### Sonido
 
@@ -259,11 +271,43 @@ Protecciones:
 
 ### Navegación principal
 
-Orden real del carrusel de producción (12 posiciones, circular):
+Orden real del carrusel actual con `PBIT_ENABLE_GRAPH_LAB=1` (12 posiciones, circular):
 
 `HOME -> CLIMA -> MULTI -> SONIDO VU -> TEMPERATURA -> HUMEDAD -> LUZ -> SONIDO -> SUELO -> DS18B20 -> TIMER -> SISTEMA`
 
-Las primeras 4 posiciones (`Home`, `Clima`, `Multi`, `Sonido VU`) son pantallas de solo lectura. Las 6 posiciones de sensor individual usan `SENSOR_ZONE_SCREEN` con cambio de modo de visualización vía pulsación corta y menú de configuración vía pulsación larga. `GRAPH_SCREEN` existe en el firmware pero no está en el carrusel de producción actual.
+Implementación:
+
+- Las primeras 4 posiciones son pantallas lab/producto de solo lectura: `LAB_HOME_CARDS_SCREEN`, `LAB_DUAL_TH_SCREEN`, `LAB_WIDGET_MIX_SCREEN`, `LAB_SOUND_VU_STACK_SCREEN`.
+- Las 6 posiciones de sensor reutilizan `SENSOR_ZONE_SCREEN`; al entrar en cada slot, `rotary.cpp` llama a `sz_set_sensor(...)`.
+- `SENSOR_ZONE_SCREEN` conserva un modo visual por sensor: `Focus`, `Valor`, `Gráfica`, `Dial`, `Card`.
+- La pulsación corta en una posición de sensor ejecuta `sz_next_viz()`.
+- La pulsación larga abre el menú clásico del sensor activo (`TEMP_SCREEN`, `HUMIDITY_SCREEN`, `LIGHT_SCREEN`, `SOUND_SCREEN`, `SOIL_SCREEN` o `DS18B20_SCREEN`).
+- `GRAPH_SCREEN` existe en el firmware; con el flag actual se usa como renderer del modo `Gráfica` dentro de `SENSOR_ZONE_SCREEN`.
+
+Si `PBIT_ENABLE_GRAPH_LAB` se compila a `0`, el carrusel cae al rango clásico `TEMP_SCREEN -> GRAPH_SCREEN`.
+
+### Sensor Zone
+
+`SENSOR_ZONE_SCREEN` es la capa común para los seis sensores principales:
+
+- Temperatura DHT (`SZ_TEMP`)
+- Humedad ambiente (`SZ_HUM`)
+- Luz (`SZ_LIGHT`)
+- Sonido (`SZ_SOUND`)
+- Suelo (`SZ_SOIL`)
+- DS18B20 (`SZ_DS18`)
+
+Cada sensor conserva su modo visual persistido (`sz_v0` .. `sz_v5`) y `sz_sync_renderer(...)` sincroniza el sub-renderer activo solo cuando cambia pantalla, sensor o modo. Esta arquitectura evita invalidar caches en cada tick de lectura y reduce flicker en dials, cards, gráficas y vistas de valor.
+
+### Fixes anti-flicker
+
+La revisión estática confirma las mitigaciones de parpadeo en:
+
+- dials/gauges: caches por sensor y actualizaciones por `data_dirty`/`chrome_dirty`
+- cards: limpieza dirigida del rectángulo de valor y cache de estado
+- menús y footers: clears por bandas en vez de `fillScreen` constante
+- `Sound VU`: sprites/cache para medidor y badge, con push de zona dinámica sin redibujar chrome completo
+- cambio de pantalla/idioma: `runtime_request_ui_full_redraw()` fuerza un frame limpio cuando corresponde
 
 ### Gestos del encoder
 
@@ -301,36 +345,42 @@ Nivel de sonido ambiental en barras apiladas. Solo lectura; no tiene menú.
 
 #### Temperatura DHT
 
+- en carrusel actual: slot de `SENSOR_ZONE_SCREEN` con sensor `SZ_TEMP`
 - pulsación corta: alterna modo de visualización
 - la unidad `C/F` es global y compartida con `DS18B20`
 - menú `Límites / Unidad / Alertas / Reset / Salir`
 
 #### Humedad del aire
 
+- en carrusel actual: slot de `SENSOR_ZONE_SCREEN` con sensor `SZ_HUM`
 - pulsación corta: alterna modo de visualización
 - menú `Límites / Alertas / Reset / Salir`
 - usa dos umbrales: `Seco` y `Muy húmedo`
 
 #### Luz
 
+- en carrusel actual: slot de `SENSOR_ZONE_SCREEN` con sensor `SZ_LIGHT`
 - pulsación corta: alterna modo de visualización
 - menú `Calibración / Modo display / Alertas / Reset / Salir`
 - modos de vista: `Lux`, `% log`, `Raw ADC`
 
 #### Sonido
 
+- en carrusel actual: slot de `SENSOR_ZONE_SCREEN` con sensor `SZ_SOUND`
 - pulsación corta: alterna modo de visualización
 - menú `Calibración / Alertas / Reset / Salir`
 - calibración interpretativa por umbrales, no física
 
 #### Suelo
 
+- en carrusel actual: slot de `SENSOR_ZONE_SCREEN` con sensor `SZ_SOIL`
 - pulsación corta: alterna modo de visualización
 - menú `Calibrar sensor / Editar umbrales / Alertas / Reset / Salir`
 - clasificación actual: `Seco`, `Óptimo`, `Húmedo`, `Muy húmedo`
 
 #### DS18B20
 
+- en carrusel actual: slot de `SENSOR_ZONE_SCREEN` con sensor `SZ_DS18`
 - pulsación corta: alterna modo de visualización
 - la unidad `C/F` es global y compartida con `Temperatura DHT`
 - menú `Calibración / Unidad / Alertas / Reset / Salir`
@@ -356,15 +406,20 @@ Nivel de sonido ambiental en barras apiladas. Solo lectura; no tiene menú.
 - en runtime, la duración objetivo solo se dibuja en la banda inferior cuando hay cuenta regresiva
 - al terminar una cuenta regresiva, la UI pasa a rojo y dispara una alarma intermitente corta si el sonido global está activo
 
-#### Gráfica (`GRAPH_SCREEN`)
+#### Modo Gráfica (`SZ_VIZ_GRAPH` / `GRAPH_SCREEN`)
 
-`GRAPH_SCREEN` no forma parte del carrusel de producción actual. La infraestructura de buffers circulares (160 muestras a 1 s, `g_graph_mux` para acceso cross-core) sigue activa en `graph_buffer.cpp` y el sensor task sigue llenando los 6 buffers. La integración del histórico como modo de visualización adicional dentro de las pantallas de sensor individuales es el paso siguiente natural.
+Con `PBIT_ENABLE_GRAPH_LAB=1`, `GRAPH_SCREEN` se usa como sub-renderer del modo `SZ_VIZ_GRAPH` dentro de `SENSOR_ZONE_SCREEN`.
+
+La infraestructura de buffers circulares está activa para los 6 sensores (160 muestras a 1 muestra/s, `g_graph_mux` para acceso cross-core). `sz_sync_renderer(...)` sincroniza el sensor activo con `graph_set_sensor(...)` antes de dibujar.
+
+Cuando el flag se compila a `0`, `GRAPH_SCREEN` queda disponible como pantalla independiente del carrusel clásico.
 
 Archivos clave:
 
 - `include/graph_buffer.h` / `src/graph_buffer.cpp` — buffer circular y acceso thread-safe
-- `include/ui_graph.h` / `src/ui_graph.cpp` — render de pantalla (conservado pero no en carrusel activo)
+- `include/ui_graph.h` / `src/ui_graph.cpp` — render de gráfica reutilizado por `SENSOR_ZONE_SCREEN`
 - `src/io.cpp` — push a buffers dentro del bloque de sensores lentos (cada 1 s)
+- `include/sensor_zone.h` / `src/sensor_zone.cpp` — selección de sensor y modo visual persistente
 
 ## 9. Persistencia en NVS
 
@@ -422,6 +477,11 @@ Namespace utilizado:
 - `sys_sleep`
 - `sys_sound`
 
+#### Sensor zone
+
+- `sz_sen`
+- `sz_v0` .. `sz_v5`
+
 #### BLE
 
 - `ble_en` (bool, default `false`) — controla si el BLE se inicializa en el arranque
@@ -431,6 +491,10 @@ Esta clave se borra junto con el resto del namespace `pbit` en cada nuevo flash 
 #### Idioma
 
 - gestionado desde el módulo de idioma con persistencia propia
+- el idioma activo se normaliza con `normalizeLanguage(...)`
+- `LANG_COUNT` define el límite de idiomas soportados
+- `LIn(language, key)` permite renderizar textos en un idioma explícito
+- `L(key)` traduce usando el idioma activo
 
 ## 10. BLE
 
@@ -445,6 +509,9 @@ Comportamiento:
 - En cada nuevo flash, la clave se borra porque el build-hash FNV-1a detecta el nuevo binario y llama a `clear_all_settings_store()`, que limpia el namespace `pbit` entero. `ble_en` vuelve a `false` (su default implícito al no existir).
 - En reinicios normales entre flashes, el valor persistido se respeta: si el usuario activó el BLE, sigue activo.
 - `init_ble()` solo se llama si `load_ble_enabled_store()` devuelve `true`. Si devuelve `false`, el stack NimBLE nunca se inicia y el dispositivo no emite señal BLE.
+- La fila BLE de `Sistema` solo se dibuja si `ble_en == true`; en estado de fábrica queda oculta.
+
+Nota de producción: si se flashea sobre una unidad de desarrollo que tenía BLE activado, validar antes de entregar que el dispositivo no anuncia BLE. El reset por build-hash se ejecuta antes de cargar BLE/settings, así que una build nueva debe volver a `OFF` desde el primer arranque.
 
 ### Pantalla BLE Toggle (gesto secreto de producción)
 
@@ -583,10 +650,14 @@ Comportamiento:
 - en encendido en frío se muestra selector de idioma
 - el código conserva soporte de wake desde deep sleep, pero el flujo normal del producto usa reposo visible con `ZZZ`
 - el idioma puede cambiarse desde `Sistema`
+- al guardar idioma se solicita full redraw con `runtime_request_ui_full_redraw()`
+- el loop de UI consume el evento con `runtime_take_ui_full_redraw()` y reinicia caches visuales para evitar mezcla de idiomas
 
-Estado actual:
-- la localización base existe y funciona
-- todavía pueden quedar algunas cadenas duras residuales en ciertas pantallas
+Estado actual tras auditoría estática:
+
+- los textos visibles de UI están migrados al diccionario mediante `L(...)` o `LIn(...)`
+- las cadenas directas restantes localizadas por búsqueda son símbolos/no lingüísticas (`>`, `---`, separadores, ticks numéricos o `ZZZ`)
+- `LANG_COUNT`, `LIn(...)` y `normalizeLanguage(...)` están presentes y se usan en selector, menú de sistema y renderizado del idioma activo
 
 ## 13. Alertas y feedback
 
@@ -626,11 +697,11 @@ Uso previsto:
 
 ## 15. Limitaciones actuales
 
-- la localización aún no está cerrada al 100%
 - el timer ya tiene edición directa `HH:MM:SS` y cuenta regresiva, pero todavía no tiene automatizaciones de experimento
 - el módulo de sonido trabaja por umbrales interpretativos, no por calibración acústica absoluta
-- la UX visual de alertas y algunos detalles de layout todavía pueden seguir afinándose
+- la UX visual de alertas, gráfica y algunos detalles de layout todavía pueden seguir afinándose
 - no existe control de brillo del display por hardware
+- las pruebas de hardware real post-build siguen pendientes: escaneo BLE externo, sensores físicos, feedback RGB/buzzer y reposo en unidad flasheada
 
 ## 16. Recomendaciones para entrenamiento y mantenimiento
 
@@ -640,11 +711,13 @@ Uso previsto:
 - en pruebas de luz, recordar que el RGB se apaga a propósito en esa pantalla
 - si en una iteración futura se reactiva deep sleep, habrá que revalidar la TFT y el wake por encoder en hardware
 - mantener sincronizados `ROADMAP_PBIT.md`, `Menues.MD` y los manuales cuando cambie el firmware
+- seguir `docs/PRODUCTION_CHECKLIST.md` antes de entregar builds o unidades
 
 ## 17. Documentos relacionados
 
 - `PBIT_FUNCIONAMIENTO_ACTUAL.md`
 - `Menues.MD`
 - `ROADMAP_PBIT.md`
+- `docs/PRODUCTION_CHECKLIST.md`
 - `platformio.ini`
 - `lib/TFT_eSPI/User_Setup.h`

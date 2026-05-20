@@ -7,6 +7,9 @@
 #include "sensor_zone.h"
 #include "settings_store.h"
 #include "runtime_events.h"
+#include "languages.h"
+
+#include <stdio.h>
 
 // Sub-renderer headers (for sz_sync_renderer).
 #include "ui_lab_sensor_cards.h"
@@ -138,28 +141,28 @@ void sz_sync_renderer(bool force) {
 }
 
 const char* sz_sensor_name(SzSensorId id) {
-    switch (id) {
-        case SZ_TEMP:  return "TEMPERATURA";
-        case SZ_HUM:   return "HUMEDAD";
-        case SZ_LIGHT: return "LUZ";
-        case SZ_SOUND: return "SONIDO";
-        case SZ_SOIL:  return "SUELO";
-        case SZ_DS18:  return "TERMOMETRO";
-        default:       return "?";
-    }
+    static const LangKey kFull[SZ_SENSOR_COUNT] = {
+        TIT_TEMP, TIT_HUM, TIT_LIGHT, TIT_SOUND, TIT_SOIL, TIT_THERM
+    };
+    return (id < SZ_SENSOR_COUNT) ? L(kFull[(uint8_t)id]) : "?";
 }
 
 const char* sz_header_name() {
-    static const char* const kShort[SZ_SENSOR_COUNT] = {
-        "TEMP", "HUM", "LUZ", "SONIDO", "SUELO", "TERMO"
+    static const LangKey kShort[SZ_SENSOR_COUNT] = {
+        LAB_TEMP_SHORT,
+        LAB_HUM_SHORT,
+        LAB_LIGHT_SHORT,
+        LAB_SOUND_SHORT,
+        LAB_SOIL_SHORT,
+        LAB_PROBE_SHORT,
     };
     const uint8_t s = (uint8_t)g_sensor;
     switch (g_viz[g_sensor]) {
         case SZ_VIZ_FOCUS: return sz_sensor_name(g_sensor);
-        case SZ_VIZ_CARD:  { static char buf[24]; snprintf(buf, sizeof(buf), "%s CARD",  kShort[s]); return buf; }
-        case SZ_VIZ_VALOR: { static char buf[24]; snprintf(buf, sizeof(buf), "%s LAB",   kShort[s]); return buf; }
-        case SZ_VIZ_GRAPH: { static char buf[24]; snprintf(buf, sizeof(buf), "%s GRAF",  kShort[s]); return buf; }
-        case SZ_VIZ_GAUGE: { static char buf[24]; snprintf(buf, sizeof(buf), "%s DIAL",  kShort[s]); return buf; }
+        case SZ_VIZ_CARD:  { static char buf[32]; snprintf(buf, sizeof(buf), "%s %s", L(kShort[s]), L(SZ_SUFFIX_CARD));  return buf; }
+        case SZ_VIZ_VALOR: { static char buf[32]; snprintf(buf, sizeof(buf), "%s %s", L(kShort[s]), L(SZ_SUFFIX_VALUE)); return buf; }
+        case SZ_VIZ_GRAPH: { static char buf[32]; snprintf(buf, sizeof(buf), "%s %s", L(kShort[s]), L(SZ_SUFFIX_GRAPH)); return buf; }
+        case SZ_VIZ_GAUGE: { static char buf[32]; snprintf(buf, sizeof(buf), "%s %s", L(kShort[s]), L(SZ_SUFFIX_DIAL));  return buf; }
         default:           return sz_sensor_name(g_sensor);
     }
 }

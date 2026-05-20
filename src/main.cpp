@@ -161,20 +161,46 @@ static void failFastOnTaskCreateError(const char* task_name) {
     esp_restart();
 }
 
+static uint32_t firmwareBuildHash() {
+    const char* s = __DATE__ " " __TIME__;
+    uint32_t h = 2166136261u;
+    for (; *s; ++s) h = (h ^ (uint8_t)*s) * 16777619u;
+    return h;
+}
+
 void setup() {
     Serial.begin(SERIAL_BAUD_RATE);
     {
         esp_err_t nvs_ret = nvs_flash_init();
         if (nvs_ret == ESP_ERR_NVS_NO_FREE_PAGES || nvs_ret == ESP_ERR_NVS_NEW_VERSION_FOUND) {
             nvs_flash_erase();
-            nvs_flash_init();
+            nvs_ret = nvs_flash_init();
+        }
+        if (nvs_ret != ESP_OK) {
+            DPRINT("[Boot] ERROR: nvs_flash_init failed: %d\n", (int)nvs_ret);
         }
     }
     g_rtc_boot_counter++;
+
+    // Factory reset guard: wipe NVS before any settings-backed subsystem starts.
+    // This guarantees a newly flashed unit cannot briefly boot BLE/settings from
+    // the previous firmware image.
+    const uint32_t kBuildHash = firmwareBuildHash();
+    const uint32_t stored_stamp = load_fw_build_stamp_store();
+    const bool settings_wiped = (stored_stamp != kBuildHash);
+    if (settings_wiped) {
+        DPRINT("[Boot] New firmware detected (stamp %08X->%08X) -- wiping NVS.\n",
+               stored_stamp, kBuildHash);
+        clear_all_settings_store();
+        save_fw_build_stamp_store(kBuildHash);
+    }
     
     // Module initialization.
     set_devicename();
     init_tft_display();
+    init_leds_and_buzzer();
+    alert_engine_reset();
+    init_hw();
 
     // BLE is factory-disabled. The build-hash reset above clears ble_en on every
     // new flash, so the device always ships with BLE off until unlocked via the
@@ -182,9 +208,6 @@ void setup() {
     if (load_ble_enabled_store()) {
         init_ble();
     }
-    init_leds_and_buzzer();
-    alert_engine_reset();
-    init_hw();
 
     // -----------------------------------------------------------------
     // Wake source handling.
@@ -200,24 +223,6 @@ void setup() {
         reset_reason == ESP_RST_TASK_WDT ||
         reset_reason == ESP_RST_INT_WDT) {
         DPRINTLN("[Boot] WARNING: Previous boot ended abnormally (panic/WDT).");
-    }
-
-    // Factory reset guard: wipe NVS every time a new binary is flashed.
-    // Uses FNV-1a hash of the compile timestamp — unique per build, no manual versioning needed.
-    auto fw_build_hash = []() -> uint32_t {
-        const char* s = __DATE__ " " __TIME__;
-        uint32_t h = 2166136261u;
-        for (; *s; ++s) h = (h ^ (uint8_t)*s) * 16777619u;
-        return h;
-    };
-    const uint32_t kBuildHash = fw_build_hash();
-    const uint32_t stored_stamp = load_fw_build_stamp_store();
-    const bool settings_wiped = (stored_stamp != kBuildHash);
-    if (settings_wiped) {
-        DPRINT("[Boot] New firmware detected (stamp %08X->%08X) -- wiping NVS.\n",
-               stored_stamp, kBuildHash);
-        clear_all_settings_store();
-        save_fw_build_stamp_store(kBuildHash);
     }
 
     switch(wakeup_reason)
