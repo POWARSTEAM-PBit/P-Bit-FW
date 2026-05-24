@@ -58,6 +58,61 @@ extern volatile bool g_timer_just_reset;
 
 namespace {
 
+constexpr uint32_t kUiSensorRefreshMs = 100;
+constexpr uint32_t kUiGraphRefreshMs = 1000;
+constexpr float kVisualSoundDeadband = 2.0f;
+
+static bool is_sound_vu_screen(Screen screen) {
+#if PBIT_ENABLE_GRAPH_LAB
+    return screen == LAB_SOUND_VU_STACK_SCREEN || screen == LAB_SOUND_VU_WAVE_SCREEN;
+#else
+    (void)screen;
+    return false;
+#endif
+}
+
+static bool is_graph_rate_limited_screen(Screen screen) {
+    if (screen == GRAPH_SCREEN) return true;
+#if PBIT_ENABLE_GRAPH_LAB
+    if (screen == LAB_SENSOR_FOCUS_SCREEN) return true;
+    if (screen == SENSOR_ZONE_SCREEN) {
+        const SzVizMode viz = sz_get_viz();
+        return viz == SZ_VIZ_GRAPH || viz == SZ_VIZ_FOCUS;
+    }
+#else
+    (void)screen;
+#endif
+    return false;
+}
+
+static bool valid_number(float value) {
+    return !isnan(value) && isfinite(value);
+}
+
+static void copy_readings_for_ui(bool force, bool raw_mic) {
+    Reading next;
+    portENTER_CRITICAL(&readings_mux);
+    next = global_readings;
+    portEXIT_CRITICAL(&readings_mux);
+
+    static bool initialized = false;
+    if (force || !initialized || raw_mic) {
+        g_ui_readings_snapshot = next;
+        initialized = true;
+        return;
+    }
+
+    if (valid_number(next.mic) && valid_number(g_ui_readings_snapshot.mic)) {
+        const float delta = fabsf(next.mic - g_ui_readings_snapshot.mic);
+        if (delta < kVisualSoundDeadband) {
+            next.mic = g_ui_readings_snapshot.mic;
+        }
+    }
+
+    g_ui_readings_snapshot = next;
+    initialized = true;
+}
+
 static void apply_global_alert_rgb(const GlobalAlertSummary& summary) {
     // Keep the RGB LED off on the light screen so the LED does not skew the LDR.
     if (active_screen == LIGHT_SCREEN) {
@@ -219,8 +274,8 @@ static void render_global_alert_badge() {
 } // namespace
 
 // Animated sleep screen — "Respira" design.
-// Breathing teal orb at center + ZZZ appearing left-to-right on the same baseline.
-// Colors fade from brand blue (z1) through teal (z2) to vivid green (z3).
+// Breathing orb at center + ZZZ centered above it, appearing left-to-right.
+// The orb shifts from green when small to blue as it grows.
 // Called every ~10 ms frame; first_frame=true resets all animation state.
 static void draw_sleep_warning_overlay(bool first_frame) {
     static uint32_t t_start    = 0;
@@ -228,17 +283,20 @@ static void draw_sleep_warning_overlay(bool first_frame) {
     static uint8_t  z_phase    = 0;   // 0=pause, 1=z1 visible, 2=+z2, 3=+z3 hold
     static uint32_t z_phase_ms = 0;
 
-    // Z zone: all three glyphs share Y=26 (MC_DATUM baseline).
-    // Glyph extents (worst-case FONT_BODY ~14 px tall): y≈19..33, x≈46..92.
-    // Clear rect adds 7 px padding on all sides to kill any sub-pixel tail.
-    static constexpr int ZY   = 26;         // shared baseline for all three glyphs
-    static constexpr int ZX1  = 54;         // center-x  z  (FONT_SMALL)
-    static constexpr int ZX2  = 70;         // center-x  Z  (FONT_BODY)
-    static constexpr int ZX3  = 86;         // center-x  Z  (FONT_BODY)
-    static constexpr int ZCX  = 38;         // clear rect left
-    static constexpr int ZCYW = 12;         // clear rect top
-    static constexpr int ZCWW = 62;         // clear rect width  (38..99)
-    static constexpr int ZCHH = 30;         // clear rect height (12..41)
+    // The middle Z is exactly on the orb centerline (x=80).
+    static constexpr int ORB_CX = 80;
+    static constexpr int ORB_CY = 66;
+    static constexpr int ORB_R_MIN = 7;
+    static constexpr int ORB_R_RANGE = 11;
+    static constexpr int ORB_R_CLEAR = ORB_R_MIN + ORB_R_RANGE + 2;
+    static constexpr int ZY   = 33;         // shared vertical center for all three glyphs
+    static constexpr int ZX1  = 62;
+    static constexpr int ZX2  = ORB_CX;
+    static constexpr int ZX3  = 100;
+    static constexpr int ZCX  = 46;         // clear rect left
+    static constexpr int ZCYW = 17;         // clear rect top
+    static constexpr int ZCWW = 70;         // clear rect width  (46..115)
+    static constexpr int ZCHH = 34;         // clear rect height (17..50)
 
     if (first_frame) {
         tft.fillScreen(TFT_BLACK);
@@ -260,17 +318,23 @@ static void draw_sleep_warning_overlay(bool first_frame) {
 
     const uint32_t now = millis();
 
-    // --- Breathing orb (center 80,68, r = 6..16, period 4 s) ---
+    // --- Breathing orb (center 80,66, r = 7..18, period 4 s) ---
     const float t_sec = (float)(now - t_start) / 4000.0f;
-    const int r = 6 + (int)(10.0f * 0.5f * (1.0f + sinf(t_sec * 6.2832f - 1.5708f)));
+    const int r = ORB_R_MIN + (int)((float)ORB_R_RANGE * 0.5f * (1.0f + sinf(t_sec * 6.2832f - 1.5708f)));
     if (r != last_r) {
-        tft.fillCircle(80, 68, 17, TFT_BLACK);                           // erase previous
-        tft.fillCircle(80, 68, r,  tft.color565(0, 80, 110));            // body — teal blue
-        if (r >= 5) tft.fillCircle(80, 68, 3, tft.color565(0, 190, 230)); // core — bright cyan
+        const int grow = constrain(r - ORB_R_MIN, 0, ORB_R_RANGE);
+        const uint8_t red   = (uint8_t)(28 - (grow * 2));
+        const uint8_t green = (uint8_t)(230 - (grow * 12));
+        const uint8_t blue  = (uint8_t)(50 + (grow * 18));
+        tft.fillCircle(ORB_CX, ORB_CY, ORB_R_CLEAR, TFT_BLACK);                // erase previous
+        tft.fillCircle(ORB_CX, ORB_CY, r, tft.color565(red, green, blue));
+        if (r >= 5) {
+            tft.fillCircle(ORB_CX, ORB_CY, 3, tft.color565(80 - (grow * 5), 255 - (grow * 8), 90 + (grow * 14)));
+        }
         last_r = r;
     }
 
-    // --- ZZZ: three glyphs on same baseline, blue → teal → vivid green ---
+    // --- ZZZ: three centered glyphs; the middle one is directly above the orb ---
     const uint32_t age = now - z_phase_ms;
     tft.setTextDatum(MC_DATUM);
     switch (z_phase) {
@@ -279,7 +343,7 @@ static void draw_sleep_warning_overlay(bool first_frame) {
                 tft.fillRect(ZCX, ZCYW, ZCWW, ZCHH, TFT_BLACK);
                 tft.setFreeFont(FONT_SMALL);
                 tft.setTextColor(tft.color565(0, 100, 220), TFT_BLACK);  // brand blue
-                tft.drawString("z", ZX1, ZY);
+                tft.drawString("Z", ZX1, ZY);
                 tft.setTextFont(0);
                 z_phase = 1; z_phase_ms = now;
             }
@@ -295,7 +359,7 @@ static void draw_sleep_warning_overlay(bool first_frame) {
             break;
         case 2:  // z1+z2 visible — wait 700 ms then add z3
             if (age >= 700) {
-                tft.setFreeFont(FONT_BODY);
+                tft.setFreeFont(FONT_TIMER);
                 tft.setTextColor(tft.color565(30, 220, 50), TFT_BLACK);  // vivid green
                 tft.drawString("Z", ZX3, ZY);
                 tft.setTextFont(0);
@@ -382,21 +446,38 @@ void switch_screen(void *param) {
 
         bool force_redraw = runtime_take_ui_full_redraw();
         bool sensor_data_changed = runtime_take_sensor_data_ready();
+        const bool raw_mic_screen = is_sound_vu_screen(active_screen);
+        const bool graph_limited_screen = is_graph_rate_limited_screen(active_screen);
+        static unsigned long last_ui_sensor_update_ms = 0;
+        static unsigned long last_ui_graph_update_ms = 0;
+        const unsigned long now_ms = millis();
+
+        if (sensor_data_changed && !raw_mic_screen) {
+            const uint32_t interval_ms = graph_limited_screen ? kUiGraphRefreshMs : kUiSensorRefreshMs;
+            unsigned long& last_update_ms = graph_limited_screen
+                ? last_ui_graph_update_ms
+                : last_ui_sensor_update_ms;
+            if ((now_ms - last_update_ms) < interval_ms) {
+                sensor_data_changed = false;
+            } else {
+                last_update_ms = now_ms;
+            }
+        }
 
         const unsigned long timer_refresh_ms = timer_display_uses_centiseconds() ? 40UL : 100UL;
-        if (millis() - last_timer_update_ms >= timer_refresh_ms) {
+        if (now_ms - last_timer_update_ms >= timer_refresh_ms) {
             timer_needs_update = true;
-            last_timer_update_ms = millis();
+            last_timer_update_ms = now_ms;
         }
 
-        if (active_screen == SYSTEM_SCREEN && millis() - last_system_update_ms >= 100) {
+        if (active_screen == SYSTEM_SCREEN && now_ms - last_system_update_ms >= 100) {
             system_needs_update = true;
-            last_system_update_ms = millis();
+            last_system_update_ms = now_ms;
         }
 
-        if (active_screen == SOIL_SCREEN && soilCalibrationIsActive() && millis() - last_soil_cal_update_ms >= 180) {
+        if (active_screen == SOIL_SCREEN && soilCalibrationIsActive() && now_ms - last_soil_cal_update_ms >= 180) {
             soil_cal_needs_update = true;
-            last_soil_cal_update_ms = millis();
+            last_soil_cal_update_ms = now_ms;
         }
 
         if (last_drawn != active_screen) {
@@ -426,9 +507,7 @@ void switch_screen(void *param) {
             }
 
             if (sensor_data_changed || screen_changed) {
-                portENTER_CRITICAL(&readings_mux);
-                g_ui_readings_snapshot = global_readings;
-                portEXIT_CRITICAL(&readings_mux);
+                copy_readings_for_ui(screen_changed, raw_mic_screen);
             }
             
             // --- ENRUTADOR DE UI ---

@@ -1,6 +1,6 @@
 # Production Release P-Bit
 
-Actualizado: 2026-05-20
+Actualizado: 2026-05-24
 
 ## Build Local
 
@@ -56,6 +56,7 @@ Confirmado por lectura de código:
 - BLE sale factory-off: `ble_en` carga `false`, `init_ble()` es condicional y el reset por build-hash limpia NVS antes de evaluar BLE en una build nueva.
 - LDR entrega lux en rango `0..20000`, conserva `ldr_raw` y soporta modo visible `Raw ADC`.
 - Sensor Zone centraliza los seis sensores y sus modos visuales persistidos.
+- `Sistema` separa `Bip` (`sys_sound`) y `Alarmas` (`sys_alarm`) con persistencia independiente.
 - Fixes anti-flicker presentes en dials/gauges, cards, menús/footers y `Sound VU`.
 
 ## Artefactos De Release
@@ -81,8 +82,11 @@ Después de flashear una unidad:
 - [ ] Confirmar selector de idioma en primer arranque si la build limpió NVS.
 - [ ] Confirmar BLE apagado por defecto y sin publicidad `PBIT-XXXX`.
 - [ ] Recorrer carrusel completo y probar una pulsación corta/larga en un sensor.
-- [ ] Verificar lecturas plausibles de DHT11, LDR, micrófono, suelo y DS18B20.
+- [ ] Verificar lecturas plausibles de DHT11, LDR, micrófono, suelo y Termómetro (`DS18B20`).
+- [ ] Verificar que `Bip OFF` silencia beeps de UI y que `Alarmas OFF` silencia alertas/timer audibles.
 - [ ] Verificar que LDR responde a sombra/luz y que el modo `Raw ADC` muestra lectura cruda.
+- [ ] Verificar que el icono de luz cambia con varias etapas visibles en `0..1000 lux`.
+- [ ] Revisar icono DS18B20 en hardware; no tratarlo como identidad final hasta aprobarlo visualmente.
 - [ ] Confirmar que `Sound VU`, cards y dials no presentan flicker visible en uso normal.
 - [ ] Dejar 30 minutos en reposo visible y confirmar que despierta con el encoder.
 - [ ] Para lote piloto, hacer prueba de 24 h con BLE apagado y otra con BLE activado.

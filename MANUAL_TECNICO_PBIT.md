@@ -1,6 +1,6 @@
 # Manual Técnico del P-Bit
 
-Actualizado: 2026-05-20
+Actualizado: 2026-05-24
 
 Este documento describe el estado técnico actual del P-Bit a partir del firmware y la configuración presentes en este repositorio. Está pensado como base de entrenamiento para desarrollo, integración, soporte, mantenimiento y despliegue educativo.
 
@@ -15,6 +15,7 @@ El P-Bit es un dispositivo educativo ambiental basado en ESP32 que integra senso
 - persistencia de configuración en NVS
 - conectividad BLE opcional, oculta y desactivada por defecto
 - modos de ahorro de energía con reposo visible con `ZZZ`
+- control global separado de `Bip` y `Alarmas`
 
 Estado de revisión de producción/i18n:
 
@@ -273,7 +274,9 @@ Protecciones:
 
 Orden real del carrusel actual con `PBIT_ENABLE_GRAPH_LAB=1` (12 posiciones, circular):
 
-`HOME -> CLIMA -> MULTI -> SONIDO VU -> TEMPERATURA -> HUMEDAD -> LUZ -> SONIDO -> SUELO -> DS18B20 -> TIMER -> SISTEMA`
+`HOME -> CLIMA -> MULTI -> SONIDO VU -> TEMPERATURA -> HUMEDAD -> LUZ -> SONIDO -> SUELO -> TERMÓMETRO -> TIMER -> SISTEMA`
+
+Nota de nomenclatura: `TERMÓMETRO` es el título visible de la sonda externa; `DS18B20`, `DS18B20_SCREEN` y `SZ_DS18` se conservan como identificadores técnicos de firmware/hardware.
 
 Implementación:
 
@@ -295,7 +298,7 @@ Si `PBIT_ENABLE_GRAPH_LAB` se compila a `0`, el carrusel cae al rango clásico `
 - Luz (`SZ_LIGHT`)
 - Sonido (`SZ_SOUND`)
 - Suelo (`SZ_SOIL`)
-- DS18B20 (`SZ_DS18`)
+- Termómetro / DS18B20 (`SZ_DS18`)
 
 Cada sensor conserva su modo visual persistido (`sz_v0` .. `sz_v5`) y `sz_sync_renderer(...)` sincroniza el sub-renderer activo solo cuando cambia pantalla, sensor o modo. Esta arquitectura evita invalidar caches en cada tick de lectura y reduce flicker en dials, cards, gráficas y vistas de valor.
 
@@ -347,7 +350,7 @@ Nivel de sonido ambiental en barras apiladas. Solo lectura; no tiene menú.
 
 - en carrusel actual: slot de `SENSOR_ZONE_SCREEN` con sensor `SZ_TEMP`
 - pulsación corta: alterna modo de visualización
-- la unidad `C/F` es global y compartida con `DS18B20`
+- la unidad `C/F` es global y compartida con `Termómetro` (`DS18B20` técnico)
 - menú `Límites / Unidad / Alertas / Reset / Salir`
 
 #### Humedad del aire
@@ -378,16 +381,20 @@ Nivel de sonido ambiental en barras apiladas. Solo lectura; no tiene menú.
 - menú `Calibrar sensor / Editar umbrales / Alertas / Reset / Salir`
 - clasificación actual: `Seco`, `Óptimo`, `Húmedo`, `Muy húmedo`
 
-#### DS18B20
+#### Termómetro / DS18B20
 
-- en carrusel actual: slot de `SENSOR_ZONE_SCREEN` con sensor `SZ_DS18`
+- en carrusel actual: slot visible `Termómetro` de `SENSOR_ZONE_SCREEN` con sensor técnico `SZ_DS18`
 - pulsación corta: alterna modo de visualización
 - la unidad `C/F` es global y compartida con `Temperatura DHT`
 - menú `Calibración / Unidad / Alertas / Reset / Salir`
 
 #### Sistema
 
-- menú `Sonido / Reposo / Idioma / Reset / Salir`
+- menú `Bip / Alarmas / Reposo / Idioma / Reset / Salir`
+- pantalla principal con card general y panels internos: `ID`, `Tiempo`, `Idioma`, audio y BLE solo si `ble_en == true`
+- menú raíz renderizado como grid 2×3 para evitar solapes en ST7735 160×128
+- `Bip` controla `g_sound_enabled` / NVS `sys_sound`: beeps de UI, confirmaciones y navegación.
+- `Alarmas` controla `g_alarm_sound_enabled` / NVS `sys_alarm`: audio de alertas y final de cuenta regresiva del `Timer`.
 
 #### Timer
 
@@ -404,7 +411,7 @@ Nivel de sonido ambiental en barras apiladas. Solo lectura; no tiene menú.
 - short press alterna entre seleccionar campo y editar valor
 - long press en modo selección confirma y guarda la nueva duración
 - en runtime, la duración objetivo solo se dibuja en la banda inferior cuando hay cuenta regresiva
-- al terminar una cuenta regresiva, la UI pasa a rojo y dispara una alarma intermitente corta si el sonido global está activo
+- al terminar una cuenta regresiva, la UI pasa a rojo y dispara una alarma intermitente corta si `Alarmas` está activo
 
 #### Modo Gráfica (`SZ_VIZ_GRAPH` / `GRAPH_SCREEN`)
 
@@ -475,7 +482,8 @@ Namespace utilizado:
 #### Sistema
 
 - `sys_sleep`
-- `sys_sound`
+- `sys_sound` (bool, default `true`) — `Bip`: beeps de interfaz, navegación y confirmaciones
+- `sys_alarm` (bool, default `true`) — `Alarmas`: audio de alertas de sensores y final del `Timer`
 
 #### Sensor zone
 
@@ -666,6 +674,13 @@ Canales de feedback actualmente presentes:
 - color en pantalla
 - LED RGB
 - buzzer
+
+El buzzer tiene dos permisos globales independientes:
+
+- `Bip` (`g_sound_enabled`, NVS `sys_sound`) habilita sonidos de interacción: clicks de encoder, confirmaciones y beeps de menú.
+- `Alarmas` (`g_alarm_sound_enabled`, NVS `sys_alarm`) habilita sonidos automáticos de alerta y el aviso audible del `Timer`.
+
+`AlertEngine` recibe el estado de `Alarmas` desde `sensor_reading_task`, por lo que desactivar `Bip` no silencia alertas ni el final del temporizador. Desactivar `Alarmas` mantiene colores, LED RGB y UI, pero evita audio automático.
 
 Ejemplos:
 

@@ -169,17 +169,23 @@ void save_light_alerts_enabled_store(bool enabled) {
     prefs.prefs.putBool("lgt_aen", enabled);
 }
 
-SystemSettings load_system_settings_store(uint32_t default_sleep_timeout_ms, bool default_sound_enabled) {
+SystemSettings load_system_settings_store(uint32_t default_sleep_timeout_ms, bool default_sound_enabled, bool default_alarm_sound_enabled) {
     ScopedPrefs prefs(true);
     return {
         prefs.prefs.getUInt("sys_sleep", default_sleep_timeout_ms),
         prefs.prefs.getBool("sys_sound", default_sound_enabled),
+        prefs.prefs.getBool("sys_alarm", default_alarm_sound_enabled),
     };
 }
 
 void save_system_sound_enabled_store(bool enabled) {
     ScopedPrefs prefs(false);
     prefs.prefs.putBool("sys_sound", enabled);
+}
+
+void save_system_alarm_sound_enabled_store(bool enabled) {
+    ScopedPrefs prefs(false);
+    prefs.prefs.putBool("sys_alarm", enabled);
 }
 
 void save_system_sleep_timeout_store(uint32_t timeout_ms) {

@@ -215,12 +215,7 @@ static uint16_t graph_band_label_color(GraphSensor sensor) {
 }
 
 static uint16_t graph_border_color(GraphSensor sensor) {
-    // ~55% of P1 — vivid sensor border without competing with the data line
-    const uint16_t p1 = pb_primary((uint8_t)sensor);
-    const uint8_t r = (uint8_t)(((p1 >> 11) & 0x1F) * 14 / 25);
-    const uint8_t g = (uint8_t)(((p1 >> 5)  & 0x3F) * 14 / 25);
-    const uint8_t b = (uint8_t)((p1         & 0x1F) * 14 / 25);
-    return (uint16_t)((r << 11) | (g << 5) | b);
+    return pb_primary((uint8_t)sensor);
 }
 
 static uint16_t graph_max_label_color(GraphSensor sensor) {
@@ -446,8 +441,4 @@ void draw_graph_screen(bool screen_changed, bool sensor_data_changed) {
         }
     }
 
-    if (need_full) {
-        tft.fillRect(0, 112, tft.width(), 16, TFT_BLACK);
-        drawFooterHint(L(GRAPH_PUSH_SENSOR), 80, LG_HINT_Y, TFT_DARKGREY);
-    }
 }

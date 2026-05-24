@@ -38,6 +38,11 @@ constexpr int TEMP_INFO_CARD_X = LC_SCREEN_X;
 constexpr int TEMP_INFO_CARD_Y = LC_CARD_TOP;
 constexpr int TEMP_INFO_CARD_W = 112;
 constexpr int TEMP_INFO_CARD_H = 84;
+constexpr int TEMP_CARD_PAD = 4;
+constexpr int TEMP_CARD_HINT_Y = TEMP_INFO_CARD_Y + 12;
+constexpr int TEMP_CARD_VALUE_Y = TEMP_INFO_CARD_Y + 18;
+constexpr int TEMP_CARD_VALUE_CLEAR_Y = TEMP_CARD_VALUE_Y;
+constexpr int TEMP_CARD_VALUE_CLEAR_H = 50;
 
 static uint16_t temp_info_card_bg() {
     return tft.color565(8, 12, 18);
@@ -47,6 +52,30 @@ static void draw_temp_info_card(uint16_t border_color) {
     const uint16_t bg = temp_info_card_bg();
     tft.fillRoundRect(TEMP_INFO_CARD_X, TEMP_INFO_CARD_Y, TEMP_INFO_CARD_W, TEMP_INFO_CARD_H, 5, bg);
     tft.drawRoundRect(TEMP_INFO_CARD_X, TEMP_INFO_CARD_Y, TEMP_INFO_CARD_W, TEMP_INFO_CARD_H, 5, border_color);
+}
+
+static void clear_temp_card_hint() {
+    tft.fillRect(TEMP_INFO_CARD_X + TEMP_CARD_PAD,
+                 TEMP_CARD_HINT_Y - 8,
+                 TEMP_INFO_CARD_W - (TEMP_CARD_PAD * 2),
+                 14,
+                 temp_info_card_bg());
+}
+
+static void clear_temp_card_value() {
+    tft.fillRect(TEMP_INFO_CARD_X + TEMP_CARD_PAD,
+                 TEMP_CARD_VALUE_CLEAR_Y,
+                 TEMP_INFO_CARD_W - (TEMP_CARD_PAD * 2),
+                 TEMP_CARD_VALUE_CLEAR_H,
+                 temp_info_card_bg());
+}
+
+static void clear_temp_card_category() {
+    tft.fillRect(TEMP_INFO_CARD_X + TEMP_CARD_PAD,
+                 LA_CATEGORY_Y - 10,
+                 TEMP_INFO_CARD_W - (TEMP_CARD_PAD * 2),
+                 16,
+                 temp_info_card_bg());
 }
 
 static float to_display(float temp_c) {
@@ -482,42 +511,46 @@ void draw_temp_screen(bool screen_changed, bool data_changed) {
         }
         apply_temp_rgb(alert_state);
 
-        tft.fillRect(0, LA_HINT_Y - 4, LEFT_PANEL_W, 72, TFT_BLACK);
-        const int category_clear_x = L_ALERT_JEWEL_X + 10;
-        tft.fillRect(category_clear_x, LA_CATEGORY_Y - 10, LEFT_PANEL_W - category_clear_x, 28, TFT_BLACK);
+        tft.fillRect(0, LA_HINT_Y - 4, LEFT_PANEL_W, 18, TFT_BLACK);
         draw_temp_info_card(no_dht ? TFT_DARKGREY : temp_color);
     }
 
+    clear_temp_card_value();
     if (no_dht) {
+        clear_temp_card_hint();
         tft.setTextDatum(TC_DATUM);
         tft.setFreeFont(FONT_SMALL);
-        tft.setTextColor(TFT_RED, TFT_BLACK);
-        tft.drawString(L(ST_NO_SENSOR), LA_LEFT_CX, TEMP_INFO_CARD_Y + 12);
+        tft.setTextColor(TFT_RED, temp_info_card_bg());
+        tft.drawString(L(ST_NO_SENSOR), LA_LEFT_CX, TEMP_CARD_HINT_Y);
         tft.setTextFont(0);
 
         tft.setTextDatum(TC_DATUM);
         tft.setFreeFont(FONT_VALUE);
-        tft.setTextColor(TFT_DARKGREY, TFT_BLACK);
-        tft.drawString("---", LA_LEFT_CX, TEMP_INFO_CARD_Y + 18);
+        tft.setTextColor(TFT_DARKGREY, temp_info_card_bg());
+        tft.drawString("---", LA_LEFT_CX, TEMP_CARD_VALUE_Y);
         tft.setTextFont(0);
 
         drawFillTank(LA_TANK_X, LA_TANK_Y, LA_TANK_W, LA_TANK_H, TFT_DARKGREY, 0.0f, 0.0f, 50.0f, 3);
         tft.drawRoundRect(LA_TANK_X, LA_TANK_Y, LA_TANK_W, LA_TANK_H, 3, TFT_DARKGREY);
     } else {
         const char* instruction_text = g_is_fahrenheit ? L(INSTR_C) : L(INSTR_F);
+        clear_temp_card_hint();
         tft.setTextDatum(TC_DATUM);
         tft.setFreeFont(FONT_SMALL);
-        tft.setTextColor(TFT_DARKGREY, TFT_BLACK);
-        tft.drawString(instruction_text, LA_LEFT_CX, TEMP_INFO_CARD_Y + 12);
+        tft.setTextColor(TFT_DARKGREY, temp_info_card_bg());
+        tft.drawString(instruction_text, LA_LEFT_CX, TEMP_CARD_HINT_Y);
         tft.setTextFont(0);
 
-        drawSplitDecimalValue(to_display(temp_c), LA_LEFT_CX, TEMP_INFO_CARD_Y + 18, temp_color, temp_info_card_bg());
+        drawSplitDecimalValue(to_display(temp_c), LA_LEFT_CX, TEMP_CARD_VALUE_Y, temp_color, temp_info_card_bg());
 
-        tft.setFreeFont(FONT_BODY);
-        tft.setTextDatum(TC_DATUM);
-        tft.setTextColor(alert_state == ALERT_CODE_OK ? TFT_LIGHTGREY : label_color, TFT_BLACK);
-        tft.drawString(unit_name(), LA_LEFT_CX, LA_CATEGORY_Y);
-        tft.setTextFont(0);
+        if (meta_dirty) {
+            clear_temp_card_category();
+            tft.setFreeFont(FONT_BODY);
+            tft.setTextDatum(TC_DATUM);
+            tft.setTextColor(alert_state == ALERT_CODE_OK ? TFT_LIGHTGREY : label_color, temp_info_card_bg());
+            tft.drawString(unit_name(), LA_LEFT_CX, LA_CATEGORY_Y);
+            tft.setTextFont(0);
+        }
 
         drawFillTank(LA_TANK_X, LA_TANK_Y, LA_TANK_W, LA_TANK_H, temp_color, temp_c, 0.0f, 50.0f, 3);
         tft.drawRoundRect(LA_TANK_X, LA_TANK_Y, LA_TANK_W, LA_TANK_H, 3, temp_color);

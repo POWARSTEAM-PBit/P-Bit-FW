@@ -239,6 +239,7 @@ static void configure_system_ui_rotary_bounds() {
     SysMenuState state = get_system_menu_state();
     bool circular = (state == SYS_MODE_MENU
                   || state == SYS_MODE_EDIT_SOUND
+                  || state == SYS_MODE_EDIT_ALARM_SOUND
                   || state == SYS_MODE_EDIT_SLEEP
                   || state == SYS_MODE_EDIT_LANG
                   || state == SYS_MODE_CONFIRM_RESET);

@@ -24,6 +24,11 @@ constexpr int HUM_INFO_CARD_X = 10;
 constexpr int HUM_INFO_CARD_Y = 36;
 constexpr int HUM_INFO_CARD_W = 96;
 constexpr int HUM_INFO_CARD_H = 62;
+constexpr int HUM_CARD_PAD = 4;
+constexpr int HUM_CARD_VALUE_CLEAR_Y = HUM_INFO_CARD_Y + 22;
+constexpr int HUM_CARD_VALUE_CLEAR_H = 30;
+constexpr int HUM_CARD_STATUS_CLEAR_Y = HUM_INFO_CARD_Y + 52;
+constexpr int HUM_CARD_STATUS_CLEAR_H = HUM_INFO_CARD_H - 52;
 
 static uint16_t hum_info_card_bg() {
     return tft.color565(8, 12, 18);
@@ -44,6 +49,12 @@ static void draw_hum_card_title(const char* text) {
 }
 
 static void draw_hum_card_value(bool valid, const char* value_text, const char* unit_text, uint16_t value_color) {
+    tft.fillRect(HUM_INFO_CARD_X + HUM_CARD_PAD,
+                 HUM_CARD_VALUE_CLEAR_Y,
+                 HUM_INFO_CARD_W - (HUM_CARD_PAD * 2),
+                 HUM_CARD_VALUE_CLEAR_H,
+                 hum_info_card_bg());
+
     tft.setTextDatum(TC_DATUM);
     tft.setFreeFont(FONT_TIMER);
     tft.setTextColor(valid ? value_color : TFT_DARKGREY, hum_info_card_bg());
@@ -58,6 +69,12 @@ static void draw_hum_card_value(bool valid, const char* value_text, const char* 
 }
 
 static void draw_hum_card_status(const char* text, uint16_t color) {
+    tft.fillRect(HUM_INFO_CARD_X + HUM_CARD_PAD,
+                 HUM_CARD_STATUS_CLEAR_Y,
+                 HUM_INFO_CARD_W - (HUM_CARD_PAD * 2),
+                 HUM_CARD_STATUS_CLEAR_H,
+                 hum_info_card_bg());
+
     tft.setTextDatum(TC_DATUM);
     tft.setFreeFont(FONT_SMALL);
     tft.setTextColor(color, hum_info_card_bg());
@@ -420,21 +437,30 @@ void draw_humidity_screen(bool screen_changed, bool data_changed) {
         && hum_cache == last_hum_drawn
         && status_id == last_status_id
         && alert_state == last_alert_state
+        && no_dht_h == last_no_sensor
         && alerts_enabled == last_alerts_enabled) return;
 
-    bool meta_dirty = screen_changed
+    const bool shell_dirty = screen_changed
         || alert_state != last_alert_state
-        || no_dht_h != last_no_sensor
-        || alerts_enabled != last_alerts_enabled;
+        || no_dht_h != last_no_sensor;
+    const bool rgb_dirty = screen_changed
+        || alert_state != last_alert_state;
+    const bool value_dirty = shell_dirty
+        || hum_cache != last_hum_drawn;
+    const bool status_dirty = shell_dirty
+        || status_id != last_status_id;
 
-    if (meta_dirty) {
+    if (shell_dirty || rgb_dirty) {
         if (screen_changed) {
             tft.fillScreen(BACKGROUND_COLOR);
             drawHeader(L(TIT_HUM));
         }
-        apply_humidity_rgb(alert_state);
-        last_alert_state = alert_state;
+        if (rgb_dirty) {
+            apply_humidity_rgb(alert_state);
+        }
+    }
 
+    if (shell_dirty) {
         tft.fillRect(0, LA_HINT_Y - 4, LEFT_PANEL_W, 72, BACKGROUND_COLOR);
         draw_hum_info_card((alert_state == ALERT_CODE_HIGH) ? TFT_RED
                            : (alert_state == ALERT_CODE_LOW) ? TFT_ORANGE
@@ -443,18 +469,26 @@ void draw_humidity_screen(bool screen_changed, bool data_changed) {
     }
 
     if (no_dht_h) {
-        drawFillTank(LA_TANK_X, LA_TANK_Y, LA_TANK_W, LA_TANK_H, HUMIDITY_COLOR, 0.0f, 0.0f, 100.0f, 3);
-        tft.drawRoundRect(LA_TANK_X, LA_TANK_Y, LA_TANK_W, LA_TANK_H, 3, TFT_DARKGREY);
-        draw_hum_card_value(false, "---", "%", TFT_DARKGREY);
-        draw_hum_card_status(L(ST_NO_SENSOR), TFT_RED);
+        if (value_dirty) {
+            drawFillTank(LA_TANK_X, LA_TANK_Y, LA_TANK_W, LA_TANK_H, HUMIDITY_COLOR, 0.0f, 0.0f, 100.0f, 3);
+            tft.drawRoundRect(LA_TANK_X, LA_TANK_Y, LA_TANK_W, LA_TANK_H, 3, TFT_DARKGREY);
+            draw_hum_card_value(false, "---", "%", TFT_DARKGREY);
+        }
+        if (status_dirty) {
+            draw_hum_card_status(L(ST_NO_SENSOR), TFT_RED);
+        }
     } else {
-        drawFillTank(LA_TANK_X, LA_TANK_Y, LA_TANK_W, LA_TANK_H, tankFillColor, hum, 0.0f, 100.0f, 3);
-        tft.drawRoundRect(LA_TANK_X, LA_TANK_Y, LA_TANK_W, LA_TANK_H, 3, tankBorderColor);
+        if (value_dirty) {
+            drawFillTank(LA_TANK_X, LA_TANK_Y, LA_TANK_W, LA_TANK_H, tankFillColor, hum, 0.0f, 100.0f, 3);
+            tft.drawRoundRect(LA_TANK_X, LA_TANK_Y, LA_TANK_W, LA_TANK_H, 3, tankBorderColor);
 
-        char humStr[6];
-        snprintf(humStr, sizeof(humStr), "%.0f", hum);
-        draw_hum_card_value(true, humStr, "%", valueColor);
-        draw_hum_card_status(statusText, statusColor);
+            char humStr[6];
+            snprintf(humStr, sizeof(humStr), "%.0f", hum);
+            draw_hum_card_value(true, humStr, "%", valueColor);
+        }
+        if (status_dirty) {
+            draw_hum_card_status(statusText, statusColor);
+        }
     }
 
     static uint8_t last_jewel_code = 255;
@@ -469,6 +503,7 @@ void draw_humidity_screen(bool screen_changed, bool data_changed) {
 
     last_hum_drawn = hum_cache;
     last_status_id = status_id;
+    last_alert_state = alert_state;
     last_no_sensor = no_dht_h;
     last_alerts_enabled = alerts_enabled;
 }

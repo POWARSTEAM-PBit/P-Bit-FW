@@ -1,6 +1,6 @@
 # Checklist de Producción P-Bit
 
-Actualizado: 2026-05-20
+Actualizado: 2026-05-24
 
 Usar esta lista antes de entregar una build o una unidad flasheada.
 
@@ -21,13 +21,15 @@ Estado de esta revisión: build y auditoría estática completados; pruebas con 
 - [x] `LANG_COUNT`, `LIn(...)`, `normalizeLanguage(...)` y `L(...)` presentes en la capa de idioma.
 - [x] Cambio de idioma solicita full redraw con `runtime_request_ui_full_redraw()` y el loop de UI lo consume con `runtime_take_ui_full_redraw()`.
 - [x] Textos visibles migrados a `L(...)`/`LIn(...)`; literales directos restantes son símbolos/no lingüísticos (`>`, `---`, separadores, ticks numéricos o `ZZZ`).
-- [x] Carrusel actual con `PBIT_ENABLE_GRAPH_LAB=1`: `Home -> Clima -> Multi -> Sonido VU -> Temperatura -> Humedad -> Luz -> Sonido -> Suelo -> DS18B20 -> Timer -> Sistema`.
+- [x] Carrusel actual con `PBIT_ENABLE_GRAPH_LAB=1`: `Home -> Clima -> Multi -> Sonido VU -> Temperatura -> Humedad -> Luz -> Sonido -> Suelo -> Termómetro -> Timer -> Sistema`.
 - [x] `SENSOR_ZONE_SCREEN` reutiliza Sensor Zone para los seis sensores y persiste modos `Focus -> Valor -> Gráfica -> Dial -> Card`.
+- [x] `Sistema` separa `Bip` y `Alarmas`; la auditoría estática confirma persistencia `sys_sound` y `sys_alarm`.
 - [x] Anti-flicker revisado por código en dials/gauges, cards, menús/footers y `Sound VU`.
 - [ ] En hardware: arranque frío muestra selector de idioma si la NVS fue limpiada.
 - [ ] En hardware: recorrer carrusel completo y verificar legibilidad de todos los modos.
 - [ ] En hardware: en cada sensor, pulsación corta cambia modo y pulsación larga abre el menú del sensor activo.
 - [ ] En hardware: `Timer` responde a corto/largo según diseño.
+- [ ] En hardware: `Sistema > Bip` silencia beeps de UI sin silenciar `Alarmas`; `Sistema > Alarmas` silencia alertas/timer audibles sin ocultar alertas visuales/RGB.
 - [ ] En hardware: reposo visible con `ZZZ`; despierta con interacción del encoder.
 
 ## 3. BLE
@@ -47,10 +49,12 @@ Estado de esta revisión: build y auditoría estática completados; pruebas con 
 - [x] LDR revisado por código: lux limitado a `0..20000`, saturación alta a `20000`, `ldr_raw` disponible y modo `Raw ADC`.
 - [ ] DHT11 muestra temperatura y humedad plausibles.
 - [ ] LDR responde a sombra/luz; el RGB permanece apagado en la vista de luz.
+- [ ] LDR muestra variación visible del icono de luz en el tramo bajo `0..1000 lux`.
 - [ ] Micrófono responde en `Sonido VU` y `Sonido`.
 - [ ] Suelo detecta ausencia de sensor y permite calibración seco/agua.
-- [ ] DS18B20 detecta ausencia/presencia de sonda.
-- [ ] Alertas visuales, RGB y sonido se prueban al menos en un sensor crítico.
+- [ ] Termómetro (`DS18B20`) detecta ausencia/presencia de sonda.
+- [ ] Icono del Termómetro/DS18B20 revisado en hardware; estado actual no final.
+- [ ] Alertas visuales, RGB y audio de `Alarmas` se prueban al menos en un sensor crítico.
 
 ## 5. Entrega y repo hygiene
 

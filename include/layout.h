@@ -57,22 +57,30 @@ constexpr int LB_BAR_H      = 14;   // Height of the horizontal bar.
 constexpr int LB_CATEGORY_Y = 114;  // Category label baseline below the bar.
 
 // ── Timer ────────────────────────────────────────────────
-constexpr int LT_HINT_Y     = 34;   // Instruction baseline above the timer card.
-constexpr int LT_HINT_CLEAR_Y = 30;  // Clear band for the timer hint.
-constexpr int LT_HINT_CLEAR_H = 18;  // Height of the timer hint clear band.
-constexpr int LT_CARD_X     = 16;   // Left X coordinate of the timer card.
-constexpr int LT_CARD_Y     = 53;   // Top Y coordinate of the timer card.
-constexpr int LT_CARD_W     = 128;  // Width of the timer card.
-constexpr int LT_CARD_H     = 56;   // Height of the timer card.
-constexpr int LT_STATE_Y    = 64;   // State label baseline inside the card.
-constexpr int LT_TIME_Y     = 87;   // Large time baseline inside the card.
-constexpr int LT_TIME_SPRITE_X = LT_CARD_X + 3;   // Left X where the timer sprite is pushed.
-constexpr int LT_TIME_SPRITE_Y = LT_TIME_Y - 14;  // Top Y where the timer sprite is pushed.
-constexpr int LT_TIME_SPRITE_W = LT_CARD_W - 6;   // Sprite width used for the big timer digits.
-constexpr int LT_TIME_SPRITE_H = 28;              // Sprite height used for the big timer digits.
-constexpr int LT_TARGET_CLEAR_Y = 110; // Clear band for the configured duration label.
-constexpr int LT_TARGET_CLEAR_H = 14;  // Height of the duration clear band.
-constexpr int LT_TARGET_Y = 120;       // Baseline for the configured duration below the card.
+constexpr int LT_HINT_Y     = 101; // Instruction top inside the timer card.
+constexpr int LT_HINT_CLEAR_Y = 97;
+constexpr int LT_HINT_CLEAR_H = 22;
+constexpr int LT_CARD_X     = 2;
+constexpr int LT_CARD_Y     = 27;
+constexpr int LT_CARD_W     = 156;
+constexpr int LT_CARD_H     = 100;
+constexpr int LT_TIMER_MENU_TITLE_Y = LT_CARD_Y + 7;
+constexpr int LT_TIMER_MENU_VALUE_Y = LT_CARD_Y + 33;
+constexpr int LT_TIMER_MENU_HINT_Y1 = 95;
+constexpr int LT_TIMER_MENU_HINT_Y2 = 108;
+constexpr int LT_STATUS_TEXT_Y = LT_CARD_Y + 8;
+constexpr int LT_DIGIT_CARD_X = LT_CARD_X + 13;
+constexpr int LT_DIGIT_CARD_Y = LT_CARD_Y + 29;
+constexpr int LT_DIGIT_CARD_W = LT_CARD_W - 26;
+constexpr int LT_DIGIT_CARD_H = 38;
+constexpr int LT_TIMER_MENU_DIGIT_CARD_X = LT_DIGIT_CARD_X + 2;
+constexpr int LT_TIMER_MENU_DIGIT_CARD_Y = LT_DIGIT_CARD_Y - 1;
+constexpr int LT_TIMER_MENU_DIGIT_CARD_W = LT_DIGIT_CARD_W - 4;
+constexpr int LT_TIMER_MENU_DIGIT_CARD_H = LT_DIGIT_CARD_H;
+constexpr int LT_TIME_SPRITE_X = LT_DIGIT_CARD_X + 2;
+constexpr int LT_TIME_SPRITE_Y = LT_DIGIT_CARD_Y + 2;
+constexpr int LT_TIME_SPRITE_W = LT_DIGIT_CARD_W - 4;
+constexpr int LT_TIME_SPRITE_H = 28;
 
 // ── Graph screen ─────────────────────────────────────────
 // The graph area has a 1-px border; LG_GRAPH_W/H refer to the interior (sprite size).
@@ -82,7 +90,7 @@ constexpr int LG_SENSOR_Y  = 27;   // Sensor name/value band top Y (between head
 constexpr int LG_GRAPH_X   = 2;    // Left edge of the outer border rect.
 constexpr int LG_GRAPH_Y   = 46;   // Top edge of the outer border rect.
 constexpr int LG_GRAPH_W   = 154;  // Interior width  (== sprite width,  samples visible).
-constexpr int LG_GRAPH_H   = 64;   // Interior height (== sprite height).
+constexpr int LG_GRAPH_H   = 78;   // Interior height (== sprite height).
 constexpr int LG_HINT_Y    = 120;  // Footer hint baseline.
 
 // ── System Info ──────────────────────────────────────────

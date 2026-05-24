@@ -263,17 +263,17 @@ Estado 2026-05-20: el riesgo principal que queda visible en código es el canal 
 
 ### `pbit_draw_probe_icon` — Sonda DS18B20
 
-**Construcción actual:** cuerpo horizontal 9×5 + conector derecho 4×3 + cable en diagonal hacia la izquierda.
+**Construcción actual:** módulo compacto con nodo superior, cuerpo corto y cable recto inferior en `src/ui_icons.cpp`.
 
 **Problema histórico:** la orientación horizontal con conector y cable diagonal hacía que leyera como relé eléctrico, bloque de terminales o conector, no como sonda de temperatura.
 
-**Estado actual:** rediseñado como cápsula vertical con cable superior en `src/ui_icons.cpp`. Validar en hardware si necesita punta más marcada.
+**Estado actual:** no final. La versión aplicada evita la silueta cilíndrica problemática, pero el equipo no la considera todavía una identidad visual aprobada. Pendiente rediseñar/probar otra metáfora de sonda externa antes de producción final.
 
 ---
 
 ### Iconos grandes (`_xl` en `ui_icons.cpp`)
 
-Replican los mismos diseños con factor `s=3` para el centro del gauge. Problemas históricos ya cerrados: gota sin donut, sonda vertical y planta con hojas redondeadas. Pendiente: validar termómetro sobre navy y proporciones del micrófono XL en hardware.
+Replican los mismos diseños con factor `s=3` para el centro del gauge. Problemas históricos ya cerrados: gota sin donut y planta con hojas redondeadas. Pendiente: cerrar el icono DS18B20 final, validar termómetro sobre navy y proporciones del micrófono XL en hardware.
 
 ---
 
@@ -288,7 +288,7 @@ Cambios a aplicar:
 
 Estado actual: aplicado como silueta sólida; queda validación visual en hardware.
 
-### DS18 — sonda vertical (aplicado parcialmente)
+### DS18 — sonda externa (no final)
 
 ```
 Cuerpo cilíndrico vertical + punta metálica hacia abajo + conector corto arriba
@@ -301,7 +301,7 @@ Versión pequeña:
 Versión large/xxl: escalar proporcionalmente
 ```
 
-Estado actual: la orientación vertical/cápsula ya está aplicada. La punta triangular explícita no está en el código actual; añadirla solo si la validación en hardware muestra que la cápsula no se reconoce como sonda.
+Estado actual: la orientación vertical/cápsula fue descartada por lectura ambigua en hardware. La versión actual usa un módulo compacto con nodo y cable recto, pero sigue marcada como no final.
 
 ### SOIL/PLANT — hojas redondeadas (aplicado)
 
@@ -389,7 +389,7 @@ Ver también `ANALISIS_PANTALLAS_EXPERIMENTALES_PBIT.md` sección 8 y `LAB_GRAPH
 
 ### Iconos — decisiones abiertas
 
-- [x] Rediseño de DS18 como sonda vertical/cápsula.
+- [ ] Rediseño final de DS18B20 aprobado en hardware.
 - [x] Rediseño de HUM como gota limpia sin donut.
 - [x] Mejora de SOIL con hojas redondeadas.
 - [ ] Corrección de proporciones de SOUND (base horizontal) solo si hardware lo pide.

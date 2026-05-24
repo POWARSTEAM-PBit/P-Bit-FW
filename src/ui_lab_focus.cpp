@@ -139,8 +139,8 @@ static uint16_t graph_line_color(LabFocusSensor sensor) {
 static const char* sensor_title(LabFocusSensor sensor) {
     switch (sensor) {
         case LAB_FOCUS_TEMP:     return L(LAB_TEMP_SHORT);
-        case LAB_FOCUS_HUMIDITY: return L(LAB_HUM_SHORT);
-        case LAB_FOCUS_DS18:     return L(LAB_PROBE_SHORT);
+        case LAB_FOCUS_HUMIDITY: return L(LAB_AIR_SHORT);
+        case LAB_FOCUS_DS18:     return "DS18B20";
         case LAB_FOCUS_LIGHT:    return L(LAB_LIGHT_SHORT);
         case LAB_FOCUS_SOUND:    return L(LAB_SOUND_SHORT);
         case LAB_FOCUS_SOIL:     return L(LAB_SOIL_SHORT);
@@ -150,6 +150,14 @@ static const char* sensor_title(LabFocusSensor sensor) {
 
 static const char* sensor_footer() {
     return L(GRAPH_PUSH_SENSOR);
+}
+
+static int sensor_title_y(LabFocusSensor sensor) {
+    return (sensor == LAB_FOCUS_HUMIDITY
+         || sensor == LAB_FOCUS_SOUND
+         || sensor == LAB_FOCUS_SOIL)
+        ? (LF_TITLE_Y + 1)
+        : LF_TITLE_Y;
 }
 
 static bool sensor_uses_decimal(LabFocusSensor sensor);
@@ -336,7 +344,7 @@ static void draw_summary_shell(LabFocusSensor sensor, uint16_t primary, uint16_t
     tft.setTextDatum(TL_DATUM);
     tft.setFreeFont(FONT_BODY);
     tft.setTextColor(primary, bg);
-    tft.drawString(sensor_title(sensor), LF_TITLE_X, LF_TITLE_Y);
+    tft.drawString(sensor_title(sensor), LF_TITLE_X, sensor_title_y(sensor));
     tft.setTextFont(0);
 }
 
@@ -484,7 +492,7 @@ static void draw_graph_panel(LabFocusSensor sensor, bool valid, bool shell_redra
         }
         tft.setTextDatum(MC_DATUM);
         tft.setFreeFont(FONT_SMALL);
-        tft.setTextColor(TFT_DARKGREY, TFT_BLACK);
+        tft.setTextColor(TFT_DARKGREY, graph_bg_color(sensor));
         tft.drawString(L(ST_NO_SENSOR), LF_GRAPH_X + (LF_GRAPH_W / 2), LF_GRAPH_Y + graph_no_sensor_y(sensor));
         tft.setTextFont(0);
         return;
@@ -498,9 +506,12 @@ static void draw_graph_panel(LabFocusSensor sensor, bool valid, bool shell_redra
     }
 
     if (n == 0) {
+        if (!shell_redraw) {
+            tft.fillRect(LF_GRAPH_X + 1, LF_GRAPH_Y + 1, LF_GRAPH_W - 2, LF_GRAPH_H - 2, graph_bg_color(sensor));
+        }
         tft.setTextDatum(MC_DATUM);
         tft.setFreeFont(FONT_SMALL);
-        tft.setTextColor(TFT_DARKGREY, TFT_BLACK);
+        tft.setTextColor(TFT_DARKGREY, graph_bg_color(sensor));
         tft.drawString(L(ST_WAITING), LF_GRAPH_X + (LF_GRAPH_W / 2), LF_GRAPH_Y + (LF_GRAPH_H / 2) + 1);
         tft.setTextFont(0);
         return;

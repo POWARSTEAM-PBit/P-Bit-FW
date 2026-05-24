@@ -4,6 +4,7 @@ extern bool userTimerRunning;
 extern unsigned long userTimerStart;
 extern unsigned long userTimerElapsed;
 extern volatile bool g_timer_just_finished;
+extern volatile bool g_timer_finished_active;
 
 /**
  * Volatile flag used by the UI to force a redraw right after a timer reset.

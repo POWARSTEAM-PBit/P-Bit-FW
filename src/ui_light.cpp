@@ -16,7 +16,6 @@
 
 extern TFT_eSPI tft;
 extern Reading g_ui_readings_snapshot;
-extern void drawBarGraph(int x, int y, int w, int h, uint16_t color, float value, float minVal, float maxVal);
 namespace {
 
 void format_light_threshold_value(int value, char* out, size_t out_size) {
@@ -52,6 +51,57 @@ void draw_light_alert_jewel(uint8_t alert_state, bool alerts_enabled, bool no_se
     }
 
     drawAlertJewel(L_ALERT_JEWEL_X, L_ALERT_JEWEL_Y, jewel_state, jewel_color);
+}
+
+void draw_light_value_with_unit(const char* value,
+                                const char* unit,
+                                uint16_t value_color,
+                                uint16_t background_color,
+                                bool screen_changed) {
+    static int last_clear_x = 0;
+    static int last_clear_w = 0;
+    static int last_clear_h = 0;
+    static bool has_last = false;
+
+    const int cx = tft.width() / 2;
+    tft.setFreeFont(FONT_VALUE);
+    const int value_line_h = tft.fontHeight();
+    const int value_w = tft.textWidth(value);
+    tft.setFreeFont(FONT_BODY);
+    const int unit_line_h = tft.fontHeight();
+    const int unit_w = tft.textWidth(unit);
+
+    const int clear_h = max(value_line_h, unit_line_h) + 4;
+    const int clear_y = LB_VALUE_TOP - 2;
+    const int start_x = cx - ((value_w + unit_w) / 2);
+    const int clear_x = max(0, start_x - 2);
+    const int clear_w = min(tft.width() - clear_x, value_w + unit_w + 4);
+
+    if (!screen_changed) {
+        int union_x = clear_x;
+        int union_w = clear_w;
+        int union_h = clear_h;
+        if (has_last) {
+            const int union_x2 = max(clear_x + clear_w, last_clear_x + last_clear_w);
+            union_x = min(clear_x, last_clear_x);
+            union_w = union_x2 - union_x;
+            union_h = max(clear_h, last_clear_h);
+        }
+        tft.fillRect(union_x, clear_y, union_w, union_h, background_color);
+    }
+
+    tft.setTextDatum(TL_DATUM);
+    tft.setFreeFont(FONT_VALUE);
+    tft.setTextColor(value_color, background_color);
+    tft.drawString(value, start_x, LB_VALUE_TOP);
+    tft.setFreeFont(FONT_BODY);
+    tft.setTextColor(TFT_DARKGREY, background_color);
+    tft.drawString(unit, start_x + value_w, LB_VALUE_TOP);
+
+    last_clear_x = clear_x;
+    last_clear_w = clear_w;
+    last_clear_h = clear_h;
+    has_last = true;
 }
 
 }
@@ -500,23 +550,21 @@ void draw_light_screen(bool screen_changed, bool data_changed) {
         snprintf(value_str, sizeof(value_str), "%.0f", display_val);
     }
 
-    tft.setFreeFont(FONT_VALUE);
-    int valueLineH = tft.fontHeight();
-    const int value_clear_x = 12;
-    tft.fillRect(value_clear_x, LB_VALUE_TOP - 2, tft.width() - (value_clear_x * 2), valueLineH + 4, BACKGROUND_COLOR);
-    int numW = tft.textWidth(value_str);
-    tft.setFreeFont(FONT_BODY);
-    int unitW = tft.textWidth(unit_str);
-    int startX = cx - (numW + unitW) / 2;
-    tft.setTextDatum(TL_DATUM);
-    tft.setFreeFont(FONT_VALUE);
-    tft.setTextColor(display_valid ? TFT_WHITE : TFT_DARKGREY, BACKGROUND_COLOR);
-    tft.drawString(value_str, startX, LB_VALUE_TOP);
-    tft.setFreeFont(FONT_BODY);
-    tft.setTextColor(TFT_DARKGREY, BACKGROUND_COLOR);
-    tft.drawString(unit_str, startX + numW, LB_VALUE_TOP);
+    draw_light_value_with_unit(value_str,
+                               unit_str,
+                               display_valid ? TFT_WHITE : TFT_DARKGREY,
+                               BACKGROUND_COLOR,
+                               screen_changed);
 
-    drawBarGraph(LB_BAR_X, LB_BAR_Y, LB_BAR_W, LB_BAR_H, lux_valid ? categoryColor : TFT_DARKGREY, log_pct, 0.0f, 100.0f);
+    drawCachedBarGraph(LB_BAR_X,
+                       LB_BAR_Y,
+                       LB_BAR_W,
+                       LB_BAR_H,
+                       lux_valid ? categoryColor : TFT_DARKGREY,
+                       log_pct,
+                       0.0f,
+                       100.0f,
+                       screen_changed);
 
     const int category_clear_x = L_ALERT_JEWEL_X + 10;
     tft.fillRect(category_clear_x, LB_CATEGORY_Y - 8, tft.width() - category_clear_x, 16, BACKGROUND_COLOR);

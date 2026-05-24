@@ -1,6 +1,6 @@
 # Menues
 
-Actualizado: 2026-03-27
+Actualizado: 2026-05-24
 
 Este documento describe la estructura real de navegacion, menus y submenus tal como esta implementada hoy en el codigo.
 
@@ -11,7 +11,8 @@ Reglas de mantenimiento:
 ## Alcance Real
 
 - `BOOT_SCREEN` existe en la enum de pantallas, pero no forma parte de la navegacion con encoder.
-- La navegacion entre pantallas usa este orden real: `TEMP -> HUMIDITY -> LIGHT -> SOUND -> SOIL -> DS18B20 -> SYSTEM -> TIMER -> CALIBRATION -> CALIBRATION PRECISION`.
+- Con `PBIT_ENABLE_GRAPH_LAB=1`, la navegacion visible usa este orden real: `HOME -> CLIMA -> MULTI -> SONIDO VU -> TEMPERATURA -> HUMEDAD -> LUZ -> SONIDO -> SUELO -> TERMÓMETRO -> TIMER -> SISTEMA`.
+- Las seis posiciones de sensor son slots de `SENSOR_ZONE_SCREEN`; `DS18B20_SCREEN` sigue existiendo como menú/configuración técnica de la sonda Termómetro (`SZ_DS18`).
 - Cuando hay un menu de configuracion abierto, el encoder deja de cambiar de pantalla y pasa a controlar solo ese flujo.
 - Los menus activos bloquean el reposo automatico del sistema.
 - Dentro de un menu, el boton confirma o avanza por estado al soltarlo.
@@ -46,17 +47,15 @@ Comportamiento:
 - `LUZ`
 - `SONIDO`
 - `SUELO`
-- `DS18B20`
+- `TERMÓMETRO` (`DS18B20` como identificador técnico)
 - `SISTEMA`
 - `TIMER`
-- `CALIBRATION`
-- `CALIBRATION PRECISION`
 
 ### Acciones rapidas fuera de menu
 
 - `TEMP`: pulsacion corta sin menu alterna la unidad global compartida `C/F`.
-- `DS18B20`: pulsacion corta sin menu alterna la misma unidad global compartida `C/F`.
-- `SISTEMA`: pulsacion corta sin menu alterna `sonido ON/OFF`.
+- `TERMÓMETRO`: pulsacion corta sin menu alterna la misma unidad global compartida `C/F`.
+- `SISTEMA`: pulsacion corta sin menu alterna `Bip ON/OFF`.
 - `TIMER`: pulsacion corta inicia o pausa; pulsacion larga de aprox. 1 s abre el editor `HH:MM:SS` si esta idle y reinicia si ya estaba corriendo o pausado.
 - `HUMEDAD`, `LUZ`, `SONIDO` y `SUELO`: no tienen accion corta propia fuera de menu.
 
@@ -67,7 +66,7 @@ Comportamiento:
 - `LUZ`: pulsacion larga de aprox. 1.2 s.
 - `SONIDO`: pulsacion larga de aprox. 1.2 s.
 - `SUELO`: pulsacion larga de aprox. 1.2 s.
-- `DS18B20`: pulsacion larga de aprox. 1.2 s.
+- `TERMÓMETRO`: pulsacion larga de aprox. 1.2 s.
 - `SISTEMA`: pulsacion larga de aprox. 1.2 s.
 
 ### Regla comun dentro de menus
@@ -83,7 +82,7 @@ Comportamiento:
 ### Accion rapida
 
 - Pulsacion corta sin menu: alterna `C/F`.
-- La unidad es compartida con `DS18B20`, asi que el cambio afecta a ambas pantallas.
+- La unidad es compartida con `Termómetro`, asi que el cambio afecta a ambas pantallas.
 
 ### Menu raiz
 
@@ -116,7 +115,7 @@ Secuencia:
 - Elegir `Celsius` o `Fahrenheit`
 - Guardar
 - Pulsacion adicional para volver al menu raiz
-- El valor guardado actualiza tambien la pantalla `DS18B20`, porque ambas comparten la misma unidad global.
+- El valor guardado actualiza tambien la pantalla `Termómetro`, porque ambas comparten la misma unidad global.
 
 ### Flujo de alertas
 
@@ -323,7 +322,7 @@ Secuencia:
   - desde `loud_max` en adelante: LED rojo e indicador visual
 - Si no hay alerta: vuelve el LED magenta normal de la pantalla.
 - No hay alerta sonora en runtime de sonido para no contaminar la propia lectura del microfono.
-- Las categorias visibles son `Silencio`, `Tranquilo`, `Normal`, `Ruidoso` y `Muy ruidoso`.
+- Las categorias visibles son `Silencio`, `Suave`, `Normal`, `Fuerte` y `Muy fuerte`.
 - El indicador minimo de alertas se dibuja abajo a la izquierda y no invade el valor grande.
 
 ### Nota de estado
@@ -399,13 +398,15 @@ Validaciones reales:
   - `Optimo`: verde
   - `Humedo`: cian
   - `Muy humedo`: azul
-- Al cambiar a `Seco`, suena un arpegio corto descendente si el sonido global esta activo.
-- Al cambiar a `Optimo`, suena un arpegio corto ascendente si el sonido global esta activo.
-- Al cambiar a `Muy humedo`, suena un arpegio corto descendente mas grave si el sonido global esta activo.
+- Al cambiar a `Seco`, suena un arpegio corto descendente si `Alarmas` esta activo.
+- Al cambiar a `Optimo`, suena un arpegio corto ascendente si `Alarmas` esta activo.
+- Al cambiar a `Muy humedo`, suena un arpegio corto descendente mas grave si `Alarmas` esta activo.
 - Si las alertas estan en `OFF`, no suenan melodias y el indicador queda en estado apagado.
 - Al entrar en calibracion, el LED pasa a naranja; al salir vuelve al color normal de suelo.
 
-## DS18B20
+## Termómetro / DS18B20
+
+`Termómetro` es el titulo visible de producto. `DS18B20` queda como identificador tecnico de sonda, pantalla interna y rutas de firmware.
 
 ### Accion rapida
 
@@ -480,35 +481,54 @@ Secuencia:
 ### Pantalla base
 
 La pantalla normal de sistema muestra:
-- `DEV`
-- `UP`
-- `BLE`
-- `LAN`
-- footer con `Sonido ON/OFF (Pulsa)`
+- `ID`
+- `Tiempo`
+- `Idioma`
+- estado de `BLE` solo si `ble_en == true`
+- estado de `Bip`
+- estado de `Alarmas`
+
+Layout actual: card principal con panels internos; si `ble_en == false`, el panel BLE no se dibuja ni muestra `OFF`.
 
 ### Accion rapida
 
-- Pulsacion corta sin menu: alterna `sonido ON/OFF` y lo guarda.
+- Pulsacion corta sin menu: alterna `Bip ON/OFF` y lo guarda.
 
 ### Menu raiz
 
 Se abre con pulsacion larga de aprox. 1.2 s.
 
 Opciones reales:
-- `Sonido`
+- `Bip`
+- `Alarmas`
 - `Reposo`
 - `Idioma`
 - `Reset`
 - `Salir`
 
-### Submenu de sonido
+Render actual: grid 2x3, no lista vertical, para mantener separación suficiente entre opciones.
+
+### Submenu de Bip
 
 Opciones:
 - `OFF`
 - `ON`
 
 Comportamiento:
-- Selecciona el estado.
+- Selecciona el estado de `sys_sound`.
+- Controla beeps de UI, navegacion y confirmaciones.
+- Al confirmar, se guarda, muestra `SAVED` y una pulsacion adicional vuelve al menu raiz.
+
+### Submenu de Alarmas
+
+Opciones:
+- `OFF`
+- `ON`
+
+Comportamiento:
+- Selecciona el estado de `sys_alarm`.
+- Controla audio automatico de alertas y final de cuenta regresiva del `Timer`.
+- No desactiva alertas visuales ni LED RGB.
 - Al confirmar, se guarda, muestra `SAVED` y una pulsacion adicional vuelve al menu raiz.
 
 ### Submenu de reposo
@@ -550,6 +570,7 @@ Si se confirma:
 - Borra calibraciones y umbrales de todo el dispositivo.
 - Restaura idioma por defecto.
 - Restaura la unidad de temperatura visible a `Celsius`.
+- Restaura `Bip` y `Alarmas` a sus valores por defecto.
 - Muestra `SAVED` y una pulsacion adicional vuelve al menu raiz.
 
 ## Timer
@@ -570,7 +591,7 @@ Comportamiento real:
 - Cualquier valor mayor que `00:00:00` funciona como cuenta regresiva.
 - En runtime, la duracion activa se muestra pequena y centrada debajo del card solo cuando hay cuenta regresiva; en modo cronometro ese espacio queda limpio.
 - El valor grande usa formato adaptativo: `MM:SS:CC` por debajo de una hora y `HH:MM:SS` cuando el tiempo visible llega a una hora o mas.
-- Al terminar una cuenta regresiva, el borde y el valor pasan a rojo y suena una alarma intermitente corta si el sonido global esta en `ON`.
+- Al terminar una cuenta regresiva, el borde y el valor pasan a rojo y suena una alarma intermitente corta si `Alarmas` esta en `ON`.
 - El valor grande del runtime se compone sobre un sprite transparente y luego se repinta el borde del card, para que la caja siga viendose completa en la TFT real y no quede tapada por el fondo negro del sprite.
 - El card runtime quedo unos pixeles mas abajo y el texto de estado acompano ese cambio, mientras que el tiempo grande se mantuvo para ganar aire arriba y abajo dentro del card sin romper la lectura.
 - El card runtime tambien se estiro un poco hacia abajo para aprovechar mejor el espacio libre inferior, y el card del editor bajó para que el titulo `DURACIÓN` ya no pelee con el recuadro.
@@ -584,13 +605,13 @@ Comportamiento real:
 
 - Los menus de configuracion bloquean el reposo automatico mientras estan abiertos.
 - El color del LED puede cambiar al entrar en cada pantalla o al dispararse alertas de sensores.
-- Los flujos de guardado con estado `SAVED` usan una pulsacion extra para volver al menu raiz en `TEMP`, `HUMEDAD`, `LUZ`, `SONIDO`, `SUELO`, `DS18B20` y `SISTEMA`.
-- `TEMP`, `HUMEDAD`, `LUZ`, `SONIDO`, `SUELO` y `DS18B20` ya reutilizan el marco comun de menús para listas, estados de valor, prompts de reset y pantallas guardadas; los menus de 4 y 5 opciones comparten espaciado y los resúmenes multilinea usan bandas y separaciones comunes.
-- `TEMP`, `HUMEDAD`, `LUZ`, `SONIDO`, `SUELO` y `DS18B20` muestran un indicador minimo de alertas abajo a la izquierda en runtime cuando aplica.
+- Los flujos de guardado con estado `SAVED` usan una pulsacion extra para volver al menu raiz en `TEMP`, `HUMEDAD`, `LUZ`, `SONIDO`, `SUELO`, `TERMÓMETRO` y `SISTEMA`.
+- `TEMP`, `HUMEDAD`, `LUZ`, `SONIDO`, `SUELO` y `TERMÓMETRO` ya reutilizan el marco comun de menús para listas, estados de valor, prompts de reset y pantallas guardadas; los menus de 4 y 5 opciones comparten espaciado y los resúmenes multilinea usan bandas y separaciones comunes.
+- `TEMP`, `HUMEDAD`, `LUZ`, `SONIDO`, `SUELO` y `TERMÓMETRO` muestran un indicador minimo de alertas abajo a la izquierda en runtime cuando aplica.
 - La evaluacion de alertas ya se refresca desde el `sensor task` y las pantallas consumen el estado estable del `AlertEngine`; el render ya no es la fuente de verdad de las alertas runtime.
 - El `AlertEngine` tambien mantiene una alerta global principal en segundo plano: la elige por severidad (`critica > alta > baja`) y, si empatan, por orden de sensor `SUELO > TEMP > HUM > DS18 > LUZ > SONIDO`.
 - Si hay varias alertas simultaneas, el motor conserva la principal y el conteo adicional `+N`, aunque ese resumen ya no se dibuja en pantalla porque la capa visual global esta desactivada temporalmente.
 - El `AlertEngine` global sigue evaluando alertas en background, con prioridad, audio selectivo y RGB global cuando aplica.
 - Cuando retomemos esta UX, la señal visual global se volvera a decidir con una zona segura real por familia de pantalla.
-- El audio de alerta ya puede dispararse en background segun el estado global, con cooldown para no saturar. `SONIDO` sigue sin alerta sonora para no contaminar la lectura del microfono.
+- El audio de alerta ya puede dispararse en background segun `Alarmas`, con cooldown para no saturar. `SONIDO` sigue sin alerta sonora propia para no contaminar la lectura del microfono.
 - El RGB tambien puede seguir la alerta global principal; la excepcion es `LUZ`, donde el LED se mantiene apagado para no interferir con el LDR.

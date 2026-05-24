@@ -53,7 +53,7 @@ struct LabDashCache {
 static LabDashCache g_last;
 static const LangKey kSensorLabels[4] = {
     LAB_TEMP_SHORT,
-    LAB_HUM_SHORT,
+    LAB_AIR_SHORT,
     LAB_LIGHT_SHORT,
     LAB_SOUND_SHORT,
 };

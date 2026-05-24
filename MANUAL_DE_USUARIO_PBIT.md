@@ -1,6 +1,6 @@
 # Manual de Usuario del P-Bit
 
-Actualizado: 2026-05-20
+Actualizado: 2026-05-24
 
 Este manual explica qué es el P-Bit, cómo usarlo y cómo aprovecharlo en actividades de observación ambiental, aula, laboratorio escolar y proyectos STEAM.
 
@@ -10,8 +10,9 @@ Estado de esta revisión:
 - interfaz disponible en Español, Catalán e Inglés
 - cambio de idioma centralizado para toda la interfaz
 - lectura de luz corregida y validada en firmware al rango `0..20000 lux`
-- Bluetooth oculto y apagado de fábrica
+- BLE no forma parte del flujo normal de usuario
 - nuevas vistas Lab y Sensor Zone activas
+- `Sistema` separa `Bip` y `Alarmas`
 - refresco de pantalla acotado para reducir parpadeos
 - Timer y reposo visible con `ZZZ` incluidos en el flujo normal
 
@@ -36,15 +37,15 @@ Con el código actual, el P-Bit puede medir:
 - luz ambiental en rango de firmware `0..20000 lux`
 - sonido ambiental
 - humedad del suelo
-- temperatura externa con sonda
+- temperatura externa con sonda Termómetro
 
 Además, muestra información general del sistema:
 
 - nombre del dispositivo
 - tiempo encendido
-- estado BLE solo si Bluetooth está activado
 - idioma activo
-- estado del sonido
+- estado de `Bip`
+- estado de `Alarmas`
 - cronómetro
 
 ## 3. Partes principales del equipo
@@ -55,7 +56,7 @@ Además, muestra información general del sistema:
 - sensor de luz
 - sensor de sonido
 - puerto para sensor de humedad de suelo
-- puerto para sonda DS18B20
+- puerto para sonda Termómetro (`DS18B20` como identificador técnico)
 - encoder rotatorio con botón
 
 ### Salidas
@@ -63,7 +64,8 @@ Además, muestra información general del sistema:
 - pantalla
 - LED RGB
 - buzzer
-- BLE oculto y desactivado por defecto
+
+La conectividad BLE queda fuera del flujo normal de uso del aula y de este manual.
 
 ## 4. Primer uso
 
@@ -123,7 +125,7 @@ El firmware actual está compilado con `PBIT_ENABLE_GRAPH_LAB=1`. Con ese flag, 
 7. `Luz`
 8. `Sonido`
 9. `Suelo`
-10. `DS18B20`
+10. `Termómetro`
 11. `Timer`
 12. `Sistema`
 
@@ -170,7 +172,7 @@ Importante:
 
 - pulsación corta: cambia el modo visual del sensor
 - la unidad `Celsius/Fahrenheit` se cambia desde el menú `Unidad`
-- ese cambio también afecta a `DS18B20`, porque ambas pantallas comparten la misma unidad global
+- ese cambio también afecta a `Termómetro`, porque ambas pantallas comparten la misma unidad global
 
 ### Menú
 
@@ -396,12 +398,14 @@ Permite activar o desactivar las alertas del suelo. Cuando el valor sale del ran
 - no dejes el sensor sumergido permanentemente si no está diseñado para ello
 - si aparece `Sin sensor`, revisa el puerto externo y la conexión
 
-## 13. Pantalla de DS18B20
+## 13. Pantalla de Termómetro
 
 ### Qué muestra
 
 - temperatura externa de una sonda
 - visualización tipo tanque
+
+Nota: `DS18B20` es el identificador técnico de la sonda; en la interfaz de usuario se presenta como `Termómetro` o `Termo` cuando hace falta abreviar.
 
 ### Acción rápida
 
@@ -453,30 +457,37 @@ Permite activar o desactivar alertas.
 ### Qué muestra
 
 - nombre del dispositivo
-- tiempo encendido (`UP`)
-- estado BLE solo si Bluetooth está activado
+- tiempo encendido (`Tiempo`)
 - idioma
-- estado del sonido
+- estado de `Bip`
+- estado de `Alarmas`
 
 ### Acción rápida
 
-- pulsación corta: cambia `Sonido ON/OFF`
+- pulsación corta: cambia `Bip ON/OFF`
 
 ### Menú
 
 Opciones:
 
-- `Sonido`
+- `Bip`
+- `Alarmas`
 - `Reposo`
 - `Idioma`
 - `Reset`
 - `Salir`
 
+El menú se muestra como una cuadrícula de opciones para que sea más fácil de recorrer con el encoder.
+
 ### Qué hace cada opción
 
-#### Sonido
+#### Bip
 
-Activa o desactiva el sonido global del dispositivo.
+Activa o desactiva los pitidos de interacción de la interfaz: pulsaciones, confirmaciones y navegación.
+
+#### Alarmas
+
+Activa o desactiva el audio de alertas y del `Timer` cuando termina una cuenta regresiva. No cambia las alertas visuales ni el LED RGB.
 
 #### Reposo
 
@@ -504,19 +515,6 @@ Restaura configuraciones y calibraciones a valores por defecto.
 - si estás haciendo una actividad larga, considera usar `5 min`, `10 min` o `Nunca`
 - si el grupo cambia de idioma, ajusta esto desde aquí
 - usa `Reset` solo cuando realmente quieras volver a empezar configuraciones
-
-### Bluetooth oculto
-
-El Bluetooth sale desactivado de fábrica y no aparece como opción normal del carrusel. En ese estado no debe anunciarse como dispositivo BLE durante el uso educativo normal.
-
-Para entrar en la pantalla interna de BLE:
-
-1. ve a `Sistema`
-2. mantén el encoder presionado durante 60 segundos sin girarlo
-3. elige `OFF` u `ON`
-4. confirma con una pulsación corta
-
-El equipo guarda la selección y reinicia. Para uso normal y producción, el estado esperado es `OFF`. Si se activa para pruebas, conviene devolverlo a `OFF` antes de entregar una unidad.
 
 ## 15. Pantalla de Timer
 
@@ -567,7 +565,8 @@ El P-Bit puede comunicar estados por varias vías:
 
 - cambios de color en pantalla
 - LED RGB
-- pitidos o tonos
+- pitidos de interfaz si `Bip` está activo
+- alarmas audibles si `Alarmas` está activo
 
 Esto ayuda a que la lectura no dependa solo del número mostrado.
 
@@ -640,7 +639,7 @@ El reposo visible está pensado para el aula: la pantalla no se apaga de forma p
 ### Un sensor no aparece
 
 - revisa la conexión física
-- si es suelo o DS18B20, comprueba que esté bien conectado en su puerto
+- si es suelo o Termómetro, comprueba que esté bien conectado en su puerto
 
 ### La lectura de suelo parece rara
 

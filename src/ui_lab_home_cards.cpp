@@ -223,7 +223,7 @@ static CardData build_card_data(int index) {
         case 0:
             return { 0, 0, kOrange,  draw_home_temp_icon,     L(LAB_TEMP_SHORT),  t_ok, t_d, "%.0f", t_u,  g_is_fahrenheit ? 32.0f : 0.0f, g_is_fahrenheit ? 122.0f : 50.0f, false };
         case 1:
-            return { 1, 0, kCyan,    draw_home_humidity_icon, L(LAB_HUM_SHORT),   h_ok, h_ok ? r.humidity : 0.0f, "%.0f", "%", 0.0f, 100.0f, false };
+            return { 1, 0, kCyan,    draw_home_humidity_icon, L(LAB_AIR_SHORT),   h_ok, h_ok ? r.humidity : 0.0f, "%.0f", "%", 0.0f, 100.0f, false };
         case 2:
             return { 0, 1, kYellow,  draw_home_light_icon,    L(LAB_LIGHT_SHORT), l_ok, l_ok ? r.ldr : 0.0f, "%.0f", "lx", 0.0f, 20000.0f, false };
         default:

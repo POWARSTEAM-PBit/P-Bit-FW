@@ -1,6 +1,6 @@
 # P-Bit: Funcionamiento Actual del Firmware
 
-Actualizado: 2026-05-20
+Actualizado: 2026-05-24
 
 Este documento explica qué hace hoy el P-Bit con el código actual, cómo se usa y qué posibilidades educativas ofrece en contextos STEAM ambientales.
 
@@ -11,8 +11,9 @@ Este documento explica qué hace hoy el P-Bit con el código actual, cómo se us
 - i18n centralizado para `ES/CAT/EN` mediante el diccionario de `languages.h` y `lang_select.cpp`.
 - Cambio de idioma completo desde el selector inicial y desde `Sistema > Idioma`.
 - LDR corregido para la polaridad de la placa actual y validado en firmware al rango `0..20000 lux`.
-- BLE factory-off: apagado por defecto, oculto en carrusel y accesible solo con gesto de 60 s en `Sistema`.
+- BLE factory-off: apagado por defecto y oculto en carrusel; la activación queda documentada solo en material técnico interno.
 - Sensor Zone activo para los 6 sensores con modos `Focus`, `Valor`, `Gráfica`, `Dial` y `Card`.
+- `Sistema` separa `Bip` (sonidos de UI) y `Alarmas` (alertas/timer audibles), con persistencia independiente.
 - Refresco de UI acotado y orientado a anti-flicker: shell estático, campos dinámicos y cadencias específicas por pantalla.
 
 La build y la validación de rango del LDR constan a nivel de firmware. Este documento no afirma una calibración física certificada ni una validación con luxómetro de cada unidad.
@@ -49,7 +50,7 @@ Además, el sistema también muestra:
 
 - estado BLE, solo si Bluetooth está activado
 - idioma activo
-- tiempo de encendido (`UP`)
+- tiempo de encendido (`Tiempo` / `Uptime`)
 - cronómetro independiente
 
 ## 3. Cómo se usa
@@ -76,7 +77,7 @@ Orden actual de pantallas (carrusel circular de 12 posiciones con `PBIT_ENABLE_G
 - `Luz` — zona de sensor con modos visuales y menú de calibración/alertas
 - `Sonido` — zona de sensor con modos visuales y menú de umbrales/alertas
 - `Suelo` — zona de sensor con modos visuales, calibración y alertas
-- `DS18B20` — zona de sensor para sonda externa con offset y alertas
+- `Termómetro` — zona de sensor para sonda externa `DS18B20`, con offset y alertas
 - `Timer` — cronómetro y cuenta regresiva
 - `Sistema` — ajustes globales del dispositivo
 
@@ -90,14 +91,13 @@ El encoder tiene dos tipos de acción:
 Acciones rápidas actuales:
 
 - `Home`, `Clima`, `Multi`, `Sonido VU`: sin acciones de pulsación — son pantallas de solo lectura
-- `Temperatura`, `Humedad`, `Luz`, `Sonido`, `Suelo`, `DS18B20`: pulsación corta alterna el modo de visualización del sensor; pulsación larga (~1.2 s) abre el menú de configuración del sensor
+- `Temperatura`, `Humedad`, `Luz`, `Sonido`, `Suelo`, `Termómetro`: pulsación corta alterna el modo de visualización del sensor; pulsación larga (~1.2 s) abre el menú de configuración del sensor
 - `Timer`: pulsación corta inicia/pausa; pulsación larga abre el editor de duración `HH:MM:SS` si está idle o resetea si ya estaba corriendo o pausado
-- `Sistema`: pulsación corta alterna `Sonido ON/OFF`
+- `Sistema`: pulsación corta alterna `Bip ON/OFF`
 
 Notas:
 
-- La unidad `C/F` es global y compartida entre `Temperatura` y `DS18B20`; se cambia desde el menú de cualquiera de los dos.
-- Desde `Sistema`, mantener el encoder presionado durante 60 s sin girarlo activa la pantalla oculta de configuración BLE.
+- La unidad `C/F` es global y compartida entre `Temperatura` y `Termómetro`; se cambia desde el menú de cualquiera de los dos.
 - Si `PBIT_ENABLE_GRAPH_LAB` se compila a `0`, el carrusel vuelve a las pantallas clásicas y `GRAPH_SCREEN` queda como pantalla independiente al final.
 - `LAB_LINEAR_DASH_SCREEN` sigue compilado como renderer Lab disponible para iteración visual, pero no aparece como posición independiente en el carrusel de usuario actual.
 
@@ -117,7 +117,7 @@ Vista de múltiples sensores con widgets. Combina varias lecturas en una sola pa
 
 ### Sonido VU
 
-Muestra el nivel de sonido ambiental en barras apiladas estilo VU meter. Útil para detectar de forma visual e inmediata el nivel de ruido del entorno.
+Muestra el nivel de sonido ambiental en barras apiladas estilo VU meter. Útil para detectar de forma visual e inmediata el nivel sonoro del entorno.
 
 ### Pantallas Lab compiladas
 
@@ -134,7 +134,7 @@ No todas son posiciones independientes del carrusel de uso normal. Las expuestas
 
 ### Zona de sensores
 
-Las seis posiciones de sensor (`Temperatura`, `Humedad`, `Luz`, `Sonido`, `Suelo`, `DS18B20`) comparten `SENSOR_ZONE_SCREEN`.
+Las seis posiciones de sensor (`Temperatura`, `Humedad`, `Luz`, `Sonido`, `Suelo`, `Termómetro`) comparten `SENSOR_ZONE_SCREEN`.
 
 Cada sensor recuerda su propio modo visual:
 
@@ -159,7 +159,7 @@ Funciones actuales:
 - menú `Reset`
 - guardado persistente
 - alerta visual, LED y sonido al salir del rango
-- la unidad visible es compartida con `DS18B20`
+- la unidad visible es compartida con `Termómetro`
 
 ### Humedad del aire
 
@@ -204,7 +204,7 @@ Funciones actuales:
 - menú de calibración de umbrales
 - menú de alertas `ON/OFF`
 - menú `Reset`
-- categorías: `Silencio`, `Tranquilo`, `Normal`, `Ruidoso`, `Muy ruidoso`
+- categorías: `Silencio`, `Suave`, `Normal`, `Fuerte`, `Muy fuerte`
 - guardado persistente
 - alertas visuales y RGB cuando supera niveles definidos
 
@@ -226,9 +226,11 @@ Funciones actuales:
 - guardado persistente
 - detección de ausencia de sensor
 
-### DS18B20
+### Termómetro / DS18B20
 
 Mide temperatura externa con sonda.
+
+`DS18B20` es el identificador técnico de la sonda y de parte del firmware; el título visible de producto es `Termómetro` o `Termo` cuando hay que abreviar.
 
 Funciones actuales:
 
@@ -249,58 +251,37 @@ Es el centro de ajustes globales del dispositivo.
 
 La pantalla normal muestra:
 
-- nombre del dispositivo
-- uptime
-- estado BLE (solo visible si el BLE está habilitado en NVS)
+- `ID` del dispositivo
+- `Tiempo`/`Uptime`
 - idioma activo
-- estado de sonido
+- estado BLE solo si el BLE está habilitado en NVS
+- estado de `Bip`
+- estado de `Alarmas`
 
-La fila de BLE desaparece cuando el Bluetooth está desactivado, para no confundir a los usuarios en un dispositivo que sale de fábrica sin BLE.
+La pantalla usa cards internas: identificación arriba, `Tiempo` e `Idioma` al centro, y audio abajo. BLE desaparece por completo cuando Bluetooth está desactivado, para no confundir a los usuarios en un dispositivo que sale de fábrica sin BLE.
 
 Menú actual:
 
-- `Sonido`
+- `Bip`
+- `Alarmas`
 - `Reposo`
 - `Idioma`
 - `Reset`
 - `Salir`
 
+El menú raíz de Sistema usa grid 2×3 para evitar una lista vertical amontonada en 160×128 px.
+
 Desde aquí se puede:
 
-- encender o apagar sonido global
+- encender o apagar `Bip`: beeps de interfaz, navegación y confirmaciones
+- encender o apagar `Alarmas`: audio de alertas y final de cuenta regresiva del `Timer`
 - elegir tiempo de reposo
 - cambiar idioma de forma completa entre `ES`, `CAT` y `EN`
 - resetear configuraciones
 
-### Pantalla BLE Toggle (oculta)
+### BLE oculto
 
-Esta pantalla es una función de fábrica interna que no aparece en la navegación normal.
-
-Para activarla:
-
-1. Navegar a la pantalla `Sistema`.
-2. Mantener el encoder presionado durante **60 segundos** (sin girar).
-3. El dispositivo emite un tono corto agudo y entra automáticamente en la pantalla BLE.
-
-Qué muestra:
-
-- fondo azul completo
-- ícono de Bluetooth grande en blanco
-- selector de opción: `OFF` / `ON`
-
-Qué hace:
-
-- El encoder gira entre `OFF` y `ON`.
-- Una pulsación corta confirma la selección, guarda en NVS y reinicia el dispositivo.
-- Si se elige `ON`, el Bluetooth se activa en el siguiente arranque.
-- Si se elige `OFF`, el Bluetooth queda desactivado.
-
-Comportamiento por defecto:
-
-- De fábrica, el Bluetooth siempre sale `OFF`.
-- Cada vez que se instala un nuevo firmware, el estado BLE vuelve automáticamente a `OFF` (reset por build-hash).
-- El valor persiste entre reinicios normales si no se instala un nuevo firmware.
-- Con BLE en `OFF`, la pantalla normal de `Sistema` oculta la fila BLE y el dispositivo no debería anunciarse en escaneos BLE.
+BLE es una función interna de fábrica/debug: no aparece en la navegación normal ni forma parte del flujo de aula. De fábrica siempre sale `OFF`, vuelve a `OFF` tras instalar una build nueva por el reset de build-hash y con `ble_en == false` la pantalla normal de `Sistema` oculta la fila BLE.
 
 ### Timer
 
@@ -316,7 +297,7 @@ Funciones actuales:
 - guardar la nueva duración con una pulsación larga
 - mostrar la duración activa debajo de la tarjeta principal solo cuando hay cuenta regresiva
 - usar formato adaptativo `MM:SS:CC` por debajo de una hora y `HH:MM:SS` a partir de una hora
-- avisar visualmente en rojo y con beep corto al terminar una cuenta regresiva si el sonido global está activo
+- avisar visualmente en rojo y con alarma corta al terminar una cuenta regresiva si `Alarmas` está activo
 
 El valor `00:00:00` funciona como cronómetro ascendente. Cualquier otro valor funciona como cuenta regresiva.
 
@@ -396,7 +377,8 @@ Esto incluye:
 - calibración y umbrales de suelo
 - offset y alertas de DS18B20
 - tiempo de reposo
-- estado global de sonido
+- estado global de `Bip` (`sys_sound`)
+- estado global de `Alarmas` (`sys_alarm`)
 - estado BLE (`ble_en`)
 - sensor activo y modo visual por sensor (`sz_sen`, `sz_v0..sz_v5`)
 
@@ -413,7 +395,7 @@ Permite observar fenómenos del entorno:
 - cómo cambia la temperatura durante el día
 - qué ocurre con la humedad del suelo después del riego
 - cómo influye la luz en una planta
-- qué zonas del aula son más ruidosas
+- qué zonas del aula tienen más sonido ambiental
 
 ### Tecnología
 
@@ -498,7 +480,7 @@ Aprendizajes:
 - criterio basado en datos
 - pensamiento de ingeniería
 
-### Ejemplo 4: Mapa de ruido del colegio
+### Ejemplo 4: Mapa de sonido del colegio
 
 Objetivo:
 
@@ -538,7 +520,7 @@ Aprendizajes:
 
 Objetivo:
 
-- usar el `DS18B20` como instrumento externo de exploración
+- usar el Termómetro (`DS18B20`) como instrumento externo de exploración
 
 Actividad:
 
@@ -578,6 +560,6 @@ Hoy el P-Bit ya es una plataforma educativa ambiental funcional que:
 - muestra la evolución temporal de los 6 sensores como gráfica de línea interactiva con paleta por sensor
 - mantiene BLE oculto y apagado de fábrica
 - compila correctamente para `esp32dev`
-- sirve para actividades STEAM reales con plantas, clima, luz, ruido y análisis del entorno
+- sirve para actividades STEAM reales con plantas, clima, luz, sonido y análisis del entorno
 
 En su estado actual, ya puede usarse como herramienta de observación, experimentación y aprendizaje en educación ambiental.

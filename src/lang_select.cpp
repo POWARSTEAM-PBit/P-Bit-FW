@@ -24,7 +24,7 @@ static const char* const STRINGS[LANG_KEY_COUNT][LANG_COUNT] = {
 /* TIT_TEMP     */  { "TEMPERATURA",           "TEMPERATURA",          "TEMPERATURE"        },
 /* TIT_HUM      */  { "HUMEDAD",               "HUMITAT",              "HUMIDITY"           },
 /* TIT_LIGHT    */  { "LUZ",                   "LLUM",                 "LIGHT"              },
-/* TIT_SOUND    */  { "RUIDO",                 "SOROLL",               "NOISE"              },
+/* TIT_SOUND    */  { "SONIDO",                "SO",                   "SOUND"              },
 /* TIT_SOIL     */  { "SUELO",                 "SÒL",                  "SOIL"               },
 /* TIT_THERM    */  { "TERMÓMETRO",            "TERMÒMETRE",           "THERMOMETER"        },
 /* TIT_SYS      */  { "SISTEMA",               "SISTEMA",              "SYSTEM"             },
@@ -52,8 +52,8 @@ static const char* const STRINGS[LANG_KEY_COUNT][LANG_COUNT] = {
 /* ST_CLIMATE_FRESH */ { "Fresco",             "Fresc",                "Cool"               },
 /* ST_CLIMATE_WARM */  { "Cálido",             "Càlid",                "Warm"               },
 
-/* ST_DISCONN   */  { "SIN BLE",               "SENSE BLE",            "NO BLE"             },
-/* ST_CONNECTED */  { "BLE OK",                "BLE OK",               "BLE OK"             },
+/* ST_DISCONN   */  { "Sin conn.",             "Sense conn.",          "No conn."           },
+/* ST_CONNECTED */  { "Conectado",             "Connectat",            "Connected"          },
 
 /* ST_SND_ON    */  { "Bip ON: pulsa",         "Bip ON: prem",         "Beep ON: press"     },
 /* ST_SND_OFF   */  { "Bip OFF: pulsa",        "Bip OFF: prem",        "Beep OFF: press"    },
@@ -70,10 +70,10 @@ static const char* const STRINGS[LANG_KEY_COUNT][LANG_COUNT] = {
 /* ST_PUSH_MENU */  { "Pulsa: menú",           "Prem: menú",           "Press: menu"        },
 /* ST_CHECK_DS18 */ { "Revisa J4",             "Comprova J4",          "Check J4"           },
 /* ST_CHECK_SOIL */ { "Revisa J6 (GPIO35)",    "Comprova J6 (GPIO35)", "Check J6 (GPIO35)"  },
-/* SYS_DEV_LABEL */ { "DEV",                   "DEV",                  "DEV"                },
-/* SYS_UP_LABEL */  { "UP",                    "UP",                   "UP"                 },
+/* SYS_DEV_LABEL */ { "ID",                    "ID",                   "ID"                 },
+/* SYS_UP_LABEL */  { "Tiempo",                "Temps",                "Uptime"             },
 /* SYS_BLE_LABEL */ { "BLE",                   "BLE",                  "BLE"                },
-/* SYS_LANG_LABEL*/ { "IDI",                   "IDI",                  "LAN"                },
+/* SYS_LANG_LABEL*/ { "Idioma",                "Idioma",               "Lang."              },
 
 /* SUB_AIR_REL  */  { "Relativa del aire",     "Relativa de l'aire",   "Relative humidity"  },
 /* SUB_SOIL_MOIST*/ { "Humedad",               "Humitat",              "Moisture"           },
@@ -103,6 +103,7 @@ static const char* const STRINGS[LANG_KEY_COUNT][LANG_COUNT] = {
   /* ST_TIMER_RDY */  { "LISTO",                 "LLEST",                "READY"              },
 /* ST_TIMER_RUN */  { "EN CURSO",              "EN CURS",              "RUNNING"            },
 /* ST_TIMER_PAU */  { "PAUSADO",               "PAUSAT",               "PAUSED"             },
+/* ST_TIMER_DONE */ { "ALARMA",                "ALARMA",               "ALARM"              },
 
 /* ST_PUSH_START*/  { "Pulsa iniciar",         "Prem iniciar",         "Press start"        },
 /* ST_PUSH_PAUSE*/  { "Pulsa pausar",          "Prem pausar",          "Press pause"        },
@@ -136,6 +137,7 @@ static const char* const STRINGS[LANG_KEY_COUNT][LANG_COUNT] = {
 // System menu
 /* MENU_SETTINGS     */  { "AJUSTES",               "AJUSTS",               "SETTINGS"           },
 /* MENU_SOUND        */  { "Bip",                   "Bip",                  "Beep"               },
+/* MENU_ALARM_SOUND  */  { "Alarmas",               "Alarmes",              "Alarms"             },
 /* MENU_SLEEP        */  { "Reposo",                "Repòs",                "Sleep"              },
 /* MENU_NEVER        */  { "Nunca",                 "Mai",                  "Never"              },
 /* MENU_SLEEP_30S    */  { "30 seg",                "30 s",                 "30 sec"             },
@@ -161,10 +163,10 @@ static const char* const STRINGS[LANG_KEY_COUNT][LANG_COUNT] = {
 /* MENU_SND_MAX_QUIET    */  { "Máx. suave",        "Màx. suau",            "Max quiet"          },
 /* MENU_SND_MAX_NORMAL   */  { "Máx. normal",       "Màx. normal",          "Max normal"         },
 /* MENU_SND_MAX_LOUD     */  { "Máx. fuerte",       "Màx. fort",            "Max loud"           },
-/* MENU_RESET_SUB_SOUND  */  { "de ruido",          "de soroll",            "for noise"          },
+/* MENU_RESET_SUB_SOUND  */  { "de sonido",         "de so",                "for sound"          },
 /* MENU_SND_ABR_QUIET    */  { "Sil",               "Sil",                  "Qui"                },
 /* MENU_SND_ABR_NORMAL   */  { "Nor",               "Nor",                  "Nor"                },
-/* MENU_SND_ABR_LOUD     */  { "Rui",               "Sor",                  "Loud"               },
+/* MENU_SND_ABR_LOUD     */  { "Fte",               "Fort",                 "Loud"               },
 
 // Soil menu
 /* MENU_SOIL_SENSOR_LIMITS */ { "Sensor+límites",   "Sensor+llindars",     "Sensor+limits"      },
@@ -175,7 +177,7 @@ static const char* const STRINGS[LANG_KEY_COUNT][LANG_COUNT] = {
 // DS18 / temperature menu
 /* MENU_OFFSET           */  { "Corrección",        "Correcció",            "Offset"             },
 /* MENU_RESET_SUB_TEMP   */  { "de temperatura",    "de temperatura",       "for temperature"    },
-/* MENU_RESET_SUB_PROBE  */  { "del termómetro",    "del termòmetre",       "for probe menu"     },
+/* MENU_RESET_SUB_PROBE  */  { "del termómetro",    "del termòmetre",       "for thermometer"    },
 /* MENU_RESET_SUB_HUM    */  { "de humedad",        "d'humitat",            "for humidity"       },
 
 /* MENU_TITLE   */  { "Idioma",                "Idioma",               "Language"           },
@@ -185,14 +187,14 @@ static const char* const STRINGS[LANG_KEY_COUNT][LANG_COUNT] = {
 
 // Graph screen
 /* TIT_GRAPH         */ { "GRÁFICA",              "GRÀFICA",              "GRAPH"              },
-/* GRAPH_PUSH_SENSOR */ { "Pulsa: sensor",       "Prem: sensor",          "Press: sensor"      },
+/* GRAPH_PUSH_SENSOR */ { "Pulsa: vista",        "Prem: vista",           "Press: view"        },
 /* ST_WAITING        */ { "Esperando...",         "Esperant...",          "Waiting..."         },
 /* GRAPH_LABEL_TEMP_AIR */ { "Temp. del aire",  "Temp. de l'aire",       "Air temp"           },
-/* GRAPH_LABEL_HUM_AIR  */ { "Humedad",          "Humitat",               "Humidity"           },
+/* GRAPH_LABEL_HUM_AIR  */ { "Humedad del Aire", "Humitat de l'aire",     "Air humidity"       },
 /* GRAPH_LABEL_LIGHT    */ { "Luz",              "Llum",                  "Light"              },
-/* GRAPH_LABEL_SOUND    */ { "Ruido",            "Soroll",                "Noise"              },
+/* GRAPH_LABEL_SOUND    */ { "Sonido",           "So",                    "Sound"              },
 /* GRAPH_LABEL_SOIL_HUM */ { "Hum. suelo",       "Hum. sòl",              "Soil moisture"      },
-/* GRAPH_LABEL_DS18     */ { "Temp. sonda",      "Temp. sonda",           "Probe temp"         },
+/* GRAPH_LABEL_DS18     */ { "Termómetro",       "Termòmetre",            "Thermometer"        },
 
 // Temporary lab screens
 /* TIT_LAB_DASH      */ { "ESTADO LAB",           "ESTAT LAB",            "LAB OVERVIEW"       },
@@ -204,14 +206,14 @@ static const char* const STRINGS[LANG_KEY_COUNT][LANG_COUNT] = {
 /* TIT_LAB_GAUGE     */ { "DIAL LAB",             "DIAL LAB",             "GAUGE LAB"          },
 /* TIT_LAB_VALUE     */ { "VALOR LAB",            "VALOR LAB",            "VALUE LAB"          },
 /* TIT_LAB_TEMP_CARD */ { "TEMP TARJETA",         "TEMP TARGETA",         "TEMP CARD"          },
-/* TIT_LAB_PROBE_CARD */ { "SONDA TARJETA",       "SONDA TARGETA",        "PROBE CARD"         },
-/* TIT_LAB_HUM_CARD  */ { "HUM TARJETA",          "HUM TARGETA",          "HUM CARD"           },
+/* TIT_LAB_PROBE_CARD */ { "TERMÓMETRO TARJETA",  "TERMÒMETRE TARGETA",   "THERMOMETER CARD"   },
+/* TIT_LAB_HUM_CARD  */ { "HUMEDAD TARJETA",      "HUMITAT TARGETA",      "HUMIDITY CARD"      },
 /* TIT_LAB_LIGHT_CARD*/ { "LUZ TARJETA",          "LLUM TARGETA",         "LIGHT CARD"         },
-/* TIT_LAB_SOUND_CARD*/ { "RUIDO TARJETA",        "SOROLL TARGETA",       "NOISE CARD"         },
-/* TIT_LAB_SOIL_CARD */ { "SUELO TARJETA",        "SÒL TARGETA",          "SOIL CARD"          },
+/* TIT_LAB_SOUND_CARD*/ { "SONIDO TARJETA",       "SO TARGETA",           "SOUND CARD"         },
+/* TIT_LAB_SOIL_CARD */ { "TARJETA SUELO",        "TARGETA SÒL",          "SOIL CARD"          },
 /* TIT_LAB_WIDGETS   */ { "TEMP LAB",             "TEMP LAB",             "TEMP LAB"           },
-/* TIT_LAB_VU_STACK  */ { "RUIDO LAB",            "SOROLL LAB",           "NOISE LAB"          },
-/* TIT_LAB_VU_WAVE   */ { "RUIDO LAB",            "SOROLL LAB",           "NOISE LAB"          },
+/* TIT_LAB_VU_STACK  */ { "SONIDO LAB",           "SO LAB",               "SOUND LAB"          },
+/* TIT_LAB_VU_WAVE   */ { "SONIDO LAB",           "SO LAB",               "SOUND LAB"          },
 /* LAB_PUSH_VIEW     */ { "Pulsa: vista",         "Prem: vista",          "Press: view"        },
 /* LAB_VIEW_STACK    */ { "BARRAS",               "BARRES",               "STACK"              },
 /* LAB_VIEW_WAVE     */ { "ONDA",                 "ONA",                  "WAVE"               },
@@ -222,7 +224,8 @@ static const char* const STRINGS[LANG_KEY_COUNT][LANG_COUNT] = {
 /* LAB_LIGHT_SHORT   */ { "LUZ",                  "LLUM",                 "LIGHT"              },
 /* LAB_SOUND_SHORT   */ { "MIC",                  "MIC",                  "MIC"                },
 /* LAB_SOIL_SHORT    */ { "SUELO",                "SÒL",                  "SOIL"               },
-/* LAB_PROBE_SHORT   */ { "SONDA",                "SONDA",                "PROBE"              },
+/* LAB_PROBE_SHORT   */ { "TERMO",                "TERMO",                "THERMO"             },
+/* LAB_AIR_SHORT     */ { "AIRE",                 "AIRE",                 "AIR"                },
 /* LAB_TEMP_DIFF     */ { "DIF TEMP",             "DIF TEMP",             "TEMP DIFF"          },
 /* TIT_LAB_ICON_SZ_ENV */ { "TAM ICONO AMB",     "MIDA ICONA AMB",       "ICON SIZE ENV"      },
 /* TIT_LAB_ICON_SZ_EXT */ { "TAM ICONO EXT",     "MIDA ICONA EXT",       "ICON SIZE EXT"      },
@@ -241,7 +244,7 @@ static const char* const STRINGS[LANG_KEY_COUNT][LANG_COUNT] = {
 /* SOIL_ZONE_WET       */ { "Hum",                "Hum",                  "Wet"                },
 /* SZ_SUFFIX_CARD      */ { "TARJETA",            "TARGETA",              "CARD"               },
 /* SZ_SUFFIX_VALUE     */ { "LAB",                "LAB",                  "LAB"                },
-/* SZ_SUFFIX_GRAPH     */ { "GRAF",               "GRÀF",                 "GRAPH"              },
+/* SZ_SUFFIX_GRAPH     */ { "GRÁFICA",            "GRÀFICA",              "GRAPH"              },
 /* SZ_SUFFIX_DIAL      */ { "DIAL",               "DIAL",                 "DIAL"               },
 };
 

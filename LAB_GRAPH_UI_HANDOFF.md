@@ -27,7 +27,7 @@ Archivos principales:
 - `src/ui_lab_home_cards.cpp` — HOME CARDS
 - `src/ui_lab_dual.cpp` — CLIMA LAB
 - `src/ui_lab_widget_showcase.cpp` — TEMP LAB, GAUGE LAB, VALOR LAB
-- `src/ui_lab_sound_vu.cpp` — SONIDO VU / RUIDO LAB (STACK + WAVE)
+- `src/ui_lab_sound_vu.cpp` — SONIDO VU / SONIDO LAB (STACK + WAVE)
 - `src/ui_lab_linear_dash.cpp` — PLANT LAB
 - `src/ui_lab_focus.cpp` — sub-renderer FOCUS (panel valor + mini-gráfica)
 - `src/ui_graph.cpp` — sub-renderer GRÁFICA
@@ -111,10 +111,10 @@ Iconos disponibles: `temp`, `probe`, `humidity`, `light`, `sound`, `plant`.
 
 Estado actual de iconos:
 - `humidity`: gota limpia sin donut negro y con base tangente.
-- `probe`: sonda vertical tipo cápsula DS18B20.
+- `probe`: módulo compacto de sonda externa DS18B20. Estado no final; validar o rediseñar antes de cerrar producción.
 - `plant`: hojas redondeadas en lugar de triángulos.
 - `bluetooth`: icono XL usado por la pantalla secreta BLE.
-- Pendiente de validar: contraste de detalles negros del termómetro sobre fondos navy y legibilidad de rayos diagonales del sol en hardware real.
+- Pendiente de validar: icono DS18B20 definitivo, contraste de detalles negros del termómetro sobre fondos navy y progresión/legibilidad del sol en hardware real.
 
 ---
 
@@ -127,7 +127,7 @@ Definido en `src/rotary.cpp` → `kCarousel[]` (struct `CarouselEntry{Screen, in
 | 1 | HOME | `LAB_HOME_CARDS_SCREEN` | — |
 | 2 | CLIMA LAB | `LAB_DUAL_TH_SCREEN` | — |
 | 3 | TEMP LAB | `LAB_WIDGET_MIX_SCREEN` | — |
-| 4 | SONIDO VU / RUIDO LAB | `LAB_SOUND_VU_STACK_SCREEN` | — |
+| 4 | SONIDO VU / SONIDO LAB | `LAB_SOUND_VU_STACK_SCREEN` | — |
 | 5 | *(viz del sensor)* | `SENSOR_ZONE_SCREEN` | `SZ_TEMP` |
 | 6 | *(viz del sensor)* | `SENSOR_ZONE_SCREEN` | `SZ_HUM` |
 | 7 | *(viz del sensor)* | `SENSOR_ZONE_SCREEN` | `SZ_LIGHT` |
@@ -150,7 +150,7 @@ Las posiciones 5–10 comparten el mismo `Screen` (`SENSOR_ZONE_SCREEN`) pero ca
 - `LAB_VALUE_MODERN_SCREEN` — sub-renderer de `SENSOR_ZONE_SCREEN` (viz VALOR)
 - `LAB_SENSOR_CARD_SCREEN` — sub-renderer de `SENSOR_ZONE_SCREEN` (viz CARD)
 - `GRAPH_SCREEN` — sub-renderer de `SENSOR_ZONE_SCREEN` (viz GRAF)
-- `LAB_SOUND_VU_WAVE_SCREEN` — sub-vista interna de SONIDO VU / RUIDO LAB (pulsación corta)
+- `LAB_SOUND_VU_WAVE_SCREEN` — sub-vista interna de SONIDO VU / SONIDO LAB (pulsación corta)
 
 ### Comportamiento de pulsación por pantalla
 
@@ -201,7 +201,7 @@ enum SzVizMode : uint8_t {
 | `sz_next_viz()` | Cicla viz mode del sensor activo, persiste |
 | `sz_sync_renderer(bool force)` | Sincroniza sub-renderer; tracking interno evita calls redundantes |
 | `sz_sensor_name(SzSensorId)` | Nombre display localizado del sensor en modo FOCUS |
-| `sz_header_name()` | Cabecera localizada según sensor + vista (`Temp Graf`, `Hum Dial`, etc.) |
+| `sz_header_name()` | Cabecera localizada según sensor + vista (`Temp Gráfica`, `Hum Dial`, etc.) |
 | `sz_set_active(bool)` / `sz_is_active()` | Flag para que sub-renderers omitan su `drawHeader` cuando son llamados desde `SENSOR_ZONE_SCREEN` |
 | `sz_sensor_rgb(SzSensorId, r, g, b)` | Color LED para el sensor activo |
 
@@ -242,14 +242,14 @@ El sensor activo determina el prefijo; el viz mode añade el sufijo. El viz FOCU
 
 | Sensor | FOCUS (default) | CARD | VALOR | GRAPH | GAUGE |
 |--------|----------------|------|-------|-------|-------|
-| SZ_TEMP | `Temperatura` | `Temp Card` | `Temp Lab` | `Temp Graf` | `Temp Dial` |
-| SZ_HUM | `Humedad` | `Hum Card` | `Hum Lab` | `Hum Graf` | `Hum Dial` |
-| SZ_LIGHT | `Luz` | `Luz Card` | `Luz Lab` | `Luz Graf` | `Luz Dial` |
-| SZ_SOUND | `Sonido` | `Sonido Card` | `Sonido Lab` | `Sonido Graf` | `Sonido Dial` |
-| SZ_SOIL | `Suelo` | `Suelo Card` | `Suelo Lab` | `Suelo Graf` | `Suelo Dial` |
-| SZ_DS18 | `Termómetro` | `Termómetro Card` | `Termómetro Lab` | `Termómetro Graf` | `Termómetro Dial` |
+| SZ_TEMP | `Temperatura` | `Temp Card` | `Temp Lab` | `Temp Gráfica` | `Temp Dial` |
+| SZ_HUM | `Humedad` | `Hum Card` | `Hum Lab` | `Hum Gráfica` | `Hum Dial` |
+| SZ_LIGHT | `Luz` | `Luz Card` | `Luz Lab` | `Luz Gráfica` | `Luz Dial` |
+| SZ_SOUND | `Sonido` | `Sonido Card` | `Sonido Lab` | `Sonido Gráfica` | `Sonido Dial` |
+| SZ_SOIL | `Suelo` | `Suelo Card` | `Suelo Lab` | `Suelo Gráfica` | `Suelo Dial` |
+| SZ_DS18 | `Termómetro` | `Termómetro Card` | `Termómetro Lab` | `Termómetro Gráfica` | `Termómetro Dial` |
 
-> **Nota hardware**: `"Termómetro Card"` / `"Termómetro Graf"` son los títulos más largos (~15 chars). Verificar que no se recorten en pantalla real con `FONT_HEADER` a 160px de ancho.
+> **Nota hardware**: `"Termómetro Card"` / `"Termómetro Gráfica"` son los títulos más largos. Verificar que no se recorten en pantalla real con `FONT_HEADER` a 160px de ancho.
 
 ### Implementación actual
 
@@ -308,7 +308,7 @@ Tabla histórica de la propuesta original:
 - Valor diferencial centrado abajo de la barra, posición Y ajustada `+3 px`.
 - Estado: **pendiente de validación en hardware** — especialmente legibilidad de la barra diferencial y textos en idiomas largos.
 
-### SONIDO VU / RUIDO LAB (`LAB_SOUND_VU_STACK_SCREEN` / `LAB_SOUND_VU_WAVE_SCREEN`)
+### SONIDO VU / SONIDO LAB (`LAB_SOUND_VU_STACK_SCREEN` / `LAB_SOUND_VU_WAVE_SCREEN`)
 
 - Pantalla única de entrada: STACK. Pulsación corta alterna a WAVE (sub-vista interna).
 - Sin chip/card de MIC; `MIC` queda como etiqueta suelta.
@@ -406,7 +406,7 @@ Estas tareas no requieren código adicional salvo los ajustes que surjan al ver 
 2. **VALOR LAB** — off-color segmentos de barra demasiado oscuro; ajustar si no se distingue del fondo.
 3. **TEMP LAB** — barra diferencial izquierda/derecha, colores, legibilidad en idiomas con textos largos.
 4. **Títulos largos** — confirmar que `TEMPORIZADOR`, `TERMÓMETRO`, `TEMPERATURA` no se recortan.
-5. **SONIDO VU / RUIDO LAB** — posición y claridad del texto de estado con el ajuste Y-1.
+5. **SONIDO VU / SONIDO LAB** — posición y claridad del texto de estado con el ajuste Y-1.
 6. **GAUGE LAB** — ícono XL en centro, legibilidad del valor dentro del anillo, contraste.
 7. Confirmar ausencia de parpadeo en redraw rápido (especialmente Sensor Zone: `FOCUS`, `VALOR`, `GRAPH`, `GAUGE`, `CARD`).
 8. Confirmar LDR `0..20000 lux` en `HOME`, `PLANT`, `CARD`, `VALOR`, `GAUGE` y `GRAPH`.

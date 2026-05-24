@@ -156,13 +156,19 @@ const char* sz_header_name() {
         LAB_SOIL_SHORT,
         LAB_PROBE_SHORT,
     };
+    auto sensor_mode_name = [&](uint8_t sensor) -> const char* {
+        if (sensor == (uint8_t)SZ_HUM) return L(TIT_HUM);
+        if (sensor == (uint8_t)SZ_SOUND) return L(TIT_SOUND);
+        if (sensor == (uint8_t)SZ_DS18) return L(LAB_PROBE_SHORT);
+        return L(kShort[sensor]);
+    };
     const uint8_t s = (uint8_t)g_sensor;
     switch (g_viz[g_sensor]) {
         case SZ_VIZ_FOCUS: return sz_sensor_name(g_sensor);
-        case SZ_VIZ_CARD:  { static char buf[32]; snprintf(buf, sizeof(buf), "%s %s", L(kShort[s]), L(SZ_SUFFIX_CARD));  return buf; }
-        case SZ_VIZ_VALOR: { static char buf[32]; snprintf(buf, sizeof(buf), "%s %s", L(kShort[s]), L(SZ_SUFFIX_VALUE)); return buf; }
-        case SZ_VIZ_GRAPH: { static char buf[32]; snprintf(buf, sizeof(buf), "%s %s", L(kShort[s]), L(SZ_SUFFIX_GRAPH)); return buf; }
-        case SZ_VIZ_GAUGE: { static char buf[32]; snprintf(buf, sizeof(buf), "%s %s", L(kShort[s]), L(SZ_SUFFIX_DIAL));  return buf; }
+        case SZ_VIZ_CARD:  { static char buf[32]; snprintf(buf, sizeof(buf), "%s %s", sensor_mode_name(s), L(SZ_SUFFIX_CARD));  return buf; }
+        case SZ_VIZ_VALOR: { static char buf[32]; snprintf(buf, sizeof(buf), "%s %s", sensor_mode_name(s), L(SZ_SUFFIX_VALUE)); return buf; }
+        case SZ_VIZ_GRAPH: { static char buf[32]; snprintf(buf, sizeof(buf), "%s %s", sensor_mode_name(s), L(SZ_SUFFIX_GRAPH)); return buf; }
+        case SZ_VIZ_GAUGE: { static char buf[32]; snprintf(buf, sizeof(buf), "%s %s", sensor_mode_name(s), L(SZ_SUFFIX_DIAL));  return buf; }
         default:           return sz_sensor_name(g_sensor);
     }
 }

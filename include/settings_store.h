@@ -55,6 +55,7 @@ struct LightSettings {
 struct SystemSettings {
     uint32_t sleep_timeout_ms;
     bool sound_enabled;
+    bool alarm_sound_enabled;
 };
 
 SoilCalibrationData load_soil_calibration_store(int default_dry, int default_wet);
@@ -85,8 +86,9 @@ void save_light_thresholds_store(int dim_max, int indoor_max, int bright_max);
 void save_light_display_mode_store(uint8_t mode);
 void save_light_alerts_enabled_store(bool enabled);
 
-SystemSettings load_system_settings_store(uint32_t default_sleep_timeout_ms, bool default_sound_enabled);
+SystemSettings load_system_settings_store(uint32_t default_sleep_timeout_ms, bool default_sound_enabled, bool default_alarm_sound_enabled);
 void save_system_sound_enabled_store(bool enabled);
+void save_system_alarm_sound_enabled_store(bool enabled);
 void save_system_sleep_timeout_store(uint32_t timeout_ms);
 
 void clear_all_settings_store();

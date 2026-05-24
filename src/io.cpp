@@ -14,15 +14,16 @@
 // LDR calibration constants.
 #define VCC_SUPPLY_VOLTAGE    3300.0 
 #define REF_RESISTANCE      10000.0 
-#define LUX_CALIBRATION_LOG    1.8 
-#define LUX_CALIBRATION_GAMMA   1.4 
+#define LDR_R10_OHMS        15000.0
+#define LDR_GAMMA              0.60
+#define LDR_LUX_MAX         20000.0
 #define ADC_LOW_RAIL_THRESHOLD 10
 #define ADC_HIGH_RAIL_THRESHOLD 4050
 
 Reading global_readings;
 volatile bool g_sensor_data_ready = false;
 portMUX_TYPE readings_mux = portMUX_INITIALIZER_UNLOCKED;
-extern bool g_sound_enabled;
+extern bool g_alarm_sound_enabled;
 
 DHT dht(PIN_DHT, DHT_TYPE);
 
@@ -83,7 +84,7 @@ void sensor_reading_task(void *param) {
        portEXIT_CRITICAL(&readings_mux);
 
        // Refresh the shared alert state as soon as the new snapshot is ready.
-       alert_engine_refresh_from_reading(local_r, g_sound_enabled);
+       alert_engine_refresh_from_reading(local_r, g_alarm_sound_enabled);
 
        runtime_mark_sensor_data_ready();
 
@@ -118,22 +119,31 @@ static void read_fast_sensors(Reading &r) {
     static uint8_t ldr_cycle = 0;
     if (++ldr_cycle >= 6) {
         ldr_cycle = 0;
-        // LDR front-end used by the current board maps higher ADC counts to higher lux.
-        // Keep the conversion polarity aligned with the analog divider fitted in hardware.
-        float ldr_raw = read_adc_raw(PIN_LDR_SIGNAL);
+        // LDR front-end used by the current board maps higher ADC counts to darkness:
+        // light lowers the LDR resistance, which lowers the ADC voltage in this divider.
+        constexpr uint8_t LDR_ADC_SAMPLES = 4;
+        uint32_t ldr_sum = 0;
+        for (uint8_t i = 0; i < LDR_ADC_SAMPLES; ++i) {
+            ldr_sum += (uint32_t)read_adc_raw(PIN_LDR_SIGNAL);
+            delayMicroseconds(150);
+        }
+        float ldr_raw = (float)ldr_sum / (float)LDR_ADC_SAMPLES;
         float ldr_new;
         if (ldr_raw <= ADC_LOW_RAIL_THRESHOLD) {
-            ldr_new = 0.0f;
+            ldr_new = LDR_LUX_MAX;
         } else if (ldr_raw >= ADC_HIGH_RAIL_THRESHOLD) {
-            ldr_new = 20000.0f;
+            ldr_new = 0.0f;
         } else {
             float v   = (ldr_raw / 4095.0f) * VCC_SUPPLY_VOLTAGE;
             float res = (v > 0 && (VCC_SUPPLY_VOLTAGE - v) > 0) ?
-                        (REF_RESISTANCE * (VCC_SUPPLY_VOLTAGE - v)) / v : 999999.0f;
-            float base_lux = powf(10.0f, LUX_CALIBRATION_LOG);
-            ldr_new = base_lux * powf(REF_RESISTANCE / res, LUX_CALIBRATION_GAMMA);
+                        (REF_RESISTANCE * v) / (VCC_SUPPLY_VOLTAGE - v) : 999999.0f;
+            // GL55/GL5528-style CdS model:
+            // R = R10 * (10 lux / lux)^gamma  =>  lux = 10 * (R10 / R)^(1/gamma).
+            // R10 is set to the GL5528 midpoint (10-20 kOhm at 10 lux).
+            ldr_new = 10.0f * powf(LDR_R10_OHMS / res, 1.0f / LDR_GAMMA);
         }
-        ldr_new = constrain(ldr_new, 0.0f, 20000.0f);
+        if (!isfinite(ldr_new)) ldr_new = LDR_LUX_MAX;
+        ldr_new = constrain(ldr_new, 0.0f, LDR_LUX_MAX);
         r.ldr_raw = ldr_raw;
 
         // Software EMA on top of the hardware filter: smooths the reading without lagging too much.
@@ -147,11 +157,11 @@ static void read_fast_sensors(Reading &r) {
     // Sound: always sample at full rate (20 ms window is required for VU accuracy).
     r.mic = read_sound_level();
 
-    // Soil: sample at ~1 Hz (every 30 fast cycles ≈ 900 ms).
-    // Moisture changes on the timescale of minutes — 1 Hz is more than enough,
-    // and skipping 29 of 30 calls (each costing ~2.4 ms) saves ~70 ms/s of CPU time.
+    // Soil: sample at ~5 Hz (every 6 fast cycles ≈ 180 ms).
+    // The capacitive sensor is cheap to read (~2.4 ms), and the faster cadence makes
+    // insertion/removal and calibration feel immediate without disturbing the 30 Hz task.
     static uint8_t soil_cycle = 0;
-    if (++soil_cycle >= 30) {
+    if (++soil_cycle >= 6) {
         soil_cycle = 0;
         r.soil_humidity = read_soil_moisture();
     }

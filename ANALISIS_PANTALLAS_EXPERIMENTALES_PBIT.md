@@ -11,7 +11,7 @@ La UI actual ya no expone las pantallas individuales como paradas principales. E
 - `HOME` / `INICIO` (`LAB_HOME_CARDS_SCREEN`)
 - `CLIMA LAB` (`LAB_DUAL_TH_SCREEN`)
 - `MULTI LAB` / `TEMP LAB` (`LAB_WIDGET_MIX_SCREEN`)
-- `SONIDO VU` / `RUIDO LAB` (`LAB_SOUND_VU_STACK_SCREEN`)
+- `SONIDO VU` / `SONIDO LAB` (`LAB_SOUND_VU_STACK_SCREEN`)
 - `SENSOR_ZONE_SCREEN` para Temp, Hum, Luz, Sonido, Suelo y DS18
 - `TIMER_SCREEN`
 - `SYSTEM_SCREEN`
@@ -42,7 +42,7 @@ Orden real en `src/rotary.cpp` -> `kCarousel[]`:
 - Girar fuera de menús cambia entre los 12 slots del carrusel.
 - Pulsación corta en un slot de Sensor Zone cambia el modo visual del sensor.
 - Pulsación larga en un slot de Sensor Zone abre el menú/configuración del sensor correspondiente.
-- Pulsación corta en `SYSTEM_SCREEN` conmuta el sonido global.
+- Pulsación corta en `SYSTEM_SCREEN` conmuta `Bip`.
 - Pulsación larga en `SYSTEM_SCREEN` abre ajustes.
 - Mantener pulsado `SYSTEM_SCREEN` 60 s desbloquea la pantalla oculta de BLE.
 

@@ -105,6 +105,7 @@ enum LangKey : uint8_t {
     ST_TIMER_RDY,
     ST_TIMER_RUN,
     ST_TIMER_PAU,
+    ST_TIMER_DONE,
 
     // Timer instructions
     ST_PUSH_START,
@@ -139,6 +140,7 @@ enum LangKey : uint8_t {
     // System menu
     MENU_SETTINGS,
     MENU_SOUND,
+    MENU_ALARM_SOUND,
     MENU_SLEEP,
     MENU_NEVER,
     MENU_SLEEP_30S,
@@ -227,6 +229,7 @@ enum LangKey : uint8_t {
     LAB_SOUND_SHORT,
     LAB_SOIL_SHORT,
     LAB_PROBE_SHORT,
+    LAB_AIR_SHORT,
     LAB_TEMP_DIFF,
     TIT_LAB_ICON_SZ_ENV,
     TIT_LAB_ICON_SZ_EXT,

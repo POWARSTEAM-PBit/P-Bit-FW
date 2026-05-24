@@ -286,7 +286,7 @@ void alert_engine_refresh_from_reading(const Reading& reading, bool sound_enable
                              get_light_threshold_bright()),
         classify_sound_alert(reading.mic,
                              sound_alerts_enabled,
-                             get_sound_threshold_quiet(),
+                             get_sound_threshold_normal(),
                              get_sound_threshold_loud()),
         classify_soil_alert(classify_soil_category(reading.soil_humidity, soil_no_sensor),
                             soil_no_sensor,

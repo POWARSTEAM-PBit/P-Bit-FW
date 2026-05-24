@@ -13,7 +13,9 @@ Firmware PlatformIO/Arduino para el P-Bit: placa educativa ambiental basada en E
 - `GRAPH_SCREEN` existe en código, pero en el carrusel actual la gráfica se usa como modo por sensor dentro de `SENSOR_ZONE_SCREEN`.
 - i18n centralizado para Español, Catalán e Inglés. El idioma se elige en el primer arranque y puede cambiarse desde `Sistema`; el cambio afecta a la interfaz completa.
 - LDR corregido a la polaridad de la placa actual y limitado en firmware al rango `0..20000 lux`.
-- BLE está oculto y desactivado por defecto de fábrica. Solo se habilita desde la pantalla oculta accesible manteniendo el encoder 60 s en `Sistema`.
+- `Sistema` separa `Bip` para beeps de UI y `Alarmas` para alertas/timer audibles.
+- BLE está oculto y desactivado por defecto de fábrica; su activación queda documentada solo en material técnico interno.
+- `Termómetro` usa `DS18B20` como identificador técnico; su icono de sonda sigue marcado como no final para revisión visual.
 - La UI usa refresco acotado y cachés de dibujo para reducir parpadeos; `Timer`, `Sistema` y sensores tienen cadencias de actualización específicas.
 - El reposo automático es visible: muestra `ZZZ` y despierta con interacción del encoder.
 

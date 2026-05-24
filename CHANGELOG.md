@@ -1,5 +1,22 @@
 # Changelog
 
+## 2026-05-24
+
+### Firmware/UI
+
+- Reorganizada la pantalla `Sistema`: card principal con panels internos para `ID`, `Tiempo`, `Idioma`, audio y BLE condicional; el menú raíz pasa a grid 2×3.
+- Ocultación BLE reforzada en `Sistema`: si `ble_en == false`, no se dibuja panel BLE ni estado `OFF`.
+- Ajustada la progresión visual del icono de luz en diales con más pasos en el tramo bajo `0..1000 lux`.
+- Corregidas zonas de limpieza/capa en cards para evitar que valores dinámicos tapen labels técnicos como `DS18B20`.
+- Subidos los indicadores mínimo/máximo de diales y mantenido `DS18B20` como icono no final pendiente de rediseño/validación.
+
+### Documentación
+
+- Documentada la separación de `Sistema` entre `Bip` (`sys_sound`, beeps de UI) y `Alarmas` (`sys_alarm`, alertas y timer audibles).
+- Actualizados términos visibles: `Sonido` en lugar de `Ruido`, `Gráfica` en lugar de abreviaturas `Graf`, y `Termómetro`/`Termo` para la sonda externa, manteniendo `DS18B20` como identificador técnico.
+- Mantenida la activación BLE secreta fuera del manual de usuario; queda tratada solo como documentación técnica/agent handoff.
+- Actualizados manuales, roadmap, checklist/release y escenas de Sistema del visualizador. Añadido `AGENTS.md` para futuros agentes.
+
 ## 2026-05-20
 
 ### Revisión de producción/i18n
@@ -12,7 +29,7 @@
 - LDR documentado con rango lux `0..20000`, saturación alta a `20000 lux`, `ldr_raw` y modo `Raw ADC`.
 - Sensor Zone consolidado como capa común para los seis sensores, con modos `Focus`, `Valor`, `Gráfica`, `Dial` y `Card`.
 - Fixes anti-flicker documentados para dials/gauges, cards, menús/footers y `Sound VU`.
-- `logs/xvba_debug.log` marcado como ruido local/no pertinente para este commit salvo decisión explícita del usuario.
+- `logs/xvba_debug.log` marcado como log local/no pertinente para este commit salvo decisión explícita del usuario.
 
 ### Documentación
 
@@ -36,7 +53,7 @@
 - El arranque limpia NVS por build-hash antes de cargar BLE y settings, evitando que una unidad reflasheada anuncie BLE con estado anterior.
 - BLE usa buffers fijos, bitmap de validez y servicio rate-limited desde la tarea de sensores; se evita `String` en el camino caliente y la notificación desde callbacks.
 - LDR usa lectura ADC protegida, arranca con valores inválidos explícitos y mantiene el rango de luz documentado para producción.
-- Luz y sonido ignoran lecturas inválidas en alertas y UI, evitando falsos estados de sol directo o ruido crítico.
+- Luz y sonido ignoran lecturas inválidas en alertas y UI, evitando falsos estados de sol directo o sonido crítico.
 - Lecturas ADC compartidas pasan por un guard común para reducir carreras entre calibración UI y tarea de sensores.
 - El buzzer deja de llamar LEDC dentro de secciones críticas; usa mutex de tarea.
 - Alert jewels de Temp/Humedad/DS18/Luz/Sonido se repintan al cambiar pantalla y se reducen clears que podían pisarlos.

@@ -11,6 +11,7 @@
 uint8_t mac[MAC_LEN];
 char dev_name[MAX_DEVICE_NAME_LEN];
 extern bool g_sound_enabled;
+extern bool g_alarm_sound_enabled;
 
 // Shared DS18B20 bus instance.
 OneWire oneWire(PIN_TEMP_DS18B20);
@@ -50,6 +51,7 @@ constexpr uint8_t LIGHT_DISPLAY_MODE_DEFAULT = 0;
 constexpr bool LIGHT_ALERTS_DEFAULT_ENABLED = true;
 constexpr uint32_t SYSTEM_DEFAULT_SLEEP_TIMEOUT_MS = DEEP_SLEEP_TIMEOUT_MS;
 constexpr bool SYSTEM_DEFAULT_SOUND_ENABLED = true;
+constexpr bool SYSTEM_DEFAULT_ALARM_SOUND_ENABLED = true;
 
 static int g_sound_thresh_quiet_max = SOUND_THRESH_DEFAULT_QUIET_MAX;
 static int g_sound_thresh_normal_max = SOUND_THRESH_DEFAULT_NORMAL_MAX;
@@ -540,19 +542,31 @@ void set_light_alerts_enabled(bool enabled) {
 void load_system_settings() {
     SystemSettings stored = load_system_settings_store(
         SYSTEM_DEFAULT_SLEEP_TIMEOUT_MS,
-        SYSTEM_DEFAULT_SOUND_ENABLED);
+        SYSTEM_DEFAULT_SOUND_ENABLED,
+        SYSTEM_DEFAULT_ALARM_SOUND_ENABLED);
     uint32_t sleep_timeout_ms = stored.sleep_timeout_ms;
     bool sound_enabled = stored.sound_enabled;
+    bool alarm_sound_enabled = stored.alarm_sound_enabled;
 
     g_system_sleep_timeout_ms = is_valid_sleep_timeout(sleep_timeout_ms)
         ? sleep_timeout_ms
         : SYSTEM_DEFAULT_SLEEP_TIMEOUT_MS;
     g_sound_enabled = sound_enabled;
+    g_alarm_sound_enabled = alarm_sound_enabled;
 }
 
 void save_sound_enabled(bool enabled) {
     save_system_sound_enabled_store(enabled);
     g_sound_enabled = enabled;
+}
+
+void save_alarm_sound_enabled(bool enabled) {
+    save_system_alarm_sound_enabled_store(enabled);
+    g_alarm_sound_enabled = enabled;
+}
+
+bool get_alarm_sound_enabled() {
+    return g_alarm_sound_enabled;
 }
 
 void save_sleep_timeout(uint32_t timeout_ms) {
@@ -598,6 +612,7 @@ void reset_all_settings() {
     g_light_alerts_enabled = LIGHT_ALERTS_DEFAULT_ENABLED;
     g_system_sleep_timeout_ms = SYSTEM_DEFAULT_SLEEP_TIMEOUT_MS;
     g_sound_enabled = SYSTEM_DEFAULT_SOUND_ENABLED;
+    g_alarm_sound_enabled = SYSTEM_DEFAULT_ALARM_SOUND_ENABLED;
 }
 
 

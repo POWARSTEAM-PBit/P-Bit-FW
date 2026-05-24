@@ -118,6 +118,8 @@ void set_light_alerts_enabled(bool enabled);
 // --- Global system settings ---
 void load_system_settings();
 void save_sound_enabled(bool enabled);
+void save_alarm_sound_enabled(bool enabled);
+bool get_alarm_sound_enabled();
 void save_sleep_timeout(uint32_t timeout_ms);
 uint32_t get_sleep_timeout();
 void reset_all_settings();

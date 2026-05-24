@@ -3,12 +3,13 @@
 #include "led_control.h"
 #include "config.h"
 
-extern bool g_sound_enabled;
+extern bool g_alarm_sound_enabled;
 
 bool userTimerRunning = false;
 unsigned long userTimerStart = 0;
 unsigned long userTimerElapsed = 0;
 volatile bool g_timer_just_finished = false;
+volatile bool g_timer_finished_active = false;
 
 volatile bool g_timer_just_reset = false;
 
@@ -110,6 +111,7 @@ void confirmTimerMenu() {
     g_timer_menu_editing = false;
     g_timer_just_reset = true;
     g_timer_just_finished = false;
+    g_timer_finished_active = false;
     DPRINT("[Timer] Duration -> %lus\n", g_timer_duration_seconds);
 }
 
@@ -208,6 +210,7 @@ void startUserTimer() {
     userTimerRunning = true;
     g_timer_just_reset = false; 
     g_timer_just_finished = false;
+    g_timer_finished_active = false;
     DPRINTLN("[Timer] Started");
 }
 
@@ -229,6 +232,7 @@ void resetUserTimer() {
     
     g_timer_just_reset = true;
     g_timer_just_finished = false;
+    g_timer_finished_active = false;
     
     DPRINTLN("[Timer] Reset");
 }
@@ -247,8 +251,9 @@ void serviceUserTimer() {
     userTimerElapsed = preset_ms;
     userTimerRunning = false;
     g_timer_just_finished = true;
+    g_timer_finished_active = true;
     g_timer_just_reset = false;
-    if (preset_ms > 0 && g_sound_enabled) {
+    if (preset_ms > 0 && g_alarm_sound_enabled) {
         static const ToneStep timer_alarm_steps[] = {
             { 2200, 180 }, { 0, 140 },
             { 2200, 180 }, { 0, 140 },

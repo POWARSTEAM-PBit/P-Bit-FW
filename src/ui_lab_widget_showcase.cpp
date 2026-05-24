@@ -51,6 +51,13 @@ static uint16_t mix565(uint16_t a, uint16_t b, uint8_t amount_b) {
     return (uint16_t)((r << 11) | (g << 5) | bl);
 }
 
+static uint16_t mix3_565(uint16_t low, uint16_t mid, uint16_t high, uint8_t amount) {
+    if (amount <= 127) {
+        return mix565(low, mid, (uint8_t)((uint16_t)amount * 2));
+    }
+    return mix565(mid, high, (uint8_t)(((uint16_t)amount - 128) * 2 + 1));
+}
+
 enum ValueLabSensor : uint8_t {
     VALUE_SENSOR_TEMP = 0,
     VALUE_SENSOR_HUM,
@@ -85,6 +92,7 @@ struct GaugeRenderCache {
     GaugeLabSensor sensor = GAUGE_SENSOR_TEMP;
     bool sensor_valid = false;
     int value_key = INT_MIN;
+    uint8_t icon_bucket = 255;
     bool fahrenheit = false;
     int  last_active_until = -1;  // ring segment cache (avoid re-drawing every segment when ratio unchanged)
 };
@@ -258,7 +266,7 @@ static const GaugeSensorSpec& gauge_spec(GaugeLabSensor sensor) {
     // GaugeLabSensor shares the same order as SzSensorId — pb_primary/secondary apply directly.
     static const GaugeSensorSpec specs[GAUGE_SENSOR_COUNT] = {
         { LAB_TEMP_SHORT,  PB_TEMP_P1,  PB_TEMP_P2,  true  },
-        { LAB_HUM_SHORT,   PB_HUM_P1,   PB_HUM_P2,   false },
+        { LAB_AIR_SHORT,   PB_HUM_P1,   PB_HUM_P2,   false },
         { LAB_LIGHT_SHORT, PB_LUZ_P1,   PB_LUZ_P2,   false },
         { LAB_SOUND_SHORT, PB_SOUND_P1, PB_SOUND_P2, false },
         { LAB_SOIL_SHORT,  PB_SOIL_P1,  PB_SOIL_P2,  false },
@@ -353,7 +361,7 @@ static void format_gauge_value(char* out, size_t out_len, GaugeLabSensor sensor,
     const GaugeSensorSpec& spec = gauge_spec(sensor);
     const float value = gauge_sensor_value(sensor);
     if (sensor == GAUGE_SENSOR_LIGHT && value >= 10000.0f) {
-        snprintf(out, out_len, "%.0fk", value / 1000.0f);
+        snprintf(out, out_len, "%.0fK", value / 1000.0f);
         return;
     }
     if (spec.decimal) {
@@ -364,21 +372,21 @@ static void format_gauge_value(char* out, size_t out_len, GaugeLabSensor sensor,
 }
 
 static void format_gauge_limit(char* out, size_t out_len, float value, const char* unit) {
-    if (unit && strcmp(unit, "lux") == 0 && value >= 10000.0f) {
-        snprintf(out, out_len, "%.0fk%s", value / 1000.0f, unit);
+    if (fabsf(value) >= 10000.0f) {
+        snprintf(out, out_len, "%.0fK%s", value / 1000.0f, unit ? unit : "");
         return;
     }
     snprintf(out, out_len, "%.0f%s", value, unit ? unit : "");
 }
 
-static void draw_gauge_icon(GaugeLabSensor sensor, int cx, int cy, uint16_t color) {
+static void draw_gauge_icon(GaugeLabSensor sensor, int cx, int cy, uint16_t color, uint16_t accent) {
     switch (sensor) {
-        case GAUGE_SENSOR_TEMP:  pbit_draw_temp_icon_xl    (cx, cy, color); break;
-        case GAUGE_SENSOR_HUM:   pbit_draw_humidity_icon_xl(cx, cy, color); break;
-        case GAUGE_SENSOR_LIGHT: pbit_draw_light_icon_xl   (cx, cy, color); break;
-        case GAUGE_SENSOR_SOUND: pbit_draw_sound_icon_xl   (cx, cy, color); break;
-        case GAUGE_SENSOR_SOIL:  pbit_draw_plant_icon_xl   (cx, cy, color); break;
-        case GAUGE_SENSOR_DS18:  pbit_draw_probe_icon_xl   (cx, cy, color); break;
+        case GAUGE_SENSOR_TEMP:  pbit_draw_temp_icon_xxl    (cx, cy, color, accent); break;
+        case GAUGE_SENSOR_HUM:   pbit_draw_humidity_icon_xxl(cx, cy, color, accent); break;
+        case GAUGE_SENSOR_LIGHT: pbit_draw_light_icon_xxl   (cx, cy, color, accent); break;
+        case GAUGE_SENSOR_SOUND: pbit_draw_sound_icon_xxl   (cx, cy, color, accent); break;
+        case GAUGE_SENSOR_SOIL:  pbit_draw_plant_icon_xxl   (cx, cy, color, accent); break;
+        case GAUGE_SENSOR_DS18:  pbit_draw_probe_icon_xxl   (cx, cy, color, accent); break;
         default:                 tft.drawRoundRect(cx - 12, cy - 12, 24, 24, 3, color); break;
     }
 }
@@ -390,82 +398,141 @@ static void draw_lab_gauge_shell() {
 }
 
 // Layout constants extracted from draw_lab_gauge_dynamic so chrome/data can share them.
-constexpr int kGaugeCx = 106;
-constexpr int kGaugeCy = 76;
-constexpr int kGaugeR  = 31;
-constexpr int kGaugeIconCx = 34;
-constexpr int kGaugeIconCy = 76;
+constexpr int kGaugeCx = 115;
+constexpr int kGaugeCy = 73;
+constexpr int kGaugeR  = 34;
+constexpr int kGaugeIconCx = 43;
+constexpr int kGaugeIconCy = 79;
+constexpr int kGaugeArcThickness = 9;
+constexpr int kGaugeLimitLeftX = kGaugeCx - 24;
+constexpr int kGaugeLimitRightX = kGaugeCx + 24;
+constexpr int kGaugeLimitY = 104;
 // Value text clear box centered on (kGaugeCx, kGaugeCy+1), wide enough for compact values.
 constexpr int kGaugeValueClearW = 60;
 constexpr int kGaugeValueClearH = 24;
-constexpr int kGaugeUnitX = 148;
-constexpr int kGaugeUnitY = 27;
-constexpr int kGaugeUnitClearX = kGaugeUnitX - 42;
-constexpr int kGaugeUnitClearY = 22;
-constexpr int kGaugeUnitClearW = 46;
-constexpr int kGaugeUnitClearH = 20;
+constexpr int kGaugeUnitX = LC_SCREEN_X + 6;
+constexpr int kGaugeUnitY = LC_CARD_TOP + 4;
+constexpr int kGaugeUnitClearX = LC_SCREEN_X + 4;
+constexpr int kGaugeUnitClearY = LC_CARD_TOP + 3;
+constexpr int kGaugeUnitClearW = 50;
+constexpr int kGaugeUnitClearH = 18;
 
-// Chrome = card border + sensor label + icon + unit + min/max scale labels.
-// Static unless sensor switches, validity flips, or unit mode toggles.
-static void draw_lab_gauge_chrome(const GaugeSensorSpec& spec, bool valid,
-                                  float min_value, float max_value,
-                                  uint16_t primary, uint16_t secondary) {
-    // No full 156×100 fillRect here — only clear targeted bands as needed below.
-    // (Chrome is drawn after fillScreen on screen_changed, or in-place on sensor switch.)
+static uint16_t gauge_semantic_arc_color(GaugeLabSensor sensor, uint8_t amount) {
+    switch (sensor) {
+        case GAUGE_SENSOR_SOUND:
+            return mix565(PB_SOUND_P2, PB_SOUND_P3, amount);      // quiet green -> peak red
+        case GAUGE_SENSOR_TEMP:
+            return mix3_565(PB_TEMP_P4, kNeonYellow, TFT_RED, amount);
+        case GAUGE_SENSOR_SOIL:
+            return mix3_565(kNeonYellow, PB_SOIL_P1, kElectricBlue, amount);
+        case GAUGE_SENSOR_HUM:
+            return mix565(TFT_WHITE, PB_HUM_P2, amount);
+        case GAUGE_SENSOR_DS18:
+            return mix3_565(kElectricBlue, TFT_WHITE, TFT_RED, amount);
+        case GAUGE_SENSOR_LIGHT:
+            return mix3_565(PB_LUZ_P4, PB_LUZ_P1, PB_LUZ_P3, amount);
+        default:
+            return mix565(pb_contrast_cool((uint8_t)sensor), pb_accent_warm((uint8_t)sensor), amount);
+    }
+}
 
-    // Sensor label area (left column, y=31, FONT_SMALL)
-    tft.fillRect(kGaugeIconCx - 28, 28, 56, 14, kBg);
+static void draw_gauge_limit_labels(bool valid, float min_value, float max_value) {
+    tft.fillRect(kGaugeCx - kGaugeR - 4, kGaugeLimitY, (kGaugeR * 2) + 8, 15, kBg);
+    char min_buf[16];
+    char max_buf[16];
+    format_gauge_limit(min_buf, sizeof(min_buf), min_value, "");
+    format_gauge_limit(max_buf, sizeof(max_buf), max_value, "");
+    const uint16_t min_col = valid ? gauge_semantic_arc_color(g_gauge_sensor, 0)   : TFT_DARKGREY;
+    const uint16_t max_col = valid ? gauge_semantic_arc_color(g_gauge_sensor, 255) : TFT_DARKGREY;
     tft.setTextDatum(TC_DATUM);
     tft.setFreeFont(FONT_SMALL);
-    tft.setTextColor(primary, kBg);
-    tft.drawString(L(spec.label_key), kGaugeIconCx, 31);
+    tft.setTextColor(min_col, kBg);
+    tft.drawString(min_buf, kGaugeLimitLeftX, kGaugeLimitY);
+    tft.setTextColor(max_col, kBg);
+    tft.drawString(max_buf, kGaugeLimitRightX, kGaugeLimitY);
     tft.setTextFont(0);
+}
 
-    // Icon area (left column, large)
-    tft.fillRect(kGaugeIconCx - 20, kGaugeIconCy - 20, 40, 40, kBg);
-    draw_gauge_icon(g_gauge_sensor, kGaugeIconCx, kGaugeIconCy, primary);
+constexpr uint8_t kGaugeIconBucketMax = 100;
 
-    // Unit (top-right)
+static uint8_t gauge_icon_bucket(bool valid, float ratio) {
+    if (!valid) return 255;
+    const float normalized = constrain(ratio, 0.0f, 1.0f);
+    if (normalized <= 0.0f) return 0;
+    return (uint8_t)constrain((int)ceilf(normalized * kGaugeIconBucketMax), 0, kGaugeIconBucketMax);
+}
+
+static uint16_t gauge_icon_bucket_color(bool valid, uint8_t bucket, uint16_t fallback) {
+    if (!valid || bucket == 255) return fallback;
+    const uint8_t amount = (uint8_t)((uint16_t)bucket * 255U / kGaugeIconBucketMax);
+    if (g_gauge_sensor == GAUGE_SENSOR_SOUND) {
+        return mix565(PB_SOUND_P1, PB_SOUND_P3, amount);
+    }
+    if (g_gauge_sensor == GAUGE_SENSOR_LIGHT) {
+        const float normalized = (float)bucket / (float)kGaugeIconBucketMax;
+        const uint8_t eased_amount = (uint8_t)roundf((log1pf(normalized * 19.0f) / log1pf(19.0f)) * 255.0f);
+        const uint16_t low_light = tft.color565(56, 44, 4);
+        return mix3_565(low_light, PB_LUZ_P1, PB_LUZ_P2, eased_amount);
+    }
+    return gauge_semantic_arc_color(g_gauge_sensor, amount);
+}
+
+static void draw_gauge_icon_area(uint16_t color, uint16_t accent) {
+    tft.fillRect(kGaugeIconCx - 30, kGaugeIconCy - 30, 60, 62, kBg);
+    const uint16_t detail_color =
+        (g_gauge_sensor == GAUGE_SENSOR_SOUND) ? PB_SOUND_P1 :
+        (g_gauge_sensor == GAUGE_SENSOR_LIGHT) ? mix565(color, PB_LUZ_P2, 72) :
+        accent;
+    draw_gauge_icon(g_gauge_sensor, kGaugeIconCx, kGaugeIconCy, color, detail_color);
+}
+
+static void draw_gauge_unit_label(uint16_t color) {
     tft.fillRect(kGaugeUnitClearX, kGaugeUnitClearY,
                  kGaugeUnitClearW, kGaugeUnitClearH, kBg);
     tft.setFreeFont(FONT_BODY);
-    tft.setTextColor(primary, kBg);
-    tft.setTextDatum(TR_DATUM);
+    tft.setTextColor(color, kBg);
+    tft.setTextDatum(TL_DATUM);
     tft.drawString(gauge_sensor_unit(g_gauge_sensor), kGaugeUnitX, kGaugeUnitY);
     tft.setTextFont(0);
+}
 
-    // Min/max scale labels (below ring)
-    tft.fillRect(kGaugeCx - kGaugeR - 4, 106, (kGaugeR * 2) + 8, 14, kBg);
-    char min_buf[16];
-    char max_buf[16];
-    format_gauge_limit(min_buf, sizeof(min_buf), min_value, gauge_sensor_unit(g_gauge_sensor));
-    format_gauge_limit(max_buf, sizeof(max_buf), max_value, gauge_sensor_unit(g_gauge_sensor));
-    const uint16_t min_col = valid ? pb_contrast_cool((uint8_t)g_gauge_sensor) : TFT_DARKGREY;
-    const uint16_t max_col = valid ? pb_accent_warm((uint8_t)g_gauge_sensor)   : TFT_DARKGREY;
-    tft.setTextDatum(TL_DATUM);
-    tft.setFreeFont(FONT_SMALL);
-    tft.setTextColor(min_col, kBg);
-    tft.drawString(min_buf, kGaugeCx - kGaugeR, 108);
-    tft.setTextDatum(TR_DATUM);
-    tft.setTextColor(max_col, kBg);
-    tft.drawString(max_buf, kGaugeCx + kGaugeR, 108);
-    tft.setTextFont(0);
+// Chrome = card border + icon + unit. Scale labels are drawn after the ring
+// sprite so the sprite background cannot clip them.
+// Static unless sensor switches, validity flips, or unit mode toggles.
+static void draw_lab_gauge_chrome(const GaugeSensorSpec& spec, bool valid,
+                                  float min_value, float max_value,
+                                  uint16_t primary, uint16_t secondary,
+                                  uint16_t icon_color) {
+    // No full 156×100 fillRect here — only clear targeted bands as needed below.
+    // (Chrome is drawn after fillScreen on screen_changed, or in-place on sensor switch.)
+
+    (void)spec;
+
+    // Left half is reserved for a single large icon.
+    draw_gauge_icon_area(icon_color, secondary);
+
+    // Unit label lives in the upper-left corner of the card.
+    draw_gauge_unit_label(secondary);
+
+    (void)valid;
+    (void)min_value;
+    (void)max_value;
 
     // Card border drawn last so it sits on top of all content.
     tft.drawRoundRect(LC_SCREEN_X, LC_CARD_TOP,
                       LC_SCREEN_W, LC_SCREEN_BOTTOM - LC_CARD_TOP + 1,
-                      LC_CARD_RADIUS, secondary);
+                      LC_CARD_RADIUS, primary);
 }
 
-// Sprite for ring + center value text. Created once on first use (64×64 = 8KB),
+// Sprite for ring + center value text. Created once on first use (70×70 ≈ 9.6KB),
 // reused on every update. Eliminates the "rotating ring" scan-line vibration that
 // 324 individual drawLine calls produced on every value tick.
 static TFT_eSprite g_ring_spr(&tft);
 static bool g_ring_spr_ready = false;
-static constexpr int kRingSprSize = 64;
+static constexpr int kRingSprSize = 70;
 
 // Data = ring + value text. Called on every sensor_data_changed.
-// Entire ring (54 segments × 6 thickness lines) + value text render into one sprite
+// Entire ring + value text render into one sprite
 // and ship in a single DMA pushSprite — no visible segment-by-segment fill effect.
 static void draw_lab_gauge_data(bool valid, float ratio, uint16_t primary) {
     (void)primary;
@@ -477,10 +544,6 @@ static void draw_lab_gauge_data(bool valid, float ratio, uint16_t primary) {
 
     g_ring_spr.fillSprite(kBg);
 
-    // Arc colors: P4 (cold/low) → P3 (warm/peak)
-    const uint16_t dim_col = pb_contrast_cool((uint8_t)g_gauge_sensor);
-    const uint16_t arc_lo = valid ? pb_contrast_cool((uint8_t)g_gauge_sensor) : dim_col;
-    const uint16_t arc_hi = valid ? pb_accent_warm((uint8_t)g_gauge_sensor)   : dim_col;
     const uint16_t track = g_ring_spr.color565(26, 30, 42);
 
     // Sprite-local center
@@ -496,8 +559,8 @@ static void draw_lab_gauge_data(bool valid, float ratio, uint16_t primary) {
         const float a0 = (start_deg + ((float)i * sweep_deg / (float)segs)) * DEG_TO_RAD;
         const float a1 = (start_deg + ((float)(i + 1) * sweep_deg / (float)segs)) * DEG_TO_RAD;
         const uint8_t blend = (uint8_t)roundf((float)i * 255.0f / (float)max(1, segs - 1));
-        const uint16_t color = (i < active_until) ? mix565(arc_lo, arc_hi, blend) : track;
-        for (int t = 0; t < 6; ++t) {
+        const uint16_t color = (valid && i < active_until) ? gauge_semantic_arc_color(g_gauge_sensor, blend) : track;
+        for (int t = 0; t < kGaugeArcThickness; ++t) {
             const int r = kGaugeR - t;
             const int x0 = spr_cx + (int)roundf(cosf(a0) * (float)r);
             const int y0 = spr_cy + (int)roundf(sinf(a0) * (float)r);
@@ -538,9 +601,12 @@ static void draw_lab_gauge_dynamic() {
     const uint16_t dim_col = pb_contrast_cool((uint8_t)g_gauge_sensor);
     const uint16_t primary = valid ? spec.primary : dim_col;
     const uint16_t secondary = valid ? spec.secondary : dim_col;
+    const uint8_t icon_bucket = gauge_icon_bucket(valid, ratio);
+    const uint16_t icon_color = gauge_icon_bucket_color(valid, icon_bucket, primary);
 
-    draw_lab_gauge_chrome(spec, valid, min_value, max_value, primary, secondary);
+    draw_lab_gauge_chrome(spec, valid, min_value, max_value, primary, secondary, icon_color);
     draw_lab_gauge_data(valid, ratio, primary);
+    draw_gauge_limit_labels(valid, min_value, max_value);
 }
 
 static const GraphBuffer& value_sensor_graph(ValueLabSensor s) {
@@ -559,11 +625,10 @@ static void draw_lab_value_shell() {
     if (!sz_is_active()) drawHeader(L(TIT_LAB_VALUE));
     draw_compact_footer();
 
-    // Colors from gauge_spec: primary for icon/bar, secondary for border/device label
+    // Outer card border stays on the sensor primary color across all views.
     const GaugeSensorSpec& vspec = gauge_spec((GaugeLabSensor)g_value_sensor);
 
-    // secondary → card border + device label color; primary → icon color
-    drawCard(LC_SCREEN_X, LC_CARD_TOP, LC_SCREEN_W, LC_SCREEN_BOTTOM - LC_CARD_TOP + 1, vspec.secondary);
+    drawCard(LC_SCREEN_X, LC_CARD_TOP, LC_SCREEN_W, LC_SCREEN_BOTTOM - LC_CARD_TOP + 1, vspec.primary);
 }
 
 constexpr uint16_t kValorCardBg = 0x0841;
@@ -580,7 +645,7 @@ static void draw_lab_value_chrome() {
 
     switch (g_value_sensor) {
         case VALUE_SENSOR_HUM:
-            icon_fn = pbit_draw_humidity_icon; label_key = LAB_HUM_SHORT;
+            icon_fn = pbit_draw_humidity_icon; label_key = LAB_AIR_SHORT;
             device_str = "DHT11";
             icon_badge_bg = tft.color565(0, 30, 36);
             break;
@@ -620,11 +685,15 @@ static void draw_lab_value_chrome() {
     const uint8_t dbg = (uint8_t)(6  + ((p1v >> 5)  & 0x3F) * 255 / 63 * 8 / 100);
     const uint8_t dbb = (uint8_t)(14 + (p1v         & 0x1F) * 255 / 31 * 8 / 100);
     const uint16_t dev_bg = tft.color565(dbr, dbg, dbb);
-    tft.fillRoundRect(88, 36, 56, 18, 4, dev_bg);
+    const bool long_device = (g_value_sensor == VALUE_SENSOR_DS18);
+    const int dev_x = long_device ? 80 : 88;
+    const int dev_w = long_device ? 68 : 56;
+    const int dev_cx = dev_x + dev_w / 2;
+    tft.fillRoundRect(dev_x, 36, dev_w, 18, 4, dev_bg);
     tft.setTextDatum(TC_DATUM);
     tft.setFreeFont(FONT_SMALL);
     tft.setTextColor(spec.secondary, dev_bg);
-    tft.drawString(device_str, 116, 37);
+    tft.drawString(device_str, dev_cx, 37);
     tft.setTextFont(0);
 }
 
@@ -665,7 +734,7 @@ static void draw_lab_value_data() {
     const int value_w = tft.textWidth(val_buf);
 
     tft.setFreeFont(FONT_SMALL);
-    tft.setTextColor(valid ? spec.primary : pb_contrast_cool((uint8_t)g_value_sensor), kValorCardBg);
+    tft.setTextColor(valid ? spec.secondary : pb_contrast_cool((uint8_t)g_value_sensor), kValorCardBg);
     tft.drawString(gauge_sensor_unit(gs), 18 + value_w + 4, 67);
     tft.setTextFont(0);
 }
@@ -851,8 +920,6 @@ static void draw_temp_lab_dynamic() {
     const uint16_t probe_color = probe_accent(probe_valid, probe_c);
     const uint16_t delta_color = delta_accent(delta_valid, delta_value);
 
-    tft.fillRect(0, L_CONTENT_TOP, tft.width(), tft.height() - L_CONTENT_TOP, kBg);
-
     draw_temp_lab_card(kAmbientCardX,
                        kTopCardY,
                        kTopCardW,
@@ -876,9 +943,10 @@ static void draw_temp_lab_dynamic() {
     fill_lab_card(kDeltaCardX, kDeltaCardY, kDeltaCardW, kDeltaCardH, kHotPink, kDeltaCardBg);
 
     const int bar_x = kDeltaCardX + 8;
-    const int bar_y = kDeltaCardY + 11;
+    const int bar_y = kDeltaCardY + 7;
     const int bar_w = kDeltaCardW - 16;
-    const int bar_h = 16;
+    const int bar_h = 18;
+    const int scale_y = bar_y + bar_h + 4;
     draw_delta_bar(bar_x, bar_y, bar_w, bar_h, delta_valid, delta_value);
 
     // Scale limit labels — both sides show the same ±range so orientation is clear
@@ -890,10 +958,10 @@ static void draw_temp_lab_dynamic() {
     tft.setTextFont(1);
     tft.setTextDatum(TL_DATUM);
     tft.setTextColor(PB_TEMP_P1, kDeltaCardBg);   // DHT11 side — orange (temp P1)
-    tft.drawString(scale_buf, bar_x, bar_y + bar_h + 2);
+    tft.drawString(scale_buf, bar_x, scale_y);
     tft.setTextDatum(TR_DATUM);
     tft.setTextColor(PB_DS18_P1, kDeltaCardBg);   // DS18 side — violet (probe P1)
-    tft.drawString(scale_buf, bar_x + bar_w, bar_y + bar_h + 2);
+    tft.drawString(scale_buf, bar_x + bar_w, scale_y);
     tft.setTextFont(0);
 
     tft.setTextDatum(MC_DATUM);
@@ -926,6 +994,12 @@ void lab_gauge_set_sensor(uint8_t sensor_id) {
 void draw_lab_gauge_temp_screen(bool screen_changed, bool sensor_data_changed) {
     bool gauge_valid = false;
     const int gauge_key = gauge_sensor_key(g_gauge_sensor, &gauge_valid);
+    const GaugeSensorSpec& current_spec = gauge_spec(g_gauge_sensor);
+    float current_min = 0.0f, current_max = 1.0f;
+    gauge_sensor_range(g_gauge_sensor, current_min, current_max);
+    const float current_value = gauge_valid ? gauge_sensor_value(g_gauge_sensor) : 0.0f;
+    const float current_ratio = gauge_valid ? constrain((current_value - current_min) / (current_max - current_min), 0.0f, 1.0f) : 0.0f;
+    const uint8_t current_icon_bucket = gauge_icon_bucket(gauge_valid, current_ratio);
 
     // chrome_dirty: re-draw labels/icon/border (rare). Anything that affects what's outside
     // the ring + value text: sensor switch, valid flip, F/C toggle (changes unit + scale).
@@ -933,8 +1007,9 @@ void draw_lab_gauge_temp_screen(bool screen_changed, bool sensor_data_changed) {
         || (g_gauge_cache.sensor != g_gauge_sensor)
         || (g_gauge_cache.sensor_valid != gauge_valid)
         || (g_gauge_cache.fahrenheit != g_is_fahrenheit);
+    const bool icon_dirty = current_icon_bucket != g_gauge_cache.icon_bucket;
     // data_dirty: every value tick (or anything chrome cares about).
-    const bool data_dirty = chrome_dirty || (g_gauge_cache.value_key != gauge_key);
+    const bool data_dirty = chrome_dirty || icon_dirty || (g_gauge_cache.value_key != gauge_key);
 
     if (screen_changed) {
         draw_lab_gauge_shell();
@@ -943,23 +1018,28 @@ void draw_lab_gauge_temp_screen(bool screen_changed, bool sensor_data_changed) {
         g_gauge_cache.sensor = g_gauge_sensor;
         g_gauge_cache.sensor_valid = gauge_valid;
         g_gauge_cache.value_key = gauge_key;
+        g_gauge_cache.icon_bucket = current_icon_bucket;
         g_gauge_cache.fahrenheit = g_is_fahrenheit;
         g_gauge_cache.last_active_until = -1;
         return;
     }
     if (sensor_data_changed && data_dirty) {
-        const GaugeSensorSpec& spec = gauge_spec(g_gauge_sensor);
+        const GaugeSensorSpec& spec = current_spec;
         const bool valid = gauge_valid;
-        const float shown_value = valid ? gauge_sensor_value(g_gauge_sensor) : 0.0f;
-        float min_value = 0.0f, max_value = 1.0f;
-        gauge_sensor_range(g_gauge_sensor, min_value, max_value);
-        const float ratio = valid ? constrain((shown_value - min_value) / (max_value - min_value), 0.0f, 1.0f) : 0.0f;
+        const float min_value = current_min;
+        const float max_value = current_max;
+        const float ratio = current_ratio;
         const uint16_t dim_col = pb_contrast_cool((uint8_t)g_gauge_sensor);
         const uint16_t primary = valid ? spec.primary : dim_col;
         const uint16_t secondary = valid ? spec.secondary : dim_col;
+        const uint16_t icon_color = gauge_icon_bucket_color(valid, current_icon_bucket, primary);
 
         if (chrome_dirty) {
-            draw_lab_gauge_chrome(spec, valid, min_value, max_value, primary, secondary);
+            draw_lab_gauge_chrome(spec, valid, min_value, max_value, primary, secondary, icon_color);
+            draw_gauge_limit_labels(valid, min_value, max_value);
+        } else if (icon_dirty) {
+            draw_gauge_icon_area(icon_color, secondary);
+            draw_gauge_unit_label(secondary);
         }
         draw_lab_gauge_data(valid, ratio, primary);
 
@@ -967,6 +1047,7 @@ void draw_lab_gauge_temp_screen(bool screen_changed, bool sensor_data_changed) {
         g_gauge_cache.sensor = g_gauge_sensor;
         g_gauge_cache.sensor_valid = gauge_valid;
         g_gauge_cache.value_key = gauge_key;
+        g_gauge_cache.icon_bucket = current_icon_bucket;
         g_gauge_cache.fahrenheit = g_is_fahrenheit;
     }
 }
@@ -998,7 +1079,7 @@ void draw_lab_value_modern_screen(bool screen_changed, bool sensor_data_changed)
     }
     if (sensor_data_changed && data_dirty) {
         draw_lab_value_data();
-        if (chrome_dirty) {
+        if (chrome_dirty || g_value_sensor == VALUE_SENSOR_DS18) {
             // Badges drawn AFTER data so they layer on top (their fillRoundRect erases
             // any data pixels that bled into the badge area).
             draw_lab_value_chrome();

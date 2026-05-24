@@ -200,6 +200,101 @@ void drawBarGraph(int x, int y, int w, int h, uint16_t color, float value, float
     }
 }
 
+namespace {
+
+struct BarGraphCache {
+    bool used = false;
+    int x = 0;
+    int y = 0;
+    int w = 0;
+    int h = 0;
+    int last_fill_w = -1;
+    uint16_t last_color = 0;
+};
+
+BarGraphCache g_bar_graph_cache[4];
+
+int calculate_bar_fill_width(float value, float minVal, float maxVal, int inner_w) {
+    if (isnan(value)) value = minVal;
+    value = constrain(value, minVal, maxVal);
+    int fill_w = (int)roundf(((value - minVal) / (maxVal - minVal)) * inner_w);
+    return constrain(fill_w, 0, inner_w);
+}
+
+void draw_bar_fill(int x, int y, int inner_w, int inner_h, int fill_w, uint16_t color) {
+    (void)inner_w;
+    if (fill_w <= 0) return;
+
+    int radius = 2;
+    if (radius > fill_w / 2) radius = fill_w / 2;
+    if (radius > inner_h / 2) radius = inner_h / 2;
+    if (radius > 0) {
+        tft.fillRoundRect(x + 2, y + 2, fill_w, inner_h, radius, color);
+    } else {
+        tft.fillRect(x + 2, y + 2, fill_w, inner_h, color);
+    }
+}
+
+BarGraphCache& get_bar_graph_cache(int x, int y, int w, int h) {
+    for (BarGraphCache& cache : g_bar_graph_cache) {
+        if (cache.used && cache.x == x && cache.y == y && cache.w == w && cache.h == h) {
+            return cache;
+        }
+    }
+
+    for (BarGraphCache& cache : g_bar_graph_cache) {
+        if (!cache.used) {
+            cache.used = true;
+            cache.x = x;
+            cache.y = y;
+            cache.w = w;
+            cache.h = h;
+            return cache;
+        }
+    }
+
+    BarGraphCache& cache = g_bar_graph_cache[0];
+    cache.used = true;
+    cache.x = x;
+    cache.y = y;
+    cache.w = w;
+    cache.h = h;
+    cache.last_fill_w = -1;
+    cache.last_color = 0;
+    return cache;
+}
+
+} // namespace
+
+void drawCachedBarGraph(int x, int y, int w, int h, uint16_t color, float value, float minVal, float maxVal, bool force_redraw) {
+    const int inner_w = w - 4;
+    const int inner_h = h - 4;
+    if (inner_w <= 0 || inner_h <= 0 || maxVal <= minVal) return;
+
+    BarGraphCache& cache = get_bar_graph_cache(x, y, w, h);
+    const bool shell_needed = force_redraw || cache.last_fill_w < 0;
+    if (shell_needed) {
+        tft.drawRoundRect(x, y, w, h, 3, TFT_DARKGREY);
+        tft.fillRect(x + 2, y + 2, inner_w, inner_h, TFT_BLACK);
+        cache.last_fill_w = 0;
+        cache.last_color = color;
+    }
+
+    const int fill_w = calculate_bar_fill_width(value, minVal, maxVal, inner_w);
+    const bool color_changed = (cache.last_color != color);
+    if (!shell_needed && !color_changed && fill_w == cache.last_fill_w) {
+        return;
+    }
+
+    if (fill_w < cache.last_fill_w) {
+        tft.fillRect(x + 2 + fill_w, y + 2, cache.last_fill_w - fill_w, inner_h, TFT_BLACK);
+    }
+
+    draw_bar_fill(x, y, inner_w, inner_h, fill_w, color);
+    cache.last_fill_w = fill_w;
+    cache.last_color = color;
+}
+
 void drawFillTank(int x, int y, int w, int h, uint16_t fixedColor, float value, float minVal, float maxVal, int radius) {
     float normalized = constrain((value - minVal) / (maxVal - minVal), 0.0f, 1.0f);
     int fill_height  = (int)(normalized * (h - 2));
@@ -222,24 +317,30 @@ void drawFillTank(int x, int y, int w, int h, uint16_t fixedColor, float value, 
 
 /**
  * Draw and refresh the dynamic content inside the timer card.
- * The caller controls the card border color and the rendered state text.
+ * newColor is used by the outer card and digits; borderColor is the inner card accent.
  */
 void drawTimerCardContent(int cx, int cy, uint16_t borderColor, uint16_t newColor, const char* stateText, const char* time) {
+    (void)cx;
     (void)cy;
-    (void)newColor;
     (void)time;
 
-    // Clear only the timer card region so the header and footer remain untouched.
-    tft.fillRect(LT_CARD_X - 2, LT_CARD_Y - 2, LT_CARD_W + 4, LT_CARD_H + 4, TFT_BLACK);
-    tft.fillRect(LT_CARD_X + 3, LT_CARD_Y + 3, LT_CARD_W - 6, LT_CARD_H - 6, TFT_BLACK);
-    drawCard(LT_CARD_X, LT_CARD_Y, LT_CARD_W, LT_CARD_H, borderColor);
-    
-    tft.fillRect(LT_CARD_X + 8, LT_STATE_Y - 10, LT_CARD_W - 16, 18, TFT_BLACK);
-    tft.setTextDatum(MC_DATUM);
-    tft.setFreeFont(FONT_BODY);
-    tft.setTextColor(TFT_DARKGREY, TFT_BLACK);
-    tft.drawString(stateText, cx, LT_STATE_Y);
-    tft.setTextFont(0); // liberar GFXfont
+    const uint16_t card_bg = tft.color565(6, 10, 18);
+    const uint16_t panel_bg = tft.color565(2, 4, 8);
+    // Stable full-card shell. The outer border matches the timer digits.
+    tft.fillRoundRect(LT_CARD_X, LT_CARD_Y, LT_CARD_W, LT_CARD_H, LC_CARD_RADIUS, card_bg);
+    drawCard(LT_CARD_X, LT_CARD_Y, LT_CARD_W, LT_CARD_H, newColor);
+
+    // Status centered above the numeric card.
+    tft.setTextDatum(TC_DATUM);
+    tft.setFreeFont(FONT_SMALL);
+    tft.setTextColor(TFT_WHITE, card_bg);
+    tft.drawString(stateText, tft.width() / 2, LT_STATUS_TEXT_Y);
+    tft.setTextFont(0);
+
+    // Inner card only for the timer digits.
+    tft.fillRoundRect(LT_DIGIT_CARD_X, LT_DIGIT_CARD_Y, LT_DIGIT_CARD_W, LT_DIGIT_CARD_H, 5, panel_bg);
+    tft.fillRect(LT_TIME_SPRITE_X, LT_TIME_SPRITE_Y, LT_TIME_SPRITE_W, LT_TIME_SPRITE_H, panel_bg);
+    tft.drawRoundRect(LT_DIGIT_CARD_X, LT_DIGIT_CARD_Y, LT_DIGIT_CARD_W, LT_DIGIT_CARD_H, 5, borderColor);
 }
 
 void drawAlertJewel(int cx, int cy, AlertJewelState state, uint16_t color) {

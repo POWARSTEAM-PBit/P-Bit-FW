@@ -77,6 +77,7 @@ void drawCenteredMenuBodyLines(const char* const* lines,
                                int gap_y);
 void drawFillTank(int x, int y, int w, int h, uint16_t fixedColor, float value, float minVal, float maxVal, int radius = 0);
 void drawBarGraph(int x, int y, int w, int h, uint16_t color, float value, float minVal, float maxVal);
+void drawCachedBarGraph(int x, int y, int w, int h, uint16_t color, float value, float minVal, float maxVal, bool force_redraw = false);
 void drawSplitDecimalValue(float value, int cx, int topY, uint16_t color, uint16_t bg_color);
 void drawTimerCardContent(int cx, int cy, uint16_t borderColor, uint16_t newColor, const char* stateText, const char* time);
 void drawAlertJewel(int cx, int cy, AlertJewelState state, uint16_t color);

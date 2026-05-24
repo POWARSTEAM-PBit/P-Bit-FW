@@ -40,6 +40,7 @@
 // --- GLOBAL STATE ---
 bool g_is_fahrenheit = false; // Shared temperature unit flag
 bool g_sound_enabled; // Loaded from NVS during hardware init
+bool g_alarm_sound_enabled; // Alarm audio, independent from UI beeps
 
 
 // Power-management state used by the UI router and the rotary driver.

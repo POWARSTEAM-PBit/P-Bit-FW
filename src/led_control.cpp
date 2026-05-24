@@ -22,7 +22,7 @@ constexpr int BUZZER_RESOLUTION = 8;
 // ---------------------------------
 
 unsigned long buzzer_stop_time = 0;
-constexpr size_t MAX_TONE_SEQUENCE_STEPS = 8;
+constexpr size_t MAX_TONE_SEQUENCE_STEPS = 12;
 ToneStep g_tone_sequence[MAX_TONE_SEQUENCE_STEPS];
 size_t g_tone_sequence_count = 0;
 size_t g_tone_sequence_index = 0;
