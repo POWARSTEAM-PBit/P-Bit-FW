@@ -182,9 +182,14 @@ static LangKey sound_status_key(float level) {
 }
 
 static LangKey soil_status_key(float moisture) {
-    if (moisture < (float)get_soil_threshold_dry()) return ST_DRY;
-    if (moisture < (float)get_soil_threshold_optimal()) return ST_OPTIMAL;
-    if (moisture < (float)get_soil_threshold_moist()) return ST_MOIST;
+    const int dry_thr = get_soil_threshold_dry();
+    const int moist_thr = get_soil_threshold_moist();
+    const int very_dry_limit = constrain(dry_thr / 2, 0, dry_thr);
+    const int very_moist_limit = constrain(moist_thr + ((100 - moist_thr) / 2), moist_thr, 100);
+    if (moisture < (float)very_dry_limit) return ST_TOO_DRY;
+    if (moisture < (float)dry_thr) return ST_DRY;
+    if (moisture < (float)moist_thr) return ST_OPTIMAL;
+    if (moisture < (float)very_moist_limit) return ST_MOIST;
     return ST_SATURATED;
 }
 

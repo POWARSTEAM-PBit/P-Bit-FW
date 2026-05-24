@@ -58,18 +58,17 @@ static const char* get_language_name(uint8_t index) {
     }
 }
 
-static void draw_system_menu_tile(int x, int y, int w, int h,
-                                  const char* label, bool selected) {
-    const uint16_t bg = selected ? tft.color565(18, 12, 34) : tft.color565(4, 8, 18);
-    const uint16_t border = selected ? PB_LUZ_P1 : tft.color565(28, 52, 70);
-    const uint16_t text = selected ? TFT_WHITE : PB_HUM_P3;
-    tft.fillRoundRect(x, y, w, h, 4, bg);
-    tft.drawRoundRect(x, y, w, h, 4, border);
-    if (selected) tft.drawRoundRect(x + 1, y + 1, w - 2, h - 2, 3, PB_TEMP_P2);
-    tft.setTextDatum(MC_DATUM);
+static void draw_system_id_panel(int x, int y, int w, int h,
+                                 const char* label, const char* value) {
+    const uint16_t panel_bg = tft.color565(2, 4, 10);
+    tft.fillRoundRect(x, y, w, h, 4, panel_bg);
+    tft.drawRoundRect(x, y, w, h, 4, PB_HUM_P2);
+    tft.setTextDatum(TL_DATUM);
     tft.setFreeFont(FONT_SMALL);
-    tft.setTextColor(text, bg);
-    tft.drawString(label, x + w / 2, y + h / 2 + 3);
+    tft.setTextColor(PB_HUM_P3, panel_bg);
+    tft.drawString(label, x + 10, y + 1);
+    tft.setTextColor(PB_LUZ_P1, panel_bg);
+    tft.drawString(value, x + 38, y + 1);
     tft.setTextFont(0);
 }
 
@@ -83,16 +82,16 @@ static void draw_system_text_panel(int x, int y, int w, int h,
     tft.setTextDatum(TC_DATUM);
     tft.setFreeFont(FONT_SMALL);
     tft.setTextColor(label_color, panel_bg);
-    tft.drawString(label, x + w / 2, y + 7);
+    tft.drawString(label, x + w / 2, y);
     tft.setTextColor(value_color, panel_bg);
-    tft.drawString(value, x + w / 2, y + h - 5);
+    tft.drawString(value, x + w / 2, y + h - 14);
     tft.setTextFont(0);
 }
 
 static void draw_system_audio_panel(int x, int y, int w, int h) {
     const uint16_t panel_bg = tft.color565(2, 4, 10);
     const uint16_t beep_col = g_sound_enabled ? PB_SOUND_P2 : PB_SOUND_P3;
-    const uint16_t alarm_col = g_alarm_sound_enabled ? PB_TEMP_P1 : PB_SOUND_P1;
+    const uint16_t alarm_col = g_alarm_sound_enabled ? PB_SOUND_P2 : PB_SOUND_P3;
     const int left_cx = x + w / 4;
     const int right_cx = x + (w * 3) / 4;
     tft.fillRoundRect(x, y, w, h, 4, panel_bg);
@@ -100,12 +99,12 @@ static void draw_system_audio_panel(int x, int y, int w, int h) {
     tft.setTextDatum(TC_DATUM);
     tft.setFreeFont(FONT_SMALL);
     tft.setTextColor(PB_HUM_P3, panel_bg);
-    tft.drawString(L(MENU_SOUND), left_cx, y + 8);
-    tft.drawString(L(MENU_ALARM_SOUND), right_cx, y + 8);
+    tft.drawString(L(MENU_SOUND), left_cx, y + 1);
+    tft.drawString(L(MENU_ALARM_SOUND), right_cx, y + 1);
     tft.setTextColor(beep_col, panel_bg);
-    tft.drawString(g_sound_enabled ? L(ST_ON) : L(ST_OFF), left_cx, y + h - 5);
+    tft.drawString(g_sound_enabled ? L(ST_ON) : L(ST_OFF), left_cx, y + h - 18);
     tft.setTextColor(alarm_col, panel_bg);
-    tft.drawString(g_alarm_sound_enabled ? L(ST_ON) : L(ST_OFF), right_cx, y + h - 5);
+    tft.drawString(g_alarm_sound_enabled ? L(ST_ON) : L(ST_OFF), right_cx, y + h - 18);
     tft.setTextFont(0);
 }
 
@@ -266,7 +265,6 @@ uint8_t handle_system_button() {
             if (g_sys_reset_choice == 1) {
                 reset_all_settings();
                 g_language = LANG_ES;
-                g_is_fahrenheit = false;
                 g_sys_sound_enabled = g_sound_enabled;
                 g_sys_alarm_sound_enabled = g_alarm_sound_enabled;
                 g_sys_sleep_ms = get_sleep_timeout();
@@ -343,21 +341,9 @@ static void draw_system_menu_screen(bool screen_changed) {
             L(MENU_SOUND),
             L(MENU_ALARM_SOUND),
             L(MENU_SLEEP),
-            L(MENU_TITLE),
-            L(MENU_RESET),
-            L(MENU_EXIT)
+            L(MENU_TITLE)
         };
-        constexpr int tile_w = 70;
-        constexpr int tile_h = 22;
-        constexpr int x0 = 8;
-        constexpr int x1 = 82;
-        constexpr int y0 = 32;
-        constexpr int row_gap = 26;
-        for (uint8_t i = 0; i < 6; ++i) {
-            const int x = (i & 1) ? x1 : x0;
-            const int y = y0 + (i / 2) * row_gap;
-            draw_system_menu_tile(x, y, tile_w, tile_h, items[i], g_sys_menu_index == i);
-        }
+        drawSettingsGridMenu(items, 4, g_sys_menu_index, L(MENU_RESET), L(MENU_EXIT));
         drawFooterHint(L(INSTR_SEL), cx, LM_MENU_FOOTER_Y);
         last_menu_index = (int)g_sys_menu_index;
     } else if (g_sys_menu_state == SYS_MODE_EDIT_SOUND) {
@@ -451,9 +437,9 @@ void draw_system_screen(bool screen_changed, bool data_changed) {
     constexpr int panel_x0 = 8;
     constexpr int panel_x1 = 82;
     constexpr int panel_w = 70;
-    constexpr int device_y = 32;
-    constexpr int mid_y = 58;
-    constexpr int bottom_y = 88;
+    constexpr int device_y = 31;
+    constexpr int mid_y = 51;
+    constexpr int bottom_y = 86;
     const uint16_t card_bg = tft.color565(4, 8, 18);
 
     static bool s_ble_enabled = false; // cached per screen_changed — doesn't change at runtime
@@ -483,20 +469,19 @@ void draw_system_screen(bool screen_changed, bool data_changed) {
     if (screen_changed || uptime_s != last_uptime_s) {
         char uptimeStr[12];
         snprintf(uptimeStr, sizeof(uptimeStr), "%02u:%02u:%02u", uptime_s / 3600, (uptime_s % 3600) / 60, uptime_s % 60);
-        draw_system_text_panel(panel_x0, device_y, 144, 22,
-                               L(SYS_DEV_LABEL), dev_name,
-                               PB_HUM_P3, PB_LUZ_P1, PB_HUM_P2);
-        draw_system_text_panel(panel_x0, mid_y, panel_w, 25,
+        draw_system_id_panel(panel_x0, device_y, 144, 19,
+                             L(SYS_DEV_LABEL), dev_name);
+        draw_system_text_panel(panel_x0, mid_y, panel_w, 35,
                                L(SYS_UP_LABEL), uptimeStr,
                                PB_HUM_P3, PB_DS18_P2, PB_DS18_P2);
-        draw_system_text_panel(panel_x1, mid_y, panel_w, 25,
+        draw_system_text_panel(panel_x1, mid_y, panel_w, 35,
                                L(SYS_LANG_LABEL), get_language_name((uint8_t)normalizeLanguage(g_language)),
                                PB_HUM_P3, TFT_WHITE, PB_LUZ_P2);
     }
 
     if (screen_changed || ble_connected != last_ble_connected) {
         if (s_ble_enabled) {
-            draw_system_text_panel(panel_x0, bottom_y, panel_w, 28,
+            draw_system_text_panel(panel_x0, bottom_y, panel_w, 35,
                                    L(SYS_BLE_LABEL),
                                    ble_connected ? L(ST_CONNECTED) : L(ST_DISCONN),
                                    PB_HUM_P3,
@@ -507,9 +492,9 @@ void draw_system_screen(bool screen_changed, bool data_changed) {
 
     if (screen_changed || g_sound_enabled != last_sound_enabled || g_alarm_sound_enabled != last_alarm_sound_enabled) {
         if (s_ble_enabled) {
-            draw_system_audio_panel(panel_x1, bottom_y, panel_w, 28);
+            draw_system_audio_panel(panel_x1, bottom_y, panel_w, 35);
         } else {
-            draw_system_audio_panel(panel_x0, bottom_y, 144, 28);
+            draw_system_audio_panel(panel_x0, bottom_y, 144, 35);
         }
     }
 

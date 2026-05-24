@@ -290,13 +290,11 @@ static void draw_humidity_menu_screen(bool screen_changed) {
 
     if (g_hum_menu_state == HUM_MODE_MENU) {
         if (state_changed || last_menu_index != (int)g_hum_menu_index) {
-            const char* items[4] = {
-                L(MENU_LIMITS),
-                L(MENU_ALERTS),
-                L(MENU_RESET),
-                L(MENU_EXIT)
+            const char* items[2] = {
+                L(MENU_RANGES),
+                L(MENU_ALERTS)
             };
-            drawCenteredMenuList(items, 4, g_hum_menu_index, LM_MENU4_Y0, LM_MENU4_GAP);
+            drawSettingsGridMenu(items, 2, g_hum_menu_index, L(MENU_RESET), L(MENU_EXIT));
             drawFooterHint(L(INSTR_SEL), cx, LM_MENU_FOOTER_Y);
             last_menu_index = (int)g_hum_menu_index;
         }

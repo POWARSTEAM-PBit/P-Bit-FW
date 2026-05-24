@@ -207,10 +207,15 @@ static void refresh_global_summary_locked(uint32_t now_ms) {
 
 static int classify_soil_category(float soil, bool no_sensor) {
     if (no_sensor) return -1;
-    if (soil < (float)get_soil_threshold_dry()) return 0;
-    if (soil < (float)get_soil_threshold_optimal()) return 1;
-    if (soil < (float)get_soil_threshold_moist()) return 2;
-    return 3;
+    const int dry_thr = get_soil_threshold_dry();
+    const int moist_thr = get_soil_threshold_moist();
+    const int very_dry_limit = constrain(dry_thr / 2, 0, dry_thr);
+    const int very_moist_limit = constrain(moist_thr + ((100 - moist_thr) / 2), moist_thr, 100);
+    if (soil < (float)very_dry_limit) return 0;
+    if (soil < (float)dry_thr) return 1;
+    if (soil < (float)moist_thr) return 2;
+    if (soil < (float)very_moist_limit) return 3;
+    return 4;
 }
 
 uint8_t classify_temp_alert(float temp_c, bool no_sensor, bool alerts_enabled, int low_alarm, int high_alarm) {
@@ -252,9 +257,10 @@ uint8_t classify_soil_alert(int category_id, bool no_sensor, bool alerts_enabled
     if (no_sensor || !alerts_enabled) return ALERT_CODE_OFF;
     switch (category_id) {
         case 0: return ALERT_CODE_LOW;
-        case 1: return ALERT_CODE_OK;
-        case 2: return ALERT_CODE_MOIST;
-        case 3: return ALERT_CODE_CRITICAL;
+        case 1: return ALERT_CODE_LOW;
+        case 2: return ALERT_CODE_OK;
+        case 3: return ALERT_CODE_MOIST;
+        case 4: return ALERT_CODE_CRITICAL;
         default: return ALERT_CODE_OFF;
     }
 }

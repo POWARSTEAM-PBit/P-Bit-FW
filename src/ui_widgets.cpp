@@ -4,6 +4,7 @@
 #include "ui_widgets.h"
 #include "fonts.h"      // GFXfont Inter (Latin-1: á é í ó ú ñ à è ç...)
 #include "layout.h"
+#include "palette.h"
 #include <math.h>
 #include <stdio.h>      // Para snprintf()
 
@@ -113,6 +114,83 @@ void drawCenteredMenuList(const char* const* items,
     tft.setTextFont(0);
 }
 
+static void draw_settings_grid_tile(int x, int y, int w, int h,
+                                    const char* label,
+                                    bool selected,
+                                    bool reset_action,
+                                    bool exit_action) {
+    const uint16_t panel_bg = selected
+        ? (exit_action ? tft.color565(34, 4, 14) : tft.color565(18, 12, 34))
+        : tft.color565(4, 8, 18);
+    const uint16_t idle_border = reset_action ? PB_LUZ_P2
+                               : exit_action ? PB_SOUND_P3
+                               : tft.color565(28, 52, 70);
+    const uint16_t border = selected ? (exit_action ? PB_SOUND_P3
+                                      : reset_action ? PB_LUZ_P1
+                                      : PB_LUZ_P1)
+                                    : idle_border;
+    const uint16_t text = selected ? TFT_WHITE
+                        : reset_action ? PB_LUZ_P1
+                        : exit_action ? PB_SOUND_P3
+                        : PB_HUM_P3;
+
+    tft.fillRoundRect(x, y, w, h, 4, panel_bg);
+    tft.drawRoundRect(x, y, w, h, 4, border);
+    if (selected) {
+        tft.drawRoundRect(x + 1, y + 1, w - 2, h - 2, 3,
+                          exit_action ? PB_LUZ_P1 : PB_TEMP_P2);
+    }
+
+    tft.setTextDatum(MC_DATUM);
+    tft.setTextColor(text, panel_bg);
+    tft.setFreeFont(FONT_SMALL);
+    if (tft.textWidth(label) > w - 8) {
+        tft.setTextFont(1);
+    }
+    tft.drawString(label, x + w / 2, y + h / 2 - 3);
+    tft.setTextFont(0);
+}
+
+void drawSettingsGridMenu(const char* const* primary_items,
+                          uint8_t primary_count,
+                          uint8_t selected_index,
+                          const char* reset_text,
+                          const char* exit_text) {
+    constexpr int kTileW = 70;
+    constexpr int kTileH = 22;
+    constexpr int kX0 = 8;
+    constexpr int kX1 = 82;
+    constexpr int kY0 = 32;
+    constexpr int kRowGap = 26;
+
+    if (primary_count > 4) primary_count = 4;
+
+    clearMenuBands(kMenuBand_Title | kMenuBand_Body);
+
+    for (uint8_t i = 0; i < primary_count; ++i) {
+        const int x = (i & 1) ? kX1 : kX0;
+        const int y = kY0 + (i / 2) * kRowGap;
+        draw_settings_grid_tile(x, y, kTileW, kTileH,
+                                primary_items[i],
+                                selected_index == i,
+                                false,
+                                false);
+    }
+
+    const uint8_t reset_index = primary_count;
+    const uint8_t exit_index = primary_count + 1;
+    draw_settings_grid_tile(kX0, kY0 + 2 * kRowGap, kTileW, kTileH,
+                            reset_text,
+                            selected_index == reset_index,
+                            true,
+                            false);
+    draw_settings_grid_tile(kX1, kY0 + 2 * kRowGap, kTileW, kTileH,
+                            exit_text,
+                            selected_index == exit_index,
+                            false,
+                            true);
+}
+
 static void draw_centered_menu_value(const char* title,
                                      const char* value,
                                      uint16_t value_color,
@@ -123,9 +201,20 @@ static void draw_centered_menu_value(const char* title,
     drawCenteredMenuFrame(title, title_color, footer_text, footer_color);
 
     const int cx = tft.width() / 2;
+    const int card_x = 20;
+    const int card_y = 58;
+    const int card_w = 120;
+    const int card_h = 38;
+    const uint16_t card_bg = tft.color565(4, 8, 18);
+    const uint16_t card_shadow = tft.color565(18, 12, 34);
+
+    tft.fillRoundRect(card_x, card_y, card_w, card_h, 5, card_bg);
+    tft.drawRoundRect(card_x, card_y, card_w, card_h, 5, value_color);
+    tft.drawRoundRect(card_x + 1, card_y + 1, card_w - 2, card_h - 2, 4, card_shadow);
+
     tft.setTextDatum(MC_DATUM);
     tft.setFreeFont(value_font == MENU_VALUE_FONT_TIMER ? FONT_TIMER : FONT_BODY);
-    tft.setTextColor(value_color, TFT_BLACK);
+    tft.setTextColor(value_color, card_bg);
     tft.drawString(value, cx, 78);
     tft.setTextFont(0);
 }

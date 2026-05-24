@@ -139,7 +139,7 @@ int get_ds18_encoder_min() {
 
 int get_ds18_encoder_max() {
     switch (g_ds18_menu_state) {
-        case DS18_MODE_MENU: return 4;
+        case DS18_MODE_MENU: return 5;
         case DS18_MODE_EDIT_OFFSET: return 50;
         case DS18_MODE_EDIT_LOW: return g_ds18_edit_high - 1;
         case DS18_MODE_EDIT_HIGH: return (int)lroundf(to_display(125.0f));
@@ -209,15 +209,22 @@ uint8_t handle_ds18_button() {
     switch (g_ds18_menu_state) {
         case DS18_MODE_MENU:
             if (g_ds18_menu_index == 0)      g_ds18_menu_state = DS18_MODE_EDIT_OFFSET;
-            else if (g_ds18_menu_index == 1) g_ds18_menu_state = DS18_MODE_EDIT_UNIT;
-            else if (g_ds18_menu_index == 2) g_ds18_menu_state = DS18_MODE_EDIT_ALERTS;
-            else if (g_ds18_menu_index == 3) {
+            else if (g_ds18_menu_index == 1) g_ds18_menu_state = DS18_MODE_EDIT_LOW;
+            else if (g_ds18_menu_index == 2) g_ds18_menu_state = DS18_MODE_EDIT_UNIT;
+            else if (g_ds18_menu_index == 3) g_ds18_menu_state = DS18_MODE_EDIT_ALERTS;
+            else if (g_ds18_menu_index == 4) {
                 g_ds18_reset_choice = 0;
                 g_ds18_menu_state = DS18_MODE_CONFIRM_RESET;
             }
             else                             g_ds18_menu_state = DS18_MODE_NORMAL;
             break;
-        case DS18_MODE_EDIT_OFFSET: g_ds18_menu_state = DS18_MODE_EDIT_LOW; break;
+        case DS18_MODE_EDIT_OFFSET:
+            g_ds18_save_ok = save_ds18_settings(g_ds18_edit_off,
+                                                to_celsius_int(g_ds18_edit_low),
+                                                to_celsius_int(g_ds18_edit_high));
+            g_ds18_saved_kind = 0;
+            g_ds18_menu_state = DS18_MODE_SAVED;
+            break;
         case DS18_MODE_EDIT_LOW:    g_ds18_menu_state = DS18_MODE_EDIT_HIGH; break;
         case DS18_MODE_EDIT_HIGH:
             g_ds18_save_ok = save_ds18_settings(g_ds18_edit_off, to_celsius_int(g_ds18_edit_low), to_celsius_int(g_ds18_edit_high));
@@ -225,7 +232,7 @@ uint8_t handle_ds18_button() {
             g_ds18_menu_state = DS18_MODE_SAVED;
             break;
         case DS18_MODE_EDIT_UNIT:
-            g_is_fahrenheit = (g_ds18_edit_unit != 0);
+            save_temperature_unit(g_ds18_edit_unit != 0);
             sync_edit_values_from_settings();
             g_ds18_save_ok = true;
             g_ds18_saved_kind = 1;
@@ -240,7 +247,7 @@ uint8_t handle_ds18_button() {
         case DS18_MODE_CONFIRM_RESET:
             if (g_ds18_reset_choice == 1) {
                 reset_ds18_settings();
-                g_is_fahrenheit = false;
+                save_temperature_unit(false);
                 sync_edit_values_from_settings();
                 g_ds18_save_ok = true;
                 g_ds18_saved_kind = 3;
@@ -302,14 +309,13 @@ static void draw_ds18_menu_screen(bool screen_changed) {
     }
 
     if (g_ds18_menu_state == DS18_MODE_MENU) {
-        const char* items[5] = {
-            L(MENU_CALIBRATION),
+        const char* items[4] = {
+            L(MENU_OFFSET),
+            L(MENU_LIMITS),
             L(MENU_UNIT),
-            L(MENU_ALERTS),
-            L(MENU_RESET),
-            L(MENU_EXIT)
+            L(MENU_ALERTS)
         };
-        drawCenteredMenuList(items, 5, g_ds18_menu_index, LM_MENU5_Y0, LM_MENU5_GAP);
+        drawSettingsGridMenu(items, 4, g_ds18_menu_index, L(MENU_RESET), L(MENU_EXIT));
         drawFooterHint(L(INSTR_SEL), cx, LM_MENU_FOOTER_Y);
         last_menu_index = (int)g_ds18_menu_index;
     } else if (g_ds18_menu_state == DS18_MODE_EDIT_OFFSET) {

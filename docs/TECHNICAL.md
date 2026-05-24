@@ -4,6 +4,31 @@ Actualizado: 2026-05-24
 
 Este documento describe el estado técnico actual del P-Bit a partir del firmware y la configuración presentes en este repositorio. Está pensado como base de entrenamiento para desarrollo, integración, soporte, mantenimiento y despliegue educativo.
 
+---
+
+## Índice
+
+1. [Resumen técnico](#1-resumen-técnico)
+2. [Plataforma base](#2-plataforma-base)
+3. [Componentes electrónicos integrados](#3-componentes-electrónicos-integrados)
+4. [Pinout actual del firmware y buses confirmados por hardware](#4-pinout-actual-del-firmware-y-buses-confirmados-por-hardware)
+5. [Arquitectura del firmware](#5-arquitectura-del-firmware)
+6. [Modelo de datos](#6-modelo-de-datos)
+7. [Flujo de adquisición de sensores](#7-flujo-de-adquisición-de-sensores)
+8. [Interfaz de usuario](#8-interfaz-de-usuario)
+9. [Persistencia en NVS](#9-persistencia-en-nvs)
+10. [BLE](#10-ble)
+11. [Gestión de energía](#11-gestión-de-energía)
+12. [Idiomas](#12-idiomas)
+13. [Alertas y feedback](#13-alertas-y-feedback)
+14. [Serial y modo laboratorio](#14-serial-y-modo-laboratorio)
+15. [Limitaciones actuales](#15-limitaciones-actuales)
+16. [Recomendaciones para entrenamiento y mantenimiento](#16-recomendaciones-para-entrenamiento-y-mantenimiento)
+17. [Navegación y menús — referencia completa](#17-navegación-y-menús--referencia-completa)
+18. [Documentos relacionados](#18-documentos-relacionados)
+
+---
+
 ## 1. Resumen técnico
 
 El P-Bit es un dispositivo educativo ambiental basado en ESP32 que integra sensores de temperatura, humedad, luz, sonido, humedad de suelo y temperatura externa. El sistema combina:
@@ -21,7 +46,7 @@ Estado de revisión de producción/i18n:
 
 - build local verificado con `py -m platformio run -e esp32dev`
 - resultado PlatformIO: `SUCCESS`
-- memoria reportada por build: RAM `14.7%` (`48028` bytes de `327680`) y Flash `70.6%` (`925873` bytes de `1310720`)
+- memoria reportada por build: RAM `14.7%` (`48124` bytes de `327680`) y Flash `71.0%` (`931193` bytes de `1310720`)
 - revisión estática de i18n, BLE factory-off, LDR, Sensor Zone y fixes anti-flicker completada
 - validaciones de hardware real siguen pendientes de unidad física
 
@@ -350,43 +375,43 @@ Nivel de sonido ambiental en barras apiladas. Solo lectura; no tiene menú.
 
 - en carrusel actual: slot de `SENSOR_ZONE_SCREEN` con sensor `SZ_TEMP`
 - pulsación corta: alterna modo de visualización
-- la unidad `C/F` es global y compartida con `Termómetro` (`DS18B20` técnico)
+- la unidad `C/F` es global, persistente y compartida con `Termómetro` (`DS18B20` técnico)
 - menú `Límites / Unidad / Alertas / Reset / Salir`
 
 #### Humedad del aire
 
 - en carrusel actual: slot de `SENSOR_ZONE_SCREEN` con sensor `SZ_HUM`
 - pulsación corta: alterna modo de visualización
-- menú `Límites / Alertas / Reset / Salir`
+- menú `Rangos / Alertas / Reset / Salir`
 - usa dos umbrales: `Seco` y `Muy húmedo`
 
 #### Luz
 
 - en carrusel actual: slot de `SENSOR_ZONE_SCREEN` con sensor `SZ_LIGHT`
 - pulsación corta: alterna modo de visualización
-- menú `Calibración / Modo display / Alertas / Reset / Salir`
+- menú `Rangos / Modo lectura / Alertas / Reset / Salir`
 - modos de vista: `Lux`, `% log`, `Raw ADC`
 
 #### Sonido
 
 - en carrusel actual: slot de `SENSOR_ZONE_SCREEN` con sensor `SZ_SOUND`
 - pulsación corta: alterna modo de visualización
-- menú `Calibración / Alertas / Reset / Salir`
-- calibración interpretativa por umbrales, no física
+- menú `Niveles / Alertas / Reset / Salir`
+- niveles interpretativos por umbrales, no calibración acústica física
 
 #### Suelo
 
 - en carrusel actual: slot de `SENSOR_ZONE_SCREEN` con sensor `SZ_SOIL`
 - pulsación corta: alterna modo de visualización
-- menú `Calibrar sensor / Editar umbrales / Alertas / Reset / Salir`
-- clasificación actual: `Seco`, `Óptimo`, `Húmedo`, `Muy húmedo`
+- menú `Calibrar sensor / Rangos / Alertas / Reset / Salir`
+- clasificación actual derivada desde dos umbrales editables: `Muy seco`, `Seco`, `Óptimo`, `Húmedo`, `Muy húmedo`
 
 #### Termómetro / DS18B20
 
 - en carrusel actual: slot visible `Termómetro` de `SENSOR_ZONE_SCREEN` con sensor técnico `SZ_DS18`
 - pulsación corta: alterna modo de visualización
-- la unidad `C/F` es global y compartida con `Temperatura DHT`
-- menú `Calibración / Unidad / Alertas / Reset / Salir`
+- la unidad `C/F` es global, persistente y compartida con `Temperatura DHT`
+- menú `Corrección / Límites / Unidad / Alertas / Reset / Salir`
 
 #### Sistema
 
@@ -484,6 +509,7 @@ Namespace utilizado:
 - `sys_sleep`
 - `sys_sound` (bool, default `true`) — `Bip`: beeps de interfaz, navegación y confirmaciones
 - `sys_alarm` (bool, default `true`) — `Alarmas`: audio de alertas de sensores y final del `Timer`
+- `sys_unit_f` (bool, default `false`) — unidad global de temperatura: `false=Celsius`, `true=Fahrenheit`
 
 #### Sensor zone
 
@@ -725,14 +751,126 @@ Uso previsto:
 - no interpretar sonido como medición en dB certificada
 - en pruebas de luz, recordar que el RGB se apaga a propósito en esa pantalla
 - si en una iteración futura se reactiva deep sleep, habrá que revalidar la TFT y el wake por encoder en hardware
-- mantener sincronizados `ROADMAP_PBIT.md`, `Menues.MD` y los manuales cuando cambie el firmware
+- mantener sincronizados `docs/ROADMAP.md` y `docs/TECHNICAL.md` (sección 17) cuando cambie el firmware o la navegación
 - seguir `docs/PRODUCTION_CHECKLIST.md` antes de entregar builds o unidades
 
-## 17. Documentos relacionados
+## 17. Navegación y menús — referencia completa
 
-- `PBIT_FUNCIONAMIENTO_ACTUAL.md`
-- `Menues.MD`
-- `ROADMAP_PBIT.md`
-- `docs/PRODUCTION_CHECKLIST.md`
-- `platformio.ini`
-- `lib/TFT_eSPI/User_Setup.h`
+La estructura de menús y flujos de encoder está documentada aquí directamente para que este documento sea la fuente única de referencia técnica.
+
+### Alcance real del carrusel
+
+Con `PBIT_ENABLE_GRAPH_LAB=1`:
+
+`HOME → CLIMA → MULTI → SONIDO VU → TEMPERATURA → HUMEDAD → LUZ → SONIDO → SUELO → TERMÓMETRO → TIMER → SISTEMA`
+
+- `BOOT_SCREEN` existe en la enum pero no forma parte de la navegación con encoder.
+- Las seis posiciones de sensor son slots de `SENSOR_ZONE_SCREEN`.
+- `DS18B20_SCREEN` sigue existiendo como menú/configuración técnica de la sonda Termómetro (`SZ_DS18`).
+- Los menús activos bloquean el reposo automático.
+- El encoder se reconfigura por estado: menús raíz y selectores binarios son circulares; ediciones numéricas no envuelven.
+
+### Arranque — Selector de idioma
+
+En cold boot: selector visible en `Español` / `Catalán` / `English`. Encoder en rango `0..2` circular. Al confirmar, idioma se guarda y pantalla se limpia. Idioma preseleccionado = último guardado; default = Español.
+
+### Acciones rápidas fuera de menú
+
+| Pantalla | Pulsación corta | Pulsación larga |
+|---|---|---|
+| TEMP / TERMÓMETRO | Alterna unidad global `C/F` | Abre menú (~1.2 s) |
+| HUMEDAD / LUZ / SONIDO / SUELO | Cambia modo visual del sensor | Abre menú (~1.2 s) |
+| SISTEMA | Alterna `Bip ON/OFF` | Abre menú (~1.2 s) |
+| TIMER | Inicia o pausa | Abre editor HH:MM:SS si idle; resetea si corriendo/pausado (~1.0 s) |
+
+### Menús por sensor
+
+#### Temperatura DHT
+
+Opciones raíz: `Límites / Unidad / Alertas / Reset / Salir`
+
+- **Límites**: edita `Límite bajo` → `Límite alto` → Guardar. Validación: alto > bajo. Rango: 0..50 °C interno (en la unidad visible).
+- **Unidad**: `Celsius` / `Fahrenheit`. Compartida con Termómetro y persistida en `sys_unit_f`.
+- **Alertas**: `OFF` / `ON`.
+- **Reset**: `NO` / `SI`. Restaura límites, alertas y unidad a Celsius.
+
+#### Humedad del aire
+
+Opciones raíz: `Rangos / Alertas / Reset / Salir`
+
+- **Rangos**: edita `Seco` → `Muy húmedo` → Guardar. Validación: húmedo > seco.
+
+#### Luz
+
+Opciones raíz: `Rangos / Modo lectura / Alertas / Reset / Salir`
+
+- **Rangos**: `Max penumbra` → `Max interior` → `Max brillante` → Guardar. Rango editable: 10..10 000. Validación: brillante > interior > penumbra.
+- **Modo lectura**: `Lux` / `% log` / `Raw ADC`.
+- `Raw ADC` cambia solo el valor grande; la barra y la categoría siguen usando lux.
+
+#### Sonido
+
+Opciones raíz: `Niveles / Alertas / Reset / Salir`
+
+- **Niveles**: `Max silencio` → `Max normal` → `Max alto` → Guardar. Validación: alto > normal > silencio.
+- Sin alerta sonora propia (no contaminar lectura del micrófono).
+
+#### Suelo
+
+Opciones raíz: `Calibrar sensor / Rangos / Alertas / Reset / Salir`
+
+- **Calibrar sensor**: `Seco al aire` → `En agua` → Guardar o Error. Validación: seco_raw > húmedo_raw, diferencia ≥ 300.
+- **Rangos**: `Seco` → `Húmedo` → Guardar. Validación: seco < húmedo, todos en 0..100.
+- Clasificación derivada: `0..Seco/2` = `Muy seco`; `Seco/2..Seco` = `Seco`; `Seco..Húmedo` = `Óptimo`; `Húmedo..(Húmedo+100)/2` = `Húmedo`; tramo final = `Muy húmedo`.
+- Sin sensor: muestra `Sin sensor` y `Check J6 (GPIO35)`.
+
+#### Termómetro / DS18B20
+
+Opciones raíz: `Corrección / Límites / Unidad / Alertas / Reset / Salir`
+
+- **Corrección**: `Offset` (décimas, aprox. −5.0..+5.0) → Guardar.
+- **Límites**: `Límite bajo` → `Límite alto` → Guardar. Valores internos en Celsius.
+- **Unidad**: `Celsius` / `Fahrenheit`. Compartida con Temperatura y persistida en `sys_unit_f`.
+- Sin sensor: muestra `Sin sensor` y `Check J4`.
+
+#### Sistema
+
+Opciones raíz en grid 2×3: `Bip / Alarmas / Reposo / Idioma / Reset / Salir`
+
+- **Reposo**: `30 seg / 1 min / 2 min / 5 min / 10 min / Nunca`.
+- **Idioma**: `Español / Catalán / English`. Solicita full redraw con `runtime_request_ui_full_redraw()`.
+- **Reset**: borra todo el namespace `pbit`. Incluye calibraciones, umbrales, idioma, unidad, Bip, Alarmas.
+
+#### Timer
+
+Sin submenú raíz de lista.
+
+- Corto: inicia si parado, pausa si corriendo.
+- Largo en idle: abre editor HH:MM:SS.
+- Largo en running/pausado: resetea.
+- Editor: giro sin editar = selección de campo HH/MM/SS; pulsar = entrar/salir de edición del campo; giro en edición = cambiar valor; pulsación larga en selección = guardar y salir.
+- `00:00:00` = cronómetro ascendente; cualquier valor > 0 = cuenta regresiva.
+
+### Regla común de todos los menús
+
+- Los menús raíz de settings usan grid 2×3 con `Reset` abajo izquierda y `Salir` abajo derecha.
+- Las pantallas de selección/edición muestran el valor activo dentro de una card central con borde semántico.
+- Gira para cambiar opción o valor.
+- Pulsa para confirmar el paso actual.
+- `SAVED` es un estado intermedio: una pulsación adicional vuelve al menú raíz.
+- Menús raíz y selectores de opción binaria/discreta envuelven en bucle.
+- Ediciones numéricas no envuelven.
+- Confirmaciones de `Reset` usan `NO / SI` (circular).
+
+---
+
+## 18. Documentos relacionados
+
+- `docs/PROJECT.md` — descripción completa del producto
+- `docs/USER_GUIDE.md` — manual de usuario
+- `docs/ROADMAP.md` — pendientes y mejoras futuras
+- `docs/DESIGN_SYSTEM.md` — paleta, iconos, fuentes y reglas visuales
+- `docs/TFT_RENDER_RULES.md` — protocolo anti-flicker
+- `docs/PRODUCTION_CHECKLIST.md` — checklist de producción
+- `platformio.ini` — configuración de build
+- `lib/TFT_eSPI/User_Setup.h` — configuración del display

@@ -1,0 +1,279 @@
+# Design System — P-Bit TFT
+
+**Actualizado:** 2026-05-24
+**Estado:** IMPLEMENTADO — Sensor Zone activa en producción; validación en hardware ST7735 pendiente
+
+Referencia canónica para cualquier pantalla nueva, modificación de color, icono o layout en el firmware P-Bit. Leer este documento antes de tocar cualquier color, icono o layout en archivos de producción.
+
+**Hardware objetivo:** ST7735 160 × 128 px, landscape, RGB565, via TFT_eSPI
+**Fuentes de verdad en código:** `include/palette.h` (colores) · `include/layout.h` (constantes de posición) · `src/ui_icons.cpp` (iconos)
+
+---
+
+## 1. Tokens de color
+
+### Sistema P1/P2/P3/P4 por sensor
+
+Cada sensor tiene cuatro roles de color. Los valores viven en `include/palette.h` y son la única fuente de verdad. No crear constantes locales duplicadas en archivos de pantalla.
+
+| Sensor | P1 · Primary | Hex | P2 · Secondary | Hex | P3 · Acento cálido | Hex | P4 · Contraste frío | Hex |
+|--------|-------------|-----|----------------|-----|--------------------|-----|---------------------|-----|
+| **TEMP** | Naranja ácido | `0xFA80` | Rosa eléctrico | `0xF814` | Oro eléctrico | `0xFE45` | Azul hielo | `0x055F` |
+| **HUMEDAD** | Cian eléctrico | `0x075F` | Cobalto láser | `0x2A9F` | Aqua brillante | `0x8FFF` | Azul océano | `0x01F4` |
+| **LUZ** | Amarillo puro | `0xFFE0` | Ámbar eléctrico | `0xFC40` | Oro neón | `0xFE40` | Dorado oscuro | `0x7A40` |
+| **SONIDO** | Magenta punk | `0xF81F` | Verde ácido | `0x07E8` | Rojo neón | `0xF8A0` | Púrpura oscuro | `0x4011` |
+| **SUELO** | Lima ácido | `0x47E8` | Tierra cálida | `0xCC04` | Menta claro | `0x87F0` | Verde oscuro | `0x0300` |
+| **TERMÓMETRO** | Violeta eléctrico | `0xA01F` | Azul láser | `0x045F` | Amatista claro | `0xCC5F` | Cian frío | `0x0659` |
+
+> Los nombres semánticos expresan la intención visual. Los valores exactos en `include/palette.h` son los únicos valores autorizados.
+
+### Uso semántico de los 4 roles
+
+| Rol | Uso en pantalla |
+|-----|----------------|
+| **P1 · Primary** | Borde de card, dial del gauge, icono activo, línea de gráfica, segmentos llenos |
+| **P2 · Secondary** | Sparklines, borde degradado en FOCUS, ring exterior del gauge, highlights de badge |
+| **P3 · Acento cálido** | Max-labels en gráfica, pico de VU, highlight de valor extremo |
+| **P4 · Contraste frío** | Min-labels en gráfica, referencia de cero, grid sutil, texto de estado neutral |
+
+Acceso en código mediante helpers indexados:
+
+```cpp
+pb_primary(sensor_id)       // P1
+pb_secondary(sensor_id)     // P2
+pb_accent_warm(sensor_id)   // P3
+pb_contrast_cool(sensor_id) // P4
+```
+
+### Fondos canónicos (no modificar sin motivo explícito)
+
+| Token | Valor | Uso |
+|-------|-------|-----|
+| `PB_PANEL_NAV_BG` | `tft.color565(8, 12, 18)` | Fondo navy principal de todas las pantallas |
+| Fondo de gráfica | `tft.color565(4, 8, 20)` | Área de plot del modo Gráfica |
+| Card interior bg | `0x0841` | Interior de card en HOME y pantallas lab |
+| Card border | `0x2945` | Borde de card en HOME y pantallas lab |
+| Dato numérico principal | `TFT_WHITE` | **Siempre** — sin excepciones |
+| Segmentos vacíos / track | `0x1084` | Segmentos apagados, tracks de gauge |
+
+### Reglas de color
+
+- Consultar `color-expert` antes de añadir cualquier valor RGB565 nuevo al código.
+- Verificar contraste sobre fondo navy `0x1082` antes de aprobar cualquier color.
+- **No usar `TFT_BLACK` como color de detalle interior** — sobre fondo navy crea manchas visibles. Usar `PB_PANEL_NAV_BG` en su lugar.
+- Los valores en `include/palette.h` son la fuente de verdad. No duplicar constantes locales por pantalla.
+- Pendiente de decisión: si `HOME` y `CLIMA LAB` migran a paleta canónica o mantienen colores responsivos propios (ver `docs/ROADMAP.md`).
+
+---
+
+## 2. Sistema de iconos
+
+Todos los iconos son procedurales (dibujados con primitivas TFT_eSPI en runtime). No hay bitmaps. Definidos en `src/ui_icons.cpp`.
+
+### Tamaños disponibles
+
+| Función | Factor `s` | Tamaño aprox. | Uso |
+|---------|-----------|---------------|-----|
+| `pbit_draw_*_icon(cx, cy, color)` | s=1 | ~14×14 px | Compatible con `SensorIconDrawFn` — headers, jewels |
+| `pbit_draw_*_icon_large(...)` | s=2 | ~28×28 px | Pantallas Focus / Detail |
+| `pbit_draw_*_icon_xl(...)` | s=3 | ~42×42 px | Centro del gauge (modo DIAL) |
+
+### Inventario y estado
+
+| Icono | Sensor | Estado | Deuda / Notas |
+|-------|--------|--------|---------------|
+| `temp` — Termómetro | TEMP | ⚠️ Fix pendiente | `TFT_BLACK` hardcodeado en canal interior → mancha sobre navy. Fix: añadir parámetro `bg` a la firma |
+| `humidity` — Gota | HUMEDAD | ✅ Aprobado en código | Silueta sólida sin donut interior. Pendiente validación en hardware |
+| `light` — Sol | LUZ | ✅ Funcional | Rayos diagonales de 1 px pueden ser poco visibles a s=1. Mejorable a 2 px si hardware lo confirma |
+| `sound` — Micrófono | SONIDO | ✅ Funcional | No tocar sin captura de hardware previa. Si base excesiva, reducir solo en hardware |
+| `plant` — Planta | SUELO | ✅ Aprobado en código | Hojas con `fillRoundRect`; base redondeada. Pendiente validación en hardware |
+| `probe` — Sonda | TERMÓMETRO | ❌ No final | Identidad visual no aprobada. Pendiente rediseño o validación de metáfora alternativa |
+
+### Normas de implementación de iconos
+
+- Los iconos se dibujan **siempre al final**, después de todos los `fillRect` de limpieza de datos (chrome-last rule).
+- No usar `TFT_BLACK` para detalles interiores — pasar el color de fondo como parámetro `bg`.
+- Antes de rediseñar un icono, validar la propuesta en hardware con `LAB_ICON_TEST_SCREEN`.
+- Para nuevos iconos, consultar `pixel-art-sprites` y `8-bit-pixel-art-patterns`.
+
+---
+
+## 3. Anatomía de pantalla
+
+### Zonas canónicas (160 × 128 px, landscape)
+
+```
+Y=0..19    HEADER   — título drawHeader(); solo chrome, nunca datos dinámicos
+Y=20..26   GAP      — respiración bajo header
+Y=27..126  CONTENT  — toda la UI de datos (LC_CARD_TOP=27, LC_SCREEN_BOTTOM=126)
+Y=118..126 FOOTER   — hints, alert jewel (atención: solapamiento con CONTENT inferior)
+```
+
+### Constantes de layout (`include/layout.h`)
+
+| Constante | Valor | Uso |
+|-----------|-------|-----|
+| `L_CONTENT_TOP` | 27 | Primera Y útil bajo header |
+| `LC_SCREEN_X` | 2 | Margen lateral de cards |
+| `LC_SCREEN_W` | 156 | Ancho de card full-width |
+| `LC_SCREEN_BOTTOM` | 126 | Límite inferior de cards |
+| `LC_CARD_TOP` | 27 | Top de card principal |
+| `LC_CARD_RADIUS` | 4 | Radio de esquinas de cards |
+
+Cards 2×2 (HOME y familia): `X0=2`, `X1=82`, `Y0=27`, `Y1=79`, `W=76`, `H=48`
+
+---
+
+## 4. Patrones de componentes
+
+### SENSOR CARD (patrón moderno canónico)
+
+Tres zonas horizontales con separadores, sin solapamiento de erase zones:
+
+```
+y=27..43   HEADER (17px)  icon(s=1, cx=15, cy=40) + device_label(P2) + unit/status(TR)
+           separador y=44
+y=45..81   VALUE  (37px)  dato grande centrado full-width, TFT_WHITE, cx=80
+           separador y=82
+y=83..110  VIZ    (28px)  visualización horizontal específica por sensor
+y=113..126 FOOTER         alert jewel (x=12, y=116)
+```
+
+Clave: `draw_card_dynamic` hace `fillRect` completo del área antes de dibujar → no se necesitan clear rects parciales en helpers.
+
+### Visualizaciones por sensor
+
+Cada sensor tiene una visualización única y propia. No reutilizar la misma viz para dos sensores distintos.
+
+| Sensor | Tipo de viz | Características |
+|--------|------------|-----------------|
+| TEMP | 12 segmentos gradiente | azul→rojo, 0–50°C, labels extremos |
+| DS18 | 14 segmentos, split en 0° | azul hielo/cálido, tick blanco en cero, −55..+125°C |
+| HUMEDAD | 10 gotas-pill en fila | cyan gradient, highlight dot, estilo "burbuja" |
+| LUZ | 8 barras verticales crecientes | oscuro→amarillo, equalizer, altura proporcional |
+| SONIDO | 7 columnas VU | misma altura = nivel, verde/naranja/rojo por zona |
+| SUELO | 3 zonas fijas + marcador | DRY/OK/WET, diamante de posición |
+
+### Menú raíz de settings 2×3
+
+Todos los menús raíz de configuración usan `drawSettingsGridMenu()`:
+
+```
+[ opción 1 ] [ opción 2 ]
+[ opción 3 ] [ opción 4 ]
+[  Reset  ] [  Salir  ]
+```
+
+Reglas:
+
+- Máximo 4 opciones primarias; `Reset` y `Salir` viven siempre en la última fila.
+- Si un menú tiene solo 2 o 3 opciones primarias, los slots no usados quedan vacíos.
+- `Reset` usa acento amarillo/naranja; `Salir` usa rojo/magenta.
+- El texto visible debe venir de `L(KEY)`; no usar strings hardcodeados.
+- Solo Suelo usa `Calibrar` como calibración real. Luz y Sonido usan rangos/niveles interpretativos.
+
+### Selectores y valores de menú
+
+Los estados de edición (`ON/OFF`, `Celsius/Fahrenheit`, límites numéricos, modos de lectura) usan `drawCenteredMenuValueScreen()`, que dibuja el valor dentro de una card central:
+
+- Card `x=20, y=58, w=120, h=38`.
+- Borde del color activo del valor (`ON` verde, `OFF` rojo, límites por color semántico).
+- Fondo oscuro estable para evitar ghosting sobre la banda del menú.
+- Título arriba y hint abajo fuera de la card.
+
+### Checklist de pantalla nueva
+
+Antes de escribir código para una pantalla nueva:
+
+```
+□ ¿Cuáles son las dimensiones exactas del card? (X, Y, W, H)
+□ ¿Qué elementos son chrome (estáticos) y qué son dinámicos?
+□ ¿Qué variables de caché necesito (una por campo dinámico)?
+□ ¿Cuál es la zona exclusiva del icono?
+□ ¿El clear rect de cada campo está clampado al card?
+□ ¿La viz del sensor es apropiada para ese sensor, no genérica?
+□ ¿El dato numérico usa TFT_WHITE?
+□ ¿La unidad usa P1 del sensor?
+□ ¿El device label usa P2 (secondary)?
+□ ¿Ninguna zona de borrado pisa otra zona?
+□ ¿El icono se dibuja AL FINAL, después de todos los fillRect?
+```
+
+---
+
+## 5. Reglas de uso
+
+### Chrome vs. datos (anti-flicker)
+
+Toda pantalla divide su contenido en dos capas:
+
+| Capa | Elementos | Cuándo redibuja |
+|------|-----------|-----------------|
+| **Chrome** (estática) | Borde, icono, label sensor, jewel de alerta, título | Solo si `chrome_dirty` o `screen_changed` |
+| **Datos** (dinámica) | Valor numérico, barra/tank fill, sparkline, ring gauge | En cada `sensor_data_changed` |
+
+Ver `docs/TFT_RENDER_RULES.md` para el protocolo anti-flicker completo (sprites, clears localizados, chrome-last rule).
+
+### Terminología visible en pantalla
+
+| Elemento | Término correcto | ❌ Evitar |
+|----------|-----------------|-----------|
+| Sensor externo DS18B20 | `Termómetro` / `Termo` | `DS18`, `Sonda`, `Probe` |
+| Modo de visualización gráfica | `Gráfica` | `Graf`, `Graph` |
+| Sensor de sonido | `Sonido` | `Ruido`, `Sound` |
+| Textos de UI general | `L(KEY)` / `LIn(...)` | Strings en español hardcodeados |
+| Identificadores técnicos | `DHT11`, `DS18B20`, `LDR`, `GPIO` | — (estos sí pueden estar hardcodeados) |
+
+---
+
+## 6. Estado de implementación y pendientes
+
+### Implementado y activo en código
+
+- `include/palette.h` con P1/P2/P3/P4 y helpers `pb_primary()`, `pb_secondary()`, `pb_accent_warm()`, `pb_contrast_cool()` por índice de sensor
+- Sensor Zone completa (`FOCUS`, `CARD`, `VALOR`, `GRAPH`, `GAUGE`) consume paleta canónica
+- Iconos `humidity`, `probe` y `plant` rediseñados en `src/ui_icons.cpp`
+- Icono Bluetooth añadido en `src/ui_icons.cpp` para pantalla `BLE_TOGGLE_SCREEN`
+
+### Pendiente de validación en hardware (ST7735 real)
+
+- Contraste real de P1/P2/P3/P4 sobre fondos navy — especialmente HUM vs. DS18 como identidades visualmente distinguibles
+- Legibilidad de P3/P4 en labels min/max y segmentos apagados sobre ST7735 real (vs. simulador)
+- Icono `light`: rayos diagonales de 1 px en s=1 — confirmar si son visibles o requieren 2 px
+- Icono `sound`: proporciones de base horizontal en s=1, s=2, s=3
+- Icono `temp`: mancha de `TFT_BLACK` interior sobre fondo navy
+
+### Decisiones de diseño abiertas
+
+**Paleta:**
+- [ ] Aprobar en hardware TEMP / HUM / DS18 como identidades visualmente distinguibles
+- [ ] Validar `PB_SOIL_P2` (tierra cálida) vs. cian menta sobre ST7735 real
+- [ ] Decidir si `HOME` y `CLIMA LAB` migran a paleta canónica o mantienen colores responsivos propios
+
+**Iconos:**
+- [ ] Rediseño y aprobación final del icono `probe` (DS18B20) en hardware
+- [ ] Corrección de `TFT_BLACK` en icono `temp` — añadir parámetro `bg` a la firma
+- [ ] Confirmar si diagonales del icono `light` necesitan ajuste a 2 px tras validación hardware
+
+---
+
+## 7. Historial de decisiones de diseño
+
+*Síntesis de decisiones tomadas durante el diseño (sesión 2026-05-16, refinamientos hasta 2026-05-24).*
+
+**Problemas resueltos en esta iteración:**
+
+| Problema | Solución aplicada |
+|----------|------------------|
+| HUM y DS18 usaban el mismo par cian/púrpura intercambiado | Identidades independientes en paleta canónica |
+| SUELO y HUMEDAD compartían cian | Paletas separadas: SUELO usa lima ácido como P1 |
+| `TFT_ORANGE` (255,165,0) leía como ámbar/dorado, no naranja ácido | Reemplazado por `0xFA80` en paleta canónica |
+| Constantes de color definidas localmente por cada pantalla | Centralizadas en `include/palette.h` |
+| Gota de humedad con círculo negro interior (efecto donut) | Rediseñada como silueta sólida |
+| Planta con hojas triangulares (leían como flechas a s=1) | Rediseñada con `fillRoundRect` para hojas ovales |
+| Sin `palette.h` canónico — drift de colores entre pantallas | `include/palette.h` creado; Sensor Zone lo consume |
+
+**Orden de migración de paleta (aplicado y en progreso):**
+1. ✅ Pantallas nuevas (`SENSOR CARD`, `VALOR LAB`) — banco de prueba sin tocar producción
+2. ✅ Sensor Zone completa — paleta canónica en todos los modos
+3. ⏳ Pantallas madre (`HOME`, `CLIMA`) — solo después de validar Sensor Zone en hardware real

@@ -232,7 +232,6 @@ void setup() {
             DPRINTLN("[Power] Waking up from Deep Sleep (Button).");
             loadLanguage();           // Restore the last language without showing the selector
             restorePersistedScreen();
-            g_is_fahrenheit = false;
             g_power_mode = POWER_ACTIVE;
             persistPowerState(POWER_ACTIVE, SLEEP_INTENT_NONE);
             break;
@@ -242,7 +241,6 @@ void setup() {
             run_boot_sequence();
             active_screen = FIRST_APP_SCREEN;
             runtime_set_last_active_screen_before_sleep(active_screen);
-            g_is_fahrenheit = false;
             g_power_mode = POWER_ACTIVE;
             persistPowerState(POWER_ACTIVE, SLEEP_INTENT_NONE);
             if (settings_wiped) {
@@ -255,7 +253,6 @@ void setup() {
             tft.fillScreen(TFT_BLACK); // Force a clean slate before the first app screen redraw.
             delay(25);                // Give the display driver time to settle.
             tft.fillScreen(TFT_BLACK);
-            g_is_fahrenheit = false;
             break;
     }
     // -----------------------------------------------------------------
@@ -267,7 +264,6 @@ void setup() {
 
     // Reconfigure the encoder for the main app after boot/restore flow.
     init_rotary();
-    g_is_fahrenheit = false;
 
     // Start the inactivity timer only once the app is fully ready.
     // This avoids carrying boot/menu time into the sleep scheduler.

@@ -284,7 +284,7 @@ uint8_t handle_temp_button() {
             g_temp_menu_state = TEMP_MODE_SAVED;
             break;
         case TEMP_MODE_EDIT_UNIT:
-            g_is_fahrenheit = (g_temp_edit_unit == 1);
+            save_temperature_unit(g_temp_edit_unit == 1);
             sync_edit_values_from_settings();
             g_temp_saved_kind = 1;
             g_temp_save_ok = true;
@@ -299,7 +299,7 @@ uint8_t handle_temp_button() {
         case TEMP_MODE_CONFIRM_RESET:
             if (g_temp_reset_choice == 1) {
                 reset_temp_settings();
-                g_is_fahrenheit = false;
+                save_temperature_unit(false);
                 sync_edit_values_from_settings();
                 g_temp_saved_kind = 3;
                 g_temp_save_ok = true;
@@ -363,15 +363,12 @@ static void draw_temp_menu_screen(bool screen_changed) {
     }
 
     if (g_temp_menu_state == TEMP_MODE_MENU) {
-        // Root menu follows the same five-item structure as the other sensors.
         const char* items[] = {
             L(MENU_LIMITS),
             L(MENU_UNIT),
-            L(MENU_ALERTS),
-            L(MENU_RESET),
-            L(MENU_EXIT)
+            L(MENU_ALERTS)
         };
-        drawCenteredMenuList(items, 5, g_temp_menu_index, LM_MENU5_Y0, LM_MENU5_GAP);
+        drawSettingsGridMenu(items, 3, g_temp_menu_index, L(MENU_RESET), L(MENU_EXIT));
         drawFooterHint(L(INSTR_SEL), cx, LM_MENU_FOOTER_Y);
         last_menu_index = (int)g_temp_menu_index;
     } else if (g_temp_menu_state == TEMP_MODE_EDIT_LOW || g_temp_menu_state == TEMP_MODE_EDIT_HIGH) {

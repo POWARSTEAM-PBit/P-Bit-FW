@@ -20,11 +20,35 @@ static void impl_temp(int cx, int cy, uint16_t c, int s) {
 }
 
 static void impl_probe(int cx, int cy, uint16_t c, int s) {
-    tft.fillCircle(cx, cy - 5*s, 2*s, c);                      // sensor node
-    tft.fillRect(cx, cy - 3*s, 1, 2*s, c);                     // neck
-    tft.fillRoundRect(cx - 3*s, cy - s, 6*s, 7*s, s, c);       // compact body
-    tft.drawFastHLine(cx - 2*s, cy + 2*s, 4*s, TFT_BLACK);     // connector stripe
-    tft.fillRect(cx, cy + 6*s, 1, 2*s, c);                     // straight lead
+    // DS18B20 como chip TO-92: barras térmicas + cúpula-D + 3 pines.
+    // Canvas: ±7s desde (cx,cy). Rango usado: cy-7s..cy+4s.
+    //
+    // Mapa de píxeles a s=1 (14×14, cx=7, cy=7):
+    //   y=0  ···●●●···   bar2 (3px, cy-7s)  ← emisión térmica
+    //   y=1  ··●●●●●··   bar1 (5px, cy-6s)
+    //   y=2  ·······●··  cima del domo (1px)
+    //   y=3  ··●●●●●···  domo (5px)
+    //   y=4  ··●●●●●···  domo
+    //   y=5  ·●●●●●●●··  domo ancho 7px (centro del círculo)
+    //   y=6  ·●●●●●●●··  domo + rect
+    //   y=7  ·●●●●●●●··  rect (cuerpo plano)
+    //   y=8  ·●●●●●●●··  rect (cara plana, borde inferior del D)
+    //   y=9  ··●·●·●···  pines L/C/R con gap de 1px
+    //   y=10 ··●·●·●···
+    //   y=11 ··●·●·●···
+
+    // Barras de emisión térmica (arriba del chip)
+    tft.drawFastHLine(cx - 2*s, cy - 6*s, 5*s, c);             // bar1
+    tft.drawFastHLine(cx - s,   cy - 7*s, 3*s, c);             // bar2
+
+    // Cuerpo en forma D: cúpula redondeada (arriba) + cara plana (abajo)
+    tft.fillCircle(cx,       cy - 2*s, 3*s, c);                // cúpula del D
+    tft.fillRect  (cx - 3*s, cy - s,   7*s, 3*s, c);           // cara plana (gap 1px antes de pines)
+
+    // Tres pines IC (GND / DATA / VDD)
+    tft.fillRect(cx - 2*s, cy + 2*s, s, 3*s, c);               // pin L
+    tft.fillRect(cx,       cy + 2*s, s, 3*s, c);               // pin C
+    tft.fillRect(cx + 2*s, cy + 2*s, s, 3*s, c);               // pin R
 }
 
 static void impl_humidity(int cx, int cy, uint16_t c, int s) {
@@ -46,10 +70,11 @@ static void impl_light(int cx, int cy, uint16_t c, int s) {
 }
 
 static void impl_sound(int cx, int cy, uint16_t c, int s) {
-    // Bounds: ±6s wide (base), ±7s tall → 12s×14s
-    tft.fillRoundRect(cx - 5*s, cy - 7*s, 10*s, 10*s, 4*s, c);  // mic capsule
-    tft.fillRect(cx - s, cy + 3*s, 2*s, 2*s, c);                  // neck
-    tft.fillRoundRect(cx - 6*s, cy + 5*s, 12*s, 2*s, s, c);      // base
+    // Cápsula más estrecha que alta (8s×10s, r=3s) para diferenciarse
+    // de un círculo; a s=1 da 8×10px — claramente cápsula de micrófono.
+    tft.fillRoundRect(cx - 4*s, cy - 7*s, 8*s, 10*s, 3*s, c);   // cápsula mic
+    tft.fillRect     (cx - s,   cy + 3*s, 2*s, 2*s,  c);         // cuello
+    tft.fillRoundRect(cx - 5*s, cy + 5*s, 10*s, 2*s, s, c);      // base
 }
 
 static void impl_plant(int cx, int cy, uint16_t c, int s) {
@@ -101,15 +126,33 @@ static void impl_temp_detail(int cx, int cy, uint16_t c, uint16_t a, int s) {
 }
 
 static void impl_probe_detail(int cx, int cy, uint16_t c, uint16_t a, int s) {
-    const uint16_t wire = a;
-    const uint16_t stripe = TFT_WHITE;
-    tft.fillCircle(cx, cy - 7*s, 3*s, c);
-    tft.fillCircle(cx, cy - 7*s, s, TFT_BLACK);
-    tft.fillRect(cx - 1, cy - 4*s, 3, 3*s, wire);
-    tft.fillRoundRect(cx - 4*s, cy - s, 8*s, 8*s, s, c);
-    tft.drawFastHLine(cx - 3*s, cy + 2*s, 6*s, stripe);
-    tft.drawFastHLine(cx - 3*s, cy + 3*s, 6*s, TFT_BLACK);
-    tft.fillRect(cx - 1, cy + 7*s, 3, 4*s, wire);
+    // DS18B20 TO-92 — versión detallada (XXL, s=3):
+    //   - Barras térmicas dobles en color acento (más caliente/brillante)
+    //   - Cúpula con highlight blanco en arco superior
+    //   - Marcador de componente (círculo oscuro interior)
+    //   - Pin central (DATA) un paso más largo que GND/VDD
+    //   - Color acento para pines GND/VDD, color principal para DATA
+
+    // Barras térmicas dobles (acento)
+    tft.drawFastHLine(cx - 2*s, cy - 6*s,     5*s, a);
+    tft.drawFastHLine(cx - 2*s, cy - 6*s + 1, 5*s, a);         // grosor 2px a s≥2
+    tft.drawFastHLine(cx - s,   cy - 7*s,     3*s, a);
+    tft.drawFastHLine(cx - s,   cy - 7*s + 1, 3*s, a);
+
+    // Cuerpo D (color principal)
+    tft.fillCircle(cx,       cy - 2*s, 3*s, c);
+    tft.fillRect  (cx - 3*s, cy - s,   7*s, 3*s, c);
+
+    // Highlight de cúpula — arco superior blanco (efecto metálico/difuso)
+    tft.drawFastHLine(cx - s, cy - 4*s, 3*s, TFT_WHITE);
+
+    // Marcador del componente — notch central oscuro
+    tft.fillCircle(cx, cy - 2*s, s, TFT_BLACK);
+
+    // Pines: L=GND (acento), C=DATA (principal, +1s más largo), R=VDD (principal)
+    tft.fillRect(cx - 2*s, cy + 2*s, s, 3*s, a);               // GND
+    tft.fillRect(cx,       cy + 2*s, s, 4*s, c);               // DATA (más largo)
+    tft.fillRect(cx + 2*s, cy + 2*s, s, 3*s, c);               // VDD
 }
 
 static void impl_humidity_detail(int cx, int cy, uint16_t c, uint16_t a, int s) {
@@ -140,12 +183,15 @@ static void impl_light_detail(int cx, int cy, uint16_t c, uint16_t a, int s) {
 }
 
 static void impl_sound_detail(int cx, int cy, uint16_t c, uint16_t a, int s) {
-    tft.fillRoundRect(cx - 5*s, cy - 7*s, 10*s, 10*s, 3*s, c);
-    tft.fillRoundRect(cx - 2*s - 1, cy - 4*s, 3, 4*s, 1, TFT_WHITE);
-    tft.fillRoundRect(cx - 1,       cy - 5*s, 3, 5*s, 1, TFT_WHITE);
-    tft.fillRoundRect(cx + 2*s - 1, cy - 4*s, 3, 4*s, 1, TFT_WHITE);
-    tft.fillRect(cx - s, cy + 4*s, 2*s, 2*s, a);
-    tft.fillRoundRect(cx - 6*s, cy + 6*s, 12*s, 2*s, s, a);
+    // Cápsula alineada con impl_sound (8s×10s, r=3s) + grilla de ranuras blancas
+    tft.fillRoundRect(cx - 4*s, cy - 7*s, 8*s, 10*s, 3*s, c);
+    // Tres ranuras verticales (grilla de cápsula) centradas en el cuerpo
+    tft.fillRoundRect(cx - 2*s - 1, cy - 4*s, 3, 4*s, 1, TFT_WHITE);   // ranura L
+    tft.fillRoundRect(cx - 1,       cy - 5*s, 3, 5*s, 1, TFT_WHITE);   // ranura C (más alta)
+    tft.fillRoundRect(cx + 2*s - 1, cy - 4*s, 3, 4*s, 1, TFT_WHITE);   // ranura R
+    // Cuello y base (acento)
+    tft.fillRect     (cx - s,   cy + 3*s, 2*s, 2*s,  a);
+    tft.fillRoundRect(cx - 5*s, cy + 5*s, 10*s, 2*s, s, a);
 }
 
 static void impl_plant_detail(int cx, int cy, uint16_t c, uint16_t a, int s) {

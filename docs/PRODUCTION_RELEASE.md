@@ -15,8 +15,8 @@ py -m platformio run -e esp32dev
 - Fecha: 2026-05-20
 - Comando: `py -m platformio run -e esp32dev`
 - Resultado: `SUCCESS`
-- RAM: `14.7%` (`48028` bytes de `327680`)
-- Flash: `70.6%` (`925873` bytes de `1310720`)
+- RAM: `14.7%` (`48124` bytes de `327680`)
+- Flash: `71.0%` (`931193` bytes de `1310720`)
 
 Artefactos generados en `.pio/build/esp32dev/`:
 
@@ -57,6 +57,7 @@ Confirmado por lectura de código:
 - LDR entrega lux en rango `0..20000`, conserva `ldr_raw` y soporta modo visible `Raw ADC`.
 - Sensor Zone centraliza los seis sensores y sus modos visuales persistidos.
 - `Sistema` separa `Bip` (`sys_sound`) y `Alarmas` (`sys_alarm`) con persistencia independiente.
+- Unidad global `C/F` persistida en `sys_unit_f`.
 - Fixes anti-flicker presentes en dials/gauges, cards, menús/footers y `Sound VU`.
 
 ## Artefactos De Release
@@ -84,6 +85,7 @@ Después de flashear una unidad:
 - [ ] Recorrer carrusel completo y probar una pulsación corta/larga en un sensor.
 - [ ] Verificar lecturas plausibles de DHT11, LDR, micrófono, suelo y Termómetro (`DS18B20`).
 - [ ] Verificar que `Bip OFF` silencia beeps de UI y que `Alarmas OFF` silencia alertas/timer audibles.
+- [ ] Cambiar `C/F`, reiniciar y confirmar que la unidad permanece guardada.
 - [ ] Verificar que LDR responde a sombra/luz y que el modo `Raw ADC` muestra lectura cruda.
 - [ ] Verificar que el icono de luz cambia con varias etapas visibles en `0..1000 lux`.
 - [ ] Revisar icono DS18B20 en hardware; no tratarlo como identidad final hasta aprobarlo visualmente.

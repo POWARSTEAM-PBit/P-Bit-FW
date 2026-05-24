@@ -9,7 +9,7 @@ Estado de esta revisión: build y auditoría estática completados; pruebas con 
 ## 1. Configuración de build
 
 - [x] `py -m platformio run -e esp32dev` compila sin errores.
-- [x] Resultado de build registrado: RAM `14.7%` (`48028`/`327680`) y Flash `70.6%` (`925873`/`1310720`).
+- [x] Resultado de build registrado: RAM `14.7%` (`48124`/`327680`) y Flash `71.0%` (`931193`/`1310720`).
 - [x] `include/config.h`: `PBIT_ENABLE_GRAPH_LAB=1` para el carrusel actual con `Home/Clima/Multi/Sonido VU` y `SENSOR_ZONE_SCREEN`.
 - [x] `PBIT_ENABLE_SERIAL_PLOTTER=0` para producción.
 - [x] `FIRMWARE_DEBUG` sigue comentado.
@@ -23,12 +23,13 @@ Estado de esta revisión: build y auditoría estática completados; pruebas con 
 - [x] Textos visibles migrados a `L(...)`/`LIn(...)`; literales directos restantes son símbolos/no lingüísticos (`>`, `---`, separadores, ticks numéricos o `ZZZ`).
 - [x] Carrusel actual con `PBIT_ENABLE_GRAPH_LAB=1`: `Home -> Clima -> Multi -> Sonido VU -> Temperatura -> Humedad -> Luz -> Sonido -> Suelo -> Termómetro -> Timer -> Sistema`.
 - [x] `SENSOR_ZONE_SCREEN` reutiliza Sensor Zone para los seis sensores y persiste modos `Focus -> Valor -> Gráfica -> Dial -> Card`.
-- [x] `Sistema` separa `Bip` y `Alarmas`; la auditoría estática confirma persistencia `sys_sound` y `sys_alarm`.
+- [x] `Sistema` separa `Bip` y `Alarmas`; la auditoría estática confirma persistencia `sys_sound`, `sys_alarm` y `sys_unit_f` para unidad C/F.
 - [x] Anti-flicker revisado por código en dials/gauges, cards, menús/footers y `Sound VU`.
 - [ ] En hardware: arranque frío muestra selector de idioma si la NVS fue limpiada.
 - [ ] En hardware: recorrer carrusel completo y verificar legibilidad de todos los modos.
 - [ ] En hardware: en cada sensor, pulsación corta cambia modo y pulsación larga abre el menú del sensor activo.
 - [ ] En hardware: `Timer` responde a corto/largo según diseño.
+- [ ] En hardware: cambiar C/F, reiniciar y confirmar persistencia de unidad.
 - [ ] En hardware: `Sistema > Bip` silencia beeps de UI sin silenciar `Alarmas`; `Sistema > Alarmas` silencia alertas/timer audibles sin ocultar alertas visuales/RGB.
 - [ ] En hardware: reposo visible con `ZZZ`; despierta con interacción del encoder.
 

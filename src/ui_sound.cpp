@@ -327,12 +327,10 @@ static void draw_sound_menu_screen(bool screen_changed) {
 
     if (g_sound_menu_state == SOUND_MODE_MENU) {
         const char* items[] = {
-            L(MENU_CALIBRATION),
-            L(MENU_ALERTS),
-            L(MENU_RESET),
-            L(MENU_EXIT)
+            L(MENU_LEVELS),
+            L(MENU_ALERTS)
         };
-        drawCenteredMenuList(items, 4, g_sound_menu_index, LM_MENU4_Y0, LM_MENU4_GAP);
+        drawSettingsGridMenu(items, 2, g_sound_menu_index, L(MENU_RESET), L(MENU_EXIT));
         drawFooterHint(L(INSTR_SEL), cx, LM_MENU_FOOTER_Y);
         last_menu_index = (int)g_sound_menu_index;
     } else if (g_sound_menu_state >= SOUND_MODE_EDIT_QUIET && g_sound_menu_state <= SOUND_MODE_EDIT_LOUD) {

@@ -122,6 +122,8 @@ void save_alarm_sound_enabled(bool enabled);
 bool get_alarm_sound_enabled();
 void save_sleep_timeout(uint32_t timeout_ms);
 uint32_t get_sleep_timeout();
+void save_temperature_unit(bool fahrenheit);
+bool get_temperature_unit_fahrenheit();
 void reset_all_settings();
 
 

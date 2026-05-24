@@ -636,7 +636,7 @@ void buttonCallback(unsigned long duration) {
         if (next_state == SOIL_CAL_WAIT_WET && g_sound_enabled) {
             beep(1350, 45);
         }
-        if ((next_state == SOIL_CAL_THRESH_OPTIMAL || next_state == SOIL_CAL_THRESH_MOIST || next_state == SOIL_CAL_EDIT_ALERTS) && g_sound_enabled) {
+        if ((next_state == SOIL_CAL_THRESH_MOIST || next_state == SOIL_CAL_EDIT_ALERTS) && g_sound_enabled) {
             beep(1450, 35);
         }
         if (next_state == SOIL_CAL_DONE || next_state == SOIL_CAL_THRESH_DONE || next_state == SOIL_CAL_ALERTS_DONE || next_state == SOIL_CAL_ERROR) {
@@ -797,7 +797,7 @@ void buttonCallback(unsigned long duration) {
             configure_temp_ui_rotary_bounds();
             play_double_beep(1200, 1600);
         } else {
-            g_is_fahrenheit = !g_is_fahrenheit;
+            save_temperature_unit(!g_is_fahrenheit);
             runtime_mark_sensor_data_ready();
         }
         return;
@@ -827,7 +827,7 @@ void buttonCallback(unsigned long duration) {
             configure_ds18_ui_rotary_bounds();
             play_double_beep(1200, 1600);
         } else {
-            g_is_fahrenheit = !g_is_fahrenheit;
+            save_temperature_unit(!g_is_fahrenheit);
             runtime_mark_sensor_data_ready();
         }
         return;

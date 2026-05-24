@@ -26,7 +26,7 @@ static int g_soil_cal_dry_raw = 0;
 static int g_soil_cal_wet_raw = 0;
 static int g_soil_cal_live_raw = 0;
 static int g_soil_thr_dry_pct = 20;
-static int g_soil_thr_optimal_pct = 55;
+static int g_soil_thr_optimal_pct = 50;
 static int g_soil_thr_moist_pct = 80;
 static bool g_soil_alerts_enabled = true;
 static uint8_t g_soil_reset_choice = 0;
@@ -45,12 +45,25 @@ static void request_soil_redraw(bool force_full = false) {
     runtime_request_ui_refresh(force_full);
 }
 
-static int soil_category_id(float soil, bool no_sensor, int dry_thr, int optimal_thr, int moist_thr) {
+static int soil_auto_optimal_threshold(int dry_thr, int moist_thr) {
+    return constrain((dry_thr + moist_thr) / 2, dry_thr + 1, moist_thr - 1);
+}
+
+static int soil_very_dry_limit(int dry_thr) {
+    return constrain(dry_thr / 2, 0, dry_thr);
+}
+
+static int soil_very_moist_limit(int moist_thr) {
+    return constrain(moist_thr + ((100 - moist_thr) / 2), moist_thr, 100);
+}
+
+static int soil_category_id(float soil, bool no_sensor, int dry_thr, int moist_thr) {
     if (no_sensor) return -1;
-    if (soil < (float)dry_thr) return 0;
-    if (soil < (float)optimal_thr) return 1;
+    if (soil < (float)soil_very_dry_limit(dry_thr)) return 0;
+    if (soil < (float)dry_thr) return 1;
     if (soil < (float)moist_thr) return 2;
-    return 3;
+    if (soil < (float)soil_very_moist_limit(moist_thr)) return 3;
+    return 4;
 }
 
 // Soil colors stay intentionally strong so the screen works as a quick
@@ -62,10 +75,11 @@ static void apply_soil_rgb_for_category(int category_id, bool no_sensor) {
     }
 
     switch (category_id) {
-        case 0: set_rgb(255, 0, 0); break;   // Seco = Rojo
-        case 1: set_rgb(0, 255, 0); break;   // Óptimo = Verde
-        case 2: set_rgb(0, 0, 200); break;   // Húmedo = Azul oscuro
-        default: set_rgb(0, 0, 200); break; // Muy húmedo = Azul oscuro
+        case 0: set_rgb(255, 0, 0); break;     // Muy seco = Rojo
+        case 1: set_rgb(255, 120, 0); break;   // Seco = Naranja
+        case 2: set_rgb(0, 255, 0); break;     // Óptimo = Verde
+        case 3: set_rgb(0, 180, 255); break;   // Húmedo = Cian
+        default: set_rgb(0, 0, 200); break;    // Muy húmedo = Azul oscuro
     }
 }
 
@@ -117,9 +131,8 @@ void startSoilCalibration() {
 int getSoilCalibrationEncoderMin() {
     switch (g_soil_cal_state) {
         case SOIL_CAL_MENU: return 0;
-        case SOIL_CAL_THRESH_DRY: return 0;
-        case SOIL_CAL_THRESH_OPTIMAL: return g_soil_thr_dry_pct + 1;
-        case SOIL_CAL_THRESH_MOIST: return g_soil_thr_optimal_pct + 1;
+        case SOIL_CAL_THRESH_DRY: return 1;
+        case SOIL_CAL_THRESH_MOIST: return g_soil_thr_dry_pct + 2;
         case SOIL_CAL_EDIT_ALERTS: return 0;
         case SOIL_CAL_RESET_CONFIRM: return 0;
         default: return 0;
@@ -129,8 +142,7 @@ int getSoilCalibrationEncoderMin() {
 int getSoilCalibrationEncoderMax() {
     switch (g_soil_cal_state) {
         case SOIL_CAL_MENU: return 4;
-        case SOIL_CAL_THRESH_DRY: return g_soil_thr_optimal_pct - 1;
-        case SOIL_CAL_THRESH_OPTIMAL: return g_soil_thr_moist_pct - 1;
+        case SOIL_CAL_THRESH_DRY: return g_soil_thr_moist_pct - 2;
         case SOIL_CAL_THRESH_MOIST: return 100;
         case SOIL_CAL_EDIT_ALERTS: return 1;
         case SOIL_CAL_RESET_CONFIRM: return 1;
@@ -142,7 +154,6 @@ int getSoilCalibrationEncoderValue() {
     switch (g_soil_cal_state) {
         case SOIL_CAL_MENU: return (int)g_soil_menu_index;
         case SOIL_CAL_THRESH_DRY: return g_soil_thr_dry_pct;
-        case SOIL_CAL_THRESH_OPTIMAL: return g_soil_thr_optimal_pct;
         case SOIL_CAL_THRESH_MOIST: return g_soil_thr_moist_pct;
         case SOIL_CAL_EDIT_ALERTS: return g_soil_alerts_enabled ? 1 : 0;
         case SOIL_CAL_RESET_CONFIRM: return (int)g_soil_reset_choice;
@@ -164,13 +175,7 @@ void setSoilCalibrationInputValue(int value) {
             next = constrain(next, getSoilCalibrationEncoderMin(), getSoilCalibrationEncoderMax());
             if (next != g_soil_thr_dry_pct) {
                 g_soil_thr_dry_pct = next;
-                request_soil_redraw(false);
-            }
-            break;
-        case SOIL_CAL_THRESH_OPTIMAL:
-            next = constrain(next, getSoilCalibrationEncoderMin(), getSoilCalibrationEncoderMax());
-            if (next != g_soil_thr_optimal_pct) {
-                g_soil_thr_optimal_pct = next;
+                g_soil_thr_optimal_pct = soil_auto_optimal_threshold(g_soil_thr_dry_pct, g_soil_thr_moist_pct);
                 request_soil_redraw(false);
             }
             break;
@@ -178,6 +183,7 @@ void setSoilCalibrationInputValue(int value) {
             next = constrain(next, getSoilCalibrationEncoderMin(), getSoilCalibrationEncoderMax());
             if (next != g_soil_thr_moist_pct) {
                 g_soil_thr_moist_pct = next;
+                g_soil_thr_optimal_pct = soil_auto_optimal_threshold(g_soil_thr_dry_pct, g_soil_thr_moist_pct);
                 request_soil_redraw(false);
             }
             break;
@@ -207,8 +213,8 @@ uint8_t handleSoilCalibrationButton() {
                 g_soil_cal_state = SOIL_CAL_WAIT_DRY;
             } else if (g_soil_menu_index == 1) {
                 g_soil_thr_dry_pct = get_soil_threshold_dry();
-                g_soil_thr_optimal_pct = get_soil_threshold_optimal();
                 g_soil_thr_moist_pct = get_soil_threshold_moist();
+                g_soil_thr_optimal_pct = soil_auto_optimal_threshold(g_soil_thr_dry_pct, g_soil_thr_moist_pct);
                 g_soil_cal_state = SOIL_CAL_THRESH_DRY;
             } else if (g_soil_menu_index == 2) {
                 g_soil_alerts_enabled = get_soil_alerts_enabled();
@@ -232,12 +238,10 @@ uint8_t handleSoilCalibrationButton() {
                 : SOIL_CAL_ERROR;
             break;
         case SOIL_CAL_THRESH_DRY:
-            g_soil_cal_state = SOIL_CAL_THRESH_OPTIMAL;
-            break;
-        case SOIL_CAL_THRESH_OPTIMAL:
             g_soil_cal_state = SOIL_CAL_THRESH_MOIST;
             break;
         case SOIL_CAL_THRESH_MOIST:
+            g_soil_thr_optimal_pct = soil_auto_optimal_threshold(g_soil_thr_dry_pct, g_soil_thr_moist_pct);
             g_soil_cal_state = save_soil_thresholds(g_soil_thr_dry_pct, g_soil_thr_optimal_pct, g_soil_thr_moist_pct)
                 ? SOIL_CAL_THRESH_DONE
                 : SOIL_CAL_ERROR;
@@ -250,8 +254,8 @@ uint8_t handleSoilCalibrationButton() {
             if (g_soil_reset_choice == 1) {
                 reset_soil_settings();
                 g_soil_thr_dry_pct = get_soil_threshold_dry();
-                g_soil_thr_optimal_pct = get_soil_threshold_optimal();
                 g_soil_thr_moist_pct = get_soil_threshold_moist();
+                g_soil_thr_optimal_pct = soil_auto_optimal_threshold(g_soil_thr_dry_pct, g_soil_thr_moist_pct);
                 g_soil_alerts_enabled = get_soil_alerts_enabled();
                 g_soil_cal_state = SOIL_CAL_RESET_DONE;
             } else {
@@ -306,14 +310,12 @@ static void draw_soil_calibration_screen() {
     if (g_soil_cal_state == SOIL_CAL_MENU) {
         // Root calibration menu: capture, thresholds, alerts, reset, exit.
         if (state_changed || last_menu_index != (int)g_soil_menu_index) {
-            const char* items[5] = {
+            const char* items[3] = {
                 L(ST_SOIL_MENU_CAL),
-                L(ST_SOIL_MENU_THRESH),
-                L(MENU_ALERTS),
-                L(MENU_RESET),
-                L(ST_SOIL_MENU_BACK)
+                L(MENU_RANGES),
+                L(MENU_ALERTS)
             };
-            drawCenteredMenuList(items, 5, g_soil_menu_index, LM_MENU5_Y0, LM_MENU5_GAP);
+            drawSettingsGridMenu(items, 3, g_soil_menu_index, L(MENU_RESET), L(MENU_EXIT));
             drawFooterHint(L(INSTR_SEL), cx, LM_MENU_FOOTER_Y);
             last_menu_index = (int)g_soil_menu_index;
         }
@@ -378,10 +380,9 @@ static void draw_soil_calibration_screen() {
         last_alerts_enabled = (int)g_soil_alerts_enabled;
     }
 
-    if ((g_soil_cal_state == SOIL_CAL_THRESH_DRY || g_soil_cal_state == SOIL_CAL_THRESH_OPTIMAL || g_soil_cal_state == SOIL_CAL_THRESH_MOIST)
+    if ((g_soil_cal_state == SOIL_CAL_THRESH_DRY || g_soil_cal_state == SOIL_CAL_THRESH_MOIST)
         && (state_changed
             || (g_soil_cal_state == SOIL_CAL_THRESH_DRY && g_soil_thr_dry_pct != last_dry_raw)
-            || (g_soil_cal_state == SOIL_CAL_THRESH_OPTIMAL && g_soil_thr_optimal_pct != last_wet_raw)
             || (g_soil_cal_state == SOIL_CAL_THRESH_MOIST && g_soil_thr_moist_pct != last_live_raw))) {
         char value_buf[12];
         int value = 0;
@@ -391,10 +392,6 @@ static void draw_soil_calibration_screen() {
             value = g_soil_thr_dry_pct;
             value_color = TFT_ORANGE;
             last_dry_raw = value;
-        } else if (g_soil_cal_state == SOIL_CAL_THRESH_OPTIMAL) {
-            value = g_soil_thr_optimal_pct;
-            value_color = TFT_GREEN;
-            last_wet_raw = value;
         } else {
             value = g_soil_thr_moist_pct;
             value_color = TFT_CYAN;
@@ -404,7 +401,7 @@ static void draw_soil_calibration_screen() {
         snprintf(value_buf, sizeof(value_buf), "%d%%", value);
         drawCenteredMenuValueScreen(g_soil_cal_state == SOIL_CAL_THRESH_DRY
                                         ? L(ST_DRY)
-                                        : (g_soil_cal_state == SOIL_CAL_THRESH_OPTIMAL ? L(ST_OPTIMAL) : L(ST_MOIST)),
+                                        : L(ST_MOIST),
                                     value_buf,
                                     value_color,
                                     MENU_VALUE_FONT_TIMER,
@@ -430,23 +427,18 @@ static void draw_soil_calibration_screen() {
     if (g_soil_cal_state == SOIL_CAL_THRESH_DONE
         && (state_changed
             || g_soil_thr_dry_pct != last_dry_raw
-            || g_soil_thr_optimal_pct != last_live_raw
             || g_soil_thr_moist_pct != last_wet_raw)) {
         char line_buf_1[24];
         char line_buf_2[24];
-        char line_buf_3[24];
-        const char* lines[3];
-        const uint16_t colors[3] = { TFT_ORANGE, TFT_GREEN, TFT_CYAN };
+        const char* lines[2];
+        const uint16_t colors[2] = { TFT_ORANGE, TFT_CYAN };
         snprintf(line_buf_1, sizeof(line_buf_1), "%s %d%%", L(ST_DRY), g_soil_thr_dry_pct);
-        snprintf(line_buf_2, sizeof(line_buf_2), "%s %d%%", L(ST_OPTIMAL), g_soil_thr_optimal_pct);
-        snprintf(line_buf_3, sizeof(line_buf_3), "%s %d%%", L(ST_MOIST), g_soil_thr_moist_pct);
+        snprintf(line_buf_2, sizeof(line_buf_2), "%s %d%%", L(ST_MOIST), g_soil_thr_moist_pct);
         lines[0] = line_buf_1;
         lines[1] = line_buf_2;
-        lines[2] = line_buf_3;
-        drawCenteredMenuBodyLines(lines, colors, 3, MENU_TEXT_FONT_SMALL, LM_SUMMARY3_Y0, LM_SUMMARY3_GAP);
+        drawCenteredMenuBodyLines(lines, colors, 2, MENU_TEXT_FONT_SMALL, LM_SUMMARY2_Y0, LM_SUMMARY2_GAP);
 
         last_dry_raw = g_soil_thr_dry_pct;
-        last_live_raw = g_soil_thr_optimal_pct;
         last_wet_raw = g_soil_thr_moist_pct;
     }
 
@@ -498,21 +490,22 @@ void draw_soil_screen(bool screen_changed, bool data_changed) {
     float soil = (float)g_ui_readings_snapshot.soil_humidity;
     bool no_sensor = isnan(soil);
     const int dry_thr = get_soil_threshold_dry();
-    const int optimal_thr = get_soil_threshold_optimal();
     const int moist_thr = get_soil_threshold_moist();
     g_soil_alerts_enabled = get_soil_alerts_enabled();
 
     const char*   categoryText;
     uint16_t      tankColor;
     uint16_t      categoryColor;
-    int category_id = soil_category_id(soil, no_sensor, dry_thr, optimal_thr, moist_thr);
+    int category_id = soil_category_id(soil, no_sensor, dry_thr, moist_thr);
     if (category_id < 0) {
         categoryText = L(ST_NO_SENSOR); tankColor = TFT_DARKGREY; categoryColor = TFT_RED;
     } else if (category_id == 0) {
-        categoryText = L(ST_DRY);       tankColor = TFT_ORANGE; categoryColor = TFT_ORANGE;
+        categoryText = L(ST_TOO_DRY);   tankColor = TFT_RED;    categoryColor = TFT_RED;
     } else if (category_id == 1) {
-        categoryText = L(ST_OPTIMAL);   tankColor = TFT_GREEN;  categoryColor = TFT_GREEN;
+        categoryText = L(ST_DRY);       tankColor = TFT_ORANGE; categoryColor = TFT_ORANGE;
     } else if (category_id == 2) {
+        categoryText = L(ST_OPTIMAL);   tankColor = TFT_GREEN;  categoryColor = TFT_GREEN;
+    } else if (category_id == 3) {
         categoryText = L(ST_MOIST);     tankColor = TFT_CYAN;   categoryColor = TFT_CYAN;
     } else {
         categoryText = L(ST_SATURATED); tankColor = TFT_BLUE;   categoryColor = TFT_BLUE;

@@ -2,7 +2,7 @@
 
 **Protocolo anti-flicker para ST7735 160×128 px via SPI (TFT_eSPI)**
 
-Fecha: 2026-05-20 | Versión consolidada post-Fase B/C/D
+Fecha: 2026-05-24 | Versión consolidada post-Fase B/C/D
 
 ---
 

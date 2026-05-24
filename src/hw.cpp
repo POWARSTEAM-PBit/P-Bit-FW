@@ -12,6 +12,7 @@ uint8_t mac[MAC_LEN];
 char dev_name[MAX_DEVICE_NAME_LEN];
 extern bool g_sound_enabled;
 extern bool g_alarm_sound_enabled;
+extern bool g_is_fahrenheit;
 
 // Shared DS18B20 bus instance.
 OneWire oneWire(PIN_TEMP_DS18B20);
@@ -52,6 +53,7 @@ constexpr bool LIGHT_ALERTS_DEFAULT_ENABLED = true;
 constexpr uint32_t SYSTEM_DEFAULT_SLEEP_TIMEOUT_MS = DEEP_SLEEP_TIMEOUT_MS;
 constexpr bool SYSTEM_DEFAULT_SOUND_ENABLED = true;
 constexpr bool SYSTEM_DEFAULT_ALARM_SOUND_ENABLED = true;
+constexpr bool SYSTEM_DEFAULT_FAHRENHEIT = false;
 
 static int g_sound_thresh_quiet_max = SOUND_THRESH_DEFAULT_QUIET_MAX;
 static int g_sound_thresh_normal_max = SOUND_THRESH_DEFAULT_NORMAL_MAX;
@@ -543,7 +545,8 @@ void load_system_settings() {
     SystemSettings stored = load_system_settings_store(
         SYSTEM_DEFAULT_SLEEP_TIMEOUT_MS,
         SYSTEM_DEFAULT_SOUND_ENABLED,
-        SYSTEM_DEFAULT_ALARM_SOUND_ENABLED);
+        SYSTEM_DEFAULT_ALARM_SOUND_ENABLED,
+        SYSTEM_DEFAULT_FAHRENHEIT);
     uint32_t sleep_timeout_ms = stored.sleep_timeout_ms;
     bool sound_enabled = stored.sound_enabled;
     bool alarm_sound_enabled = stored.alarm_sound_enabled;
@@ -553,6 +556,7 @@ void load_system_settings() {
         : SYSTEM_DEFAULT_SLEEP_TIMEOUT_MS;
     g_sound_enabled = sound_enabled;
     g_alarm_sound_enabled = alarm_sound_enabled;
+    g_is_fahrenheit = stored.fahrenheit;
 }
 
 void save_sound_enabled(bool enabled) {
@@ -580,6 +584,15 @@ void save_sleep_timeout(uint32_t timeout_ms) {
 
 uint32_t get_sleep_timeout() {
     return g_system_sleep_timeout_ms;
+}
+
+void save_temperature_unit(bool fahrenheit) {
+    save_system_unit_fahrenheit_store(fahrenheit);
+    g_is_fahrenheit = fahrenheit;
+}
+
+bool get_temperature_unit_fahrenheit() {
+    return g_is_fahrenheit;
 }
 
 void reset_all_settings() {
@@ -613,6 +626,7 @@ void reset_all_settings() {
     g_system_sleep_timeout_ms = SYSTEM_DEFAULT_SLEEP_TIMEOUT_MS;
     g_sound_enabled = SYSTEM_DEFAULT_SOUND_ENABLED;
     g_alarm_sound_enabled = SYSTEM_DEFAULT_ALARM_SOUND_ENABLED;
+    g_is_fahrenheit = SYSTEM_DEFAULT_FAHRENHEIT;
 }
 
 

@@ -138,12 +138,22 @@ static void apply_global_alert_rgb(const GlobalAlertSummary& summary) {
                 const float soil = g_ui_readings_snapshot.soil_humidity;
                 if (isnan(soil)) {
                     set_rgb(120, 0, 0);
-                } else if (soil < (float)get_soil_threshold_dry()) {
-                    set_rgb(255, 0, 0);
-                } else if (soil < (float)get_soil_threshold_optimal()) {
-                    set_rgb(0, 255, 0);
                 } else {
-                    set_rgb(0, 0, 200);
+                    const int dry_thr = get_soil_threshold_dry();
+                    const int moist_thr = get_soil_threshold_moist();
+                    const int very_dry_limit = constrain(dry_thr / 2, 0, dry_thr);
+                    const int very_moist_limit = constrain(moist_thr + ((100 - moist_thr) / 2), moist_thr, 100);
+                    if (soil < (float)very_dry_limit) {
+                        set_rgb(255, 0, 0);
+                    } else if (soil < (float)dry_thr) {
+                        set_rgb(255, 120, 0);
+                    } else if (soil < (float)moist_thr) {
+                        set_rgb(0, 255, 0);
+                    } else if (soil < (float)very_moist_limit) {
+                        set_rgb(0, 180, 255);
+                    } else {
+                        set_rgb(0, 0, 200);
+                    }
                 }
                 break;
             }

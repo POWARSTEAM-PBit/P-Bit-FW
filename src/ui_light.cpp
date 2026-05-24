@@ -347,15 +347,12 @@ static void draw_light_menu_screen(bool screen_changed) {
     }
 
     if (g_light_menu_state == LIGHT_MODE_MENU) {
-        // Root menu: calibration, display mode, alerts, reset, exit.
         const char* items[] = {
-            L(MENU_CALIBRATION),
+            L(MENU_RANGES),
             L(MENU_DISPLAY_MODE),
-            L(MENU_ALERTS),
-            L(MENU_RESET),
-            L(MENU_EXIT)
+            L(MENU_ALERTS)
         };
-        drawCenteredMenuList(items, 5, g_light_menu_index, LM_MENU5_Y0, LM_MENU5_GAP);
+        drawSettingsGridMenu(items, 3, g_light_menu_index, L(MENU_RESET), L(MENU_EXIT));
         drawFooterHint(L(INSTR_SEL), cx, LM_MENU_FOOTER_Y);
         last_menu_index = (int)g_light_menu_index;
     } else if (g_light_menu_state >= LIGHT_MODE_EDIT_DIM && g_light_menu_state <= LIGHT_MODE_EDIT_BRIGHT) {

@@ -54,6 +54,13 @@ void drawCenteredMenuList(const char* const* items,
                           int gap_y,
                           uint16_t selected_color = TFT_YELLOW,
                           uint16_t normal_color = TFT_WHITE);
+// Draw a 2x3 settings grid. Primary items occupy the first slots; Reset and Exit
+// are always pinned to the bottom row for consistent muscle memory.
+void drawSettingsGridMenu(const char* const* primary_items,
+                          uint8_t primary_count,
+                          uint8_t selected_index,
+                          const char* reset_text,
+                          const char* exit_text);
 // Draw the common "title + value + footer hint" menu layout.
 void drawCenteredMenuValueScreen(const char* title,
                                  const char* value,
