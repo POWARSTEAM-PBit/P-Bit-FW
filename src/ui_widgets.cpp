@@ -85,9 +85,10 @@ void drawCenteredMenuFrame(const char* title,
 
     tft.setFreeFont(FONT_BODY);
     tft.setTextColor(title_color, TFT_BLACK);
-    tft.drawString(title, cx, 44);
+    tft.drawString(title, cx, 41);
     tft.setTextFont(0);
 
+    tft.drawFastHLine(34, LM_MENU_FOOTER_Y - 12, 92, tft.color565(18, 36, 58));
     drawFooterHint(footer_text, cx, LM_MENU_FOOTER_Y, footer_color);
 }
 
@@ -213,9 +214,16 @@ static void draw_centered_menu_value(const char* title,
     tft.drawRoundRect(card_x + 1, card_y + 1, card_w - 2, card_h - 2, 4, card_shadow);
 
     tft.setTextDatum(MC_DATUM);
-    tft.setFreeFont(value_font == MENU_VALUE_FONT_TIMER ? FONT_TIMER : FONT_BODY);
+    const bool prefer_timer = (value_font == MENU_VALUE_FONT_TIMER);
+    tft.setFreeFont(prefer_timer ? FONT_TIMER : FONT_BODY);
+    if (tft.textWidth(value) > card_w - 12) {
+        tft.setFreeFont(FONT_SMALL);
+    }
+    if (tft.textWidth(value) > card_w - 12) {
+        tft.setTextFont(1);
+    }
     tft.setTextColor(value_color, card_bg);
-    tft.drawString(value, cx, 78);
+    tft.drawString(value, cx, 75);
     tft.setTextFont(0);
 }
 
@@ -234,7 +242,7 @@ void drawCenteredMenuSavedScreen(const char* title,
                                  MenuValueFont value_font,
                                  const char* footer_text,
                                  uint16_t footer_color) {
-    draw_centered_menu_value(title, value, value_color, value_font, footer_text, footer_color, TFT_GREEN);
+    draw_centered_menu_value(title, value, value_color, value_font, footer_text, footer_color, PB_SOUND_P1);
 }
 
 void drawCenteredMenuBodyLines(const char* const* lines,
@@ -259,6 +267,13 @@ void drawCenteredMenuBodyLines(const char* const* lines,
         const char* line = lines[i];
         if (!line || line[0] == '\0') continue;
         uint16_t line_color = colors ? colors[i] : TFT_WHITE;
+        tft.setFreeFont(font);
+        if (tft.textWidth(line) > tft.width() - 14) {
+            tft.setFreeFont(FONT_SMALL);
+        }
+        if (tft.textWidth(line) > tft.width() - 14) {
+            tft.setTextFont(1);
+        }
         tft.setTextColor(line_color, TFT_BLACK);
         tft.drawString(line, cx, start_y + (gap_y * i));
     }

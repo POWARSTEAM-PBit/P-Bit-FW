@@ -1,9 +1,11 @@
 #include "ui_lab_widget_showcase.h"
 #include "sensor_zone.h"
 #include "palette.h"
+#include "sensor_visuals.h"
 
 #include "fonts.h"
 #include "graph_buffer.h"
+#include "hw.h"
 #include "io.h"
 #include "languages.h"
 #include "layout.h"
@@ -38,24 +40,15 @@ constexpr uint16_t kNeonYellow = 0xFFE0;
 constexpr uint16_t kDeepPurple = 0x881F;
 
 static uint16_t mix565(uint16_t a, uint16_t b, uint8_t amount_b) {
-    const uint16_t ar = (a >> 11) & 0x1F;
-    const uint16_t ag = (a >> 5) & 0x3F;
-    const uint16_t ab = a & 0x1F;
-    const uint16_t br = (b >> 11) & 0x1F;
-    const uint16_t bg = (b >> 5) & 0x3F;
-    const uint16_t bb = b & 0x1F;
-    const uint16_t amount_a = 255 - amount_b;
-    const uint16_t r = (ar * amount_a + br * amount_b) / 255;
-    const uint16_t g = (ag * amount_a + bg * amount_b) / 255;
-    const uint16_t bl = (ab * amount_a + bb * amount_b) / 255;
-    return (uint16_t)((r << 11) | (g << 5) | bl);
+    return pbit_mix565(a, b, amount_b);
 }
 
 static uint16_t mix3_565(uint16_t low, uint16_t mid, uint16_t high, uint8_t amount) {
-    if (amount <= 127) {
-        return mix565(low, mid, (uint8_t)((uint16_t)amount * 2));
-    }
-    return mix565(mid, high, (uint8_t)(((uint16_t)amount - 128) * 2 + 1));
+    return pbit_mix3_565(low, mid, high, amount);
+}
+
+static uint16_t ds18_thermal_color(uint8_t amount) {
+    return pbit_sensor_gauge_arc_color(SZ_DS18, amount);
 }
 
 enum ValueLabSensor : uint8_t {
@@ -129,6 +122,14 @@ struct GaugeSpec {
 
 static float display_temp(float temp_c) {
     return g_is_fahrenheit ? (temp_c * 1.8f + 32.0f) : temp_c;
+}
+
+static float temp_sensor_min_display(GaugeLabSensor sensor) {
+    return (sensor == GAUGE_SENSOR_DS18) ? display_temp(-55.0f) : display_temp(0.0f);
+}
+
+static float temp_sensor_max_display(GaugeLabSensor sensor) {
+    return (sensor == GAUGE_SENSOR_DS18) ? display_temp(125.0f) : display_temp(50.0f);
 }
 
 static int display_temp_key(bool* out_valid = nullptr) {
@@ -307,9 +308,12 @@ static float gauge_sensor_value(GaugeLabSensor sensor) {
 static void gauge_sensor_range(GaugeLabSensor sensor, float& min_value, float& max_value) {
     switch (sensor) {
         case GAUGE_SENSOR_TEMP:
+            min_value = temp_sensor_min_display(sensor);
+            max_value = temp_sensor_max_display(sensor);
+            break;
         case GAUGE_SENSOR_DS18:
-            min_value = g_is_fahrenheit ? 32.0f : 0.0f;
-            max_value = g_is_fahrenheit ? 122.0f : 50.0f;
+            min_value = temp_sensor_min_display(sensor);
+            max_value = temp_sensor_max_display(sensor);
             break;
         case GAUGE_SENSOR_HUM:
         case GAUGE_SENSOR_SOUND:
@@ -351,6 +355,15 @@ static int gauge_sensor_key(GaugeLabSensor sensor, bool* out_valid = nullptr) {
     const GaugeSensorSpec& spec = gauge_spec(sensor);
     const float value = gauge_sensor_value(sensor);
     return spec.decimal ? (int)lroundf(value * 10.0f) : (int)lroundf(value);
+}
+
+static float gauge_sensor_ratio(GaugeLabSensor sensor, float value, float min_value, float max_value, bool valid) {
+    if (!valid || max_value <= min_value) return 0.0f;
+    if (sensor == GAUGE_SENSOR_LIGHT) {
+        const float safe_value = constrain(value, 0.0f, max_value);
+        return constrain(log1pf(safe_value) / log1pf(max_value), 0.0f, 1.0f);
+    }
+    return constrain((value - min_value) / (max_value - min_value), 0.0f, 1.0f);
 }
 
 static void format_gauge_value(char* out, size_t out_len, GaugeLabSensor sensor, bool valid) {
@@ -418,22 +431,7 @@ constexpr int kGaugeUnitClearW = 50;
 constexpr int kGaugeUnitClearH = 18;
 
 static uint16_t gauge_semantic_arc_color(GaugeLabSensor sensor, uint8_t amount) {
-    switch (sensor) {
-        case GAUGE_SENSOR_SOUND:
-            return mix565(PB_SOUND_P2, PB_SOUND_P3, amount);      // quiet green -> peak red
-        case GAUGE_SENSOR_TEMP:
-            return mix3_565(PB_TEMP_P4, kNeonYellow, TFT_RED, amount);
-        case GAUGE_SENSOR_SOIL:
-            return mix3_565(kNeonYellow, PB_SOIL_P1, kElectricBlue, amount);
-        case GAUGE_SENSOR_HUM:
-            return mix565(TFT_WHITE, PB_HUM_P2, amount);
-        case GAUGE_SENSOR_DS18:
-            return mix3_565(kElectricBlue, TFT_WHITE, TFT_RED, amount);
-        case GAUGE_SENSOR_LIGHT:
-            return mix3_565(PB_LUZ_P4, PB_LUZ_P1, PB_LUZ_P3, amount);
-        default:
-            return mix565(pb_contrast_cool((uint8_t)sensor), pb_accent_warm((uint8_t)sensor), amount);
-    }
+    return pbit_sensor_gauge_arc_color((SzSensorId)sensor, amount);
 }
 
 static void draw_gauge_limit_labels(bool valid, float min_value, float max_value) {
@@ -451,6 +449,115 @@ static void draw_gauge_limit_labels(bool valid, float min_value, float max_value
     tft.setTextColor(max_col, kBg);
     tft.drawString(max_buf, kGaugeLimitRightX, kGaugeLimitY);
     tft.setTextFont(0);
+}
+
+static uint8_t gauge_threshold_values(float* values, uint8_t max_count) {
+    if (!values || max_count == 0) return 0;
+
+    switch (g_gauge_sensor) {
+        case GAUGE_SENSOR_TEMP:
+            if (max_count < 2) return 0;
+            values[0] = display_temp((float)get_temp_alarm_low());
+            values[1] = display_temp((float)get_temp_alarm_high());
+            return 2;
+        case GAUGE_SENSOR_DS18:
+            return 0;
+        case GAUGE_SENSOR_HUM:
+            if (max_count < 2) return 0;
+            values[0] = (float)get_humidity_threshold_dry();
+            values[1] = (float)get_humidity_threshold_comfort();
+            return 2;
+        case GAUGE_SENSOR_SOUND:
+            if (!get_sound_range_marks_visible() || max_count < 3) return 0;
+            values[0] = (float)get_sound_threshold_quiet();
+            values[1] = (float)get_sound_threshold_normal();
+            values[2] = (float)get_sound_threshold_loud();
+            return 3;
+        case GAUGE_SENSOR_SOIL:
+            if (max_count < 2) return 0;
+            values[0] = (float)get_soil_threshold_dry();
+            values[1] = (float)get_soil_threshold_moist();
+            return 2;
+        case GAUGE_SENSOR_LIGHT:
+            if (!get_light_range_marks_visible() || max_count < 3) return 0;
+            values[0] = (float)get_light_threshold_dim();
+            values[1] = (float)get_light_threshold_indoor();
+            values[2] = (float)get_light_threshold_bright();
+            return 3;
+        default:
+            return 0;
+    }
+}
+
+static float gauge_tick_ratio(GaugeLabSensor sensor, float value, float min_value, float max_value) {
+    if (max_value <= min_value) return 0.0f;
+    if (sensor == GAUGE_SENSOR_LIGHT) {
+        const float safe_value = constrain(value, 0.0f, max_value);
+        return constrain(log1pf(safe_value) / log1pf(max_value), 0.0f, 1.0f);
+    }
+    return constrain((value - min_value) / (max_value - min_value), 0.0f, 1.0f);
+}
+
+static void draw_gauge_threshold_ticks(TFT_eSprite& spr,
+                                       int spr_cx,
+                                       int spr_cy,
+                                       float min_value,
+                                       float max_value,
+                                       bool valid) {
+    if (max_value <= min_value) return;
+
+    float thresholds[3] = {0.0f, 0.0f, 0.0f};
+    const uint8_t count = gauge_threshold_values(thresholds, 3);
+    if (count == 0) return;
+
+    constexpr float start_deg = 135.0f;
+    constexpr float sweep_deg = 270.0f;
+    const uint16_t tick_color = valid ? TFT_WHITE : TFT_DARKGREY;
+    const int outer_r = kGaugeR + 1;
+    const int inner_r = kGaugeR - kGaugeArcThickness - 4;
+
+    for (uint8_t i = 0; i < count; ++i) {
+        const float ratio = gauge_tick_ratio(g_gauge_sensor, thresholds[i], min_value, max_value);
+        const float a = (start_deg + ratio * sweep_deg) * DEG_TO_RAD;
+        const int x0 = spr_cx + (int)roundf(cosf(a) * (float)inner_r);
+        const int y0 = spr_cy + (int)roundf(sinf(a) * (float)inner_r);
+        const int x1 = spr_cx + (int)roundf(cosf(a) * (float)outer_r);
+        const int y1 = spr_cy + (int)roundf(sinf(a) * (float)outer_r);
+        spr.drawLine(x0, y0, x1, y1, tick_color);
+        spr.drawLine(x0 + 1, y0, x1 + 1, y1, tick_color);
+    }
+}
+
+static void draw_ds18_zero_tick(TFT_eSprite& spr,
+                                int spr_cx,
+                                int spr_cy,
+                                float min_value,
+                                float max_value,
+                                bool valid) {
+    if (g_gauge_sensor != GAUGE_SENSOR_DS18 || max_value <= min_value) return;
+
+    constexpr float start_deg = 135.0f;
+    constexpr float sweep_deg = 270.0f;
+    const float zero_display = display_temp(0.0f);
+    const float ratio = gauge_tick_ratio(g_gauge_sensor, zero_display, min_value, max_value);
+    const float a = (start_deg + ratio * sweep_deg) * DEG_TO_RAD;
+    const uint16_t color = valid ? PB_DS18_P4 : TFT_DARKGREY;
+    const int outer_r = kGaugeR + 1;
+    const int inner_r = kGaugeR - kGaugeArcThickness - 2;
+    const int x0 = spr_cx + (int)roundf(cosf(a) * (float)inner_r);
+    const int y0 = spr_cy + (int)roundf(sinf(a) * (float)inner_r);
+    const int x1 = spr_cx + (int)roundf(cosf(a) * (float)outer_r);
+    const int y1 = spr_cy + (int)roundf(sinf(a) * (float)outer_r);
+    spr.drawLine(x0, y0, x1, y1, color);
+    spr.drawLine(x0 + 1, y0, x1 + 1, y1, color);
+
+    const int label_r = inner_r - 7;
+    const int lx = spr_cx + (int)roundf(cosf(a) * (float)label_r);
+    const int ly = spr_cy + (int)roundf(sinf(a) * (float)label_r);
+    spr.setTextDatum(MC_DATUM);
+    spr.setTextFont(1);
+    spr.setTextColor(color, kBg);
+    spr.drawString("0", lx, ly);
 }
 
 constexpr uint8_t kGaugeIconBucketMax = 100;
@@ -554,6 +661,9 @@ static void draw_lab_gauge_data(bool valid, float ratio, uint16_t primary) {
     const int segs = 54;
     const float start_deg = 135.0f;
     const float sweep_deg = 270.0f;
+    float min_value = 0.0f;
+    float max_value = 1.0f;
+    gauge_sensor_range(g_gauge_sensor, min_value, max_value);
     const int active_until = (int)roundf(ratio * (float)segs);
     for (int i = 0; i < segs; ++i) {
         const float a0 = (start_deg + ((float)i * sweep_deg / (float)segs)) * DEG_TO_RAD;
@@ -569,6 +679,9 @@ static void draw_lab_gauge_data(bool valid, float ratio, uint16_t primary) {
             g_ring_spr.drawLine(x0, y0, x1, y1, color);
         }
     }
+
+    draw_gauge_threshold_ticks(g_ring_spr, spr_cx, spr_cy, min_value, max_value, valid);
+    draw_ds18_zero_tick(g_ring_spr, spr_cx, spr_cy, min_value, max_value, valid);
 
     // Value text centered in sprite
     g_ring_spr.setTextDatum(MC_DATUM);
@@ -597,7 +710,7 @@ static void draw_lab_gauge_dynamic() {
     float min_value = 0.0f;
     float max_value = 1.0f;
     gauge_sensor_range(g_gauge_sensor, min_value, max_value);
-    const float ratio = valid ? constrain((shown_value - min_value) / (max_value - min_value), 0.0f, 1.0f) : 0.0f;
+    const float ratio = gauge_sensor_ratio(g_gauge_sensor, shown_value, min_value, max_value, valid);
     const uint16_t dim_col = pb_contrast_cool((uint8_t)g_gauge_sensor);
     const uint16_t primary = valid ? spec.primary : dim_col;
     const uint16_t secondary = valid ? spec.secondary : dim_col;
@@ -813,24 +926,32 @@ static void draw_card_value(int cx, int y, bool valid, float shown_value, const 
     tft.setTextFont(0);
 }
 
-static void draw_temp_lab_card(int x,
-                               int y,
-                               int w,
-                               bool valid,
-                               float shown_temp,
-                               const char* title,
-                               const char* badge,
-                               const char* invalid_text,
-                               uint16_t accent) {
+static uint16_t temp_lab_card_bg(bool is_probe) {
+    return is_probe ? kProbeCardBg : kAmbientCardBg;
+}
+
+static uint16_t temp_lab_card_name_color(bool is_probe) {
+    return is_probe ? PB_DS18_P1 : PB_TEMP_P1;
+}
+
+static uint16_t temp_lab_card_unit_color(bool is_probe) {
+    return is_probe ? PB_DS18_P2 : PB_TEMP_P2;
+}
+
+static void draw_temp_lab_card_shell(int x,
+                                     int y,
+                                     int w,
+                                     bool valid,
+                                     const char* title,
+                                     const char* badge,
+                                     uint16_t accent) {
     const bool is_probe = badge && (strncmp(badge, "DS", 2) == 0);
-    const uint16_t card_bg    = is_probe ? kProbeCardBg : kAmbientCardBg;
-    const uint16_t name_color = is_probe ? PB_DS18_P1 : PB_TEMP_P1;  // P1 identity
-    const uint16_t unit_color = is_probe ? PB_DS18_P2 : PB_TEMP_P2;  // P2 secondary
-    const uint16_t value_color = TFT_WHITE;
+    const uint16_t card_bg = temp_lab_card_bg(is_probe);
+    const uint16_t name_color = temp_lab_card_name_color(is_probe);
+    const uint16_t unit_color = temp_lab_card_unit_color(is_probe);
     fill_lab_card(x, y, w, kTopCardH, accent, card_bg);
 
     const char* card_title = (badge && badge[0]) ? badge : title;
-
     tft.setTextDatum(TL_DATUM);
     tft.setFreeFont(FONT_SMALL);
     tft.setTextColor(name_color, card_bg);
@@ -842,10 +963,38 @@ static void draw_temp_lab_card(int x,
         tft.drawString(temp_unit(), x + w - 7, title_y);
     }
     tft.setTextFont(0);
+}
+
+static void draw_temp_lab_card_data(int x,
+                                    int y,
+                                    int w,
+                                    bool valid,
+                                    float shown_temp,
+                                    const char* badge,
+                                    const char* invalid_text,
+                                    uint16_t accent) {
+    const bool is_probe = badge && (strncmp(badge, "DS", 2) == 0);
+    const uint16_t card_bg = temp_lab_card_bg(is_probe);
+    const uint16_t value_color = TFT_WHITE;
+
+    tft.fillRect(x + 3, y + 17, w - 6, kTopCardH - 20, card_bg);
 
     const char* footer_text = valid ? "" : invalid_text;
     const uint16_t footer_color = valid ? accent : TFT_DARKGREY;
     draw_card_value(x + (w / 2), y + 19, valid, shown_temp, footer_text, footer_color, card_bg, value_color);
+}
+
+static void draw_temp_lab_card(int x,
+                               int y,
+                               int w,
+                               bool valid,
+                               float shown_temp,
+                               const char* title,
+                               const char* badge,
+                               const char* invalid_text,
+                               uint16_t accent) {
+    draw_temp_lab_card_shell(x, y, w, valid, title, badge, accent);
+    draw_temp_lab_card_data(x, y, w, valid, shown_temp, badge, invalid_text, accent);
 }
 
 static uint16_t delta_bar_color(float ratio, bool dht_hotter) {
@@ -901,6 +1050,59 @@ static void draw_delta_bar(int x, int y, int w, int h, bool valid, float delta_v
     tft.fillCircle(end_x, y + (h / 2), 2, TFT_WHITE);
 }
 
+static int delta_scale_key(bool valid, float delta_value) {
+    const float base_scale = g_is_fahrenheit ? 18.0f : 10.0f;
+    const float full_scale = valid ? max(base_scale, fabsf(delta_value)) : base_scale;
+    return (int)lroundf(full_scale * 10.0f);
+}
+
+static void draw_delta_scale_labels(int bar_x, int scale_y, int bar_w, bool valid, float delta_value) {
+    const float base_scale = g_is_fahrenheit ? 18.0f : 10.0f;
+    const float full_scale = valid ? max(base_scale, fabsf(delta_value)) : base_scale;
+    char scale_buf[12];
+    snprintf(scale_buf, sizeof(scale_buf), "+%.0f%s", full_scale, temp_unit());
+
+    tft.fillRect(bar_x, scale_y - 1, bar_w, 10, kDeltaCardBg);
+    tft.setTextFont(1);
+    tft.setTextDatum(TL_DATUM);
+    tft.setTextColor(PB_TEMP_P1, kDeltaCardBg);
+    tft.drawString(scale_buf, bar_x, scale_y);
+    tft.setTextDatum(TR_DATUM);
+    tft.setTextColor(PB_DS18_P1, kDeltaCardBg);
+    tft.drawString(scale_buf, bar_x + bar_w, scale_y);
+    tft.setTextFont(0);
+}
+
+static void draw_delta_value_label(bool valid, float delta_value) {
+    tft.fillRect(kDeltaCardX + 42, kDeltaCardY + kDeltaCardH - 20,
+                 kDeltaCardW - 84, 16, kDeltaCardBg);
+    tft.setTextDatum(MC_DATUM);
+    tft.setFreeFont(FONT_SMALL);
+    tft.setTextColor(valid ? TFT_WHITE : TFT_DARKGREY, kDeltaCardBg);
+    if (valid) {
+        char delta_buf[16];
+        snprintf(delta_buf, sizeof(delta_buf), "%+.1f%s", delta_value, temp_unit());
+        tft.drawString(delta_buf, kDeltaCardX + (kDeltaCardW / 2), kDeltaCardY + kDeltaCardH - 13);
+    } else {
+        tft.drawString("--", kDeltaCardX + (kDeltaCardW / 2), kDeltaCardY + kDeltaCardH - 13);
+    }
+    tft.setTextFont(0);
+}
+
+static void draw_delta_card_data(bool delta_valid, float delta_value, bool redraw_scale) {
+    const int bar_x = kDeltaCardX + 8;
+    const int bar_y = kDeltaCardY + 7;
+    const int bar_w = kDeltaCardW - 16;
+    const int bar_h = 18;
+    const int scale_y = bar_y + bar_h + 4;
+
+    draw_delta_bar(bar_x, bar_y, bar_w, bar_h, delta_valid, delta_value);
+    if (redraw_scale) {
+        draw_delta_scale_labels(bar_x, scale_y, bar_w, delta_valid, delta_value);
+    }
+    draw_delta_value_label(delta_valid, delta_value);
+}
+
 static void draw_temp_lab_shell() {
     tft.fillScreen(kBg);
     if (!sz_is_active()) drawHeader(L(TIT_LAB_WIDGETS));
@@ -942,39 +1144,64 @@ static void draw_temp_lab_dynamic() {
 
     fill_lab_card(kDeltaCardX, kDeltaCardY, kDeltaCardW, kDeltaCardH, kHotPink, kDeltaCardBg);
 
-    const int bar_x = kDeltaCardX + 8;
-    const int bar_y = kDeltaCardY + 7;
-    const int bar_w = kDeltaCardW - 16;
-    const int bar_h = 18;
-    const int scale_y = bar_y + bar_h + 4;
-    draw_delta_bar(bar_x, bar_y, bar_w, bar_h, delta_valid, delta_value);
+    draw_delta_card_data(delta_valid, delta_value, true);
+}
 
-    // Scale limit labels — both sides show the same ±range so orientation is clear
-    const float base_scale = g_is_fahrenheit ? 18.0f : 10.0f;
-    const float full_scale = delta_valid ? max(base_scale, fabsf(delta_value)) : base_scale;
-    char scale_buf[12];
-    snprintf(scale_buf, sizeof(scale_buf), "+%.0f%s", full_scale, temp_unit());
+static void draw_temp_lab_incremental(const TempLabCache& cache) {
+    const bool ambient_valid = !isnan(g_ui_readings_snapshot.temperature);
+    const bool probe_valid = g_ui_readings_snapshot.temp_ds18b20 >= -100.0f;
+    const float ambient_c = ambient_valid ? g_ui_readings_snapshot.temperature : 0.0f;
+    const float probe_c = probe_valid ? g_ui_readings_snapshot.temp_ds18b20 : 0.0f;
+    const float ambient_display = ambient_valid ? display_temp(ambient_c) : 0.0f;
+    const float probe_display = probe_valid ? display_temp(probe_c) : 0.0f;
+    const bool delta_valid = ambient_valid && probe_valid;
+    const float delta_value = delta_valid ? (ambient_display - probe_display) : 0.0f;
+    const int ambient_key = ambient_valid ? (int)lroundf(ambient_display * 10.0f) : INT_MIN;
+    const int probe_key = probe_valid ? (int)lroundf(probe_display * 10.0f) : INT_MIN;
+    const int delta_key = delta_valid ? (ambient_key - probe_key) : INT_MIN;
 
-    tft.setTextFont(1);
-    tft.setTextDatum(TL_DATUM);
-    tft.setTextColor(PB_TEMP_P1, kDeltaCardBg);   // DHT11 side — orange (temp P1)
-    tft.drawString(scale_buf, bar_x, scale_y);
-    tft.setTextDatum(TR_DATUM);
-    tft.setTextColor(PB_DS18_P1, kDeltaCardBg);   // DS18 side — violet (probe P1)
-    tft.drawString(scale_buf, bar_x + bar_w, scale_y);
-    tft.setTextFont(0);
+    const bool unit_changed = cache.fahrenheit != g_is_fahrenheit;
+    const bool ambient_dirty = !cache.valid
+        || (cache.ambient_valid != ambient_valid)
+        || (cache.ambient10 != ambient_key)
+        || unit_changed;
+    const bool probe_dirty = !cache.valid
+        || (cache.probe_valid != probe_valid)
+        || (cache.probe10 != probe_key)
+        || unit_changed;
+    const bool delta_dirty = !cache.valid
+        || (cache.ambient_valid != ambient_valid)
+        || (cache.probe_valid != probe_valid)
+        || (cache.delta10 != delta_key)
+        || unit_changed;
+    const bool scale_dirty = delta_dirty
+        && (unit_changed || delta_scale_key(delta_valid, delta_value) != delta_scale_key(cache.delta10 != INT_MIN, (float)cache.delta10 / 10.0f));
 
-    tft.setTextDatum(MC_DATUM);
-    tft.setFreeFont(FONT_SMALL);
-    tft.setTextColor(delta_valid ? TFT_WHITE : TFT_DARKGREY, kDeltaCardBg);
-    if (delta_valid) {
-        char delta_buf[16];
-        snprintf(delta_buf, sizeof(delta_buf), "%+.1f%s", delta_value, temp_unit());
-        tft.drawString(delta_buf, kDeltaCardX + (kDeltaCardW / 2), kDeltaCardY + kDeltaCardH - 13);
-    } else {
-        tft.drawString("--", kDeltaCardX + (kDeltaCardW / 2), kDeltaCardY + kDeltaCardH - 13);
+    if (ambient_dirty) {
+        if (cache.ambient_valid != ambient_valid) {
+            draw_temp_lab_card_shell(kAmbientCardX, kTopCardY, kTopCardW,
+                                     ambient_valid, L(LAB_TEMP_SHORT), "DHT11",
+                                     ambient_accent(ambient_valid, ambient_c));
+        }
+        draw_temp_lab_card_data(kAmbientCardX, kTopCardY, kTopCardW,
+                                ambient_valid, ambient_display,
+                                "DHT11", L(ST_NO_SENSOR),
+                                ambient_accent(ambient_valid, ambient_c));
     }
-    tft.setTextFont(0);
+    if (probe_dirty) {
+        if (cache.probe_valid != probe_valid) {
+            draw_temp_lab_card_shell(kProbeCardX, kTopCardY, kTopCardW,
+                                     probe_valid, L(LAB_PROBE_SHORT), "DS18B20",
+                                     probe_accent(probe_valid, probe_c));
+        }
+        draw_temp_lab_card_data(kProbeCardX, kTopCardY, kTopCardW,
+                                probe_valid, probe_display,
+                                "DS18B20", L(ST_CHECK_DS18),
+                                probe_accent(probe_valid, probe_c));
+    }
+    if (delta_dirty) {
+        draw_delta_card_data(delta_valid, delta_value, scale_dirty);
+    }
 }
 
 } // namespace
@@ -991,6 +1218,10 @@ void lab_gauge_set_sensor(uint8_t sensor_id) {
     g_gauge_cache.valid = false;
 }
 
+uint8_t lab_gauge_get_sensor() {
+    return (uint8_t)g_gauge_sensor;
+}
+
 void draw_lab_gauge_temp_screen(bool screen_changed, bool sensor_data_changed) {
     bool gauge_valid = false;
     const int gauge_key = gauge_sensor_key(g_gauge_sensor, &gauge_valid);
@@ -998,7 +1229,7 @@ void draw_lab_gauge_temp_screen(bool screen_changed, bool sensor_data_changed) {
     float current_min = 0.0f, current_max = 1.0f;
     gauge_sensor_range(g_gauge_sensor, current_min, current_max);
     const float current_value = gauge_valid ? gauge_sensor_value(g_gauge_sensor) : 0.0f;
-    const float current_ratio = gauge_valid ? constrain((current_value - current_min) / (current_max - current_min), 0.0f, 1.0f) : 0.0f;
+    const float current_ratio = gauge_sensor_ratio(g_gauge_sensor, current_value, current_min, current_max, gauge_valid);
     const uint8_t current_icon_bucket = gauge_icon_bucket(gauge_valid, current_ratio);
 
     // chrome_dirty: re-draw labels/icon/border (rare). Anything that affects what's outside
@@ -1105,6 +1336,10 @@ void lab_value_set_sensor(uint8_t sensor_id) {
     g_value_cache.valid = false;
 }
 
+uint8_t lab_value_get_sensor() {
+    return (uint8_t)g_value_sensor;
+}
+
 void draw_lab_widget_mix_screen(bool screen_changed, bool sensor_data_changed) {
     bool ambient_valid = false;
     bool probe_valid = false;
@@ -1132,7 +1367,11 @@ void draw_lab_widget_mix_screen(bool screen_changed, bool sensor_data_changed) {
         return;
     }
     if (sensor_data_changed && dynamic_dirty) {
-        draw_temp_lab_dynamic();
+        if (!g_mix_cache.valid || g_mix_cache.fahrenheit != g_is_fahrenheit) {
+            draw_temp_lab_dynamic();
+        } else {
+            draw_temp_lab_incremental(g_mix_cache);
+        }
         g_mix_cache.valid = true;
         g_mix_cache.ambient_valid = ambient_valid;
         g_mix_cache.ambient10 = ambient_key;

@@ -365,13 +365,13 @@ static void draw_ds18_menu_screen(bool screen_changed) {
     } else if (g_ds18_menu_state == DS18_MODE_SAVED) {
         const char* saved_title = g_ds18_save_ok ? L(MENU_SAVED)
                                                  : L(MENU_ERROR);
-        const uint16_t saved_title_color = g_ds18_save_ok ? TFT_GREEN : TFT_RED;
+        const uint16_t saved_title_color = g_ds18_save_ok ? TFT_MAGENTA : TFT_RED;
         if (g_ds18_saved_kind == 0 && g_ds18_save_ok) {
             char line1[24];
             char line2[24];
             char line3[24];
             const char* lines[3];
-            const uint16_t colors[3] = { TFT_CYAN, TFT_GREEN, TFT_ORANGE };
+            const uint16_t colors[3] = { TFT_WHITE, TFT_GREEN, TFT_ORANGE };
             snprintf(line1, sizeof(line1), "%s %s%d.%d", L(MENU_OFFSET), g_ds18_edit_off >= 0 ? "+" : "-", abs(g_ds18_edit_off) / 10, abs(g_ds18_edit_off) % 10);
             snprintf(line2, sizeof(line2), "%s %d %s", L(MENU_LOW), g_ds18_edit_low, unit_short());
             snprintf(line3, sizeof(line3), "%s %d %s", L(MENU_HIGH), g_ds18_edit_high, unit_short());
@@ -540,7 +540,7 @@ void draw_ds18_screen(bool screen_changed, bool data_changed) {
         tft.fillRect(LA_TANK_X + 1, LA_TANK_Y + 1, LA_TANK_W - 2, LA_TANK_H - 2, TFT_BLACK);
 
         if (no_sensor) {
-            drawFillTank(LA_TANK_X, LA_TANK_Y, LA_TANK_W, LA_TANK_H, TFT_DARKGREY, 0.0f, 0.0f, 50.0f);
+            drawFillTank(LA_TANK_X, LA_TANK_Y, LA_TANK_W, LA_TANK_H, TFT_DARKGREY, -55.0f, -55.0f, 125.0f);
             tft.drawRoundRect(LA_TANK_X, LA_TANK_Y, LA_TANK_W, LA_TANK_H, 3, TFT_DARKGREY);
         } else {
             float norm = constrain((temp_c + 55.0f) / 180.0f, 0.0f, 1.0f);

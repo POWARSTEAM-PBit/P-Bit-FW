@@ -353,7 +353,7 @@ static void draw_humidity_menu_screen(bool screen_changed) {
             snprintf(line_buf_2, sizeof(line_buf_2), "%s %d%%", L(ST_SATURATED), g_hum_edit_comf);
             lines[0] = line_buf_1;
             lines[1] = line_buf_2;
-            drawCenteredMenuFrame(L(MENU_SAVED), TFT_GREEN, L(ST_PUSH_MENU));
+            drawCenteredMenuFrame(L(MENU_SAVED), TFT_MAGENTA, L(ST_PUSH_MENU));
             drawCenteredMenuBodyLines(lines, colors, 2, MENU_TEXT_FONT_SMALL, LM_SUMMARY2_Y0, LM_SUMMARY2_GAP);
         } else if (g_hum_saved_kind == 1) {
             drawCenteredMenuSavedScreen(L(MENU_SAVED),

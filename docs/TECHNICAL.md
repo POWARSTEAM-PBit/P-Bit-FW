@@ -1,6 +1,6 @@
 # Manual Técnico del P-Bit
 
-Actualizado: 2026-05-24
+Actualizado: 2026-05-26
 
 Este documento describe el estado técnico actual del P-Bit a partir del firmware y la configuración presentes en este repositorio. Está pensado como base de entrenamiento para desarrollo, integración, soporte, mantenimiento y despliegue educativo.
 
@@ -41,12 +41,13 @@ El P-Bit es un dispositivo educativo ambiental basado en ESP32 que integra senso
 - conectividad BLE opcional, oculta y desactivada por defecto
 - modos de ahorro de energía con reposo visible con `ZZZ`
 - control global separado de `Bip` y `Alarmas`
+- Modo demo runtime activable al arrancar con el encoder presionado
 
 Estado de revisión de producción/i18n:
 
 - build local verificado con `py -m platformio run -e esp32dev`
 - resultado PlatformIO: `SUCCESS`
-- memoria reportada por build: RAM `14.7%` (`48124` bytes de `327680`) y Flash `71.0%` (`931193` bytes de `1310720`)
+- memoria reportada por build: RAM `14.7%` (`48156` bytes de `327680`) y Flash `71.5%` (`936653` bytes de `1310720`)
 - revisión estática de i18n, BLE factory-off, LDR, Sensor Zone y fixes anti-flicker completada
 - validaciones de hardware real siguen pendientes de unidad física
 
@@ -164,16 +165,21 @@ Orden real de `setup()`:
 
 1. `Serial.begin`
 2. `nvs_flash_init` (con erase automático si hay páginas corruptas)
-3. cálculo de nombre de dispositivo desde MAC
-4. inicialización de TFT
-5. inicialización BLE **condicional** — solo si `load_ble_enabled_store()` devuelve `true`; por defecto es `false` de fábrica y se resetea a `false` con cada nuevo flash
-6. inicialización de LED RGB y buzzer
-7. reset de NVS por build-hash si el firmware es nuevo (ver sección 9)
-8. inicialización de hardware y sensores
-9. detección de tipo de arranque (wake desde sleep o arranque en frío)
-10. carga o selección de idioma
-11. inicialización del encoder
-12. creación de tareas FreeRTOS
+3. incremento de contador RTC de arranque
+4. reset de NVS por build-hash si el firmware es nuevo (ver sección 9)
+5. cálculo de nombre de dispositivo desde MAC
+6. inicialización de TFT
+7. inicialización de LED RGB y buzzer
+8. reset del motor de alertas
+9. inicialización de hardware y sensores
+10. lectura del botón del encoder para detectar Modo demo en arranque en frío
+11. inicialización BLE **condicional** — solo si `load_ble_enabled_store()` devuelve `true`; por defecto es `false` de fábrica y se resetea a `false` con cada nuevo flash
+12. detección de tipo de arranque (wake desde sleep o arranque en frío)
+13. carga o selección de idioma; si se pidió Modo demo, carga idioma sin mostrar selector
+14. inicialización de Sensor Zone
+15. inicialización del encoder
+16. activación runtime de Modo demo si corresponde
+17. creación de tareas FreeRTOS
 
 ### Tareas y responsabilidades
 
@@ -207,6 +213,7 @@ Orden real de `setup()`:
   - `rotaryEncoder.loop()`
   - `poll_rotary_aux()`
   - `loop_buzzer()`
+  - `demo_mode_service()`
   - lógica de inactividad
   - transición entre `ACTIVE` e `IDLE` visible
 
@@ -231,6 +238,24 @@ Convenciones de datos:
 
 - `NAN` para algunas lecturas inválidas del DHT o suelo
 - `-999.0f` como sentinel de ausencia en `DS18B20`
+
+Rangos canónicos usados por UI, gauges, cards, gráficas y RGB:
+
+| Sensor | Lectura firmware | Rango visual canónico | Nota |
+|---|---:|---:|---|
+| Temperatura DHT11 | °C | `0..50 °C` / `32..122 °F` | Rango útil del DHT11 |
+| Humedad aire DHT11 | `%` | `0..100 %` | Porcentaje relativo |
+| Luz LDR | lux aproximados | `0..20000 lux` | Acotado por firmware; `Raw ADC` solo en modo específico |
+| Sonido MIC | `%` relativo | `0..100 %` | No dB SPL |
+| Suelo capacitivo | `%` calibrado | `0..100 %` | Mapeado desde seco/húmedo calibrados |
+| Termómetro DS18B20 | °C | `-55..+125 °C` / `-67..+257 °F` | Rango técnico de la sonda; lecturas fuera de rango se tratan como inválidas |
+
+Marcas de diales:
+
+- Temperatura DHT11, Humedad aire y Suelo muestran marcas de rangos por defecto.
+- Luz y Sonido guardan `Ver límites` en NVS y solo dibujan marcas si esa opción está activa o si el usuario guarda sus rangos/niveles.
+- Termómetro/DS18B20 no dibuja límites de alarma por defecto; solo muestra una marca fija de referencia en `0 °C`.
+- En Luz, el dial usa una progresión visual logarítmica para que los primeros `1000 lux` tengan cambios más visibles.
 
 ## 7. Flujo de adquisición de sensores
 
@@ -327,12 +352,34 @@ Si `PBIT_ENABLE_GRAPH_LAB` se compila a `0`, el carrusel cae al rango clásico `
 
 Cada sensor conserva su modo visual persistido (`sz_v0` .. `sz_v5`) y `sz_sync_renderer(...)` sincroniza el sub-renderer activo solo cuando cambia pantalla, sensor o modo. Esta arquitectura evita invalidar caches en cada tick de lectura y reduce flicker en dials, cards, gráficas y vistas de valor.
 
+Para flujos transitorios como Modo demo existen `sz_set_sensor_runtime(...)` y `sz_set_viz_runtime(...)`. Cambian sensor/modo solo en RAM, piden full redraw y no escriben NVS.
+
+### Modo demo runtime
+
+Activación:
+
+- En arranque en frío, `setup()` lee `DI_ENCODER_SW` después de `init_hw()`.
+- `run_boot_sequence(true)` sigue muestreando el botón durante logos, gaps y retención final para tolerar mejor el gesto de arranque.
+- Si el encoder se detecta presionado (`LOW`) en cualquiera de esos puntos, se omite el selector de idioma y se activa `demo_mode_start()` después de `init_rotary()`.
+- El primer release del botón de arranque se consume con `demo_mode_consume_boot_release()` para no salir del demo accidentalmente.
+- Una pulsación larga en `LAB_HOME_CARDS_SCREEN` también activa el Modo demo sin consumir un release de arranque.
+
+Comportamiento:
+
+- `src/demo_mode.cpp` define una banda runtime de escenas con duración fija de 6 segundos.
+- Al activarse, `tft_display.cpp` muestra una señal visual breve `MODO DEMO / Iniciando demo` antes de entrar a la primera escena.
+- Con `PBIT_ENABLE_GRAPH_LAB=1`, recorre Home, Clima, Multi, Sonido VU, seis escenas de Sensor Zone y Timer.
+- Las escenas de Sensor Zone usan setters runtime, por lo que no modifican el sensor ni el modo visual guardados.
+- Si `kDemoSimulatedReadings == true`, `demo_mode_apply_simulated_readings(...)` modifica solo `g_ui_readings_snapshot` para animar valores visuales; no toca `global_readings`, NVS, BLE ni lecturas físicas.
+- Cualquier giro o pulsación posterior del encoder ejecuta `demo_mode_stop()`, reconfigura límites del encoder y devuelve control al usuario.
+- Mientras `demo_mode_is_active()` es `true`, el reposo automático queda bloqueado.
+
 ### Fixes anti-flicker
 
 La revisión estática confirma las mitigaciones de parpadeo en:
 
-- dials/gauges: caches por sensor y actualizaciones por `data_dirty`/`chrome_dirty`
-- cards: limpieza dirigida del rectángulo de valor y cache de estado
+- dials/gauges: caches por sensor y actualizaciones por `data_dirty`/`chrome_dirty`; los diales dibujan ticks de umbral/rango sobre el arco usando los rangos guardados
+- cards: limpieza dirigida del rectángulo de valor, banda superior ampliada para estados (`Óptimo`, `Seco`, etc.) y cache de estado
 - menús y footers: clears por bandas en vez de `fillScreen` constante
 - `Sound VU`: sprites/cache para medidor y badge, con push de zona dinámica sin redibujar chrome completo
 - cambio de pantalla/idioma: `runtime_request_ui_full_redraw()` fuerza un frame limpio cuando corresponde
@@ -346,7 +393,7 @@ La revisión estática confirma las mitigaciones de parpadeo en:
 - pulsación larga:
   - en pantallas de sensor individual: abre el menú de configuración del sensor
   - en `Timer`: abre el editor de duración `HH:MM:SS` si está idle o resetea si ya estaba corriendo/pausado
-  - en `Sistema`: mantener 60 s sin girar activa la pantalla oculta de BLE
+  - en `Sistema`: mantener 30 s sin girar activa la pantalla oculta de BLE
 
 Tiempos actuales:
 
@@ -389,7 +436,7 @@ Nivel de sonido ambiental en barras apiladas. Solo lectura; no tiene menú.
 
 - en carrusel actual: slot de `SENSOR_ZONE_SCREEN` con sensor `SZ_LIGHT`
 - pulsación corta: alterna modo de visualización
-- menú `Rangos / Modo lectura / Alertas / Reset / Salir`
+- menú `Rangos / Modo / Alertas / Reset / Salir`
 - modos de vista: `Lux`, `% log`, `Raw ADC`
 
 #### Sonido
@@ -416,7 +463,7 @@ Nivel de sonido ambiental en barras apiladas. Solo lectura; no tiene menú.
 #### Sistema
 
 - menú `Bip / Alarmas / Reposo / Idioma / Reset / Salir`
-- pantalla principal con card general y panels internos: `ID`, `Tiempo`, `Idioma`, audio y BLE solo si `ble_en == true`
+- pantalla principal con card general y panels internos: `ID` con badge BLE condicional, `Tiempo`, `Idioma` y audio. El bloque inferior de audio no cambia de layout si BLE está habilitado.
 - menú raíz renderizado como grid 2×3 para evitar solapes en ST7735 160×128
 - `Bip` controla `g_sound_enabled` / NVS `sys_sound`: beeps de UI, confirmaciones y navegación.
 - `Alarmas` controla `g_alarm_sound_enabled` / NVS `sys_alarm`: audio de alertas y final de cuenta regresiva del `Timer`.
@@ -489,6 +536,7 @@ Namespace utilizado:
 - `snd_norm`
 - `snd_loud`
 - `snd_aen`
+- `snd_marks`
 
 #### Temperatura DHT
 
@@ -503,12 +551,13 @@ Namespace utilizado:
 - `lgt_bri`
 - `lgt_mode`
 - `lgt_aen`
+- `lgt_marks`
 
 #### Sistema
 
 - `sys_sleep`
-- `sys_sound` (bool, default `true`) — `Bip`: beeps de interfaz, navegación y confirmaciones
-- `sys_alarm` (bool, default `true`) — `Alarmas`: audio de alertas de sensores y final del `Timer`
+- `sys_sound` (bool, default `false`) — `Bip`: beeps de interfaz, navegación y confirmaciones
+- `sys_alarm` (bool, default `false`) — `Alarmas`: audio de alertas de sensores y final del `Timer`
 - `sys_unit_f` (bool, default `false`) — unidad global de temperatura: `false=Celsius`, `true=Fahrenheit`
 
 #### Sensor zone
@@ -543,7 +592,7 @@ Comportamiento:
 - En cada nuevo flash, la clave se borra porque el build-hash FNV-1a detecta el nuevo binario y llama a `clear_all_settings_store()`, que limpia el namespace `pbit` entero. `ble_en` vuelve a `false` (su default implícito al no existir).
 - En reinicios normales entre flashes, el valor persistido se respeta: si el usuario activó el BLE, sigue activo.
 - `init_ble()` solo se llama si `load_ble_enabled_store()` devuelve `true`. Si devuelve `false`, el stack NimBLE nunca se inicia y el dispositivo no emite señal BLE.
-- La fila BLE de `Sistema` solo se dibuja si `ble_en == true`; en estado de fábrica queda oculta.
+- El indicador BLE de `Sistema` solo se dibuja si `ble_en == true`; aparece como badge compacto dentro de la card superior de ID, no como panel propio. En estado de fábrica queda oculto.
 
 Nota de producción: si se flashea sobre una unidad de desarrollo que tenía BLE activado, validar antes de entregar que el dispositivo no anuncia BLE. El reset por build-hash se ejecuta antes de cargar BLE/settings, así que una build nueva debe volver a `OFF` desde el primer arranque.
 
@@ -553,13 +602,13 @@ La pantalla `BLE_TOGGLE_SCREEN` es una función de fábrica. No aparece en el ca
 
 #### Cómo activarla
 
-Desde la pantalla `Sistema`, mantener el encoder presionado durante **60 segundos** sin girarlo.
+Desde la pantalla `Sistema`, mantener el encoder presionado durante **30 segundos** sin girarlo.
 
 Flujo interno:
 
 1. A los ~1.2 s el menú de Sistema se abre normalmente (longpress estándar).
 2. El conteo de tiempo continúa en el fondo; el flag `g_ble_secret_eligible` se mantiene desde el momento en que empezó la pulsación.
-3. Al cumplirse 60 s desde el inicio de la pulsación, `poll_rotary_aux()` detecta la condición (`g_ble_secret_eligible && !g_ble_secret_fired && hold >= 60000 ms`), navega a `BLE_TOGGLE_SCREEN` y suprime el callback de release.
+3. Al cumplirse 30 s desde el inicio de la pulsación, `poll_rotary_aux()` detecta la condición (`g_ble_secret_eligible && !g_ble_secret_fired && hold >= 30000 ms`), navega a `BLE_TOGGLE_SCREEN` y suprime el callback de release.
 4. El sistema emite un tono de 1800 Hz por 150 ms como confirmación audible.
 
 #### Cómo funciona la pantalla
@@ -576,7 +625,7 @@ Flujo interno:
 #### Archivos clave
 
 - `include/ui_ble_toggle.h` / `src/ui_ble_toggle.cpp` — pantalla y estado
-- `src/rotary.cpp` — detección del gesto (variable `g_ble_secret_eligible`, constante `BLE_SECRET_PRESS_MS = 60000`)
+- `src/rotary.cpp` — detección del gesto (variable `g_ble_secret_eligible`, constante `BLE_SECRET_PRESS_MS = 30000`)
 - `include/settings_store.h` / `src/settings_store.cpp` — `load_ble_enabled_store()` / `save_ble_enabled_store()`
 - `src/main.cpp` — `if (load_ble_enabled_store()) { init_ble(); }`
 
@@ -660,6 +709,7 @@ Bloqueos de reposo:
 
 - menús abiertos
 - timer corriendo
+- Modo demo activo
 - cliente BLE conectado en el momento de evaluar reposo
 
 ### Wake-up
@@ -707,6 +757,8 @@ El buzzer tiene dos permisos globales independientes:
 - `Alarmas` (`g_alarm_sound_enabled`, NVS `sys_alarm`) habilita sonidos automáticos de alerta y el aviso audible del `Timer`.
 
 `AlertEngine` recibe el estado de `Alarmas` desde `sensor_reading_task`, por lo que desactivar `Bip` no silencia alertas ni el final del temporizador. Desactivar `Alarmas` mantiene colores, LED RGB y UI, pero evita audio automático.
+
+El LED RGB sigue la visualización activa en pantallas de sensores y Timer: su color deriva de `sensor_visuals.*`, la misma fuente cromática usada por los gauges/diales. Así, frío/caliente, seco/húmedo, sonido bajo/alto o estados del Timer se comunican igual en pantalla y en LED. Excepción deliberada: en cualquier vista de solo Luz el RGB permanece apagado para no contaminar la lectura del LDR; en pantallas multisensor puede permanecer activo.
 
 Ejemplos:
 
@@ -783,6 +835,8 @@ En cold boot: selector visible en `Español` / `Catalán` / `English`. Encoder e
 | SISTEMA | Alterna `Bip ON/OFF` | Abre menú (~1.2 s) |
 | TIMER | Inicia o pausa | Abre editor HH:MM:SS si idle; resetea si corriendo/pausado (~1.0 s) |
 
+En Modo demo, cualquier giro o pulsación corta/larga posterior al release inicial sale del demo antes de ejecutar la acción normal. Desde `Home`, una pulsación larga activa el Modo demo.
+
 ### Menús por sensor
 
 #### Temperatura DHT
@@ -802,17 +856,19 @@ Opciones raíz: `Rangos / Alertas / Reset / Salir`
 
 #### Luz
 
-Opciones raíz: `Rangos / Modo lectura / Alertas / Reset / Salir`
+Opciones raíz: `Rangos / Modo / Alertas / Ver límites / Reset / Salir`
 
 - **Rangos**: `Max penumbra` → `Max interior` → `Max brillante` → Guardar. Rango editable: 10..10 000. Validación: brillante > interior > penumbra.
-- **Modo lectura**: `Lux` / `% log` / `Raw ADC`.
-- `Raw ADC` cambia solo el valor grande; la barra y la categoría siguen usando lux.
+- **Modo**: `Lux` / `% log` / `Raw ADC`.
+- **Ver límites**: muestra u oculta las marcas de rango en el dial. Se guarda en NVS.
+- Esta opción afecta solo al valor grande de la pantalla clásica `LIGHT_SCREEN`; las vistas actuales de Sensor Zone siguen usando lux. `Raw ADC` cambia solo el valor grande; la barra y la categoría siguen usando lux.
 
 #### Sonido
 
-Opciones raíz: `Niveles / Alertas / Reset / Salir`
+Opciones raíz: `Niveles / Alertas / Ver límites / Reset / Salir`
 
 - **Niveles**: `Max silencio` → `Max normal` → `Max alto` → Guardar. Validación: alto > normal > silencio.
+- **Ver límites**: muestra u oculta las marcas de nivel en el dial. Se guarda en NVS.
 - Sin alerta sonora propia (no contaminar lectura del micrófono).
 
 #### Suelo

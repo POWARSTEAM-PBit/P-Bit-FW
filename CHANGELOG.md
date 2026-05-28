@@ -1,10 +1,179 @@
 # Changelog
 
+## 2026-05-28
+
+### Firmware — Icono termómetro v9: bulbo reducido, ratio 1:2
+
+- **Redimensionado (v10):** `impl_temp` / `impl_temp_detail` — ícono ahora llena el canvas ±7s igual que todos los demás íconos. Tubo extendido de 9s a 11s (cy-7s→cy+4s), bulbo movido a cy+4s (bottom=cy+7s). Orden de render corregido: tubo→canal→bulbo. En `_detail`: mercurio extendido a 6s (cy-2s→cy+4s), bulbo dibujado al final para quedar limpio.
+- **Ajustado:** `impl_temp` / `impl_temp_detail` en `src/ui_icons.cpp` — ticks reducidos de `3*s` a `2*s` (de 9 px a 6 px en Dial). Pequeñas marcas de escala.
+- **Ajustado:** `impl_temp` / `impl_temp_detail` en `src/ui_icons.cpp` — radio del bulbo reducido de **r=5s a r=3s**.
+  - Ratio ancho:alto corregido de ~1:1.4 a **1:2** exacto (6s × 12s; a s=3 Dial → 18 px Ø × 36 px alto).
+  - Aplica a todas las escalas: s=1 (home), s=3 (XL y Dial).
+  - Tubo (4s ancho), canal (2s), ticks y mercurio sin cambios.
+
+## 2026-05-27
+
+### Firmware — Anti-flicker Labs, Sensor Cards y Sonido Lab
+
+- **Optimizado:** `Clima Lab` mantiene paneles, bordes y footer-card como shell estático; el footer ahora usa cache de estado y solo limpia el texto/dot cuando cambia.
+- **Optimizado:** `Temp Lab` separa cards superiores y delta-card en shell + datos; en ticks normales actualiza solo valores, barra delta y labels necesarios.
+- **Corregido:** `Sensor Cards` deja de repintar icono, jewel, estado y visualización completa cuando solo cambia el valor; los estados (`Óptimo`, `Muy húmedo`, `Muy fuerte`, etc.) tienen clear dedicado para evitar fantasmas.
+- **Corregido:** `Sensor Cards` separa físicamente carril de estado, valor grande y visualización inferior: estado sube 2 px, valor/unidad bajan 3 px y las barras inferiores recuperan 16 px bajando a Y+2 para conservar `Suelo Tarjeta`; el clear de visualización queda acotado a la barra para no borrar números ni esquinas inferiores.
+- **Corregido:** `Sensor Cards` guarda el ancho/posición del valor anterior y limpia la unión entre caja anterior y actual, evitando fantasmas laterales cuando el dato baja de dos/tres dígitos a uno.
+- **Corregido:** `Sensor Cards` amplía el carril horizontal de limpieza del valor grande para cubrir el inicio real de números anchos y eliminar restos laterales al volver a valores cortos.
+- **Ajustado:** `Sonido Lab` elimina el badge bajo el valor y muestra un número limpio en la esquina superior derecha con clear rect pequeño y fallback de fuente.
+- **Ajustado:** `Sound Lab` usa `FONT_HEADER` como fuente menor del valor con fallback a `FONT_BODY`, sube el dato 1 px, baja el icono `MIC` 3 px y el texto `MIC` 2 px.
+- **Ajustado:** `Clima Lab` elimina la línea vertical gris entre los cards de temperatura y humedad.
+- **Ajustado:** `Sistema` recorta 1 px el card inferior desde arriba para equilibrar la distancia vertical entre cards.
+- **Refinado:** `Temp Lab` ajusta clears de valores/delta para no tapar `DS18B20`, la barra inferior ni los labels `+10`.
+- Build verificado: `SUCCESS` — RAM 14.7% (`48204` bytes), Flash 71.6% (`938437` bytes).
+
+### Firmware — Icono termómetro v8: geometría unificada 4s/2s para todos los tamaños
+
+- **Rediseñado (v8):** `impl_temp` / `impl_temp_detail` en `src/ui_icons.cpp` — fórmula única para s=1, s=2 y s=3:
+  - Tubo: **4s de ancho** → paredes **1s** cada lado, canal interior **2s**. Altura: **9s** (igual que v6)
+  - Bulbo: **r=5s**, centro cy+2s → base en cy+7s (borde exacto del canvas ±7s)
+  - `impl_temp_detail` (Dial): misma base + `fillRect(cx-s, cy-2s, 2s, 4s, accent)` para mercurio
+  - A **s=3 (Dial):** paredes 3 px | canal/mercurio **6 px** | paredes 3 px = 12 px total
+  - A **s=1 (home):** 1 px | 2 px | 1 px = 4 px total (1 px menos que v6 — imperceptible)
+- **Eliminado:** branch `s==1` especial de v7 — una sola fórmula para toda la familia de tamaños
+
+## 2026-05-26
+
+### Firmware — Defaults silenciosos, BLE 30 s y Demo simulado
+
+- **Ajustado:** gesto secreto BLE baja de 60 s a 30 s.
+- **Ajustado:** `Bip` y `Alarmas` vuelven apagados por defecto tras build/reset; BLE sigue factory-off.
+- **Añadido:** Demo Mode aplica una capa visual de valores simulados sobre `g_ui_readings_snapshot` sin modificar sensores reales, NVS ni BLE.
+- **Añadido:** fuente común de color en `sensor_visuals.*` para que gauges/diales y LED RGB usen la misma lógica cromática por sensor/estado.
+- **Añadido:** Luz y Sonido incorporan opción persistente `Ver límites` en sus menús; se guarda en NVS y se restaura con reset del sensor.
+- **Ajustado:** diales muestran marcas de rango según criterio de confianza: Temp. DHT, Humedad y Suelo visibles por defecto; Luz y Sonido solo si `Ver límites` está activo; Termómetro/DS18B20 muestra solo la marca fija de `0 °C`.
+- **Ajustado:** el dial de Termómetro/DS18B20 usa escala completa `-55..+125 °C` (`-67..+257 °F`) y rampa térmica amplia: blanco hielo/cian/azul → amarillo/naranja/rojo.
+- **Ajustado:** LED RGB sincronizado con la visualización activa de sensor/timer: el color físico sigue el color semántico mostrado en pantalla; cualquier vista de solo Luz mantiene RGB apagado para no contaminar el LDR.
+- **Ajustado:** `Sonido Lab` baja/recorta 1 px el borde superior de la card y Sensor Cards sube 2 px el grupo numérico para evitar cortes con las gráficas inferiores.
+- **Refinado:** textos abreviados de temperatura usan punto (`TEMP.`) y los mensajes `Guardado` de menús pasan a magenta, 3 px más arriba, para no confundirse con valores verdes.
+- Build verificado: `SUCCESS` — RAM 14.7% (`48156` bytes), Flash 71.5% (`936653` bytes).
+
+### Firmware — Icono termómetro v6: proporciones reales, tubo 5s paredes 1px
+
+- **Rediseñado (v6):** `impl_temp` / `impl_temp_detail` en `src/ui_icons.cpp`:
+  - Tubo: vuelve a **5s** de ancho (proporciones de termómetro real, no fat)
+  - Paredes: **1s** cada lado → interior **3s** (vs 1s en v4, vs 5s en v5 que era demasiado)
+  - Bulbo: **r=5s** — equator 11px vs tubo 5px = ratio 1:2.2; claramente más ancho que el tubo
+  - Altura: **9s** (cy-7s a cy+7s = canvas completo)
+  - Air: `fillRect(cx-s, cy-6s, 3s, 4s, 0x1082)` — 3px wide × 4 rows
+  - Mercury (Dial): `fillRect(cx-s, cy-2s, 3s, 4s, a)` — 3px wide × 4 rows en acento temperatura
+  - Ticks: desde cx+3s (1px tras la pared), 3s de largo
+- **Razonamiento:** v5 (7s ancho) se veía "gordo"; v6 recupera la silueta estilizada con interior 3× más visible que v4
+- Build verificado: `SUCCESS` — RAM 14.7% (`48132` bytes), Flash 71.3% (`934929` bytes).
+
+### Firmware — Icono termómetro v5: tubo grande, paredes 1px, interior amplio
+
+- **Rediseñado (v5):** `impl_temp` / `impl_temp_detail` en `src/ui_icons.cpp`:
+  - Tubo: **5s → 7s** de ancho (usa el canvas completo en horizontal)
+  - Altura: 8s → **9s** (cy-7s..cy+2s, toca el borde superior del canvas)
+  - Paredes: **2s → 1s** cada lado — el espacio ganado pasa al interior
+  - Canal de aire: **1s×3s → 5s×4s** — 20× más área visible
+  - Mercurio (Dial): **1s×4s → 5s×4s** — mismo salto
+  - Bulbo: r=4s → **r=5s** — proporcional al tubo más ancho, toca cy+7s (canvas edge)
+  - Ticks: desde cx+4s (1s tras la pared), longitud 3s
+- **Resultado a s=1:** `[pared 1px][aire/merc 5px][pared 1px]` — todo visible sin lupa
+- **Resultado a s=3 (Dial):** aire 15×12px + mercurio 15×12px dentro de paredes 3px — efecto muy dramático
+- Build verificado: `SUCCESS` — RAM 14.7% (`48132` bytes), Flash 71.3% (`934913` bytes).
+
+### Firmware — Iconos: unificación de familia (estructura interior en todos)
+
+- **Rediseñado `impl_humidity`**: añade `fillCircle(cx-2s, cy-s, s, 0x1082)` — punto de brillo reflectante en cuadrante superior-izquierdo de la gota. Convierte la masa sólida en "vidrio de agua" con estructura interior, igual que el termómetro.
+- **Rediseñado `impl_sound`**: añade `drawFastHLine(cx-3s, cy-3s, 6s, 0x1082)` — franja de membrana en el tercio superior de la cápsula. Convierte el bloque sólido en "cápsula con diafragma visible".
+- **Principio aplicado** (pixel-art-sprites skill): todos los iconos ahora tienen UN elemento de estructura interior en color bg (`0x1082`). Ningún icono es masa pura. Unifica el set como familia visual.
+
+| Icono | Estructura interior |
+|-------|-------------------|
+| Humidity | Punto de brillo (gloss) |
+| Sound | Línea de membrana |
+| Light | Rayos crean espacios negativos |
+| Plant | Tallo vs hojas (implícito) |
+| Probe | Gap collar/cuerpo + seam (detail) |
+| Temp | Canal de aire + mercurio |
+
+### Firmware — Icono termómetro v4: paredes 2px, familia unificada
+
+- **Rediseñado (v4 final):** `impl_temp` / `impl_temp_detail` en `src/ui_icons.cpp`:
+  - Tubo pasa de **3s a 5s** de ancho → paredes de **2px a s=1** (igual que cable sonda, tallo planta, rayos luz)
+  - Cap integrado via `fillRoundRect` con `r=s` — sin círculo separado
+  - Bulbo pasa de **r=3s a r=4s** — proporcional al tubo más ancho, mantiene el saliente visible
+  - Ticks pasan de `cx+2s` a **`cx+3s`** (borde exterior del tubo 5s)
+  - Canal de aire 1s centrado en cx — conservado: paredes 2s|aire 1s|paredes 2s
+  - `impl_temp_detail` (Dial s=3): tubo 15px, paredes 6px, canal 3px, mercurio 3px×12px
+- **Intención:** grosor visual equiparado con resto de iconos; espacio negativo del vidrio conservado
+- Build verificado: `SUCCESS` — RAM 14.7% (`48132` bytes), Flash 71.2% (`933781` bytes).
+
+## 2026-05-25
+
+### Firmware — Modo demo runtime y ajustes finos Sistema/reposo
+
+- **Añadido:** `include/demo_mode.h` / `src/demo_mode.cpp` con Modo demo runtime activable al encender con el encoder presionado. Recorre una banda de pantallas, bloquea reposo mientras está activo y sale con cualquier interacción posterior del encoder.
+- **Protegido:** Demo Mode usa setters runtime de Sensor Zone (`sz_set_sensor_runtime`, `sz_set_viz_runtime`) para no persistir sensor/modo en NVS.
+- **Ajustado:** reposo visible — las `Z` suben 4 px y el clear rect acompaña la nueva posición.
+- **Ajustado:** pantalla `Sistema` — ID/valor y cards medias quedan 1 px más bajos tras la última validación visual.
+- **Ajustado:** pantalla `Sistema` mantiene estables las cards medias e inferiores cuando BLE está habilitado; BLE pasa a badge compacto en la card superior de ID y el bloque de audio conserva su ancho completo.
+- **Mejorado:** activación de Modo demo — `run_boot_sequence(true)` muestrea el encoder durante la animación de arranque; una pulsación larga desde `Home` activa el demo manualmente; al entrar se muestra un splash breve `MODO DEMO`.
+- **Ajustado:** Modo demo rota todas sus escenas cada 6 segundos.
+- **Corregido:** icono de humedad en Home usa el icono común actualizado y `Clima Lab` eleva la gota 2 px para evitar el recorte inferior.
+- **Corregido:** Sensor Cards amplía la limpieza del indicador superior (`Óptimo`, `Seco`, `Húmedo`, etc.) y desplaza el valor para evitar ghosting/solapes.
+- **Refinado:** encabezados compuestos de Sensor Zone usan abreviaturas con punto (`HUM. TARJETA`, `TERMO. LAB`) para evitar recortes.
+- **Revisado:** menús de configuración con multiagentes; los helpers comunes ahora reducen fuente si el valor no cabe, separan mejor los summaries guardados del footer y `Luz > Modo lectura` pasa a `Luz > Modo`.
+- **Documentado:** manual de usuario, manual técnico, checklist/release, proyecto y roadmap reflejan activación, salida y restricciones del Modo demo.
+- Build verificado: `SUCCESS` — RAM 14.7% (`48148` bytes), Flash 71.2% (`932717` bytes).
+
+### Firmware — Icono termómetro v3: canal de aire + mercurio cromático en Dial
+
+- **Rediseñado (v3 final):** `impl_temp` / `impl_temp_detail` en `src/ui_icons.cpp`:
+  - Tubo estrecho 3s + cap redondeado (`fillCircle`) + bulbo r=3s + ticks en `cx+2s`
+  - **`impl_temp` (card, monocromo):** canal de aire en `0x1082` — mercurio implícito en `c`
+  - **`impl_temp_detail` (Dial):** canal de aire + columna de mercurio explícita en **color acento `a`** coordinado con temperatura: `mix3_565(PB_TEMP_P4→azul, kNeonYellow, TFT_RED→rojo, amount)`
+  - Intención: icono monocromo a resolución pequeña (card); mercurio cromático en el Dial
+- Build verificado: `SUCCESS` — RAM 14.7%, Flash 71.2%.
+
+### Firmware — Icono DS18B20 v6: aprobado + Dial más grande
+
+- **Diseño aprobado.** Icono DS18B20 marcado como final en `docs/ROADMAP.md` (eliminado de pendientes).
+- **Rediseñado (v6):** `impl_probe` / `impl_probe_detail` en `src/ui_icons.cpp`:
+  - Cable: 1px → 2px (añadido `drawFastVLine(cx+1, ...)`) en ambas funciones
+  - Collar: 7s → 5s de ancho (proporcional al cuerpo de 3s)
+  - Cuerpo: 5s×5s → 3s×6s (más estrecho y alargado verticalmente)
+  - Punta: `fillCircle(cx, cy+5s, s)` — r=s, ajustada al cuerpo de 3s
+  - `impl_probe_detail`: V-highlight ampliado de 3s → 4s alto
+- **Dial más grande:** `pbit_draw_probe_icon_xxl` pasa de s=3 a s=4 — el icono en el centro del Dial ocupa más área dentro del clear rect disponible (60×62px). Resto de sensores sin cambio.
+- Build verificado: `SUCCESS` — RAM 14.7%, Flash 71.1%.
+
+### Firmware — Icono DS18B20 v5: gap collar/cuerpo + punta alineada al borde
+
+- **Rediseñado:** `impl_probe` / `impl_probe_detail` en `src/ui_icons.cpp`:
+  - Cable: 4s → 3s (hace hueco al gap visual)
+  - Collar: desplazado a `cy-4s` — deja 1s de gap físico entre collar y cuerpo
+  - Cuerpo: 6s → 5s alto, sigue siendo 5s de ancho — proporciones más limpias
+  - Punta: `fillCircle(cx, cy+4s, 2s)` — centro en borde inferior del cuerpo; diámetro ecuatorial = ancho del cuerpo
+  - `impl_probe_detail`: groove eliminado (reemplazado por gap físico), V-highlight ajustado a 3s alto
+- **Skills activos:** `pbit-tft-screen`, `pixel-art-sprites`, `8-bit-pixel-art-patterns`, `icon-design`, `retro`
+- Build verificado: `SUCCESS` — RAM 14.7%, Flash 71.0%.
+
+### Firmware — Icono DS18B20 v4: simetría vertical garantizada
+
+- **Corregido:** `impl_probe` en `src/ui_icons.cpp` — collar ampliado de 5s a 7s de ancho (igual que `impl_probe_detail`): `fillRect(cx-(7s)/2, cy-3s, 7s, 2s)`. El collar sobresale 1s a cada lado del housing (5s) en todas las escalas.
+- **Resultado:** simetría axial vertical perfecta — silueta idéntica a izquierda y derecha del eje cx. El V-highlight izquierdo (color/brillo) se mantiene asimétrico por diseño; solo la forma es simétrica.
+- Build verificado: `SUCCESS` — RAM 14.7%, Flash 71.0%.
+
+### Firmware — Icono DS18B20 v3: cable vertical centrado
+
+- **Rediseñado (v3):** `impl_probe` / `impl_probe_detail` en `src/ui_icons.cpp` — tercera iteración: el cable pasa de diagonal (corner superior-izquierdo) a **vertical centrado** (sale del centro del collar hacia arriba). La silueta es ahora: cable recto ↑ + collar horizontal + cuerpo cilíndrico + punta redondeada ↓. Versión detallada (XXL) usa dos `drawFastVLine` adyacentes en color acento para cable 2px de grosor.
+- Build verificado: `SUCCESS` — RAM 14.7%, Flash 71.0%.
+
 ## 2026-05-24
 
 ### Firmware — Rediseño iconos sensor
 
-- **Rediseñado:** `impl_probe` / `impl_probe_detail` en `src/ui_icons.cpp` — icono DS18B20 reemplazado por silueta chip TO-92: dos barras de emisión térmica arriba, cuerpo en forma D (cúpula + cara plana), tres pines GND/DATA/VDD abajo. Diseño inequívoco con valor educativo. Elimina la forma anterior que era confundible con figuras inapropiadas.
+- **Rediseñado (v2):** `impl_probe` / `impl_probe_detail` en `src/ui_icons.cpp` — segunda iteración del icono DS18B20: ahora representa la probeta waterproof real (cápsula metálica con punta redondeada). Estructura: cable diagonal al corner superior-izquierdo → collar horizontal (anillo de conexión) → cuerpo cilíndrico recto → punta redondeada inferior. El cable en diagonal rompe toda simetría vertical. Versión XXL añade cable de 2px (acento), collar con groove, highlights metálicos blancos en housing y punta.
 - **Ajustado:** `impl_sound` / `impl_sound_detail` — cápsula micrófono de 10s×10s (casi circular, r=4s) a 8s×10s (r=3s): más oval, reconocible como cápsula a tamaños pequeños.
 - Build verificado: `SUCCESS` — RAM 14.7%, Flash 71.1%.
 
@@ -34,6 +203,8 @@
 
 - Unificados los menús raíz de sensores y Sistema con `drawSettingsGridMenu()` en grid 2×3: opciones primarias arriba, `Reset` siempre abajo izquierda y `Salir` abajo derecha.
 - Añadida card central para selectores/edición de menús (`ON/OFF`, `C/F`, límites y modos), con borde semántico por valor.
+- Ajustada alineación vertical de valores dentro de cards de menú y diferenciados los resúmenes de texto frente al hint inferior mediante color/separador.
+- Refinada pantalla `Sistema`: panels medio/inferior reposicionados, `ID` justificado izquierda/derecha y borde inferior de audio unificado para evitar lectura de doble card.
 - Renombradas opciones raíz para evitar falsas calibraciones: `Luz > Rangos`, `Sonido > Niveles`, `Humedad > Rangos` y `Termómetro > Corrección / Límites / Unidad / Alertas`.
 - Simplificada la edición de rangos de Suelo a dos umbrales (`Seco` y `Húmedo`); `Muy seco`, `Óptimo` y `Muy húmedo` se derivan automáticamente.
 - Añadida persistencia NVS de la unidad global `C/F` mediante `sys_unit_f`; las pulsaciones cortas en Temperatura/Termómetro y los menús de unidad sobreviven reinicios.

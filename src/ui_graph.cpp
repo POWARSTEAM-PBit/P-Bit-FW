@@ -368,6 +368,10 @@ void graph_set_sensor(uint8_t sensor_id) {
     g_graph_sensor = (GraphSensor)sensor_id;
 }
 
+uint8_t graph_get_sensor() {
+    return (uint8_t)g_graph_sensor;
+}
+
 void draw_graph_screen(bool screen_changed, bool sensor_data_changed) {
     static GraphSensor last_sensor = (GraphSensor)0xFF;
     static float data_buf[GRAPH_BUFFER_SIZE];

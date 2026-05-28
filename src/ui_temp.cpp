@@ -414,7 +414,7 @@ static void draw_temp_menu_screen(bool screen_changed) {
         // Saved state previews the updated setting before returning to menu.
         const char* saved_title = g_temp_save_ok ? L(MENU_SAVED)
                                                  : L(MENU_ERROR);
-        const uint16_t saved_title_color = g_temp_save_ok ? TFT_GREEN : TFT_RED;
+        const uint16_t saved_title_color = g_temp_save_ok ? TFT_MAGENTA : TFT_RED;
         if (g_temp_saved_kind == 0 && g_temp_save_ok) {
             char line_buf_1[24];
             char line_buf_2[24];

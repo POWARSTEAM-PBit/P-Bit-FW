@@ -1,6 +1,6 @@
 # Checklist de Producción P-Bit
 
-Actualizado: 2026-05-24
+Actualizado: 2026-05-26
 
 Usar esta lista antes de entregar una build o una unidad flasheada.
 
@@ -9,7 +9,7 @@ Estado de esta revisión: build y auditoría estática completados; pruebas con 
 ## 1. Configuración de build
 
 - [x] `py -m platformio run -e esp32dev` compila sin errores.
-- [x] Resultado de build registrado: RAM `14.7%` (`48124`/`327680`) y Flash `71.0%` (`931193`/`1310720`).
+- [x] Resultado de build registrado: RAM `14.7%` (`48156`/`327680`) y Flash `71.5%` (`936653`/`1310720`).
 - [x] `include/config.h`: `PBIT_ENABLE_GRAPH_LAB=1` para el carrusel actual con `Home/Clima/Multi/Sonido VU` y `SENSOR_ZONE_SCREEN`.
 - [x] `PBIT_ENABLE_SERIAL_PLOTTER=0` para producción.
 - [x] `FIRMWARE_DEBUG` sigue comentado.
@@ -25,6 +25,8 @@ Estado de esta revisión: build y auditoría estática completados; pruebas con 
 - [x] `SENSOR_ZONE_SCREEN` reutiliza Sensor Zone para los seis sensores y persiste modos `Focus -> Valor -> Gráfica -> Dial -> Card`.
 - [x] `Sistema` separa `Bip` y `Alarmas`; la auditoría estática confirma persistencia `sys_sound`, `sys_alarm` y `sys_unit_f` para unidad C/F.
 - [x] Anti-flicker revisado por código en dials/gauges, cards, menús/footers y `Sound VU`.
+- [x] Modo demo runtime añadido: arranque con encoder presionado durante logo o pulsación larga desde `Home`, splash breve de entrada, sin persistir sensor/modo en NVS.
+- [x] Menús de settings revisados con helpers comunes: valores centrados con fallback de fuente y summaries más separados del footer.
 - [ ] En hardware: arranque frío muestra selector de idioma si la NVS fue limpiada.
 - [ ] En hardware: recorrer carrusel completo y verificar legibilidad de todos los modos.
 - [ ] En hardware: en cada sensor, pulsación corta cambia modo y pulsación larga abre el menú del sensor activo.
@@ -32,6 +34,7 @@ Estado de esta revisión: build y auditoría estática completados; pruebas con 
 - [ ] En hardware: cambiar C/F, reiniciar y confirmar persistencia de unidad.
 - [ ] En hardware: `Sistema > Bip` silencia beeps de UI sin silenciar `Alarmas`; `Sistema > Alarmas` silencia alertas/timer audibles sin ocultar alertas visuales/RGB.
 - [ ] En hardware: reposo visible con `ZZZ`; despierta con interacción del encoder.
+- [ ] En hardware: encender con encoder presionado durante logo activa Modo demo; pulsación larga desde `Home` también lo activa; cualquier interacción posterior sale del demo.
 
 ## 3. BLE
 
@@ -40,7 +43,7 @@ Estado de esta revisión: build y auditoría estática completados; pruebas con 
 - [x] Reset por build-hash limpia el namespace NVS antes de evaluar BLE en una build nueva.
 - [x] `init_ble()` solo se ejecuta si `load_ble_enabled_store()` devuelve `true`.
 - [x] La pantalla `Sistema` no muestra fila BLE cuando `ble_en == false`.
-- [x] La pantalla oculta BLE solo aparece manteniendo el encoder 60 s en `Sistema` según auditoría estática.
+- [x] La pantalla oculta BLE solo aparece manteniendo el encoder 30 s en `Sistema` según auditoría estática.
 - [ ] Un escaneo BLE externo no ve publicidad `PBIT-XXXX` en estado de producción.
 - [ ] Si se activó BLE para pruebas, volver a `OFF`, confirmar reinicio y repetir escaneo.
 - [ ] En unidad física reflasheada sobre desarrollo, confirmar primer arranque sin publicidad `PBIT-XXXX`.

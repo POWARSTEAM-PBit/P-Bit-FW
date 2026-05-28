@@ -15,8 +15,8 @@ static SysMenuState g_sys_menu_state = SYS_MODE_NORMAL;
 static uint8_t g_sys_menu_index = 0;
 static uint32_t g_sys_sleep_ms = 0;
 static uint8_t g_sys_lang_index = 0;
-static bool g_sys_sound_enabled = true;
-static bool g_sys_alarm_sound_enabled = true;
+static bool g_sys_sound_enabled = false;
+static bool g_sys_alarm_sound_enabled = false;
 static uint8_t g_sys_reset_choice = 0;
 static uint8_t g_sys_saved_kind = 0;
 
@@ -59,32 +59,50 @@ static const char* get_language_name(uint8_t index) {
 }
 
 static void draw_system_id_panel(int x, int y, int w, int h,
-                                 const char* label, const char* value) {
+                                 const char* label, const char* value,
+                                 bool show_ble_badge, bool ble_connected) {
     const uint16_t panel_bg = tft.color565(2, 4, 10);
     tft.fillRoundRect(x, y, w, h, 4, panel_bg);
-    tft.drawRoundRect(x, y, w, h, 4, PB_HUM_P2);
-    tft.setTextDatum(TL_DATUM);
+    tft.drawRoundRect(x, y, w, h, 4, PB_SOIL_P1);
     tft.setFreeFont(FONT_SMALL);
     tft.setTextColor(PB_HUM_P3, panel_bg);
-    tft.drawString(label, x + 10, y + 1);
+    tft.setTextDatum(ML_DATUM);
+    tft.drawString(label, x + 10, y + h / 2 - 2);
     tft.setTextColor(PB_LUZ_P1, panel_bg);
-    tft.drawString(value, x + 38, y + 1);
+    if (show_ble_badge) {
+        tft.setTextDatum(ML_DATUM);
+        tft.drawString(value, x + 40, y + h / 2 - 2);
+
+        const uint16_t badge_color = ble_connected ? PB_SOUND_P2 : PB_SOUND_P3;
+        const int badge_x = x + w - 40;
+        const int badge_y = y + 2;
+        tft.fillRoundRect(badge_x, badge_y, 31, h - 4, 3, panel_bg);
+        tft.drawRoundRect(badge_x, badge_y, 31, h - 4, 3, badge_color);
+        tft.setTextDatum(MC_DATUM);
+        tft.setTextColor(badge_color, panel_bg);
+        tft.drawString(L(SYS_BLE_LABEL), badge_x + 15, y + h / 2 - 2);
+    } else {
+        tft.setTextDatum(MR_DATUM);
+        tft.drawString(value, x + w - 10, y + h / 2 - 2);
+    }
     tft.setTextFont(0);
 }
 
 static void draw_system_text_panel(int x, int y, int w, int h,
                                    const char* label, const char* value,
                                    uint16_t label_color, uint16_t value_color,
-                                   uint16_t border_color) {
+                                   uint16_t border_color,
+                                   int value_y_adjust = 0,
+                                   int label_y_adjust = 0) {
     const uint16_t panel_bg = tft.color565(2, 4, 10);
     tft.fillRoundRect(x, y, w, h, 4, panel_bg);
     tft.drawRoundRect(x, y, w, h, 4, border_color);
     tft.setTextDatum(TC_DATUM);
     tft.setFreeFont(FONT_SMALL);
     tft.setTextColor(label_color, panel_bg);
-    tft.drawString(label, x + w / 2, y);
+    tft.drawString(label, x + w / 2, y + label_y_adjust);
     tft.setTextColor(value_color, panel_bg);
-    tft.drawString(value, x + w / 2, y + h - 14);
+    tft.drawString(value, x + w / 2, y + h - 14 + value_y_adjust);
     tft.setTextFont(0);
 }
 
@@ -99,8 +117,8 @@ static void draw_system_audio_panel(int x, int y, int w, int h) {
     tft.setTextDatum(TC_DATUM);
     tft.setFreeFont(FONT_SMALL);
     tft.setTextColor(PB_HUM_P3, panel_bg);
-    tft.drawString(L(MENU_SOUND), left_cx, y + 1);
-    tft.drawString(L(MENU_ALARM_SOUND), right_cx, y + 1);
+    tft.drawString(L(MENU_SOUND), left_cx, y + 3);
+    tft.drawString(L(MENU_ALARM_SOUND), right_cx, y + 3);
     tft.setTextColor(beep_col, panel_bg);
     tft.drawString(g_sound_enabled ? L(ST_ON) : L(ST_OFF), left_cx, y + h - 18);
     tft.setTextColor(alarm_col, panel_bg);
@@ -438,8 +456,9 @@ void draw_system_screen(bool screen_changed, bool data_changed) {
     constexpr int panel_x1 = 82;
     constexpr int panel_w = 70;
     constexpr int device_y = 31;
-    constexpr int mid_y = 51;
-    constexpr int bottom_y = 86;
+    constexpr int mid_y = 52;
+    constexpr int bottom_y = 89;
+    constexpr int bottom_h = 34;
     const uint16_t card_bg = tft.color565(4, 8, 18);
 
     static bool s_ble_enabled = false; // cached per screen_changed — doesn't change at runtime
@@ -455,8 +474,8 @@ void draw_system_screen(bool screen_changed, bool data_changed) {
     bool ble_connected = s_ble_enabled ? client_connected.load() : false;
     static uint32_t last_uptime_s = UINT32_MAX;
     static bool last_ble_connected = false;
-    static bool last_sound_enabled = true;
-    static bool last_alarm_sound_enabled = true;
+    static bool last_sound_enabled = false;
+    static bool last_alarm_sound_enabled = false;
 
     if (!screen_changed
         && ble_connected == last_ble_connected
@@ -466,36 +485,25 @@ void draw_system_screen(bool screen_changed, bool data_changed) {
         return;
     }
 
+    if (screen_changed || ble_connected != last_ble_connected) {
+        draw_system_id_panel(panel_x0, device_y, 144, 19,
+                             L(SYS_DEV_LABEL), dev_name,
+                             s_ble_enabled, ble_connected);
+    }
+
     if (screen_changed || uptime_s != last_uptime_s) {
         char uptimeStr[12];
         snprintf(uptimeStr, sizeof(uptimeStr), "%02u:%02u:%02u", uptime_s / 3600, (uptime_s % 3600) / 60, uptime_s % 60);
-        draw_system_id_panel(panel_x0, device_y, 144, 19,
-                             L(SYS_DEV_LABEL), dev_name);
         draw_system_text_panel(panel_x0, mid_y, panel_w, 35,
                                L(SYS_UP_LABEL), uptimeStr,
-                               PB_HUM_P3, PB_DS18_P2, PB_DS18_P2);
+                               PB_HUM_P3, PB_DS18_P2, PB_DS18_P2, -5, 1);
         draw_system_text_panel(panel_x1, mid_y, panel_w, 35,
                                L(SYS_LANG_LABEL), get_language_name((uint8_t)normalizeLanguage(g_language)),
-                               PB_HUM_P3, TFT_WHITE, PB_LUZ_P2);
-    }
-
-    if (screen_changed || ble_connected != last_ble_connected) {
-        if (s_ble_enabled) {
-            draw_system_text_panel(panel_x0, bottom_y, panel_w, 35,
-                                   L(SYS_BLE_LABEL),
-                                   ble_connected ? L(ST_CONNECTED) : L(ST_DISCONN),
-                                   PB_HUM_P3,
-                                   ble_connected ? PB_SOUND_P2 : PB_SOUND_P3,
-                                   PB_SOUND_P2);
-        }
+                               PB_HUM_P3, TFT_WHITE, PB_LUZ_P2, -5, 1);
     }
 
     if (screen_changed || g_sound_enabled != last_sound_enabled || g_alarm_sound_enabled != last_alarm_sound_enabled) {
-        if (s_ble_enabled) {
-            draw_system_audio_panel(panel_x1, bottom_y, panel_w, 35);
-        } else {
-            draw_system_audio_panel(panel_x0, bottom_y, 144, 35);
-        }
+        draw_system_audio_panel(panel_x0, bottom_y, 144, bottom_h);
     }
 
     last_ble_connected = ble_connected;

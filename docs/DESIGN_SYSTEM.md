@@ -6,7 +6,7 @@
 Referencia canónica para cualquier pantalla nueva, modificación de color, icono o layout en el firmware P-Bit. Leer este documento antes de tocar cualquier color, icono o layout en archivos de producción.
 
 **Hardware objetivo:** ST7735 160 × 128 px, landscape, RGB565, via TFT_eSPI
-**Fuentes de verdad en código:** `include/palette.h` (colores) · `include/layout.h` (constantes de posición) · `src/ui_icons.cpp` (iconos)
+**Fuentes de verdad en código:** `include/palette.h` (tokens) · `src/sensor_visuals.cpp` (rampas semánticas/RGB) · `include/layout.h` (constantes de posición) · `src/ui_icons.cpp` (iconos)
 
 ---
 
@@ -82,7 +82,7 @@ Todos los iconos son procedurales (dibujados con primitivas TFT_eSPI en runtime)
 
 | Icono | Sensor | Estado | Deuda / Notas |
 |-------|--------|--------|---------------|
-| `temp` — Termómetro | TEMP | ⚠️ Fix pendiente | `TFT_BLACK` hardcodeado en canal interior → mancha sobre navy. Fix: añadir parámetro `bg` a la firma |
+| `temp` — Termómetro | TEMP | ⚠️ Fix parcial | **Geometría v10 — canvas lleno:** tubo **4s×11s** (cy-7s→cy+4s), bulbo **r=3s** en cy+4s (bottom=cy+7s). Llena el canvas ±7s igual que todos los demás íconos. Ratio total 6s×14s. Render order: tubo→canal→bulbo. Mercurio (detail): canal vacío cy-6s→cy-2s + mercurio cy-2s→cy+4s + bulbo último. Pendiente: canal usa `0x1082` hardcodeado. |
 | `humidity` — Gota | HUMEDAD | ✅ Aprobado en código | Silueta sólida sin donut interior. Pendiente validación en hardware |
 | `light` — Sol | LUZ | ✅ Funcional | Rayos diagonales de 1 px pueden ser poco visibles a s=1. Mejorable a 2 px si hardware lo confirma |
 | `sound` — Micrófono | SONIDO | ✅ Funcional | No tocar sin captura de hardware previa. Si base excesiva, reducir solo en hardware |
@@ -154,6 +154,28 @@ Cada sensor tiene una visualización única y propia. No reutilizar la misma viz
 | SONIDO | 7 columnas VU | misma altura = nivel, verde/naranja/rojo por zona |
 | SUELO | 3 zonas fijas + marcador | DRY/OK/WET, diamante de posición |
 
+### Rangos Visuales Canónicos
+
+Todas las visualizaciones de un sensor deben usar el mismo rango base. No reutilizar `0–50°C` del DHT11 para el Termómetro/DS18B20.
+
+| Sensor | Rango visual |
+|---|---|
+| TEMP DHT11 | `0..50°C` / `32..122°F` |
+| DS18B20 | `-55..+125°C` / `-67..+257°F` |
+| HUMEDAD | `0..100%` |
+| LUZ | `0..20000 lux` |
+| SONIDO | `0..100%` |
+| SUELO | `0..100%` |
+
+El LED RGB debe seguir el color semántico de la visualización activa mediante `sensor_visuals.*`. Timer usa el color de estado visible; cualquier vista de solo Luz mantiene RGB apagado para no influir en el LDR.
+
+Regla de marcas en diales:
+
+- TEMP DHT11, HUMEDAD y SUELO: marcas visibles por defecto porque sus rangos son interpretables con más confianza.
+- LUZ y SONIDO: marcas ocultas por defecto; aparecen solo si `Ver límites` está activo o si el usuario guardó rangos/niveles.
+- TERMÓMETRO/DS18B20: marca fija de `0 °C`; no mostrar límites alto/bajo por defecto.
+- Luz usa progresión visual logarítmica en el dial para que los cambios bajos no queden comprimidos al inicio.
+
 ### Menú raíz de settings 2×3
 
 Todos los menús raíz de configuración usan `drawSettingsGridMenu()`:
@@ -176,10 +198,11 @@ Reglas:
 
 Los estados de edición (`ON/OFF`, `Celsius/Fahrenheit`, límites numéricos, modos de lectura) usan `drawCenteredMenuValueScreen()`, que dibuja el valor dentro de una card central:
 
-- Card `x=20, y=58, w=120, h=38`.
+- Card `x=20, y=58, w=120, h=38`; valor centrado visualmente en `y=75`.
 - Borde del color activo del valor (`ON` verde, `OFF` rojo, límites por color semántico).
 - Fondo oscuro estable para evitar ghosting sobre la banda del menú.
 - Título arriba y hint abajo fuera de la card.
+- Cuando el contenido sigue siendo texto sin card, el frame común dibuja un separador sutil sobre el hint inferior y evita que los colores del contenido repitan el cyan de instrucción.
 
 ### Checklist de pantalla nueva
 

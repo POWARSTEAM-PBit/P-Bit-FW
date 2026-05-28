@@ -12,3 +12,5 @@ void graph_cycle_sensor();
 // Jump directly to a sensor (called from sensor zone sync).
 // GraphSensor enum order matches SzSensorId (TEMP=0..DS18=5) — cast directly.
 void graph_set_sensor(uint8_t sensor_id);
+
+uint8_t graph_get_sensor();

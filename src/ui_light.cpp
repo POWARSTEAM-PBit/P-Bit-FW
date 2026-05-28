@@ -114,6 +114,7 @@ static int g_light_indoor_max = 500;
 static int g_light_bright_max = 2000;
 static uint8_t g_light_display_mode = 0;
 static bool g_light_alerts_enabled = true;
+static bool g_light_marks_visible = false;
 static uint8_t g_light_reset_choice = 0;
 
 static void request_light_redraw(bool force_full = false) {
@@ -139,6 +140,7 @@ void start_light_menu() {
     g_light_bright_max = get_light_threshold_bright();
     g_light_display_mode = get_light_display_mode();
     g_light_alerts_enabled = get_light_alerts_enabled();
+    g_light_marks_visible = get_light_range_marks_visible();
     g_light_reset_choice = 0;
     request_light_redraw(true);
 }
@@ -159,6 +161,7 @@ int get_light_encoder_min() {
         case LIGHT_MODE_EDIT_BRIGHT: return g_light_indoor_max + 1;
         case LIGHT_MODE_EDIT_DISPLAY: return 0;
         case LIGHT_MODE_EDIT_ALERTS: return 0;
+        case LIGHT_MODE_EDIT_MARKS: return 0;
         case LIGHT_MODE_CONFIRM_RESET: return 0;
         default: return 0;
     }
@@ -166,12 +169,13 @@ int get_light_encoder_min() {
 
 int get_light_encoder_max() {
     switch (g_light_menu_state) {
-        case LIGHT_MODE_MENU: return 4; // calibracion, modo display, alertas, reset, salir
+        case LIGHT_MODE_MENU: return 5; // rangos, modo display, alertas, ver limites, reset, salir
         case LIGHT_MODE_EDIT_DIM: return g_light_indoor_max - 1;
         case LIGHT_MODE_EDIT_INDOOR: return g_light_bright_max - 1;
         case LIGHT_MODE_EDIT_BRIGHT: return 10000;
         case LIGHT_MODE_EDIT_DISPLAY: return 2; // lux, %, raw
         case LIGHT_MODE_EDIT_ALERTS: return 1;
+        case LIGHT_MODE_EDIT_MARKS: return 1;
         case LIGHT_MODE_CONFIRM_RESET: return 1;
         default: return 0;
     }
@@ -185,6 +189,7 @@ int get_light_encoder_value() {
         case LIGHT_MODE_EDIT_BRIGHT: return g_light_bright_max;
         case LIGHT_MODE_EDIT_DISPLAY: return g_light_display_mode;
         case LIGHT_MODE_EDIT_ALERTS: return g_light_alerts_enabled ? 1 : 0;
+        case LIGHT_MODE_EDIT_MARKS: return g_light_marks_visible ? 1 : 0;
         case LIGHT_MODE_CONFIRM_RESET: return g_light_reset_choice;
         default: return 0;
     }
@@ -230,6 +235,12 @@ void set_light_input_value(int value) {
                 request_light_redraw();
             }
             break;
+        case LIGHT_MODE_EDIT_MARKS:
+            if ((next != 0) != g_light_marks_visible) {
+                g_light_marks_visible = (next != 0);
+                request_light_redraw();
+            }
+            break;
         case LIGHT_MODE_CONFIRM_RESET:
             if ((uint8_t)next != g_light_reset_choice) {
                 g_light_reset_choice = (uint8_t)next;
@@ -253,6 +264,8 @@ uint8_t handle_light_button() {
             } else if (g_light_menu_index == 2) {
                 g_light_menu_state = LIGHT_MODE_EDIT_ALERTS;
             } else if (g_light_menu_index == 3) {
+                g_light_menu_state = LIGHT_MODE_EDIT_MARKS;
+            } else if (g_light_menu_index == 4) {
                 g_light_reset_choice = 0;
                 g_light_menu_state = LIGHT_MODE_CONFIRM_RESET;
             } else {
@@ -281,6 +294,11 @@ uint8_t handle_light_button() {
             g_light_last_saved_menu_index = 2;
             g_light_menu_state = LIGHT_MODE_SAVED;
             break;
+        case LIGHT_MODE_EDIT_MARKS:
+            set_light_range_marks_visible(g_light_marks_visible);
+            g_light_last_saved_menu_index = 3;
+            g_light_menu_state = LIGHT_MODE_SAVED;
+            break;
         case LIGHT_MODE_CONFIRM_RESET:
             if (g_light_reset_choice == 1) {
                 reset_light_settings();
@@ -289,7 +307,8 @@ uint8_t handle_light_button() {
                 g_light_bright_max = get_light_threshold_bright();
                 g_light_display_mode = get_light_display_mode();
                 g_light_alerts_enabled = get_light_alerts_enabled();
-                g_light_last_saved_menu_index = 3;
+                g_light_marks_visible = get_light_range_marks_visible();
+                g_light_last_saved_menu_index = 4;
                 g_light_reset_choice = 0;
                 g_light_menu_state = LIGHT_MODE_SAVED;
             } else {
@@ -314,6 +333,7 @@ static void draw_light_menu_screen(bool screen_changed) {
     static int last_menu_index = -1;
     static int last_edit_value = -1;
     static int last_display_mode = -1;
+    static int last_marks_value = -1;
     static int last_reset_choice = -1;
     static int last_saved_kind = -1;
 
@@ -328,6 +348,8 @@ static void draw_light_menu_screen(bool screen_changed) {
         needs_redraw = needs_redraw || (last_display_mode != (int)g_light_display_mode);
     } else if (g_light_menu_state == LIGHT_MODE_EDIT_ALERTS) {
         needs_redraw = needs_redraw || (last_display_mode != (int)g_light_alerts_enabled);
+    } else if (g_light_menu_state == LIGHT_MODE_EDIT_MARKS) {
+        needs_redraw = needs_redraw || (last_marks_value != (g_light_marks_visible ? 1 : 0));
     } else if (g_light_menu_state == LIGHT_MODE_CONFIRM_RESET) {
         needs_redraw = needs_redraw || (last_reset_choice != (int)g_light_reset_choice);
     } else if (g_light_menu_state == LIGHT_MODE_SAVED) {
@@ -342,6 +364,7 @@ static void draw_light_menu_screen(bool screen_changed) {
         last_menu_index = -1;
         last_edit_value = -1;
         last_display_mode = -1;
+        last_marks_value = -1;
         last_reset_choice = -1;
         last_saved_kind = -1;
     }
@@ -350,9 +373,10 @@ static void draw_light_menu_screen(bool screen_changed) {
         const char* items[] = {
             L(MENU_RANGES),
             L(MENU_DISPLAY_MODE),
-            L(MENU_ALERTS)
+            L(MENU_ALERTS),
+            L(MENU_SHOW_LIMITS)
         };
-        drawSettingsGridMenu(items, 3, g_light_menu_index, L(MENU_RESET), L(MENU_EXIT));
+        drawSettingsGridMenu(items, 4, g_light_menu_index, L(MENU_RESET), L(MENU_EXIT));
         drawFooterHint(L(INSTR_SEL), cx, LM_MENU_FOOTER_Y);
         last_menu_index = (int)g_light_menu_index;
     } else if (g_light_menu_state >= LIGHT_MODE_EDIT_DIM && g_light_menu_state <= LIGHT_MODE_EDIT_BRIGHT) {
@@ -387,6 +411,13 @@ static void draw_light_menu_screen(bool screen_changed) {
                                     MENU_VALUE_FONT_BODY,
                                     L(ST_TURN_PUSH));
         last_display_mode = (int)g_light_alerts_enabled;
+    } else if (g_light_menu_state == LIGHT_MODE_EDIT_MARKS) {
+        drawCenteredMenuValueScreen(L(MENU_SHOW_LIMITS),
+                                    g_light_marks_visible ? L(ST_ON) : L(ST_OFF),
+                                    g_light_marks_visible ? TFT_GREEN : TFT_RED,
+                                    MENU_VALUE_FONT_BODY,
+                                    L(ST_TURN_PUSH));
+        last_marks_value = g_light_marks_visible ? 1 : 0;
     } else if (g_light_menu_state == LIGHT_MODE_CONFIRM_RESET) {
         drawResetChoicePrompt(L(MENU_RESET),
                               L(MENU_DEFAULTS),
@@ -405,14 +436,14 @@ static void draw_light_menu_screen(bool screen_changed) {
             char line_buf_2[18];
             char line_buf_3[18];
             const char* lines[3];
-            const uint16_t colors[3] = { TFT_CYAN, TFT_GREEN, TFT_YELLOW };
+            const uint16_t colors[3] = { TFT_MAGENTA, TFT_GREEN, TFT_YELLOW };
             snprintf(line_buf_1, sizeof(line_buf_1), "%s < %d", L(MENU_LIGHT_ABR_DIM), g_light_dim_max);
             snprintf(line_buf_2, sizeof(line_buf_2), "%s < %d", L(MENU_LIGHT_ABR_IN), g_light_indoor_max);
             snprintf(line_buf_3, sizeof(line_buf_3), "%s < %d", L(MENU_LIGHT_ABR_BRIGHT), g_light_bright_max);
             lines[0] = line_buf_1;
             lines[1] = line_buf_2;
             lines[2] = line_buf_3;
-            drawCenteredMenuFrame(saved_title, TFT_GREEN, L(ST_PUSH_MENU), TFT_CYAN);
+            drawCenteredMenuFrame(saved_title, TFT_MAGENTA, L(ST_PUSH_MENU), TFT_CYAN);
             drawCenteredMenuBodyLines(lines, colors, 3, MENU_TEXT_FONT_SMALL, LM_SUMMARY3_Y0, LM_SUMMARY3_GAP);
         } else if (g_light_last_saved_menu_index == 1) {
             drawCenteredMenuSavedScreen(saved_title,
@@ -424,6 +455,12 @@ static void draw_light_menu_screen(bool screen_changed) {
             drawCenteredMenuSavedScreen(saved_title,
                                         g_light_alerts_enabled ? L(ST_ON) : L(ST_OFF),
                                         g_light_alerts_enabled ? TFT_GREEN : TFT_RED,
+                                        MENU_VALUE_FONT_BODY,
+                                        L(ST_PUSH_MENU));
+        } else if (g_light_last_saved_menu_index == 3) {
+            drawCenteredMenuSavedScreen(saved_title,
+                                        g_light_marks_visible ? L(ST_ON) : L(ST_OFF),
+                                        g_light_marks_visible ? TFT_GREEN : TFT_RED,
                                         MENU_VALUE_FONT_BODY,
                                         L(ST_PUSH_MENU));
         } else {

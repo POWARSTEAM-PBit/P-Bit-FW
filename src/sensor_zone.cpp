@@ -84,6 +84,18 @@ void sz_set_sensor(uint8_t sensor_id) {
     runtime_request_ui_full_redraw();
 }
 
+void sz_set_sensor_runtime(uint8_t sensor_id) {
+    if (sensor_id >= SZ_SENSOR_COUNT) return;
+    g_sensor = (SzSensorId)sensor_id;
+    runtime_request_ui_full_redraw();
+}
+
+void sz_set_viz_runtime(uint8_t sensor_id, uint8_t viz_mode) {
+    if (sensor_id >= SZ_SENSOR_COUNT || viz_mode >= SZ_VIZ_COUNT) return;
+    g_viz[sensor_id] = (SzVizMode)viz_mode;
+    runtime_request_ui_full_redraw();
+}
+
 void sz_next_sensor() {
     g_sensor = (SzSensorId)((uint8_t)(g_sensor + 1) % SZ_SENSOR_COUNT);
     save_sz_sensor_store((uint8_t)g_sensor);
@@ -157,9 +169,9 @@ const char* sz_header_name() {
         LAB_PROBE_SHORT,
     };
     auto sensor_mode_name = [&](uint8_t sensor) -> const char* {
-        if (sensor == (uint8_t)SZ_HUM) return L(TIT_HUM);
+        if (sensor == (uint8_t)SZ_HUM) return L(LAB_HUM_ABBR);
         if (sensor == (uint8_t)SZ_SOUND) return L(TIT_SOUND);
-        if (sensor == (uint8_t)SZ_DS18) return L(LAB_PROBE_SHORT);
+        if (sensor == (uint8_t)SZ_DS18) return L(LAB_PROBE_ABBR);
         return L(kShort[sensor]);
     };
     const uint8_t s = (uint8_t)g_sensor;

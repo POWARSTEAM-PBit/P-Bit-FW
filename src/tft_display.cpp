@@ -11,8 +11,11 @@
 #include "hw.h"
 #include "fonts.h"
 #include "languages.h"
+#include "palette.h"
 #include "runtime_events.h"
 #include "led_control.h"
+#include "demo_mode.h"
+#include "sensor_visuals.h"
 #include <stdio.h>
 #include <string.h>
 
@@ -55,6 +58,7 @@ volatile Screen g_last_active_screen_before_sleep = TEMP_SCREEN;
 extern volatile bool g_sensor_data_ready;
 extern bool userTimerRunning;
 extern volatile bool g_timer_just_reset;
+extern bool g_is_fahrenheit;
 
 namespace {
 
@@ -85,9 +89,131 @@ static bool is_graph_rate_limited_screen(Screen screen) {
     return false;
 }
 
+static void draw_demo_start_splash() {
+    tft.fillScreen(TFT_BLACK);
+    tft.setTextDatum(MC_DATUM);
+    tft.setFreeFont(FONT_BODY);
+    tft.setTextColor(TFT_MAGENTA, TFT_BLACK);
+    tft.drawString(L(ST_DEMO_MODE), 80, 51);
+    tft.setFreeFont(FONT_SMALL);
+    tft.setTextColor(TFT_CYAN, TFT_BLACK);
+    tft.drawString(L(ST_DEMO_START), 80, 78);
+    tft.setTextFont(0);
+}
+
 static bool valid_number(float value) {
     return !isnan(value) && isfinite(value);
 }
+
+static void set_rgb565(uint16_t color) {
+    uint8_t r = 0, g = 0, b = 0;
+    pbit_rgb565_to_rgb888(color, r, g, b);
+    set_rgb(r, g, b);
+}
+
+static void set_invalid_sensor_rgb() {
+    set_rgb(90, 0, 0);
+}
+
+static void apply_temp_visual_rgb() {
+    bool valid = false;
+    const uint16_t color = pbit_sensor_visual_color(SZ_TEMP, g_ui_readings_snapshot, g_is_fahrenheit, &valid);
+    if (!valid) {
+        set_invalid_sensor_rgb();
+        return;
+    }
+    set_rgb565(color);
+}
+
+static void apply_humidity_visual_rgb() {
+    bool valid = false;
+    const uint16_t color = pbit_sensor_visual_color(SZ_HUM, g_ui_readings_snapshot, g_is_fahrenheit, &valid);
+    if (!valid) {
+        set_invalid_sensor_rgb();
+        return;
+    }
+    set_rgb565(color);
+}
+
+static void apply_sound_visual_rgb() {
+    bool valid = false;
+    const uint16_t color = pbit_sensor_visual_color(SZ_SOUND, g_ui_readings_snapshot, g_is_fahrenheit, &valid);
+    if (!valid) {
+        set_invalid_sensor_rgb();
+        return;
+    }
+    set_rgb565(color);
+}
+
+static void apply_soil_visual_rgb() {
+    bool valid = false;
+    const uint16_t color = pbit_sensor_visual_color(SZ_SOIL, g_ui_readings_snapshot, g_is_fahrenheit, &valid);
+    if (!valid) {
+        set_invalid_sensor_rgb();
+        return;
+    }
+    set_rgb565(color);
+}
+
+static void apply_ds18_visual_rgb() {
+    bool valid = false;
+    const uint16_t color = pbit_sensor_visual_color(SZ_DS18, g_ui_readings_snapshot, g_is_fahrenheit, &valid);
+    if (!valid) {
+        set_invalid_sensor_rgb();
+        return;
+    }
+    set_rgb565(color);
+}
+
+static void apply_timer_visual_rgb() {
+    const bool flash = ((millis() / 250UL) & 0x01UL) == 0;
+    set_rgb565(pbit_timer_visual_color(g_timer_finished_active, userTimerRunning, userTimerElapsed, flash));
+}
+
+#if PBIT_ENABLE_GRAPH_LAB
+static void apply_sensor_visual_rgb(SzSensorId sensor) {
+    switch (sensor) {
+        case SZ_TEMP:
+            apply_temp_visual_rgb();
+            break;
+        case SZ_HUM:
+            apply_humidity_visual_rgb();
+            break;
+        case SZ_LIGHT:
+            // Keep the RGB LED off while measuring light; otherwise it pollutes the LDR.
+            set_rgb(0, 0, 0);
+            break;
+        case SZ_SOUND:
+            apply_sound_visual_rgb();
+            break;
+        case SZ_SOIL:
+            apply_soil_visual_rgb();
+            break;
+        case SZ_DS18:
+            apply_ds18_visual_rgb();
+            break;
+        default:
+            set_rgb(0, 0, 0);
+            break;
+    }
+}
+
+static void apply_sensor_zone_visual_rgb() {
+    apply_sensor_visual_rgb(sz_get_sensor());
+}
+
+static SzSensorId focus_sensor_to_sz(LabFocusSensor sensor) {
+    switch (sensor) {
+        case LAB_FOCUS_TEMP:     return SZ_TEMP;
+        case LAB_FOCUS_HUMIDITY: return SZ_HUM;
+        case LAB_FOCUS_LIGHT:    return SZ_LIGHT;
+        case LAB_FOCUS_SOUND:    return SZ_SOUND;
+        case LAB_FOCUS_SOIL:     return SZ_SOIL;
+        case LAB_FOCUS_DS18:     return SZ_DS18;
+        default:                 return SZ_TEMP;
+    }
+}
+#endif
 
 static void copy_readings_for_ui(bool force, bool raw_mic) {
     Reading next;
@@ -97,6 +223,7 @@ static void copy_readings_for_ui(bool force, bool raw_mic) {
 
     static bool initialized = false;
     if (force || !initialized || raw_mic) {
+        demo_mode_apply_simulated_readings(next);
         g_ui_readings_snapshot = next;
         initialized = true;
         return;
@@ -109,11 +236,74 @@ static void copy_readings_for_ui(bool force, bool raw_mic) {
         }
     }
 
+    demo_mode_apply_simulated_readings(next);
     g_ui_readings_snapshot = next;
     initialized = true;
 }
 
 static void apply_global_alert_rgb(const GlobalAlertSummary& summary) {
+    // On sensor/timer screens the LED mirrors the visible UI state instead of
+    // a hidden global alert, so the physical RGB tells the same story as the TFT.
+    switch (active_screen) {
+        case TEMP_SCREEN:
+            apply_temp_visual_rgb();
+            return;
+        case HUMIDITY_SCREEN:
+            apply_humidity_visual_rgb();
+            return;
+        case LIGHT_SCREEN:
+            set_rgb(0, 0, 0);
+            return;
+        case SOUND_SCREEN:
+            apply_sound_visual_rgb();
+            return;
+        case SOIL_SCREEN:
+            apply_soil_visual_rgb();
+            return;
+        case DS18B20_SCREEN:
+            apply_ds18_visual_rgb();
+            return;
+        case TIMER_SCREEN:
+            apply_timer_visual_rgb();
+            return;
+        case GRAPH_SCREEN:
+#if PBIT_ENABLE_GRAPH_LAB
+            apply_sensor_visual_rgb((SzSensorId)graph_get_sensor());
+#else
+            set_rgb(0, 80, 80);
+#endif
+            return;
+#if PBIT_ENABLE_GRAPH_LAB
+        case LAB_SENSOR_FOCUS_SCREEN:
+            apply_sensor_visual_rgb(focus_sensor_to_sz(lab_focus_get_sensor()));
+            return;
+        case LAB_GAUGE_TEMP_SCREEN:
+            apply_sensor_visual_rgb((SzSensorId)lab_gauge_get_sensor());
+            return;
+        case LAB_VALUE_MODERN_SCREEN:
+            apply_sensor_visual_rgb((SzSensorId)lab_value_get_sensor());
+            return;
+        case LAB_SENSOR_CARD_SCREEN:
+            apply_sensor_visual_rgb((SzSensorId)lab_sensor_card_get_sz_sensor());
+            return;
+        case LAB_TEMP_CARD_SCREEN:
+            apply_sensor_visual_rgb(SZ_TEMP);
+            return;
+        case LAB_DS18_CARD_SCREEN:
+            apply_sensor_visual_rgb(SZ_DS18);
+            return;
+        case LAB_SOUND_VU_STACK_SCREEN:
+        case LAB_SOUND_VU_WAVE_SCREEN:
+            apply_sensor_visual_rgb(SZ_SOUND);
+            return;
+        case SENSOR_ZONE_SCREEN:
+            apply_sensor_zone_visual_rgb();
+            return;
+#endif
+        default:
+            break;
+    }
+
     // Keep the RGB LED off on the light screen so the LED does not skew the LDR.
     if (active_screen == LIGHT_SCREEN) {
         set_rgb(0, 0, 0);
@@ -122,44 +312,6 @@ static void apply_global_alert_rgb(const GlobalAlertSummary& summary) {
 
     if (!summary.active) {
         switch (active_screen) {
-            case TEMP_SCREEN:
-                set_rgb(255, 69, 0);
-                break;
-            case HUMIDITY_SCREEN:
-                set_rgb(0, 0, 255);
-                break;
-            case LIGHT_SCREEN:
-                set_rgb(0, 0, 0);
-                break;
-            case SOUND_SCREEN:
-                set_rgb(255, 0, 255);
-                break;
-            case SOIL_SCREEN: {
-                const float soil = g_ui_readings_snapshot.soil_humidity;
-                if (isnan(soil)) {
-                    set_rgb(120, 0, 0);
-                } else {
-                    const int dry_thr = get_soil_threshold_dry();
-                    const int moist_thr = get_soil_threshold_moist();
-                    const int very_dry_limit = constrain(dry_thr / 2, 0, dry_thr);
-                    const int very_moist_limit = constrain(moist_thr + ((100 - moist_thr) / 2), moist_thr, 100);
-                    if (soil < (float)very_dry_limit) {
-                        set_rgb(255, 0, 0);
-                    } else if (soil < (float)dry_thr) {
-                        set_rgb(255, 120, 0);
-                    } else if (soil < (float)moist_thr) {
-                        set_rgb(0, 255, 0);
-                    } else if (soil < (float)very_moist_limit) {
-                        set_rgb(0, 180, 255);
-                    } else {
-                        set_rgb(0, 0, 200);
-                    }
-                }
-                break;
-            }
-            case DS18B20_SCREEN:
-                set_rgb(255, 255, 255);
-                break;
             case SYSTEM_SCREEN:
                 set_rgb(0, 255, 0);
                 break;
@@ -221,22 +373,7 @@ static void apply_global_alert_rgb(const GlobalAlertSummary& summary) {
             case LAB_ICON_TEST_SCREEN:
                 set_rgb(255, 165, 0);
                 break;
-            case SENSOR_ZONE_SCREEN: {
-                uint8_t r, g, b;
-                sz_sensor_rgb(sz_get_sensor(), r, g, b);
-                set_rgb(r, g, b);
-                break;
-            }
 #endif
-            case TIMER_SCREEN:
-                if (userTimerRunning) {
-                    set_rgb(0, 255, 0);
-                } else if (userTimerElapsed > 0) {
-                    set_rgb(255, 200, 0);
-                } else {
-                    set_rgb(0, 0, 255);
-                }
-                break;
             default:
                 break;
         }
@@ -299,12 +436,12 @@ static void draw_sleep_warning_overlay(bool first_frame) {
     static constexpr int ORB_R_MIN = 7;
     static constexpr int ORB_R_RANGE = 11;
     static constexpr int ORB_R_CLEAR = ORB_R_MIN + ORB_R_RANGE + 2;
-    static constexpr int ZY   = 33;         // shared vertical center for all three glyphs
+    static constexpr int ZY   = 29;         // shared vertical center for all three glyphs
     static constexpr int ZX1  = 62;
     static constexpr int ZX2  = ORB_CX;
     static constexpr int ZX3  = 100;
     static constexpr int ZCX  = 46;         // clear rect left
-    static constexpr int ZCYW = 17;         // clear rect top
+    static constexpr int ZCYW = 13;         // clear rect top
     static constexpr int ZCWW = 70;         // clear rect width  (46..115)
     static constexpr int ZCHH = 34;         // clear rect height (17..50)
 
@@ -456,13 +593,20 @@ void switch_screen(void *param) {
 
         bool force_redraw = runtime_take_ui_full_redraw();
         bool sensor_data_changed = runtime_take_sensor_data_ready();
+        const bool demo_splash_active = demo_mode_splash_active();
+        const bool demo_values_active = demo_mode_is_active() && !demo_splash_active;
+        static bool last_demo_splash_active = false;
         const bool raw_mic_screen = is_sound_vu_screen(active_screen);
         const bool graph_limited_screen = is_graph_rate_limited_screen(active_screen);
         static unsigned long last_ui_sensor_update_ms = 0;
         static unsigned long last_ui_graph_update_ms = 0;
         const unsigned long now_ms = millis();
 
-        if (sensor_data_changed && !raw_mic_screen) {
+        if (demo_values_active) {
+            sensor_data_changed = true;
+        }
+
+        if (sensor_data_changed && (!raw_mic_screen || demo_values_active)) {
             const uint32_t interval_ms = graph_limited_screen ? kUiGraphRefreshMs : kUiSensorRefreshMs;
             unsigned long& last_update_ms = graph_limited_screen
                 ? last_ui_graph_update_ms
@@ -500,6 +644,13 @@ void switch_screen(void *param) {
             screen_changed = true;
             sensor_data_changed = true;
         }
+        if (demo_splash_active && !last_demo_splash_active) {
+            screen_changed = true;
+        }
+        if (!demo_splash_active && last_demo_splash_active) {
+            screen_changed = true;
+            sensor_data_changed = true;
+        }
 
         if (g_timer_just_reset) timer_needs_update = true;
 
@@ -509,9 +660,20 @@ void switch_screen(void *param) {
         
         if (screen_changed
             || sensor_data_changed
+            || demo_splash_active
             || (active_screen == SOIL_SCREEN && soil_cal_needs_update)
             || (active_screen == TIMER_SCREEN && (timer_needs_update || g_timer_just_reset))
             || (active_screen == SYSTEM_SCREEN && system_needs_update)) {
+            if (demo_splash_active) {
+                if (screen_changed || !last_demo_splash_active) {
+                    draw_demo_start_splash();
+                }
+                last_demo_splash_active = true;
+                vTaskDelay(pdMS_TO_TICKS(5));
+                continue;
+            }
+            last_demo_splash_active = false;
+
             if (screen_changed) {
                 last_drawn = active_screen;
             }

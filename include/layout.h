@@ -32,10 +32,10 @@ constexpr int LM_MENU3_Y0 = 36;           // First row used by 3-item menus.
 constexpr int LM_MENU3_GAP = 22;           // Vertical spacing between rows in 3-item menus.
 constexpr int LM_MENU5_Y0 = 36;           // First row used by 5-item menus.
 constexpr int LM_MENU5_GAP = 14;           // Vertical spacing between rows in 5-item menus.
-constexpr int LM_SUMMARY2_Y0 = 70;        // First row used by 2-line summaries.
-constexpr int LM_SUMMARY2_GAP = 18;       // Vertical spacing between rows in 2-line summaries.
-constexpr int LM_SUMMARY3_Y0 = 68;        // First row used by 3-line summaries.
-constexpr int LM_SUMMARY3_GAP = 16;       // Vertical spacing between rows in 3-line summaries.
+constexpr int LM_SUMMARY2_Y0 = 68;        // First row used by 2-line summaries.
+constexpr int LM_SUMMARY2_GAP = 16;       // Vertical spacing between rows in 2-line summaries.
+constexpr int LM_SUMMARY3_Y0 = 66;        // First row used by 3-line summaries.
+constexpr int LM_SUMMARY3_GAP = 14;       // Vertical spacing between rows in 3-line summaries.
 
 // ── Family A: vertical tank screens (Temp, Humidity, Soil, DS18) ─
 constexpr int LA_LEFT_CX    = 60;   // Horizontal center of the left text panel.

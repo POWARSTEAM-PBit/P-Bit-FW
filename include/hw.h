@@ -93,6 +93,8 @@ int get_sound_threshold_normal();
 int get_sound_threshold_loud();
 bool get_sound_alerts_enabled();
 void set_sound_alerts_enabled(bool enabled);
+bool get_sound_range_marks_visible();
+void set_sound_range_marks_visible(bool visible);
 
 // --- DHT temperature thresholds and alerts ---
 void load_temp_settings();
@@ -114,6 +116,8 @@ uint8_t get_light_display_mode();
 void set_light_display_mode(uint8_t mode);
 bool get_light_alerts_enabled();
 void set_light_alerts_enabled(bool enabled);
+bool get_light_range_marks_visible();
+void set_light_range_marks_visible(bool visible);
 
 // --- Global system settings ---
 void load_system_settings();

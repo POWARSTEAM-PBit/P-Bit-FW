@@ -36,6 +36,7 @@ struct SoundSettings {
     int normal_max;
     int loud_max;
     bool alerts_enabled;
+    bool range_marks_visible;
 };
 
 struct TempSettings {
@@ -50,6 +51,7 @@ struct LightSettings {
     int bright_max;
     uint8_t display_mode;
     bool alerts_enabled;
+    bool range_marks_visible;
 };
 
 struct SystemSettings {
@@ -74,18 +76,20 @@ Ds18Settings load_ds18_settings_store(int default_offset_x10, int default_alarm_
 void save_ds18_settings_store(int offset_x10, int alarm_low, int alarm_high);
 void save_ds18_alerts_enabled_store(bool enabled);
 
-SoundSettings load_sound_settings_store(int default_quiet_max, int default_normal_max, int default_loud_max, bool default_alerts_enabled);
+SoundSettings load_sound_settings_store(int default_quiet_max, int default_normal_max, int default_loud_max, bool default_alerts_enabled, bool default_range_marks_visible);
 void save_sound_settings_store(int quiet_max, int normal_max, int loud_max);
 void save_sound_alerts_enabled_store(bool enabled);
+void save_sound_range_marks_visible_store(bool visible);
 
 TempSettings load_temp_settings_store(int default_low_alarm, int default_high_alarm, bool default_alerts_enabled);
 void save_temp_settings_store(int low_alarm, int high_alarm);
 void save_temp_alerts_enabled_store(bool enabled);
 
-LightSettings load_light_settings_store(int default_dim_max, int default_indoor_max, int default_bright_max, uint8_t default_display_mode, bool default_alerts_enabled);
+LightSettings load_light_settings_store(int default_dim_max, int default_indoor_max, int default_bright_max, uint8_t default_display_mode, bool default_alerts_enabled, bool default_range_marks_visible);
 void save_light_thresholds_store(int dim_max, int indoor_max, int bright_max);
 void save_light_display_mode_store(uint8_t mode);
 void save_light_alerts_enabled_store(bool enabled);
+void save_light_range_marks_visible_store(bool visible);
 
 SystemSettings load_system_settings_store(uint32_t default_sleep_timeout_ms, bool default_sound_enabled, bool default_alarm_sound_enabled, bool default_fahrenheit);
 void save_system_sound_enabled_store(bool enabled);

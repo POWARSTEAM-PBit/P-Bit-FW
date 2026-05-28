@@ -95,6 +95,32 @@ int max_w = tft.textWidth("100%");   // cachear, no recalcular cada frame
 
 ---
 
+## Nivel 2.5 — Labels de estado y cards lab
+
+Los labels semánticos que cambian por estado (`Óptimo`, `Muy húmedo`, `Muy fuerte`, `Cálido`, etc.) no deben depender del clear del valor numérico ni del clear de la gráfica inferior. Cada label necesita su propio rectángulo de borrado, ajustado al carril donde vive el texto, y debe redibujarse solo cuando cambia el estado, la validez del sensor o el color/acento.
+
+```cpp
+const bool status_dirty = sensor_valid_changed
+                       || status_id_changed
+                       || accent_changed;
+
+if (status_dirty) {
+    clear_status_label_zone();   // no toca icono, jewel ni valor
+    draw_status_label();
+}
+```
+
+En pantallas `Lab` con cards compuestos, los bordes, títulos, iconos y shells de cards son chrome. Aunque el color del dato cambie rápidamente en Demo Mode, el shell no debe repintarse en cada tick; se actualizan solo los campos dinámicos:
+
+- valor numérico y unidad si cambia unidad;
+- barra, gauge, sparkline o VU;
+- label de estado si cambia su clave;
+- footer textual si cambia su estado.
+
+Evitar `fillRoundRect()` de la card completa para actualizar un número. Si el dato dinámico necesita un fondo, usar un clear rect pequeño dentro del interior del card, dejando intacto el borde.
+
+---
+
 ## Nivel 3 — Orden de capas: chrome se redibuja ÚLTIMO
 
 ### El problema: font glyph overhang
@@ -205,7 +231,7 @@ tft.drawString(unit_str, 148, 34);
 - `SZ_VIZ_CARD`: header, valor, visualización y footer sin recortes por clears dinámicos.
 - `SZ_VIZ_VALOR`: sparkline y barra segmentada sin flash negro y con contraste suficiente.
 - `SZ_VIZ_GRAPH`: etiquetas min/max y línea principal legibles en ES/CAT/EN.
-- `LIGHT`: rango `0..20000 lux` y RGB apagado para no contaminar el LDR.
+- `LIGHT`: rango `0..20000 lux`, dial con progresión visual logarítmica y RGB apagado en cualquier vista de solo Luz para no contaminar el LDR.
 
 ---
 

@@ -28,6 +28,7 @@
 #include "runtime_events.h"
 #include "ui_ble_toggle.h"
 #include "settings_store.h"
+#include "demo_mode.h"
 
 // External state shared with the rest of the firmware.
 extern volatile unsigned long g_last_activity_ms;
@@ -38,7 +39,7 @@ constexpr uint8_t ENCODER_STEPS_PER_DETENT = 2;
 constexpr unsigned long BUTTON_DEBOUNCE_MS = 30;
 constexpr unsigned long MENU_LONG_PRESS_MS = 1200;
 constexpr unsigned long TIMER_RESET_LONG_PRESS_MS = 1000;
-constexpr unsigned long BLE_SECRET_PRESS_MS = 60000UL; // 60 s hold on SYSTEM_SCREEN
+constexpr unsigned long BLE_SECRET_PRESS_MS = 30000UL; // 30 s hold on SYSTEM_SCREEN
 
 extern RotaryEncoder rotaryEncoder;
 
@@ -328,6 +329,12 @@ void knobCallback(long value) {
     g_last_activity_ms = now_ms(); 
     exitIdleModeIfNeeded();
 
+    if (demo_mode_is_active()) {
+        demo_mode_stop();
+        configure_app_rotary_bounds();
+        return;
+    }
+
     if (active_screen == SOIL_SCREEN && soilCalibrationIsActive()) {
         int previous = getSoilCalibrationEncoderValue();
         setSoilCalibrationInputValue((int)value);
@@ -429,102 +436,19 @@ void knobCallback(long value) {
 
     if (g_sound_enabled) beep(800, 15);
 
-    // Screen-level RGB feedback. Light keeps the LED off to avoid polluting the LDR.
-    switch (active_screen) {
-        case TEMP_SCREEN:
-            set_rgb(255, 69, 0); 
-            break;
-        case HUMIDITY_SCREEN:
-            set_rgb(0, 0, 255); 
-            break;
-        case LIGHT_SCREEN:
-            set_rgb(0, 0, 0); // LED apagado: evita incidencia en el LDR
-            break;
-        case SOUND_SCREEN:
-            set_rgb(255, 0, 255); 
-            break;
-        case SOIL_SCREEN:
-            set_rgb(180, 80, 0); 
-            break;
-        case DS18B20_SCREEN:
-            set_rgb(255, 255, 255); 
-            break;
-        case SYSTEM_SCREEN:
-            set_rgb(0, 255, 0);
-            break;
-        case BLE_TOGGLE_SCREEN:
-            set_rgb(0, 80, 255);
-            break;
-        case TIMER_SCREEN:
-            if (userTimerRunning) {
-                set_rgb(0, 255, 0);
-            } else if (userTimerElapsed > 0) {
-                set_rgb(255, 200, 0);
-            } else {
-                set_rgb(0, 0, 255);
-            }
-            break;
-        case GRAPH_SCREEN:
-            set_rgb(0, 80, 80); // Teal neutro para la pantalla de gráfica
-            break;
-#if PBIT_ENABLE_GRAPH_LAB
-        case LAB_HOME_CARDS_SCREEN:
-            set_rgb(0, 150, 210);
-            break;
-        case LAB_LINEAR_DASH_SCREEN:
-            set_rgb(0, 170, 100);
-            break;
-        case LAB_DASH_OVERVIEW_SCREEN:
-            set_rgb(90, 90, 140);
-            break;
-        case LAB_SENSOR_FOCUS_SCREEN:
-            set_rgb(0, 110, 130);
-            break;
-        case LAB_DUAL_TH_SCREEN:
-            set_rgb(0, 140, 180);
-            break;
-        case LAB_ICON_SET_A_SCREEN:
-            set_rgb(180, 80, 255);
-            break;
-        case LAB_ICON_SET_B_SCREEN:
-            set_rgb(80, 180, 255);
-            break;
-        case LAB_ICON_SET_C_SCREEN:
-            set_rgb(255, 120, 80);
-            break;
-        case LAB_GAUGE_TEMP_SCREEN:
-            set_rgb(255, 140, 0);
-            break;
-        case LAB_VALUE_MODERN_SCREEN:
-            set_rgb(255, 0, 180);
-            break;
-        case LAB_SENSOR_CARD_SCREEN:
-            set_rgb(255, 130, 0);
-            break;
-        case LAB_TEMP_CARD_SCREEN:
-            set_rgb(255, 110, 0);
-            break;
-        case LAB_DS18_CARD_SCREEN:
-            set_rgb(255, 255, 255);
-            break;
-        case LAB_WIDGET_MIX_SCREEN:
-            set_rgb(255, 140, 60);
-            break;
-        case LAB_SOUND_VU_STACK_SCREEN:
-            set_rgb(0, 220, 120);
-            break;
-        case LAB_SOUND_VU_WAVE_SCREEN:
-            set_rgb(0, 160, 255);
-            break;
-#endif
-        default:
-            set_rgb(0, 0, 0);
-            break;
-    }
+    // RGB is now owned by the display router, which mirrors the visible data/state.
+    // This avoids a stale navigation color flashing before the screen redraws.
 }
 
 static bool handle_button_long_press() {
 #if PBIT_ENABLE_GRAPH_LAB
+    if (active_screen == LAB_HOME_CARDS_SCREEN) {
+        demo_mode_start(false);
+        configure_app_rotary_bounds();
+        play_double_beep(1500, 2100);
+        return true;
+    }
+
     if (active_screen == SENSOR_ZONE_SCREEN) {
         // Long press: open config menu for the active sensor.
         // On menu exit, configure_app_rotary_bounds() snaps back to this sensor's slot.
@@ -626,6 +550,12 @@ static bool handle_button_long_press() {
 void buttonCallback(unsigned long duration) {
     g_last_activity_ms = now_ms(); 
     exitIdleModeIfNeeded();
+
+    if (demo_mode_is_active()) {
+        demo_mode_stop();
+        configure_app_rotary_bounds();
+        return;
+    }
 
     if (active_screen == SOIL_SCREEN && soilCalibrationIsActive()) {
         SoilCalibrationState previous_state = getSoilCalibrationState();
@@ -984,12 +914,20 @@ void poll_rotary_aux() {
             g_ble_secret_fired = false;
             g_last_activity_ms = now;
             exitIdleModeIfNeeded();
+            if (demo_mode_is_active()) {
+                demo_mode_stop();
+                configure_app_rotary_bounds();
+                g_button_long_press_handled = true;
+                return;
+            }
         } else {
             g_ble_secret_eligible = false;
             g_ble_secret_fired = false;
             g_last_activity_ms = now;
             if (!g_button_long_press_handled) {
-                buttonCallback(now - g_button_press_start_ms);
+                if (!demo_mode_consume_boot_release()) {
+                    buttonCallback(now - g_button_press_start_ms);
+                }
             }
         }
     }
@@ -1000,6 +938,9 @@ void poll_rotary_aux() {
 
     g_last_activity_ms = now;
     exitIdleModeIfNeeded();
+    if (demo_mode_is_active()) {
+        return;
+    }
 
     // Secret BLE unlock — fires independently of g_button_long_press_handled so it
     // triggers even after the 1.2 s system-menu open has already consumed that flag.
@@ -1035,6 +976,7 @@ void poll_rotary_aux() {
             || (active_screen == SYSTEM_SCREEN && !system_menu_is_active())
 #if PBIT_ENABLE_GRAPH_LAB
             || active_screen == SENSOR_ZONE_SCREEN
+            || active_screen == LAB_HOME_CARDS_SCREEN
 #endif
             ) {
         threshold_ms = MENU_LONG_PRESS_MS;

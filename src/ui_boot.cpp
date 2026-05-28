@@ -5,6 +5,7 @@
 #include "ui_widgets.h" // Para tft
 #include "hw.h"         // Para dev_name
 #include "led_control.h"// Para set_rgb() y play_tone_blocking()
+#include "rotary.h"     // Encoder button pin for boot-time demo detection.
 
 // Include the two logo assets used by the startup animation.
 #include "img_logo_cuadrado.h" 
@@ -84,14 +85,31 @@ static const BootProfile BOOT_PROFILES[] = {
     { BOOT_STEPS_RETRO_ARCADE, sizeof(BOOT_STEPS_RETRO_ARCADE) / sizeof(BOOT_STEPS_RETRO_ARCADE[0]), 2,  720 },
     { BOOT_STEPS_TECH_CLEAN,   sizeof(BOOT_STEPS_TECH_CLEAN) / sizeof(BOOT_STEPS_TECH_CLEAN[0]), 2,  700 },
 };
+
+static bool sample_demo_button(bool enabled) {
+    return enabled && digitalRead((uint8_t)DI_ENCODER_SW) == LOW;
+}
+
+static bool delay_and_sample(int duration_ms, bool detect_encoder_hold) {
+    bool pressed = false;
+    int remaining = duration_ms;
+    while (remaining > 0) {
+        pressed = sample_demo_button(detect_encoder_hold) || pressed;
+        const int chunk = (remaining > 25) ? 25 : remaining;
+        vTaskDelay(pdMS_TO_TICKS(chunk));
+        remaining -= chunk;
+    }
+    return sample_demo_button(detect_encoder_hold) || pressed;
+}
 } // namespace
 
 /**
  * @brief Dibuja la secuencia de arranque (animación, luces y sonido).
  * Esta función es intencionalmente bloqueante y se llama DESDE setup().
  */
-void run_boot_sequence() {
+bool run_boot_sequence(bool detect_encoder_hold) {
     const BootProfile& profile = BOOT_PROFILES[(uint8_t)ACTIVE_BOOT_PROFILE];
+    bool encoder_held = sample_demo_button(detect_encoder_hold);
 
     // --- SECUENCIA DE ARRANQUE "8-BIT" ---
 
@@ -99,26 +117,31 @@ void run_boot_sequence() {
     int x_draw1 = (tft.width() - PBIT_TFT_160X128_2_WIDTH) / 2;
     int y_draw1 = (tft.height() - PBIT_TFT_160X128_2_HEIGHT) / 2;
     tft.pushImage(x_draw1, y_draw1, PBIT_TFT_160X128_2_WIDTH, PBIT_TFT_160X128_2_HEIGHT, (const uint16_t*)PBIT_TFT_160x128_2);
+    encoder_held = sample_demo_button(detect_encoder_hold) || encoder_held;
 
     for (size_t i = 0; i < profile.step_count; ++i) {
         if (i == profile.logo_switch_after_step) {
             int x_draw2 = (tft.width() - POWAR_LOGO_WEB_WIDTH) / 2;
             int y_draw2 = (tft.height() - POWAR_LOGO_WEB_HEIGHT) / 2;
             tft.pushImage(x_draw2, y_draw2, POWAR_LOGO_WEB_WIDTH, POWAR_LOGO_WEB_HEIGHT, (const uint16_t*)POWAR_logo_WEB);
+            encoder_held = sample_demo_button(detect_encoder_hold) || encoder_held;
         }
 
         const BootStep& step = profile.steps[i];
         set_rgb(step.r, step.g, step.b);
+        encoder_held = sample_demo_button(detect_encoder_hold) || encoder_held;
         play_tone_blocking(step.freq_hz, step.tone_ms);
+        encoder_held = sample_demo_button(detect_encoder_hold) || encoder_held;
         if (step.gap_ms > 0) {
-            vTaskDelay(pdMS_TO_TICKS(step.gap_ms));
+            encoder_held = delay_and_sample(step.gap_ms, detect_encoder_hold) || encoder_held;
         }
     }
 
     // Retención final según perfil.
-    vTaskDelay(pdMS_TO_TICKS(profile.final_hold_ms));
+    encoder_held = delay_and_sample(profile.final_hold_ms, detect_encoder_hold) || encoder_held;
 
     // Apagado final
     set_rgb(0, 0, 0);
     tft.fillScreen(TFT_BLACK); // Prepara la pantalla para la UI principal
+    return encoder_held;
 }

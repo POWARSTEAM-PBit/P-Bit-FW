@@ -34,12 +34,19 @@ constexpr int kStackSegments = 11;
 constexpr int kWavePairs = 6;
 constexpr int kWaveHistory = kWavePairs + 1;
 
-// IBMPlexMono_Regular12pt8b at TR_DATUM x=150, y=26.
-// "100%" worst-case width ≈ 76 px, height ≈ 20 px. Keep the clear rect
-// inside the card so it cannot erase the header line or the MIC chip.
-constexpr int kBadgeClearW = 84;
-constexpr int kBadgeClearH = 24;
-constexpr int kSoundCardTop = LC_CARD_TOP + 2;
+// Compact top-right value field. It is intentionally text-only: no badge/card
+// under the number, and the clear rect stays far away from MIC/title/VU chrome.
+constexpr int kValueFieldX = 101;
+constexpr int kValueFieldY = 31;
+constexpr int kValueFieldW = 49;
+constexpr int kValueFieldH = 22;
+constexpr int kValueTextX = kValueFieldX + kValueFieldW - 1;
+constexpr int kValueTextY = kValueFieldY;
+constexpr int kSoundCardTop = LC_CARD_TOP + 3;
+constexpr int kVuCardX = 12;
+constexpr int kVuCardY = 55;
+constexpr int kVuCardW = 136;
+constexpr int kVuCardH = 54;
 
 struct SoundVisual {
     const char* label;
@@ -103,27 +110,30 @@ static void draw_sound_alert_jewel(int cx, int cy, uint8_t alert_code, bool aler
 static void draw_panel_title_chip(int x, int y, int w, uint16_t bg, uint16_t accent, const char* label) {
     (void)w;
     (void)bg;
-    pbit_draw_sound_icon(x + 10, y + 14, accent);
+    pbit_draw_sound_icon(x + 10, y + 17, accent);
     tft.setTextDatum(TL_DATUM);
     tft.setFreeFont(FONT_SMALL);
     tft.setTextColor(TFT_WHITE, kPanel);
-    tft.drawString(label, x + 20, y + 7);
+    tft.drawString(label, x + 20, y + 9);
     tft.setTextFont(0);
 }
 
-static void draw_value_badge(int right_x, int y, bool valid, uint8_t level, uint16_t color) {
-    // Erase the badge area before redraw so shorter strings don't leave ghost digits.
-    tft.fillRect(right_x - kBadgeClearW, y + 1, kBadgeClearW + 4, kBadgeClearH - 2, kBg);
-    tft.setTextDatum(TR_DATUM);
-    tft.setFreeFont(FONT_TIMER);
-    tft.setTextColor(valid ? color : TFT_DARKGREY, kBg);
+static void draw_value_number(bool valid, uint8_t level, uint16_t color) {
     char value_buf[10];
     if (valid) {
         snprintf(value_buf, sizeof(value_buf), "%u%%", (unsigned)level);
     } else {
         snprintf(value_buf, sizeof(value_buf), "--");
     }
-    tft.drawString(value_buf, right_x, y);
+
+    tft.fillRect(kValueFieldX, kValueFieldY, kValueFieldW, kValueFieldH, kPanel);
+    tft.setTextDatum(TR_DATUM);
+    tft.setFreeFont(FONT_HEADER);
+    if (tft.textWidth(value_buf) > kValueFieldW) {
+        tft.setFreeFont(FONT_BODY);
+    }
+    tft.setTextColor(valid ? color : TFT_DARKGREY, kPanel);
+    tft.drawString(value_buf, kValueTextX, kValueTextY);
     tft.setTextFont(0);
 }
 
@@ -220,7 +230,7 @@ static void draw_wave_meter(int x, int center_y, int w, int max_half_h) {
 }
 
 // Card chrome for the stack view: card bg, border, title chip, meter frame, footer, jewel.
-// Does NOT draw the meter sprite or value badge — those update on every sensor sample.
+// Does NOT draw the meter sprite or value number — those update on every sensor sample.
 // Called only on screen_changed or meta_dirty (category / alert / valid state changed).
 static void draw_stack_chrome(const SoundVisual& visual, uint8_t alert_code, bool alerts_enabled) {
     const int card_h = LC_SCREEN_BOTTOM - kSoundCardTop + 1;
@@ -229,8 +239,8 @@ static void draw_stack_chrome(const SoundVisual& visual, uint8_t alert_code, boo
     tft.fillRoundRect(LC_SCREEN_X, kSoundCardTop, LC_SCREEN_W, card_h, LC_CARD_RADIUS, kPanel);
     tft.drawRoundRect(LC_SCREEN_X, kSoundCardTop, LC_SCREEN_W, card_h, LC_CARD_RADIUS, kPanelBorder);
     draw_panel_title_chip(12, 25, 52, kPanelAlt, kNeonGreen, L(LAB_SOUND_SHORT));
-    tft.fillRoundRect(12, 53, 136, 56, 4, TFT_BLACK);
-    tft.drawRoundRect(12, 53, 136, 56, 4, tft.color565(16, 70, 40));
+    tft.fillRoundRect(kVuCardX, kVuCardY, kVuCardW, kVuCardH, 4, TFT_BLACK);
+    tft.drawRoundRect(kVuCardX, kVuCardY, kVuCardW, kVuCardH, 4, tft.color565(16, 70, 40));
     draw_status_footer(visual);
     draw_sound_alert_jewel(14, 119, alert_code, alerts_enabled);
 }
@@ -242,8 +252,8 @@ static void draw_wave_chrome(const SoundVisual& visual, uint8_t alert_code, bool
     tft.fillRoundRect(LC_SCREEN_X, kSoundCardTop, LC_SCREEN_W, card_h, LC_CARD_RADIUS, kPanel);
     tft.drawRoundRect(LC_SCREEN_X, kSoundCardTop, LC_SCREEN_W, card_h, LC_CARD_RADIUS, tft.color565(36, 80, 110));
     draw_panel_title_chip(12, 25, 52, kPanelAlt, kWaveBlue, L(LAB_SOUND_SHORT));
-    tft.fillRoundRect(12, 53, 136, 56, 4, TFT_BLACK);
-    tft.drawRoundRect(12, 53, 136, 56, 4, tft.color565(22, 54, 76));
+    tft.fillRoundRect(kVuCardX, kVuCardY, kVuCardW, kVuCardH, 4, TFT_BLACK);
+    tft.drawRoundRect(kVuCardX, kVuCardY, kVuCardW, kVuCardH, 4, tft.color565(22, 54, 76));
     draw_status_footer(visual);
     draw_sound_alert_jewel(14, 119, alert_code, alerts_enabled);
 }
@@ -287,7 +297,7 @@ void draw_lab_sound_vu_stack_screen(bool screen_changed, bool sensor_data_change
 
     // Asymmetric EWMA for the scrolling history: instant rise, smooth ~250 ms decay.
     // Gives the classic VU "ballistic" feel — meter rises fast, falls gracefully.
-    // The badge value (numeral) always shows the real level, not the smoothed one.
+    // The value numeral always shows the real level, not the smoothed one.
     static float s_stack_smooth = 0.0f;
 
     // meta_dirty: card chrome must refresh (category, alert state, or valid state changed).
@@ -296,7 +306,7 @@ void draw_lab_sound_vu_stack_screen(bool screen_changed, bool sensor_data_change
         || (g_stack_cache.alert_code != alert_code)
         || (g_stack_cache.alerts_enabled != alerts_enabled)
         || (g_stack_cache.category_id != visual.category_id);
-    // badge_dirty: numeral or badge color changed.
+    // badge_dirty: numeral or value color changed.
     const bool badge_dirty = meta_dirty || (g_stack_cache.level != (int)level);
 
     if (screen_changed) {
@@ -304,7 +314,7 @@ void draw_lab_sound_vu_stack_screen(bool screen_changed, bool sensor_data_change
         fill_history(g_stack_history, kStackCols, level);
         draw_stack_shell();
         draw_stack_chrome(visual, alert_code, alerts_enabled);
-        draw_value_badge(150, 25, valid, level, visual.color);
+        draw_value_number(valid, level, visual.color);
         draw_stack_meter(16, 57, 128, 48);
         commit_stack_cache(valid, level, alert_code, alerts_enabled, visual.category_id);
         return;
@@ -326,7 +336,7 @@ void draw_lab_sound_vu_stack_screen(bool screen_changed, bool sensor_data_change
     // regardless of whether the rounded integer changed (fixes the intermittent freeze).
     push_history(g_stack_history, kStackCols, smooth_level);
     if (meta_dirty)  draw_stack_chrome(visual, alert_code, alerts_enabled);
-    if (badge_dirty) draw_value_badge(150, 25, valid, level, visual.color);
+    if (badge_dirty) draw_value_number(valid, level, visual.color);
     draw_stack_meter(16, 57, 128, 48);  // single DMA pushSprite — no chrome flicker
     commit_stack_cache(valid, level, alert_code, alerts_enabled, visual.category_id);
 }
@@ -353,7 +363,7 @@ void draw_lab_sound_vu_wave_screen(bool screen_changed, bool sensor_data_changed
         fill_history(g_wave_history, kWaveHistory, level);
         draw_wave_shell();
         draw_wave_chrome(visual, alert_code, alerts_enabled);
-        draw_value_badge(150, 25, valid, level, visual.color);
+        draw_value_number(valid, level, visual.color);
         draw_wave_meter(16, 81, 128, 20);
         commit_wave_cache(valid, level, alert_code, alerts_enabled, visual.category_id);
         return;
@@ -373,7 +383,7 @@ void draw_lab_sound_vu_wave_screen(bool screen_changed, bool sensor_data_changed
 
     push_history(g_wave_history, kWaveHistory, smooth_wave_level);
     if (meta_dirty)  draw_wave_chrome(visual, alert_code, alerts_enabled);
-    if (badge_dirty) draw_value_badge(150, 25, valid, level, visual.color);
+    if (badge_dirty) draw_value_number(valid, level, visual.color);
     draw_wave_meter(16, 81, 128, 20);
     commit_wave_cache(valid, level, alert_code, alerts_enabled, visual.category_id);
 }

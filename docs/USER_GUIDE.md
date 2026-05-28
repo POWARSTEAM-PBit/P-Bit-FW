@@ -1,6 +1,6 @@
 # Manual de Usuario — P-Bit
 
-Actualizado: 2026-05-24
+Actualizado: 2026-05-26
 Versión firmware: ver `CHANGELOG.md`
 Idiomas de interfaz disponibles: Español, Catalán, English
 
@@ -277,6 +277,21 @@ El tiempo de reposo se configura en `Sistema > Reposo`. Opciones: `30 seg`, `1 m
 
 ---
 
+## 7.1. Modo demo
+
+El Modo demo permite dejar el P-Bit encendido mostrando una rotación automática de pantallas y sensores.
+
+Para activarlo:
+
+1. Mantén presionado el encoder mientras conectas la alimentación USB y durante el logo de arranque.
+2. Suelta el encoder cuando el dispositivo termine de arrancar.
+
+También puedes activarlo desde `Home` con una pulsación larga del encoder.
+
+Durante el Modo demo, el P-Bit recorre pantallas representativas del carrusel cada 6 segundos, anima valores de ejemplo para mostrar el comportamiento visual y bloquea el reposo automático. Para salir, gira o pulsa el encoder una vez. El Modo demo no cambia la configuración guardada del usuario.
+
+---
+
 ## 8. Pantalla de Temperatura
 
 ### Acción rápida (sin menú)
@@ -290,6 +305,7 @@ Pulsación corta: cambia el modo visual del sensor (Focus / Valor / Gráfica / D
 | **Límites** | Define temperatura mínima y máxima para activar alerta |
 | **Unidad** | Elige Celsius o Fahrenheit (global, afecta también a Termómetro) |
 | **Alertas** | Activa o desactiva el aviso automático |
+| **Ver límites** | Muestra u oculta las marcas de rangos en el dial |
 | **Reset** | Restaura límites, unidad y alertas a valores por defecto |
 | **Salir** | Cierra el menú |
 
@@ -315,6 +331,7 @@ Pulsación corta: cambia el modo visual del sensor (Focus / Valor / Gráfica / D
 |---|---|
 | **Rangos** | Define umbrales `Seco` y `Muy húmedo` |
 | **Alertas** | Activa o desactiva el aviso automático |
+| **Ver límites** | Muestra u oculta las marcas de niveles en el dial |
 | **Reset** | Restaura umbrales y alertas a valores por defecto |
 | **Salir** | Cierra el menú |
 
@@ -340,7 +357,7 @@ El rango entre `Seco` y `Muy húmedo` se interpreta automáticamente como `Ópti
 | Opción | Qué hace |
 |---|---|
 | **Rangos** | Define umbrales `Max penumbra`, `Max interior`, `Max brillante` |
-| **Modo lectura** | Elige entre `Lux`, `% log` o `Raw ADC` |
+| **Modo** | En la pantalla clásica de Luz, elige entre `Lux`, `% log` o `Raw ADC` para el valor grande |
 | **Alertas** | Activa o desactiva el aviso automático |
 | **Reset** | Restaura rangos y modo a valores por defecto |
 | **Salir** | Cierra el menú |
@@ -484,12 +501,12 @@ Sistema es el centro de ajustes globales del dispositivo.
 
 ### Lo que muestra
 
-- ID del dispositivo (`PBIT-XXXX`, derivado de la MAC)
+- ID del dispositivo (`PBIT-XXXX`, derivado de la MAC), en una línea compacta
 - Tiempo de encendido (`Uptime`)
 - Idioma activo
 - Estado de `Bip`
 - Estado de `Alarmas`
-- Estado de BLE (solo si está activado)
+- Indicador BLE compacto, solo si está activado
 
 ### Acción rápida (sin menú)
 
@@ -534,6 +551,7 @@ El P-Bit tiene dos canales de audio independientes.
 - Confirmación al pulsar y guardar.
 - Retroalimentación de navegación.
 - Se controla con `Sistema > Bip` o con pulsación corta en la pantalla de Sistema.
+- En una build nueva o tras `Reset`, queda en `OFF` por defecto.
 
 ### Alarmas
 
@@ -541,12 +559,13 @@ El P-Bit tiene dos canales de audio independientes.
 - Melodías del sensor de suelo al cambiar de categoría.
 - Alarma al terminar una cuenta regresiva del Timer.
 - Se controla con `Sistema > Alarmas`.
+- En una build nueva o tras `Reset`, queda en `OFF` por defecto.
 
 ---
 
 ## 17. LED RGB
 
-El LED RGB indica el estado del dispositivo y las alertas activas.
+El LED RGB indica el estado visible del dispositivo. En diales y tarjetas sigue el mismo significado de color que la pantalla; en vistas de solo Luz permanece apagado para no alterar el LDR.
 
 | Pantalla | Color LED | Significado |
 |---|---|---|

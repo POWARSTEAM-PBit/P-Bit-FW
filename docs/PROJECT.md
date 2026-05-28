@@ -35,7 +35,7 @@ El P-Bit existe para que niños, docentes y educadores puedan:
 | MCU | ESP32 (módulo Dev) |
 | Framework | Arduino via PlatformIO |
 | RAM usada | ~14.7 % (48 KB de 328 KB) |
-| Flash usada | ~71.0 % (931 KB de 1280 KB) |
+| Flash usada | 71.5 % (936653 bytes de 1310720) |
 
 ### Pantalla
 
@@ -189,6 +189,7 @@ El idioma se selecciona en el primer encendido y puede cambiarse desde `Sistema 
 - El LDR no es un luxómetro calibrado. El rango 0..20 000 lux está acotado por firmware; no sustituye un instrumento certificado.
 - El micrófono mide intensidad relativa (0..100 %), no decibelios SPL absolutos.
 - El deep sleep automático está desactivado porque en esta revisión de hardware la TFT queda en blanco al dormir. El reposo actual muestra una pantalla `ZZZ`.
+- El Modo demo es runtime: se activa encendiendo con el encoder presionado durante el logo o con pulsación larga desde `Home`, muestra una señal visual breve, rota pantallas del carrusel y no modifica preferencias guardadas.
 - BLE sale apagado de fábrica y no forma parte del flujo normal de aula.
 - Las validaciones físicas sobre hardware real (ausencia de flicker, calibración RGB, confirmación BLE off) están pendientes de verificación sobre unidad física.
 
@@ -198,12 +199,12 @@ El idioma se selecciona en el primer encendido y puede cambiarse desde `Sistema 
 
 ```
 setup()
-  └── init sensores, TFT, BLE (condicional), encoder, NVS, idioma, FreeRTOS
+  └── init NVS, sensores, TFT, BLE condicional, idioma, Sensor Zone, encoder, demo runtime, FreeRTOS
 
 FreeRTOS
   ├── Core 0: sensor_reading_task  →  leer sensores → global_readings → BLE/Serial
   ├── Core 1: switch_screen        →  router visual, overlays, refresco selectivo
-  └── Loop:   encoder + buzzer + lógica de inactividad
+  └── Loop:   encoder + buzzer + demo runtime + lógica de inactividad
 ```
 
 La comunicación entre tareas usa secciones críticas (`portMUX`) y flags de runtime (`runtime_events`).

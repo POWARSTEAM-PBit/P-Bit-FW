@@ -10,6 +10,7 @@
 #include "languages.h"
 #include "fonts.h"
 #include "layout.h"
+#include "palette.h"
 #include "ui_icons.h"
 
 #include <Arduino.h>
@@ -59,6 +60,13 @@ static bool g_last_hum_valid = false;
 static uint16_t g_last_temp_panel_color = TFT_DARKGREY;
 static uint16_t g_last_hum_panel_color = TFT_DARKGREY;
 static bool g_last_unit_mode = false;
+
+struct ClimateFooterState {
+    LangKey key;
+    uint16_t color;
+};
+
+static ClimateFooterState g_last_footer_state = {LANG_KEY_COUNT, TFT_DARKGREY};
 
 static float to_display_temp(float temp_c) {
     return g_is_fahrenheit ? (temp_c * 1.8f + 32.0f) : temp_c;
@@ -115,9 +123,8 @@ static uint16_t footer_bg_color() {
     return tft.color565(14, 6, 24);
 }
 
-static void draw_climate_footer(float temp_c, bool no_temp, float hum, bool no_hum) {
-    const char* footer_text = L(ST_NO_SENSOR);
-    uint16_t footer_color = TFT_DARKGREY;
+static ClimateFooterState climate_footer_state(float temp_c, bool no_temp, float hum, bool no_hum) {
+    ClimateFooterState state = {ST_NO_SENSOR, TFT_DARKGREY};
 
     if (!no_temp && !no_hum) {
         const int hum_dry_max = get_humidity_threshold_dry();
@@ -126,34 +133,49 @@ static void draw_climate_footer(float temp_c, bool no_temp, float hum, bool no_h
         const int temp_high = get_temp_alarm_high();
 
         if (hum > (float)hum_comfort_max) {
-            footer_text = L(ST_MOLD_RISK);
-            footer_color = TFT_RED;
+            state = {ST_MOLD_RISK, TFT_RED};
         } else if (hum < (float)hum_dry_max) {
-            footer_text = L(ST_TOO_DRY);
-            footer_color = TFT_ORANGE;
+            state = {ST_TOO_DRY, TFT_ORANGE};
         } else if (temp_c < (float)temp_low) {
-            footer_text = L(ST_CLIMATE_FRESH);
-            footer_color = tft.color565(72, 212, 255);
+            state = {ST_CLIMATE_FRESH, tft.color565(72, 212, 255)};
         } else if (temp_c > (float)temp_high) {
-            footer_text = L(ST_CLIMATE_WARM);
-            footer_color = tft.color565(255, 182, 64);
+            state = {ST_CLIMATE_WARM, tft.color565(255, 182, 64)};
         } else {
-            footer_text = L(ST_OPTIMAL);
-            footer_color = TFT_GREEN;
+            state = {ST_OPTIMAL, TFT_GREEN};
         }
     }
+    return state;
+}
 
+static void draw_climate_footer_shell() {
     const uint16_t bg = footer_bg_color();
     const uint16_t card_border = tft.color565(160, 0, 255);
     tft.fillRect(kFooterX - 1, kFooterY - 1, kFooterW + 2, kFooterH + 2, TFT_BLACK);
     tft.fillRoundRect(kFooterX, kFooterY, kFooterW, kFooterH, 4, bg);
     tft.drawRoundRect(kFooterX, kFooterY, kFooterW, kFooterH, 4, card_border);
-    tft.fillCircle(kFooterX + 8, kFooterY + (kFooterH / 2), 2, footer_color);
+}
+
+static void draw_climate_footer_content(const ClimateFooterState& state) {
+    const uint16_t bg = footer_bg_color();
+    tft.fillRect(kFooterX + 4, kFooterY + 3, kFooterW - 8, kFooterH - 6, bg);
+    tft.fillCircle(kFooterX + 8, kFooterY + (kFooterH / 2), 2, state.color);
     tft.setTextDatum(MC_DATUM);
     tft.setFreeFont(FONT_SMALL);
-    tft.setTextColor(footer_color, bg);
-    tft.drawString(footer_text, kFooterTextCx, kFooterTextCy);
+    tft.setTextColor(state.color, bg);
+    tft.drawString(L(state.key), kFooterTextCx, kFooterTextCy);
     tft.setTextFont(0);
+}
+
+static void draw_climate_footer(float temp_c, bool no_temp, float hum, bool no_hum, bool redraw_shell) {
+    const ClimateFooterState state = climate_footer_state(temp_c, no_temp, hum, no_hum);
+    if (redraw_shell) {
+        draw_climate_footer_shell();
+        g_last_footer_state = {LANG_KEY_COUNT, TFT_DARKGREY};
+    }
+    if (redraw_shell || state.key != g_last_footer_state.key || state.color != g_last_footer_state.color) {
+        draw_climate_footer_content(state);
+        g_last_footer_state = state;
+    }
 }
 
 static void draw_panel_frame(int x, int y, int w, int h, uint16_t color) {
@@ -229,14 +251,14 @@ static void draw_temp_panel(bool redraw_shell, bool redraw_content, bool no_sens
         draw_temp_shell(x, y, kPanelW, kPanelH, panel_color, title_color, unit_color, no_sensor);
     }
     if (redraw_content) {
-        draw_temp_content(x, y, kPanelW, kPanelH, temp_display, no_sensor, value_color, panel_color);
+        draw_temp_content(x, y, kPanelW, kPanelH, temp_display, no_sensor, value_color, temp_shell_color(g_ui_readings_snapshot.temperature, !no_sensor));
     }
 }
 
 static void draw_humidity_shell(int x, int y, int w, int h, uint16_t panel_color, uint16_t title_color, uint16_t unit_color, bool no_sensor) {
     clear_panel_interior(x, y, w, h);
     draw_panel_frame(x, y, w, h, panel_color);
-    pbit_draw_humidity_icon(x + 12, y + 14, unit_color);
+    pbit_draw_humidity_icon(x + 12, y + 12, unit_color);
     draw_panel_title_centered(x, y, w, short_panel_title(true), title_color);
     draw_panel_unit(x, y, w, no_sensor ? "" : "%", unit_color);
 }
@@ -270,7 +292,7 @@ static void draw_humidity_panel(bool redraw_shell, bool redraw_content, bool no_
         draw_humidity_shell(x, y, kPanelW, kPanelH, panel_color, title_color, unit_color, no_sensor);
     }
     if (redraw_content) {
-        draw_humidity_content(x, y, kPanelW, kPanelH, hum_value, no_sensor, value_color, panel_color);
+        draw_humidity_content(x, y, kPanelW, kPanelH, hum_value, no_sensor, value_color, humidity_color(hum_value));
     }
 }
 
@@ -284,17 +306,17 @@ void draw_lab_dual_th_screen(bool screen_changed, bool sensor_data_changed) {
     const bool no_hum = isnan(hum);
     const int temp_key = no_temp ? INT_MIN : (int)lroundf(to_display_temp(temp_c) * 10.0f);
     const int hum_key = no_hum ? INT_MIN : (int)lroundf(hum * 10.0f);
-    const uint16_t temp_panel_color = temp_shell_color(temp_c, !no_temp);
-    const uint16_t hum_panel_color = humidity_color(hum);
-    const uint16_t temp_title_color = no_temp ? TFT_DARKGREY : temp_panel_color;
+    const uint16_t temp_panel_color = no_temp ? TFT_DARKGREY : PB_TEMP_P1;
+    const uint16_t hum_panel_color = no_hum ? TFT_DARKGREY : PB_HUM_P1;
+    const uint16_t temp_title_color = no_temp ? TFT_DARKGREY : PB_TEMP_P1;
     const uint16_t temp_value_col = temp_value_color(temp_c, !no_temp);
     const uint16_t temp_unit_col = temp_unit_color(!no_temp);
-    const uint16_t hum_title_color = no_hum ? TFT_DARKGREY : hum_panel_color;
+    const uint16_t hum_title_color = no_hum ? TFT_DARKGREY : PB_HUM_P1;
     const uint16_t hum_value_col = hum_value_color(!no_hum);
     const uint16_t hum_unit_col = hum_unit_color(!no_hum);
     const bool unit_changed = (g_last_unit_mode != g_is_fahrenheit);
-    const bool temp_shell_changed = screen_changed || unit_changed || (temp_panel_color != g_last_temp_panel_color) || (no_temp != g_last_temp_valid);
-    const bool hum_shell_changed = screen_changed || (hum_panel_color != g_last_hum_panel_color) || (no_hum != g_last_hum_valid);
+    const bool temp_shell_changed = screen_changed || unit_changed || (no_temp != g_last_temp_valid);
+    const bool hum_shell_changed = screen_changed || (no_hum != g_last_hum_valid);
     const bool temp_changed = screen_changed || unit_changed || (temp_key != g_last_temp_key) || (no_temp != g_last_temp_valid);
     const bool hum_changed = screen_changed || (hum_key != g_last_hum_key) || (no_hum != g_last_hum_valid);
 
@@ -305,7 +327,6 @@ void draw_lab_dual_th_screen(bool screen_changed, bool sensor_data_changed) {
     if (screen_changed) {
         tft.fillScreen(TFT_BLACK);
         drawHeader(L(TIT_LAB_DUAL_TH));
-        tft.drawFastVLine(kCenterX, kPanelY, kPanelH, TFT_DARKGREY);
     }
 
     if (temp_shell_changed) {
@@ -321,7 +342,7 @@ void draw_lab_dual_th_screen(bool screen_changed, bool sensor_data_changed) {
     }
 
     if (screen_changed || temp_changed || hum_changed) {
-        draw_climate_footer(temp_c, no_temp, hum, no_hum);
+        draw_climate_footer(temp_c, no_temp, hum, no_hum, screen_changed);
     }
 
     g_last_temp_key = temp_key;

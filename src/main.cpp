@@ -31,6 +31,7 @@
 #include "layout.h"
 #include "runtime_events.h"
 #include "alert_engine.h"
+#include "demo_mode.h"
 #if PBIT_ENABLE_GRAPH_LAB
 #include "sensor_zone.h"
 #endif
@@ -202,10 +203,12 @@ void setup() {
     init_leds_and_buzzer();
     alert_engine_reset();
     init_hw();
+    pinMode((uint8_t)DI_ENCODER_SW, INPUT_PULLUP);
+    bool demo_boot_requested = (digitalRead((uint8_t)DI_ENCODER_SW) == LOW);
 
     // BLE is factory-disabled. The build-hash reset above clears ble_en on every
     // new flash, so the device always ships with BLE off until unlocked via the
-    // secret 60 s hold gesture on SYSTEM_SCREEN.
+    // secret 30 s hold gesture on SYSTEM_SCREEN.
     if (load_ble_enabled_store()) {
         init_ble();
     }
@@ -238,12 +241,14 @@ void setup() {
 
         default : // Cold boot / power-on
             DPRINTLN("[Power] Cold Boot detected. Running boot sequence.");
-            run_boot_sequence();
+            demo_boot_requested = run_boot_sequence(true) || demo_boot_requested;
             active_screen = FIRST_APP_SCREEN;
             runtime_set_last_active_screen_before_sleep(active_screen);
             g_power_mode = POWER_ACTIVE;
             persistPowerState(POWER_ACTIVE, SLEEP_INTENT_NONE);
-            if (settings_wiped) {
+            if (demo_boot_requested) {
+                loadLanguage();
+            } else if (settings_wiped) {
                 // First boot with this firmware version — force language selection.
                 showLanguageMenu();
             } else {
@@ -264,6 +269,9 @@ void setup() {
 
     // Reconfigure the encoder for the main app after boot/restore flow.
     init_rotary();
+    if (demo_boot_requested && wakeup_reason != ESP_SLEEP_WAKEUP_EXT0) {
+        demo_mode_start();
+    }
 
     // Start the inactivity timer only once the app is fully ready.
     // This avoids carrying boot/menu time into the sleep scheduler.
@@ -301,6 +309,7 @@ void loop() {
     rotaryEncoder.loop();
     poll_rotary_aux();
     loop_buzzer(); 
+    demo_mode_service();
     
     unsigned long inactivity_time = now_ms() - g_last_activity_ms;
 
@@ -312,7 +321,7 @@ void loop() {
             ? (sleep_timeout_ms - SLEEP_WARNING_MS)
             : sleep_timeout_ms;
     }
-    bool block_sleep = settings_ui_active() || userTimerRunning || !auto_sleep_enabled;
+    bool block_sleep = settings_ui_active() || userTimerRunning || demo_mode_is_active() || !auto_sleep_enabled;
 
     if (g_power_mode == POWER_ACTIVE && inactivity_time >= idle_timeout_ms && !block_sleep) {
         enterIdleMode();

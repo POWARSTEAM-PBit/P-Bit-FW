@@ -326,16 +326,16 @@ static void draw_soil_calibration_screen() {
     if (state_changed) {
         switch (g_soil_cal_state) {
             case SOIL_CAL_DONE:
-                drawCenteredMenuFrame(L(ST_SOIL_CAL_SAVED), TFT_GREEN, L(ST_PUSH_MENU));
+                drawCenteredMenuFrame(L(ST_SOIL_CAL_SAVED), TFT_MAGENTA, L(ST_PUSH_MENU));
                 break;
             case SOIL_CAL_RESET_DONE:
-                drawCenteredMenuFrame(L(MENU_RESET_DONE), TFT_GREEN, L(ST_PUSH_MENU));
+                drawCenteredMenuFrame(L(MENU_RESET_DONE), TFT_MAGENTA, L(ST_PUSH_MENU));
                 break;
             case SOIL_CAL_THRESH_DONE:
-                drawCenteredMenuFrame(L(ST_SOIL_THRESH_SAVED), TFT_GREEN, L(ST_PUSH_MENU));
+                drawCenteredMenuFrame(L(ST_SOIL_THRESH_SAVED), TFT_MAGENTA, L(ST_PUSH_MENU));
                 break;
             case SOIL_CAL_ALERTS_DONE:
-                drawCenteredMenuFrame(L(MENU_SAVED), TFT_GREEN, L(ST_PUSH_MENU));
+                drawCenteredMenuFrame(L(MENU_SAVED), TFT_MAGENTA, L(ST_PUSH_MENU));
                 break;
             case SOIL_CAL_ERROR:
                 drawCenteredMenuFrame(L(ST_SOIL_CAL_ERROR), TFT_RED, L(ST_PUSH_MENU));

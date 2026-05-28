@@ -42,6 +42,7 @@ constexpr int SOUND_THRESH_DEFAULT_QUIET_MAX = 20;
 constexpr int SOUND_THRESH_DEFAULT_NORMAL_MAX = 60;
 constexpr int SOUND_THRESH_DEFAULT_LOUD_MAX = 85;
 constexpr bool SOUND_ALERTS_DEFAULT_ENABLED = false;
+constexpr bool SOUND_RANGE_MARKS_DEFAULT_VISIBLE = false;
 constexpr int TEMP_THRESH_DEFAULT_LOW = 18;
 constexpr int TEMP_THRESH_DEFAULT_HIGH = 28;
 constexpr bool TEMP_ALERTS_DEFAULT_ENABLED = false;
@@ -50,15 +51,17 @@ constexpr int LIGHT_THRESH_DEFAULT_INDOOR_MAX = 500;
 constexpr int LIGHT_THRESH_DEFAULT_BRIGHT_MAX = 2000;
 constexpr uint8_t LIGHT_DISPLAY_MODE_DEFAULT = 0;
 constexpr bool LIGHT_ALERTS_DEFAULT_ENABLED = true;
+constexpr bool LIGHT_RANGE_MARKS_DEFAULT_VISIBLE = false;
 constexpr uint32_t SYSTEM_DEFAULT_SLEEP_TIMEOUT_MS = DEEP_SLEEP_TIMEOUT_MS;
-constexpr bool SYSTEM_DEFAULT_SOUND_ENABLED = true;
-constexpr bool SYSTEM_DEFAULT_ALARM_SOUND_ENABLED = true;
+constexpr bool SYSTEM_DEFAULT_SOUND_ENABLED = false;
+constexpr bool SYSTEM_DEFAULT_ALARM_SOUND_ENABLED = false;
 constexpr bool SYSTEM_DEFAULT_FAHRENHEIT = false;
 
 static int g_sound_thresh_quiet_max = SOUND_THRESH_DEFAULT_QUIET_MAX;
 static int g_sound_thresh_normal_max = SOUND_THRESH_DEFAULT_NORMAL_MAX;
 static int g_sound_thresh_loud_max = SOUND_THRESH_DEFAULT_LOUD_MAX;
 static bool g_sound_alerts_enabled = SOUND_ALERTS_DEFAULT_ENABLED;
+static bool g_sound_range_marks_visible = SOUND_RANGE_MARKS_DEFAULT_VISIBLE;
 static int g_temp_thresh_low = TEMP_THRESH_DEFAULT_LOW;
 static int g_temp_thresh_high = TEMP_THRESH_DEFAULT_HIGH;
 static bool g_temp_alerts_enabled = TEMP_ALERTS_DEFAULT_ENABLED;
@@ -67,6 +70,7 @@ static int g_light_thresh_indoor_max = LIGHT_THRESH_DEFAULT_INDOOR_MAX;
 static int g_light_thresh_bright_max = LIGHT_THRESH_DEFAULT_BRIGHT_MAX;
 static uint8_t g_light_display_mode = LIGHT_DISPLAY_MODE_DEFAULT;
 static bool g_light_alerts_enabled = LIGHT_ALERTS_DEFAULT_ENABLED;
+static bool g_light_range_marks_visible = LIGHT_RANGE_MARKS_DEFAULT_VISIBLE;
 static uint32_t g_system_sleep_timeout_ms = SYSTEM_DEFAULT_SLEEP_TIMEOUT_MS;
 
 static bool is_valid_sleep_timeout(uint32_t timeout_ms) {
@@ -367,11 +371,13 @@ void load_sound_settings() {
         SOUND_THRESH_DEFAULT_QUIET_MAX,
         SOUND_THRESH_DEFAULT_NORMAL_MAX,
         SOUND_THRESH_DEFAULT_LOUD_MAX,
-        SOUND_ALERTS_DEFAULT_ENABLED);
+        SOUND_ALERTS_DEFAULT_ENABLED,
+        SOUND_RANGE_MARKS_DEFAULT_VISIBLE);
     int quiet_max = stored.quiet_max;
     int normal_max = stored.normal_max;
     int loud_max = stored.loud_max;
     bool alerts_enabled = stored.alerts_enabled;
+    bool range_marks_visible = stored.range_marks_visible;
 
     if (quiet_max >= 0 && loud_max <= 100 && quiet_max < normal_max && normal_max < loud_max) {
         g_sound_thresh_quiet_max = quiet_max;
@@ -383,6 +389,7 @@ void load_sound_settings() {
         g_sound_thresh_loud_max = SOUND_THRESH_DEFAULT_LOUD_MAX;
     }
     g_sound_alerts_enabled = alerts_enabled;
+    g_sound_range_marks_visible = range_marks_visible;
 }
 
 bool save_sound_settings(int quiet_max, int normal_max, int loud_max) {
@@ -391,10 +398,12 @@ bool save_sound_settings(int quiet_max, int normal_max, int loud_max) {
     }
 
     save_sound_settings_store(quiet_max, normal_max, loud_max);
+    save_sound_range_marks_visible_store(true);
 
     g_sound_thresh_quiet_max = quiet_max;
     g_sound_thresh_normal_max = normal_max;
     g_sound_thresh_loud_max = loud_max;
+    g_sound_range_marks_visible = true;
     return true;
 }
 
@@ -404,21 +413,29 @@ void reset_sound_settings() {
         SOUND_THRESH_DEFAULT_NORMAL_MAX,
         SOUND_THRESH_DEFAULT_LOUD_MAX);
     save_sound_alerts_enabled_store(SOUND_ALERTS_DEFAULT_ENABLED);
+    save_sound_range_marks_visible_store(SOUND_RANGE_MARKS_DEFAULT_VISIBLE);
 
     g_sound_thresh_quiet_max = SOUND_THRESH_DEFAULT_QUIET_MAX;
     g_sound_thresh_normal_max = SOUND_THRESH_DEFAULT_NORMAL_MAX;
     g_sound_thresh_loud_max = SOUND_THRESH_DEFAULT_LOUD_MAX;
     g_sound_alerts_enabled = SOUND_ALERTS_DEFAULT_ENABLED;
+    g_sound_range_marks_visible = SOUND_RANGE_MARKS_DEFAULT_VISIBLE;
 }
 
 int get_sound_threshold_quiet() { return g_sound_thresh_quiet_max; }
 int get_sound_threshold_normal() { return g_sound_thresh_normal_max; }
 int get_sound_threshold_loud() { return g_sound_thresh_loud_max; }
 bool get_sound_alerts_enabled() { return g_sound_alerts_enabled; }
+bool get_sound_range_marks_visible() { return g_sound_range_marks_visible; }
 
 void set_sound_alerts_enabled(bool enabled) {
     save_sound_alerts_enabled_store(enabled);
     g_sound_alerts_enabled = enabled;
+}
+
+void set_sound_range_marks_visible(bool visible) {
+    save_sound_range_marks_visible_store(visible);
+    g_sound_range_marks_visible = visible;
 }
 
 void load_temp_settings() {
@@ -476,12 +493,14 @@ void load_light_settings() {
         LIGHT_THRESH_DEFAULT_INDOOR_MAX,
         LIGHT_THRESH_DEFAULT_BRIGHT_MAX,
         LIGHT_DISPLAY_MODE_DEFAULT,
-        LIGHT_ALERTS_DEFAULT_ENABLED);
+        LIGHT_ALERTS_DEFAULT_ENABLED,
+        LIGHT_RANGE_MARKS_DEFAULT_VISIBLE);
     int dim_max = stored.dim_max;
     int indoor_max = stored.indoor_max;
     int bright_max = stored.bright_max;
     uint8_t display_mode = stored.display_mode;
     bool alerts_enabled = stored.alerts_enabled;
+    bool range_marks_visible = stored.range_marks_visible;
 
     if (dim_max >= 10 && bright_max <= 10000 && dim_max < indoor_max && indoor_max < bright_max) {
         g_light_thresh_dim_max = dim_max;
@@ -494,6 +513,7 @@ void load_light_settings() {
     }
     g_light_display_mode = (display_mode <= 2) ? display_mode : LIGHT_DISPLAY_MODE_DEFAULT;
     g_light_alerts_enabled = alerts_enabled;
+    g_light_range_marks_visible = range_marks_visible;
 }
 
 bool save_light_settings(int dim_max, int indoor_max, int bright_max) {
@@ -502,10 +522,12 @@ bool save_light_settings(int dim_max, int indoor_max, int bright_max) {
     }
 
     save_light_thresholds_store(dim_max, indoor_max, bright_max);
+    save_light_range_marks_visible_store(true);
 
     g_light_thresh_dim_max = dim_max;
     g_light_thresh_indoor_max = indoor_max;
     g_light_thresh_bright_max = bright_max;
+    g_light_range_marks_visible = true;
     return true;
 }
 
@@ -516,12 +538,14 @@ void reset_light_settings() {
         LIGHT_THRESH_DEFAULT_BRIGHT_MAX);
     save_light_display_mode_store(LIGHT_DISPLAY_MODE_DEFAULT);
     save_light_alerts_enabled_store(LIGHT_ALERTS_DEFAULT_ENABLED);
+    save_light_range_marks_visible_store(LIGHT_RANGE_MARKS_DEFAULT_VISIBLE);
 
     g_light_thresh_dim_max = LIGHT_THRESH_DEFAULT_DIM_MAX;
     g_light_thresh_indoor_max = LIGHT_THRESH_DEFAULT_INDOOR_MAX;
     g_light_thresh_bright_max = LIGHT_THRESH_DEFAULT_BRIGHT_MAX;
     g_light_display_mode = LIGHT_DISPLAY_MODE_DEFAULT;
     g_light_alerts_enabled = LIGHT_ALERTS_DEFAULT_ENABLED;
+    g_light_range_marks_visible = LIGHT_RANGE_MARKS_DEFAULT_VISIBLE;
 }
 
 int get_light_threshold_dim() { return g_light_thresh_dim_max; }
@@ -535,10 +559,16 @@ void set_light_display_mode(uint8_t mode) {
 }
 
 bool get_light_alerts_enabled() { return g_light_alerts_enabled; }
+bool get_light_range_marks_visible() { return g_light_range_marks_visible; }
 
 void set_light_alerts_enabled(bool enabled) {
     save_light_alerts_enabled_store(enabled);
     g_light_alerts_enabled = enabled;
+}
+
+void set_light_range_marks_visible(bool visible) {
+    save_light_range_marks_visible_store(visible);
+    g_light_range_marks_visible = visible;
 }
 
 void load_system_settings() {
@@ -615,6 +645,7 @@ void reset_all_settings() {
     g_sound_thresh_normal_max = SOUND_THRESH_DEFAULT_NORMAL_MAX;
     g_sound_thresh_loud_max = SOUND_THRESH_DEFAULT_LOUD_MAX;
     g_sound_alerts_enabled = SOUND_ALERTS_DEFAULT_ENABLED;
+    g_sound_range_marks_visible = SOUND_RANGE_MARKS_DEFAULT_VISIBLE;
     g_temp_thresh_low = TEMP_THRESH_DEFAULT_LOW;
     g_temp_thresh_high = TEMP_THRESH_DEFAULT_HIGH;
     g_temp_alerts_enabled = TEMP_ALERTS_DEFAULT_ENABLED;
@@ -623,6 +654,7 @@ void reset_all_settings() {
     g_light_thresh_bright_max = LIGHT_THRESH_DEFAULT_BRIGHT_MAX;
     g_light_display_mode = LIGHT_DISPLAY_MODE_DEFAULT;
     g_light_alerts_enabled = LIGHT_ALERTS_DEFAULT_ENABLED;
+    g_light_range_marks_visible = LIGHT_RANGE_MARKS_DEFAULT_VISIBLE;
     g_system_sleep_timeout_ms = SYSTEM_DEFAULT_SLEEP_TIMEOUT_MS;
     g_sound_enabled = SYSTEM_DEFAULT_SOUND_ENABLED;
     g_alarm_sound_enabled = SYSTEM_DEFAULT_ALARM_SOUND_ENABLED;

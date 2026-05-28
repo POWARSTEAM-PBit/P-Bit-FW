@@ -1,6 +1,6 @@
 # Production Release P-Bit
 
-Actualizado: 2026-05-24
+Actualizado: 2026-05-26
 
 ## Build Local
 
@@ -12,11 +12,11 @@ py -m platformio run -e esp32dev
 
 Última verificación local de esta revisión:
 
-- Fecha: 2026-05-20
+- Fecha: 2026-05-26
 - Comando: `py -m platformio run -e esp32dev`
 - Resultado: `SUCCESS`
-- RAM: `14.7%` (`48124` bytes de `327680`)
-- Flash: `71.0%` (`931193` bytes de `1310720`)
+- RAM: `14.7%` (`48132` bytes de `327680`)
+- Flash: `71.5%` (`936653` bytes de `1310720`)
 
 Artefactos generados en `.pio/build/esp32dev/`:
 
@@ -56,9 +56,10 @@ Confirmado por lectura de código:
 - BLE sale factory-off: `ble_en` carga `false`, `init_ble()` es condicional y el reset por build-hash limpia NVS antes de evaluar BLE en una build nueva.
 - LDR entrega lux en rango `0..20000`, conserva `ldr_raw` y soporta modo visible `Raw ADC`.
 - Sensor Zone centraliza los seis sensores y sus modos visuales persistidos.
-- `Sistema` separa `Bip` (`sys_sound`) y `Alarmas` (`sys_alarm`) con persistencia independiente.
+- `Sistema` separa `Bip` (`sys_sound`) y `Alarmas` (`sys_alarm`) con persistencia independiente; ambos vuelven `OFF` por defecto tras build/reset.
 - Unidad global `C/F` persistida en `sys_unit_f`.
-- Fixes anti-flicker presentes en dials/gauges, cards, menús/footers y `Sound VU`.
+- Fixes anti-flicker presentes en dials/gauges, cards, menús/footers, banda de estado en cards y `Sound VU`.
+- Modo demo runtime activable en arranque con encoder presionado durante el logo o con pulsación larga desde `Home`; muestra splash breve, simula valores solo en el snapshot visual, no persiste sensor/modo en NVS y bloquea reposo mientras está activo.
 
 ## Artefactos De Release
 
@@ -91,4 +92,5 @@ Después de flashear una unidad:
 - [ ] Revisar icono DS18B20 en hardware; no tratarlo como identidad final hasta aprobarlo visualmente.
 - [ ] Confirmar que `Sound VU`, cards y dials no presentan flicker visible en uso normal.
 - [ ] Dejar 30 minutos en reposo visible y confirmar que despierta con el encoder.
+- [ ] Activar Modo demo encendiendo con encoder presionado durante el logo y también con pulsación larga desde `Home`; confirmar salida con giro/pulsación.
 - [ ] Para lote piloto, hacer prueba de 24 h con BLE apagado y otra con BLE activado.

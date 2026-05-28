@@ -124,6 +124,7 @@ static int g_sound_quiet_max = 20;
 static int g_sound_normal_max = 60;
 static int g_sound_loud_max = 85;
 static bool g_sound_alerts_enabled = false;
+static bool g_sound_marks_visible = false;
 static uint8_t g_sound_reset_choice = 0;
 
 static void request_sound_redraw(bool force_full = false) {
@@ -137,6 +138,7 @@ void start_sound_menu() {
     g_sound_normal_max = get_sound_threshold_normal();
     g_sound_loud_max = get_sound_threshold_loud();
     g_sound_alerts_enabled = get_sound_alerts_enabled();
+    g_sound_marks_visible = get_sound_range_marks_visible();
     g_sound_reset_choice = 0;
     request_sound_redraw(true);
 }
@@ -156,6 +158,7 @@ int get_sound_encoder_min() {
         case SOUND_MODE_EDIT_NORMAL: return g_sound_quiet_max + 1;
         case SOUND_MODE_EDIT_LOUD: return g_sound_normal_max + 1;
         case SOUND_MODE_EDIT_ALERTS: return 0;
+        case SOUND_MODE_EDIT_MARKS: return 0;
         case SOUND_MODE_CONFIRM_RESET: return 0;
         default: return 0;
     }
@@ -163,11 +166,12 @@ int get_sound_encoder_min() {
 
 int get_sound_encoder_max() {
     switch (g_sound_menu_state) {
-        case SOUND_MODE_MENU: return 3; // calibracion, alertas, reset, salir
+        case SOUND_MODE_MENU: return 4; // niveles, alertas, ver limites, reset, salir
         case SOUND_MODE_EDIT_QUIET: return g_sound_normal_max - 1;
         case SOUND_MODE_EDIT_NORMAL: return g_sound_loud_max - 1;
         case SOUND_MODE_EDIT_LOUD: return 100;
         case SOUND_MODE_EDIT_ALERTS: return 1;
+        case SOUND_MODE_EDIT_MARKS: return 1;
         case SOUND_MODE_CONFIRM_RESET: return 1;
         default: return 0;
     }
@@ -180,6 +184,7 @@ int get_sound_encoder_value() {
         case SOUND_MODE_EDIT_NORMAL: return g_sound_normal_max;
         case SOUND_MODE_EDIT_LOUD: return g_sound_loud_max;
         case SOUND_MODE_EDIT_ALERTS: return g_sound_alerts_enabled ? 1 : 0;
+        case SOUND_MODE_EDIT_MARKS: return g_sound_marks_visible ? 1 : 0;
         case SOUND_MODE_CONFIRM_RESET: return g_sound_reset_choice;
         default: return 0;
     }
@@ -219,6 +224,12 @@ void set_sound_input_value(int value) {
                 request_sound_redraw();
             }
             break;
+        case SOUND_MODE_EDIT_MARKS:
+            if (next != (g_sound_marks_visible ? 1 : 0)) {
+                g_sound_marks_visible = (next == 1);
+                request_sound_redraw();
+            }
+            break;
         case SOUND_MODE_CONFIRM_RESET:
             if ((uint8_t)next != g_sound_reset_choice) {
                 g_sound_reset_choice = (uint8_t)next;
@@ -240,6 +251,8 @@ uint8_t handle_sound_button() {
             } else if (g_sound_menu_index == 1) {
                 g_sound_menu_state = SOUND_MODE_EDIT_ALERTS;
             } else if (g_sound_menu_index == 2) {
+                g_sound_menu_state = SOUND_MODE_EDIT_MARKS;
+            } else if (g_sound_menu_index == 3) {
                 g_sound_reset_choice = 0;
                 g_sound_menu_state = SOUND_MODE_CONFIRM_RESET;
             } else {
@@ -263,6 +276,11 @@ uint8_t handle_sound_button() {
             g_sound_last_saved_menu_index = 1;
             g_sound_menu_state = SOUND_MODE_SAVED;
             break;
+        case SOUND_MODE_EDIT_MARKS:
+            set_sound_range_marks_visible(g_sound_marks_visible);
+            g_sound_last_saved_menu_index = 2;
+            g_sound_menu_state = SOUND_MODE_SAVED;
+            break;
         case SOUND_MODE_CONFIRM_RESET:
             if (g_sound_reset_choice == 1) {
                 reset_sound_settings();
@@ -270,7 +288,8 @@ uint8_t handle_sound_button() {
                 g_sound_normal_max = get_sound_threshold_normal();
                 g_sound_loud_max = get_sound_threshold_loud();
                 g_sound_alerts_enabled = get_sound_alerts_enabled();
-                g_sound_last_saved_menu_index = 2;
+                g_sound_marks_visible = get_sound_range_marks_visible();
+                g_sound_last_saved_menu_index = 3;
                 g_sound_reset_choice = 0;
                 g_sound_menu_state = SOUND_MODE_SAVED;
             } else {
@@ -295,6 +314,7 @@ static void draw_sound_menu_screen(bool screen_changed) {
     static int last_menu_index = -1;
     static int last_edit_value = -1;
     static int last_alert_value = -1;
+    static int last_marks_value = -1;
     static int last_reset_choice = -1;
     static int last_saved_kind = -1;
 
@@ -307,6 +327,8 @@ static void draw_sound_menu_screen(bool screen_changed) {
         needs_redraw = needs_redraw || (last_edit_value != get_sound_encoder_value());
     } else if (g_sound_menu_state == SOUND_MODE_EDIT_ALERTS) {
         needs_redraw = needs_redraw || (last_alert_value != (g_sound_alerts_enabled ? 1 : 0));
+    } else if (g_sound_menu_state == SOUND_MODE_EDIT_MARKS) {
+        needs_redraw = needs_redraw || (last_marks_value != (g_sound_marks_visible ? 1 : 0));
     } else if (g_sound_menu_state == SOUND_MODE_CONFIRM_RESET) {
         needs_redraw = needs_redraw || (last_reset_choice != (int)g_sound_reset_choice);
     } else if (g_sound_menu_state == SOUND_MODE_SAVED) {
@@ -321,6 +343,7 @@ static void draw_sound_menu_screen(bool screen_changed) {
         last_menu_index = -1;
         last_edit_value = -1;
         last_alert_value = -1;
+        last_marks_value = -1;
         last_reset_choice = -1;
         last_saved_kind = -1;
     }
@@ -328,9 +351,10 @@ static void draw_sound_menu_screen(bool screen_changed) {
     if (g_sound_menu_state == SOUND_MODE_MENU) {
         const char* items[] = {
             L(MENU_LEVELS),
-            L(MENU_ALERTS)
+            L(MENU_ALERTS),
+            L(MENU_SHOW_LIMITS)
         };
-        drawSettingsGridMenu(items, 2, g_sound_menu_index, L(MENU_RESET), L(MENU_EXIT));
+        drawSettingsGridMenu(items, 3, g_sound_menu_index, L(MENU_RESET), L(MENU_EXIT));
         drawFooterHint(L(INSTR_SEL), cx, LM_MENU_FOOTER_Y);
         last_menu_index = (int)g_sound_menu_index;
     } else if (g_sound_menu_state >= SOUND_MODE_EDIT_QUIET && g_sound_menu_state <= SOUND_MODE_EDIT_LOUD) {
@@ -355,6 +379,13 @@ static void draw_sound_menu_screen(bool screen_changed) {
                                     MENU_VALUE_FONT_TIMER,
                                     L(ST_TURN_PUSH));
         last_alert_value = g_sound_alerts_enabled ? 1 : 0;
+    } else if (g_sound_menu_state == SOUND_MODE_EDIT_MARKS) {
+        drawCenteredMenuValueScreen(L(MENU_SHOW_LIMITS),
+                                    g_sound_marks_visible ? L(ST_ON) : L(ST_OFF),
+                                    g_sound_marks_visible ? TFT_GREEN : TFT_RED,
+                                    MENU_VALUE_FONT_BODY,
+                                    L(ST_TURN_PUSH));
+        last_marks_value = g_sound_marks_visible ? 1 : 0;
     } else if (g_sound_menu_state == SOUND_MODE_CONFIRM_RESET) {
         drawResetChoicePrompt(L(MENU_RESET),
                               L(MENU_DEFAULTS),
@@ -373,19 +404,25 @@ static void draw_sound_menu_screen(bool screen_changed) {
             char line_buf_3[18];
             const char* lines[3];
             const uint16_t colors[3] = { TFT_GREEN, TFT_YELLOW, TFT_ORANGE };
-            snprintf(line_buf_1, sizeof(line_buf_1), "%s < %d", L(MENU_SND_ABR_QUIET), g_sound_quiet_max);
-            snprintf(line_buf_2, sizeof(line_buf_2), "%s < %d", L(MENU_SND_ABR_NORMAL), g_sound_normal_max);
-            snprintf(line_buf_3, sizeof(line_buf_3), "%s < %d", L(MENU_SND_ABR_LOUD), g_sound_loud_max);
+            snprintf(line_buf_1, sizeof(line_buf_1), "%s < %d%%", L(MENU_SND_ABR_QUIET), g_sound_quiet_max);
+            snprintf(line_buf_2, sizeof(line_buf_2), "%s < %d%%", L(MENU_SND_ABR_NORMAL), g_sound_normal_max);
+            snprintf(line_buf_3, sizeof(line_buf_3), "%s < %d%%", L(MENU_SND_ABR_LOUD), g_sound_loud_max);
             lines[0] = line_buf_1;
             lines[1] = line_buf_2;
             lines[2] = line_buf_3;
-            drawCenteredMenuFrame(saved_title, TFT_GREEN, L(ST_PUSH_MENU), TFT_CYAN);
+            drawCenteredMenuFrame(saved_title, TFT_MAGENTA, L(ST_PUSH_MENU), TFT_CYAN);
             drawCenteredMenuBodyLines(lines, colors, 3, MENU_TEXT_FONT_SMALL, LM_SUMMARY3_Y0, LM_SUMMARY3_GAP);
         } else if (g_sound_last_saved_menu_index == 1) {
             drawCenteredMenuSavedScreen(saved_title,
                                         g_sound_alerts_enabled ? L(ST_ON) : L(ST_OFF),
                                         g_sound_alerts_enabled ? TFT_GREEN : TFT_RED,
                                         MENU_VALUE_FONT_TIMER,
+                                        L(ST_PUSH_MENU));
+        } else if (g_sound_last_saved_menu_index == 2) {
+            drawCenteredMenuSavedScreen(saved_title,
+                                        g_sound_marks_visible ? L(ST_ON) : L(ST_OFF),
+                                        g_sound_marks_visible ? TFT_GREEN : TFT_RED,
+                                        MENU_VALUE_FONT_BODY,
                                         L(ST_PUSH_MENU));
         } else {
             drawCenteredMenuSavedScreen(saved_title,

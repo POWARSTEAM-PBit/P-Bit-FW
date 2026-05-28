@@ -54,9 +54,7 @@ static void draw_home_temp_icon(int cx, int cy, uint16_t color) {
 }
 
 static void draw_home_humidity_icon(int cx, int cy, uint16_t color) {
-    tft.fillTriangle(cx, cy - 11, cx - 6, cy - 1, cx + 6, cy - 1, color);
-    tft.fillCircle(cx, cy + 3, 6, color);
-    tft.fillCircle(cx, cy + 4, 3, TFT_BLACK);
+    pbit_draw_humidity_icon(cx, cy, color);
 }
 
 static void draw_home_light_icon(int cx, int cy, uint16_t color) {

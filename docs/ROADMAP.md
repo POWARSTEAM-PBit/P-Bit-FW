@@ -1,6 +1,6 @@
 # P-Bit Roadmap
 
-Actualizado: 2026-05-24
+Actualizado: 2026-05-26
 
 Referencia para priorizar el trabajo futuro del firmware P-Bit. Separa deuda técnica de mejoras de producto y ordena iteraciones de menús, sensores y UX.
 
@@ -13,11 +13,11 @@ El historial de lo ya implementado está en `CHANGELOG.md`. Este documento cubre
 | Indicador | Valor |
 |---|---|
 | Build | ✅ `esp32dev` — sin errores |
-| RAM | 14.7 % (`48 124` / `327 680` bytes) |
-| Flash | 71.0 % (`931 193` / `1 310 720` bytes) |
+| RAM | 14.7 % (`48 132` / `327 680` bytes) |
+| Flash | 71.5 % (`936 653` / `1 310 720` bytes) |
 | Carrusel activo | 12 pantallas con `PBIT_ENABLE_GRAPH_LAB=1` |
 | Idiomas | ES / CAT / EN — i18n completo |
-| BLE | Factory-off — gesto secreto 60 s en `Sistema` |
+| BLE | Factory-off — gesto secreto 30 s en `Sistema` |
 | Validación hardware | **Pendiente** — bloqueador principal de todo trabajo activo |
 
 ---
@@ -75,16 +75,14 @@ Listas para implementar una vez que el hardware esté validado.
 
 | Ítem | Descripción | Prioridad |
 |---|---|---|
-| **TWDT** | Task Watchdog Timer para `sensor_reading_task` y `switch_screen`. Timeout sugerido: 10 s. Requiere test de 24 h continuas en hardware. Considerar modo demo de ciclo continuo para el test. | Alta |
+| **TWDT** | Task Watchdog Timer para `sensor_reading_task` y `switch_screen`. Timeout sugerido: 10 s. Requiere test de 24 h continuas en hardware. Usar el Modo demo runtime como base del ciclo continuo. | Alta |
 | **Renombrar flag** | `PBIT_ENABLE_GRAPH_LAB` → `PBIT_ENABLE_FULL_NAV` (u otro nombre representativo). Limpiar referencias `LAB_` en enums y constantes de `tft_display.h` y `rotary.cpp`. | Media |
 
 ### Design System
 
 | Ítem | Descripción | Dependencia |
 |---|---|---|
-| **Icono DS18B20 final** | Rediseñar y aprobar identidad visual de la sonda externa. Versión actual marcada como no final. | Validación hardware |
 | **Paleta HOME/CLIMA** | Decidir si `HOME` y `CLIMA LAB` migran a `include/palette.h` o mantienen colores responsivos propios. | Validación Sensor Zone en HW |
-| **Fix `temp` icon bg** | Reemplazar `TFT_BLACK` hardcodeado en canal interior del termómetro. Firma sugerida: `pbit_draw_temp_icon(cx, cy, color, bg)`. | Bajo riesgo — cualquier momento |
 | **P3/P4 en hardware** | Verificar legibilidad de labels min/max y segmentos apagados sobre ST7735 real. | Validación hardware |
 
 ---

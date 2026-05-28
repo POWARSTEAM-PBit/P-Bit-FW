@@ -34,28 +34,28 @@ constexpr int kCardW = LC_SCREEN_W;      // = 156
 constexpr int kCardH = LC_SCREEN_BOTTOM - LC_CARD_TOP + 1; // = 100
 
 // ── Layout zones ──────────────────────────────────────────────────────
-// Header strip  y = 27..41: icon + device label + jewel
-// Value zone    y = 43..84: large value + compact unit
-// Viz labels    y = 90..97
-// Viz bars      y = 101..116
+// Header strip  y = 27..41: icon + status/device label + jewel
+// Value zone    y = 46..87: large value + compact unit
+// Viz labels    y = 92..99
+// Viz bars      y = 105..120
 
 constexpr int kIconCx    = kCardX + 13;          // = 15
 constexpr int kIconCy    = kCardY + 15;          // = 42
 
 constexpr int kDevLabelX = kCardX + 27;          // = 29
-constexpr int kDevLabelY = kCardY + 4;           // = 31
+constexpr int kDevLabelY = kCardY + 2;           // = 29
 
 constexpr int kAlertJewelX = kCardX + kCardW - 11; // = 147
 constexpr int kAlertJewelY = kCardY + 10;          // = 37
 
 constexpr int kValueGroupCx = 80;
-constexpr int kValueTopY = kCardY + 16;          // = 43
-constexpr int kUnitTopY  = kCardY + 26;          // = 53
+constexpr int kValueTopY = kCardY + 19;          // = 46
+constexpr int kUnitTopY  = kCardY + 29;          // = 56
 constexpr int kUnitGapX  = 4;
-constexpr int kInvalidValueY = kCardY + 21;      // = 48
+constexpr int kInvalidValueY = kCardY + 26;      // = 53
 constexpr int kInvalidLabelGapY = 24;
 constexpr int kHeaderClearY = kCardY + 1;        // = 28
-constexpr int kHeaderClearBottomY = kValueTopY - 3; // = 40
+constexpr int kHeaderClearBottomY = kCardY + 15; // = 42
 constexpr int kIconClearX = kCardX + 4;
 constexpr int kIconClearY = kCardY + 4;
 constexpr int kIconClearW = 23;
@@ -65,12 +65,12 @@ constexpr int kVizLabelY = kCardY + 65;          // = 92
 constexpr int kVizX      = kCardX + 8;           // = 10
 constexpr int kVizW      = kCardW - 16;          // = 140
 constexpr int kVizBarH   = 16;                   // Altura estándar unificada
-constexpr int kVizBottomY = kCardY + 91;         // = 118
-constexpr int kVizBarY   = kVizBottomY - kVizBarH + 1; // = 103
-constexpr int kValueClearX = kCardX + 26;
-constexpr int kValueClearY = kValueTopY + 1;
-constexpr int kValueClearW = kCardW - 30;
-constexpr int kValueClearH = kVizLabelY - kValueClearY - 2;
+constexpr int kVizBottomY = kCardY + 93;         // = 120
+constexpr int kVizBarY   = kVizBottomY - kVizBarH + 1; // = 105
+constexpr int kValueClearX = kCardX + 8;
+constexpr int kValueClearY = kValueTopY - 1;
+constexpr int kValueClearW = kCardW - 16;
+constexpr int kValueClearH = kVizLabelY - kValueClearY - 1;
 constexpr float kLightLuxMax = 20000.0f;
 
 // Colors sourced from palette.h — do not add local overrides here.
@@ -93,6 +93,8 @@ struct CardCache {
     bool valid        = false;
     bool sensor_valid = false;
     int  value_key    = INT_MIN;
+    int  value_clear_x = kValueClearX;
+    int  value_clear_w = kValueClearW;
     uint16_t status_id = UINT16_MAX;
     uint8_t alert_code  = ALERT_CODE_OFF;
     bool unit_mode    = false;
@@ -345,10 +347,10 @@ static void draw_lab_card_shell(const char* title) {
 
 // ── Header strip (icon + device label) ────────────────────────────────
 
+static void clear_status_label_zone();
+
 static void draw_header_strip(const char* label, uint16_t color) {
-    constexpr int clear_h = kHeaderClearBottomY - kHeaderClearY + 1;
-    tft.fillRect(kCardX + 22, kHeaderClearY,
-                 kCardW - 44, clear_h, kCardBg);
+    clear_status_label_zone();
     tft.setFreeFont(FONT_SMALL);
     tft.setTextColor(color, kCardBg);
     tft.setTextDatum(TC_DATUM);
@@ -422,6 +424,34 @@ static void draw_value_compact(bool sensor_valid,
     tft.setFreeFont(FONT_BODY);
     tft.drawString(compact_unit, start_x + value_w + kUnitGapX, kUnitTopY);
     tft.setTextFont(0);
+}
+
+static void compute_value_clear_bounds(const LabSensorCardSpec& spec,
+                                       const CardRenderState& state,
+                                       int& out_x,
+                                       int& out_w) {
+    int x = kValueClearX;
+    int w = kValueClearW;
+
+    if (state.sensor_valid) {
+        char value_str[12];
+        format_card_value(value_str, sizeof(value_str), spec.is_temperature, state.shown_value);
+
+        int value_w = 0;
+        int unit_w = 0;
+        int group_w = 0;
+        const int start_x = card_value_start_x(value_str, spec.compact_unit_fn(),
+                                               value_w, unit_w, group_w);
+        x = start_x - 6;
+        w = group_w + 12;
+    }
+
+    const int min_x = kValueClearX;
+    const int max_r = kCardX + kCardW - 8;
+    const int x1 = constrain(x, min_x, max_r);
+    const int x2 = constrain(x + w - 1, x1, max_r);
+    out_x = x1;
+    out_w = x2 - x1 + 1;
 }
 
 // ── Visualization functions — horizontal, per-sensor identity ─────────
@@ -743,14 +773,17 @@ static bool cache_dirty(const CardCache& cache, const CardRenderState& state) {
         || (cache.status_id      != state.status_id)
         || (cache.alert_code     != state.alert_code)
         || (cache.unit_mode      != g_is_fahrenheit)
-        || (cache.alerts_enabled != state.alerts_enabled);
+        || (cache.alerts_enabled != state.alerts_enabled)
+        || (cache.accent         != state.accent);
 }
 
 static void commit_cache(CardCache& cache,
-                         const CardRenderState& state) {
+                         const CardRenderState& state,
+                         const LabSensorCardSpec& spec) {
     cache.valid          = true;
     cache.sensor_valid   = state.sensor_valid;
     cache.value_key      = state.value_key;
+    compute_value_clear_bounds(spec, state, cache.value_clear_x, cache.value_clear_w);
     cache.status_id      = state.status_id;
     cache.alert_code     = state.alert_code;
     cache.unit_mode      = g_is_fahrenheit;
@@ -767,13 +800,31 @@ static bool chrome_dirty(const CardCache& cache, const CardRenderState& state) {
         || (cache.accent         != state.accent);
 }
 
-static void clear_card_value_zone() {
-    tft.fillRect(kValueClearX, kValueClearY, kValueClearW, kValueClearH, kCardBg);
+static void clear_status_label_zone() {
+    constexpr int clear_h = kHeaderClearBottomY - kHeaderClearY + 1;
+    constexpr int clear_x = kCardX + 27;
+    constexpr int clear_w = kCardW - 48;
+    tft.fillRect(clear_x, kHeaderClearY, clear_w, clear_h, kCardBg);
+}
+
+static void clear_card_value_zone(const CardCache& cache,
+                                  const LabSensorCardSpec& spec,
+                                  const CardRenderState& state) {
+    int current_x = kValueClearX;
+    int current_w = kValueClearW;
+    compute_value_clear_bounds(spec, state, current_x, current_w);
+
+    const int x1 = min(cache.value_clear_x, current_x);
+    const int x2 = max(cache.value_clear_x + cache.value_clear_w - 1,
+                       current_x + current_w - 1);
+    tft.fillRect(x1, kValueClearY, x2 - x1 + 1, kValueClearH, kCardBg);
 }
 
 static void clear_card_viz_zone() {
-    tft.fillRect(kCardX + 1, kVizLabelY - 2, kCardW - 2,
-                 kVizBottomY - kVizLabelY + 8, kCardBg);
+    const int clear_y = kVizBarY - 5;  // includes the soil marker triangle; keeps clear away from value text
+    const int clear_bottom = min(kCardY + kCardH - 6, kVizBottomY + 1);
+    tft.fillRect(kCardX + 1, clear_y, kCardW - 2,
+                 clear_bottom - clear_y + 1, kCardBg);
 }
 
 static void draw_card_alert_jewel(AlertJewelState state, uint16_t color) {
@@ -799,6 +850,12 @@ static void draw_card_chrome(const LabSensorCardSpec& spec,
     tft.fillRect(kIconClearX, kIconClearY, kIconClearW, kIconClearH, kCardBg);
     draw_card_alert_jewel(state.jewel, jewel_color(state.jewel, state.accent));
     draw_header_strip(state.header_label, state.header_color);
+    spec.icon_fn(kIconCx, kIconCy, state.accent);
+}
+
+static void draw_card_icon(const LabSensorCardSpec& spec,
+                           const CardRenderState& state) {
+    tft.fillRect(kIconClearX, kIconClearY, kIconClearW, kIconClearH, kCardBg);
     spec.icon_fn(kIconCx, kIconCy, state.accent);
 }
 
@@ -830,18 +887,47 @@ static void draw_card_dynamic(const LabSensorCardSpec& spec, const CardRenderSta
 static void draw_card_content(const LabSensorCardSpec& spec,
                               const CardRenderState& state,
                               const CardCache& cache) {
-    clear_card_value_zone();
-    draw_value_compact(state.sensor_valid,
-                       state.shown_value,
-                       state.accent,
-                       spec.is_temperature,
-                       spec.compact_unit_fn(),
-                       L(spec.invalid_bottom_key));
+    const bool sensor_flip = !cache.valid || (cache.sensor_valid != state.sensor_valid);
+    const bool value_dirty = sensor_flip
+        || (cache.value_key != state.value_key)
+        || (cache.unit_mode != g_is_fahrenheit)
+        || (cache.accent != state.accent);
+    const bool viz_dirty = value_dirty;
+    const bool status_dirty = sensor_flip
+        || (cache.status_id != state.status_id)
+        || (cache.accent != state.accent);
+    const bool jewel_dirty = sensor_flip
+        || (cache.alert_code != state.alert_code)
+        || (cache.alerts_enabled != state.alerts_enabled)
+        || (cache.accent != state.accent);
+    const bool icon_dirty = sensor_flip || (cache.accent != state.accent);
 
-    clear_card_viz_zone();
-    spec.draw_viz(state.sensor_valid, state.temp_c, state.accent);
+    if (value_dirty) {
+        clear_card_value_zone(cache, spec, state);
+        draw_value_compact(state.sensor_valid,
+                           state.shown_value,
+                           state.accent,
+                           spec.is_temperature,
+                           spec.compact_unit_fn(),
+                           L(spec.invalid_bottom_key));
+    }
 
-    draw_card_chrome(spec, state);
+    if (viz_dirty) {
+        clear_card_viz_zone();
+        spec.draw_viz(state.sensor_valid, state.temp_c, state.accent);
+    }
+
+    if (icon_dirty) {
+        draw_card_icon(spec, state);
+    }
+
+    if (jewel_dirty) {
+        draw_card_alert_jewel(state.jewel, jewel_color(state.jewel, state.accent));
+    }
+
+    if (status_dirty) {
+        draw_header_strip(state.header_label, state.header_color);
+    }
 }
 
 static void draw_card_screen_for(LabSensorCardId id,
@@ -857,13 +943,13 @@ static void draw_card_screen_for(LabSensorCardId id,
     if (needs_shell) {
         draw_lab_card_shell(L(spec.title_key));
         draw_card_dynamic(spec, state);
-        commit_cache(cache, state);
+        commit_cache(cache, state, spec);
         return;
     }
 
     if (dirty && (sensor_data_changed || !cache.valid)) {
         draw_card_content(spec, state, cache);
-        commit_cache(cache, state);
+        commit_cache(cache, state, spec);
     }
 }
 
@@ -881,6 +967,18 @@ void lab_sensor_card_set_sensor(uint8_t card_id) {
     if (card_id >= (uint8_t)CARD_COUNT) return;
     g_selected_card = (LabSensorCardId)card_id;
     g_card_cache[g_selected_card].valid = false;
+}
+
+uint8_t lab_sensor_card_get_sz_sensor() {
+    switch (g_selected_card) {
+        case CARD_TEMP:  return 0; // SZ_TEMP
+        case CARD_HUM:   return 1; // SZ_HUM
+        case CARD_LIGHT: return 2; // SZ_LIGHT
+        case CARD_SOUND: return 3; // SZ_SOUND
+        case CARD_SOIL:  return 4; // SZ_SOIL
+        case CARD_DS18:  return 5; // SZ_DS18
+        default:         return 0;
+    }
 }
 
 void draw_lab_sensor_card_screen(bool screen_changed, bool sensor_data_changed) {

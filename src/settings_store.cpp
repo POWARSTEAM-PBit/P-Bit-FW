@@ -99,13 +99,14 @@ void save_ds18_alerts_enabled_store(bool enabled) {
     prefs.prefs.putBool("d18_aen", enabled);
 }
 
-SoundSettings load_sound_settings_store(int default_quiet_max, int default_normal_max, int default_loud_max, bool default_alerts_enabled) {
+SoundSettings load_sound_settings_store(int default_quiet_max, int default_normal_max, int default_loud_max, bool default_alerts_enabled, bool default_range_marks_visible) {
     ScopedPrefs prefs(true);
     return {
         prefs.prefs.getInt("snd_quiet", default_quiet_max),
         prefs.prefs.getInt("snd_norm", default_normal_max),
         prefs.prefs.getInt("snd_loud", default_loud_max),
         prefs.prefs.getBool("snd_aen", default_alerts_enabled),
+        prefs.prefs.getBool("snd_marks", default_range_marks_visible),
     };
 }
 
@@ -119,6 +120,11 @@ void save_sound_settings_store(int quiet_max, int normal_max, int loud_max) {
 void save_sound_alerts_enabled_store(bool enabled) {
     ScopedPrefs prefs(false);
     prefs.prefs.putBool("snd_aen", enabled);
+}
+
+void save_sound_range_marks_visible_store(bool visible) {
+    ScopedPrefs prefs(false);
+    prefs.prefs.putBool("snd_marks", visible);
 }
 
 TempSettings load_temp_settings_store(int default_low_alarm, int default_high_alarm, bool default_alerts_enabled) {
@@ -141,7 +147,7 @@ void save_temp_alerts_enabled_store(bool enabled) {
     prefs.prefs.putBool("tmp_aen", enabled);
 }
 
-LightSettings load_light_settings_store(int default_dim_max, int default_indoor_max, int default_bright_max, uint8_t default_display_mode, bool default_alerts_enabled) {
+LightSettings load_light_settings_store(int default_dim_max, int default_indoor_max, int default_bright_max, uint8_t default_display_mode, bool default_alerts_enabled, bool default_range_marks_visible) {
     ScopedPrefs prefs(true);
     return {
         prefs.prefs.getInt("lgt_dim", default_dim_max),
@@ -149,6 +155,7 @@ LightSettings load_light_settings_store(int default_dim_max, int default_indoor_
         prefs.prefs.getInt("lgt_bri", default_bright_max),
         prefs.prefs.getUChar("lgt_mode", default_display_mode),
         prefs.prefs.getBool("lgt_aen", default_alerts_enabled),
+        prefs.prefs.getBool("lgt_marks", default_range_marks_visible),
     };
 }
 
@@ -167,6 +174,11 @@ void save_light_display_mode_store(uint8_t mode) {
 void save_light_alerts_enabled_store(bool enabled) {
     ScopedPrefs prefs(false);
     prefs.prefs.putBool("lgt_aen", enabled);
+}
+
+void save_light_range_marks_visible_store(bool visible) {
+    ScopedPrefs prefs(false);
+    prefs.prefs.putBool("lgt_marks", visible);
 }
 
 SystemSettings load_system_settings_store(uint32_t default_sleep_timeout_ms, bool default_sound_enabled, bool default_alarm_sound_enabled, bool default_fahrenheit) {

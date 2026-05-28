@@ -42,6 +42,11 @@ SzVizMode  sz_get_viz();
 // Jump directly to a sensor by index. Persists and requests redraw.
 void sz_set_sensor(uint8_t sensor_id);
 
+// Runtime-only jumps used by transient flows such as Demo Mode.
+// These do not persist to NVS.
+void sz_set_sensor_runtime(uint8_t sensor_id);
+void sz_set_viz_runtime(uint8_t sensor_id, uint8_t viz_mode);
+
 // Advance to the next sensor (wraps around). Persists and requests redraw.
 void sz_next_sensor();
 
