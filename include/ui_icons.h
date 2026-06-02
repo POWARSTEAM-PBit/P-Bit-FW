@@ -2,12 +2,12 @@
 
 #include <stdint.h>
 
-// P-Bit sensor icon library — two size tiers, both centered at (cx, cy).
+// P-Bit sensor icon library — centered at (cx, cy).
 //
-//   Small  pbit_draw_*_icon        ≈ 16×16 px  (s=1)
-//   Large  pbit_draw_*_icon_large  ≈ 32×32 px  (s=2)
+//   Small   pbit_draw_*_icon        ≈ 14×14 px  (s=1)
+//   XL      pbit_draw_*_icon_xl     ≈ 42×42 px  (s=3)
+//   XXL     pbit_draw_*_icon_xxl    ≈ 42×42 px  (s=3, optional accent)
 //
-// Geometry scales exactly ×2 between tiers.
 // The 3-argument small variants are compatible with SensorIconDrawFn pointers.
 
 void pbit_draw_temp_icon        (int cx, int cy, uint16_t color);

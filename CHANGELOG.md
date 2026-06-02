@@ -1,9 +1,96 @@
 # Changelog
 
+## 2026-05-29
+
+### Firmware — Estados externos desconectados + temp mono
+
+- **Añadido:** `external_sensor_state.*` centraliza el estado runtime de ausencia para sensores externos: DS18B20/Termómetro falta con `temp_ds18b20 < -100` y Suelo falta con `soil_humidity = NaN`.
+- **Ajustado:** textos visibles de desconexión pasan a referencias de PCB visibles: `Revisa IO33` / `Comprova IO33` / `Check IO33` para Termómetro y `Revisa IO35` / `Comprova IO35` / `Check IO35` para Suelo.
+- **Ajustado:** pantallas clásicas, Sensor Zone, Graph y vistas Lab usan paleta del sensor atenuada para DS18/Suelo desconectados, evitando gris plano o rojo dominante y manteniendo retorno runtime al reconectar.
+- **Refinado:** el estado desconectado queda menos desaturado para mejorar legibilidad; los textos accionables `Sin sensor` / `Revisa IO33/IO35` ganan prioridad visual y se ajustan en Y en Focus y Temp Lab.
+- **Añadido:** splash semafórico de conexión/desconexión para sensores externos: al conectar muestra fondo verde con `CONECTADO / Sensor Suelo|Sensor DS18B20 / IO35|IO33`; al desconectar muestra fondo rojo con `DESCONECTADO / Sensor Suelo|Sensor DS18B20 / IO35|IO33`. Dura `1500 ms`, no se dispara al boot ni durante Demo Mode.
+- **Ajustado:** color visual de Suelo ahora sigue umbrales: `0%` y tramo bajo se ven amarillo intenso, `Seco..Húmedo` se mantiene verde y por encima de `Húmedo` vira progresivamente a azul. La rampa se comparte en clásica, Focus, Card, Gauge, Plant Lab, iconos y RGB.
+- **Corregido:** en Focus/Sensor Zone, el clear dinámico de la card superior respeta el ancho real del título para que `DS18B20` no quede recortado por el área del valor; el label DS18B20 baja 2 px para mejorar alineación.
+- **Ajustado:** icono `temp` small/XL/fallback queda monocromo; solo la versión Dial/XXL con argumento de acento conserva detalle multicolor. `probe`/DS18B20 queda separado y sin aprobación final.
+- **Documentado:** `USER_GUIDE`, `TECHNICAL`, `PROJECT`, `DESIGN_SYSTEM`, `TFT_RENDER_RULES`, producción y roadmap reflejan `IO33/IO35`, estado runtime no persistente y criterios de validación.
+- Build verificado: `SUCCESS` — RAM 14.9% (`48940` bytes), Flash 72.1% (`945429` bytes).
+
+### Firmware — LDR curva empírica v1
+
+- **Ajustado:** `src/io.cpp` reemplaza el modelo teórico GL5528 por la primera curva empírica tomada con luxómetro: `lux = 10 * ((4095 - raw) / (raw + 150))^2`.
+- **Ajustado:** el rango visual/base de Luz pasa de `0..20000 lux` a `0..8000 lux`, más coherente con las muestras reales (`5 raw -> ~7400 lux`) y con el techo de la nueva fórmula.
+- **Ajustado:** el menú y la validación NVS de rangos de Luz limitan `Max brillante` al nuevo techo de `8000 lux`.
+- **Ajustado:** `FC` sigue derivándose del lux calibrado con `lux / 10.764`; no existe una curva independiente para foot-candle.
+- **Ajustado:** Demo Mode reduce la amplitud de luz simulada para no recortar en el nuevo techo y calcula `Raw ADC` con la inversa de la misma curva empírica.
+- **Documentado:** `docs/TECHNICAL.md` deja trazable la muestra usada, la corrección del punto invertido `120 - 800` como `800 - 120`, la fórmula de ajuste y la aproximación elegida para firmware.
+- Build verificado: `SUCCESS` — RAM 14.9% (`48900` bytes), Flash 71.8% (`941425` bytes).
+
 ## 2026-05-28
+
+### Sensor Cards — paleta aplicada a TEMP/DS18; fix solape icono-valor
+
+- **Corregido:** `temp_accent()` usa `PB_TEMP_P1` (fucsia) en lugar de `getTempColor()` — la tarjeta TEMP del Sensor Zone ahora refleja la identidad de paleta correcta.
+- **Corregido:** `ds18_accent()` usa `PB_DS18_P1` en lugar del gradiente anterior — la tarjeta Termómetro/DS18 usa su color de identidad.
+- **Paleta DS18:** `PB_DS18_P1` `0xA01F` (violeta) → `0xFB80` rgb(255, 121, 0) **naranja vivo** — evita la confusión visual con TEMP fucsia en el carrusel. P2 `0x045F` azul láser se mantiene (buen complemento frío/cálido).
+- **Fix layout:** `kValueClearY` = `kValueTopY - 1` (y=45) → `kValueTopY + 3` (y=49) — el icono llega hasta cy+7=49; la zona de borrado del valor ya no pisa los últimos 4px del icono.
+- **Sin cambio:** colores de alerta (azul/rojo), `temp_bar_color` gradient, demo mode y pantalla `LAB_DUAL_TH`.
+- **Documentado:** `docs/DESIGN_SYSTEM.md` § 1 fila TERMÓMETRO actualizada.
+
+### Paleta — TEMP y SONIDO: identidades visuales rediseñadas
+
+- **TEMP P1:** Naranja ácido `0xFA80` → **Fucsia eléctrico** `0xF817` rgb(255, 0, 184). Temperatura deja de evocar alarma; pasa a identidad neutra/vibrante estilo GBC.
+- **TEMP P2:** Rosa eléctrico `0xF814` → **Verde ácido** `0x07E8` rgb(0, 255, 64). Contraste complementario de alta tensión con el fucsia.
+- **SONIDO P1:** Magenta punk `0xF81F` → **Naranja cálido** `0xFD40` rgb(255, 168, 0). Naranja encaja semánticamente con energía/vibración sonora.
+- **SONIDO P2:** Verde ácido `0x07E8` → **Violeta-púrpura** `0xC01F` rgb(197, 0, 255). Desplazado hacia el morado para diferenciarse del fucsia de TEMP en pantallas multi-sensor.
+- **Sin cambio:** P3/P4 de ambos sensores y resto de paleta. Rojo neón `0xF8A0` SONIDO P3 se mantiene para picos VU/alarmas.
+- **Documentado:** `docs/DESIGN_SYSTEM.md` § 1 tabla de tokens actualizada.
+
+### Documentación — Estado post-validación visual
+
+- **Cerrado por ahora:** ghosting/flicker en pantallas revisadas queda aprobado tras la última validación; se mantiene como vigilancia de regresión, no como bloqueador general.
+- **Cerrado:** icono de temperatura `temp` queda como versión final propagada a tamaños small/XL/XXL; no confundir con el icono técnico `probe`/DS18B20.
+- **Actualizado:** LDR `Lux / FC / Raw ADC` queda propagado en firmware: valor/unidad ya usan un helper común en Luz, Sensor Zone, cards, dials, dashboards y gráficas; queda validación visual en hardware.
+- **Actualizado:** Modo demo entra desde logos con encoder presionado y desde `Home` con pulsación larga; ahora usa escenas con dwell variable, curvas simuladas suaves, RAW coherente con luz y gráficas sintéticas; queda validación visual en hardware.
+
+### Firmware — LDR coherente y Demo smooth
+
+- **Añadido:** `include/light_display.h` / `src/light_display.cpp` centralizan la presentación de Luz (`Lux`, `FC`, `raw`) y la conversión `lux / 10.764`.
+- **Propagado:** Sensor Zone `Card`, `Valor`, `Focus`, `Gráfica`, `Dial`, Home cards, dashboards y pantalla clásica de Luz usan el modo LDR activo para valor/unidad visible.
+- **Añadido:** `g_graph_light_raw` guarda histórico RAW ADC para que gráficas y sparklines muestren RAW real cuando el modo `Raw ADC` está activo.
+- **Ajustado:** Demo Mode pasa a escenas con duración variable, refresco dedicado de 220 ms, curvas suaves por sensor y valores RAW inversamente correlacionados con la luz simulada.
+- **Añadido:** `demo_mode_graph_values(...)` genera datos sintéticos para `Graph` durante demo, evitando que las gráficas dependan del histórico físico mientras se muestra la coreografía.
+- Build verificado: `SUCCESS` — RAM 14.9% (`48900` bytes), Flash 71.8% (`941497` bytes).
+
+### Firmware — Calibración LDR: RAW estable y modo FC
+
+- **Ajustado:** `io.cpp` estabiliza `ldr_raw` con media móvil de 10 lecturas ADC y calcula lux desde ese RAW promediado, eliminando el EMA posterior sobre lux.
+- **Ajustado:** `Luz > Modo` cambia a `Lux / FC / Raw ADC`; `FC` muestra `lux / 10.764`, usa clave i18n `ST_FC_UNIT` y `Raw ADC` muestra la lectura cruda promediada para calibración con luxómetro.
+- **Corregido:** `Sensor Cards` amplía 2 px adicionales hacia abajo el clear del valor para eliminar restos inferiores persistentes.
+- **Documentado:** `docs/USER_GUIDE.md`, `docs/TECHNICAL.md` y `docs/PROJECT.md` reflejan los modos `Lux / FC / Raw ADC` y el uso del RAW promediado para calibración.
+- Build verificado: `SUCCESS` — RAM 14.7% (`48252` bytes), Flash 71.6% (`938497` bytes).
+
+### Firmware — Icono termómetro v16: diseño final propagado a todas las escalas
+
+- **Definido como FINAL:** `impl_temp_detail` (s=3, XXL/Dial) es el diseño de referencia aprobado.
+- **Propagado a XL:** `pbit_draw_temp_icon_xl` ahora llama `impl_temp_detail(cx, cy, c, c, 3)` — íconos de gauge/Focus visualmente idénticos al Dial.
+- **Corregido:** `ui_icons.cpp` declara `impl_temp_detail(...)` antes de usarlo en la API XL, cerrando el fallo de compilación de la propagación v16.
+- **Propagado a small (s=1):** `impl_temp` actualizado con canal parcial (4s) + rect de mercurio blanco. Sin círculo interior blanco: a s=1, `s+3 == 3s+1` (cubre todo el bulbo).
+- **Todas las escalas** comparten: eje central `cx`, bulbo único centrado, mercurio `TFT_WHITE`, ticks `(4s)/3`.
+- **Documentado:** `docs/DESIGN_SYSTEM.md` § 2 — tabla de tamaños corregida (eliminado `_large` s=2 inexistente), fila `temp` marcada ✅ FINAL con geometría por escala.
+
+### Firmware — Icono termómetro v15: alineación central completa y ticks recortados
+
+- **Ajustado (v15):** `impl_temp` e `impl_temp_detail` en `src/ui_icons.cpp` — todos los elementos comparten eje `cx`: bulbo simplificado a un único `fillCircle(cx, cy+4s, 3s+1)` (eliminados los dos círculos asimétricos en cx/cx-1), mercurio rect en `cx-s…cx+s`, círculo blanco interior en `cx`. Ticks recortados de `2s` a `(4s)/3` (−1/3).
+
+### Firmware — Icono termómetro v14: círculo bulbo más grande y centrado
+
+- **Ajustado (v14):** `impl_temp_detail` en `src/ui_icons.cpp` — círculo blanco interior del bulbo cambia de `fillCircle(cx-1, cy+4s, s+1)` a `fillCircle(cx, cy+4s, s+3)`: diámetro +4 px y centrado exacto con el rectángulo de mercurio.
 
 ### Firmware — Icono termómetro v9: bulbo reducido, ratio 1:2
 
+- **Ajustado (v13):** `impl_temp_detail` — mercurio conectado visualmente: `fillRect` blanco ahora se dibuja DESPUÉS de los `fillCircle` del bulbo, creando una tira blanca continua que atraviesa el centro del bulbo y conecta con el `fillCircle` blanco interior. Columna de mercurio unificada tubo→bulbo.
+- **Ajustado (v12):** `impl_temp_detail` — añadido `fillCircle(cx-1, cy+4s, s+1, TFT_WHITE)` dentro del bulbo: mercurio concentrado visible en el bulbo, conecta visualmente con la columna blanca del tubo.
+- **Ajustado (v11):** bulbo asimétrico via dos `fillCircle` superpuestos (cx r=3s+1 + cx-1 r=3s+1) → +2px izquierda / +1px derecha. Mercurio cambiado de acento a `TFT_WHITE`.
 - **Redimensionado (v10):** `impl_temp` / `impl_temp_detail` — ícono ahora llena el canvas ±7s igual que todos los demás íconos. Tubo extendido de 9s a 11s (cy-7s→cy+4s), bulbo movido a cy+4s (bottom=cy+7s). Orden de render corregido: tubo→canal→bulbo. En `_detail`: mercurio extendido a 6s (cy-2s→cy+4s), bulbo dibujado al final para quedar limpio.
 - **Ajustado:** `impl_temp` / `impl_temp_detail` en `src/ui_icons.cpp` — ticks reducidos de `3*s` a `2*s` (de 9 px a 6 px en Dial). Pequeñas marcas de escala.
 - **Ajustado:** `impl_temp` / `impl_temp_detail` en `src/ui_icons.cpp` — radio del bulbo reducido de **r=5s a r=3s**.
@@ -21,10 +108,12 @@
 - **Corregido:** `Sensor Cards` separa físicamente carril de estado, valor grande y visualización inferior: estado sube 2 px, valor/unidad bajan 3 px y las barras inferiores recuperan 16 px bajando a Y+2 para conservar `Suelo Tarjeta`; el clear de visualización queda acotado a la barra para no borrar números ni esquinas inferiores.
 - **Corregido:** `Sensor Cards` guarda el ancho/posición del valor anterior y limpia la unión entre caja anterior y actual, evitando fantasmas laterales cuando el dato baja de dos/tres dígitos a uno.
 - **Corregido:** `Sensor Cards` amplía el carril horizontal de limpieza del valor grande para cubrir el inicio real de números anchos y eliminar restos laterales al volver a valores cortos.
+- **Corregido:** `Sensor Cards` amplía 3 px hacia abajo el clear del valor grande para borrar residuos en los últimos píxeles inferiores de la fuente.
 - **Ajustado:** `Sonido Lab` elimina el badge bajo el valor y muestra un número limpio en la esquina superior derecha con clear rect pequeño y fallback de fuente.
 - **Ajustado:** `Sound Lab` usa `FONT_HEADER` como fuente menor del valor con fallback a `FONT_BODY`, sube el dato 1 px, baja el icono `MIC` 3 px y el texto `MIC` 2 px.
 - **Ajustado:** `Clima Lab` elimina la línea vertical gris entre los cards de temperatura y humedad.
 - **Ajustado:** `Sistema` recorta 1 px el card inferior desde arriba para equilibrar la distancia vertical entre cards.
+- **Ajustado:** `Sistema` sube 1 px los labels `Bip` y `Alarmas` del card inferior.
 - **Refinado:** `Temp Lab` ajusta clears de valores/delta para no tapar `DS18B20`, la barra inferior ni los labels `+10`.
 - Build verificado: `SUCCESS` — RAM 14.7% (`48204` bytes), Flash 71.6% (`938437` bytes).
 

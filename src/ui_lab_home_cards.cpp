@@ -13,6 +13,7 @@
 #include "fonts.h"
 #include "io.h"
 #include "languages.h"
+#include "light_display.h"
 #include "layout.h"
 #include "tft_display.h"
 #include "ui_icons.h"
@@ -22,6 +23,7 @@
 #include <climits>
 #include <math.h>
 #include <stdio.h>
+#include <string.h>
 
 extern TFT_eSPI tft;
 extern Reading  g_ui_readings_snapshot;
@@ -129,6 +131,7 @@ struct CardData {
 struct HomeCardsCache {
     bool valid = false;
     bool fahrenheit = false;
+    uint8_t light_mode = 0;
     bool card_valid[4] = { false, false, false, false };
     int  value_key[4]  = { INT_MIN, INT_MIN, INT_MIN, INT_MIN };
 };
@@ -185,7 +188,10 @@ static void draw_card_value_and_tank(const CardData& d) {
         char buf[16];
         char full[20];
         snprintf(buf, sizeof(buf), d.fmt, d.value);
-        snprintf(full, sizeof(full), "%s%s", buf, d.unit);
+        const bool tight_unit = strcmp(d.unit, "%") == 0
+            || strcmp(d.unit, L(ST_UNIT_C_SHORT)) == 0
+            || strcmp(d.unit, L(ST_UNIT_F_SHORT)) == 0;
+        snprintf(full, sizeof(full), "%s%s%s", buf, tight_unit ? "" : " ", d.unit);
         tft.setTextColor(TFT_WHITE, 0x0841);
         if (tft.textWidth(full) > value_max_w) {
             tft.setFreeFont(FONT_SMALL);
@@ -211,11 +217,11 @@ static CardData build_card_data(int index) {
     const Reading& r = g_ui_readings_snapshot;
     const bool t_ok  = !isnan(r.temperature);
     const bool h_ok  = !isnan(r.humidity);
-    const bool l_ok  = !isnan(r.ldr);
     const bool s_ok  = !isnan(r.mic);
     const float t_c  = t_ok ? r.temperature : 0.0f;
     const float t_d  = g_is_fahrenheit ? (t_c * 1.8f + 32.0f) : t_c;
     const char* t_u  = g_is_fahrenheit ? L(ST_UNIT_F_SHORT) : L(ST_UNIT_C_SHORT);
+    const LightDisplayReading light = light_display_from_reading(r);
 
     switch (index) {
         case 0:
@@ -223,7 +229,7 @@ static CardData build_card_data(int index) {
         case 1:
             return { 1, 0, kCyan,    draw_home_humidity_icon, L(LAB_AIR_SHORT),   h_ok, h_ok ? r.humidity : 0.0f, "%.0f", "%", 0.0f, 100.0f, false };
         case 2:
-            return { 0, 1, kYellow,  draw_home_light_icon,    L(LAB_LIGHT_SHORT), l_ok, l_ok ? r.ldr : 0.0f, "%.0f", "lx", 0.0f, 20000.0f, false };
+            return { 0, 1, kYellow,  draw_home_light_icon,    L(LAB_LIGHT_SHORT), light.valid, light.valid ? light.value : 0.0f, "%.0f", light.unit, 0.0f, light_display_max(light.mode), false };
         default:
             return { 1, 1, kMagenta, draw_home_sound_icon,    L(LAB_SOUND_SHORT), s_ok, s_ok ? r.mic : 0.0f, "%.0f", "%", 0.0f, 100.0f, true };
     }
@@ -238,7 +244,7 @@ static int card_value_key(int index) {
         case 1:
             return isnan(r.humidity) ? INT_MIN : (int)lroundf(r.humidity);
         case 2:
-            return isnan(r.ldr) ? INT_MIN : (int)lroundf(r.ldr);
+            return light_display_from_reading(r).key;
         default:
             return isnan(r.mic) ? INT_MIN : (int)lroundf(r.mic);
     }
@@ -249,7 +255,7 @@ static bool card_valid_now(int index) {
     switch (index) {
         case 0: return !isnan(r.temperature);
         case 1: return !isnan(r.humidity);
-        case 2: return !isnan(r.ldr);
+        case 2: return light_display_from_reading(r).valid;
         default: return !isnan(r.mic);
     }
 }
@@ -276,18 +282,23 @@ void draw_lab_home_cards_screen(bool screen_changed, bool sensor_data_changed) {
             g_last.value_key[i] = card_value_key(i);
         }
         g_last.fahrenheit = g_is_fahrenheit;
+        g_last.light_mode = light_display_mode();
         g_last.valid = true;
         return;
     }
     if (!sensor_data_changed) return;
 
-    bool any_dirty = !g_last.valid || (g_last.fahrenheit != g_is_fahrenheit);
+    const uint8_t current_light_mode = light_display_mode();
+    bool any_dirty = !g_last.valid
+        || (g_last.fahrenheit != g_is_fahrenheit)
+        || (g_last.light_mode != current_light_mode);
     bool dirty[4] = { false, false, false, false };
     for (int i = 0; i < 4; ++i) {
         dirty[i] = !g_last.valid
             || (g_last.card_valid[i] != card_valid_now(i))
             || (g_last.value_key[i] != card_value_key(i))
-            || (i == 0 && g_last.fahrenheit != g_is_fahrenheit);
+            || (i == 0 && g_last.fahrenheit != g_is_fahrenheit)
+            || (i == 2 && g_last.light_mode != current_light_mode);
         any_dirty = any_dirty || dirty[i];
     }
 
@@ -304,5 +315,6 @@ void draw_lab_home_cards_screen(bool screen_changed, bool sensor_data_changed) {
         g_last.value_key[i] = card_value_key(i);
     }
     g_last.fahrenheit = g_is_fahrenheit;
+    g_last.light_mode = current_light_mode;
     g_last.valid = true;
 }

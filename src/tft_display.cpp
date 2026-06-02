@@ -15,6 +15,7 @@
 #include "runtime_events.h"
 #include "led_control.h"
 #include "demo_mode.h"
+#include "sensor_connection_notice.h"
 #include "sensor_visuals.h"
 #include <stdio.h>
 #include <string.h>
@@ -98,6 +99,71 @@ static void draw_demo_start_splash() {
     tft.setFreeFont(FONT_SMALL);
     tft.setTextColor(TFT_CYAN, TFT_BLACK);
     tft.drawString(L(ST_DEMO_START), 80, 78);
+    tft.setTextFont(0);
+}
+
+static const char* connection_notice_sensor_name(SzSensorId sensor) {
+    switch (sensor) {
+        case SZ_SOIL: return L(ST_NOTICE_SOIL_SENSOR);
+        case SZ_DS18: return L(ST_NOTICE_DS18_SENSOR);
+        default:      return "";
+    }
+}
+
+static const char* connection_notice_port(SzSensorId sensor) {
+    switch (sensor) {
+        case SZ_SOIL: return "IO35";
+        case SZ_DS18: return "IO33";
+        default:      return "";
+    }
+}
+
+static void draw_centered_notice_text(const char* text,
+                                      int cx,
+                                      int y,
+                                      const GFXfont* preferred_font,
+                                      uint16_t color,
+                                      uint16_t shadow_color,
+                                      uint16_t bg_color,
+                                      int max_w = 154) {
+    tft.setFreeFont(preferred_font);
+    if (tft.textWidth(text) > max_w) {
+        tft.setFreeFont(FONT_BODY);
+    }
+    if (tft.textWidth(text) > max_w) {
+        tft.setFreeFont(FONT_SMALL);
+    }
+    tft.setTextColor(shadow_color, bg_color);
+    tft.drawString(text, cx + 1, y + 1);
+    tft.setTextColor(color, bg_color);
+    tft.drawString(text, cx, y);
+}
+
+static void draw_sensor_connection_splash(SzSensorId sensor, SensorConnectionNoticeKind kind) {
+    const bool disconnected = (kind == SENSOR_NOTICE_DISCONNECTED);
+    const uint16_t bg_color = disconnected
+        ? tft.color565(176, 8, 18)
+        : tft.color565(0, 136, 38);
+    const uint16_t shadow_color = disconnected
+        ? tft.color565(72, 0, 8)
+        : tft.color565(0, 54, 14);
+    const uint16_t sensor_color = disconnected
+        ? tft.color565(255, 232, 190)
+        : tft.color565(210, 255, 204);
+    const uint16_t port_color = tft.color565(255, 255, 120);
+    const LangKey notice_key = (kind == SENSOR_NOTICE_DISCONNECTED)
+        ? ST_NOTICE_DISCONNECTED
+        : ST_NOTICE_CONNECTED;
+
+    tft.fillScreen(bg_color);
+    tft.setTextDatum(MC_DATUM);
+
+    draw_centered_notice_text(L(notice_key), 80, 38, FONT_MENU,
+                              TFT_WHITE, shadow_color, bg_color);
+    draw_centered_notice_text(connection_notice_sensor_name(sensor), 80, 65, FONT_BODY,
+                              sensor_color, shadow_color, bg_color);
+    draw_centered_notice_text(connection_notice_port(sensor), 80, 92, FONT_MENU,
+                              port_color, shadow_color, bg_color);
     tft.setTextFont(0);
 }
 
@@ -594,20 +660,32 @@ void switch_screen(void *param) {
         bool force_redraw = runtime_take_ui_full_redraw();
         bool sensor_data_changed = runtime_take_sensor_data_ready();
         const bool demo_splash_active = demo_mode_splash_active();
-        const bool demo_values_active = demo_mode_is_active() && !demo_splash_active;
+        const bool demo_active = demo_mode_is_active();
+        const bool demo_values_active = demo_active && !demo_splash_active;
         static bool last_demo_splash_active = false;
+        static bool last_connection_notice_active = false;
         const bool raw_mic_screen = is_sound_vu_screen(active_screen);
         const bool graph_limited_screen = is_graph_rate_limited_screen(active_screen);
         static unsigned long last_ui_sensor_update_ms = 0;
         static unsigned long last_ui_graph_update_ms = 0;
         const unsigned long now_ms = millis();
 
+        sensor_connection_notice_service(demo_active || demo_splash_active);
+        SzSensorId connection_notice_sensor = SZ_SOIL;
+        SensorConnectionNoticeKind connection_notice_kind = SENSOR_NOTICE_CONNECTED;
+        const bool connection_notice_active =
+            !demo_active
+            && !demo_splash_active
+            && sensor_connection_notice_current(&connection_notice_sensor, &connection_notice_kind);
+
         if (demo_values_active) {
             sensor_data_changed = true;
         }
 
         if (sensor_data_changed && (!raw_mic_screen || demo_values_active)) {
-            const uint32_t interval_ms = graph_limited_screen ? kUiGraphRefreshMs : kUiSensorRefreshMs;
+            const uint32_t interval_ms = demo_values_active
+                ? demo_mode_value_refresh_ms()
+                : (graph_limited_screen ? kUiGraphRefreshMs : kUiSensorRefreshMs);
             unsigned long& last_update_ms = graph_limited_screen
                 ? last_ui_graph_update_ms
                 : last_ui_sensor_update_ms;
@@ -651,6 +729,13 @@ void switch_screen(void *param) {
             screen_changed = true;
             sensor_data_changed = true;
         }
+        if (connection_notice_active && !last_connection_notice_active) {
+            screen_changed = true;
+        }
+        if (!connection_notice_active && last_connection_notice_active) {
+            screen_changed = true;
+            sensor_data_changed = true;
+        }
 
         if (g_timer_just_reset) timer_needs_update = true;
 
@@ -661,6 +746,7 @@ void switch_screen(void *param) {
         if (screen_changed
             || sensor_data_changed
             || demo_splash_active
+            || connection_notice_active
             || (active_screen == SOIL_SCREEN && soil_cal_needs_update)
             || (active_screen == TIMER_SCREEN && (timer_needs_update || g_timer_just_reset))
             || (active_screen == SYSTEM_SCREEN && system_needs_update)) {
@@ -673,6 +759,16 @@ void switch_screen(void *param) {
                 continue;
             }
             last_demo_splash_active = false;
+
+            if (connection_notice_active) {
+                if (screen_changed || !last_connection_notice_active) {
+                    draw_sensor_connection_splash(connection_notice_sensor, connection_notice_kind);
+                }
+                last_connection_notice_active = true;
+                vTaskDelay(pdMS_TO_TICKS(5));
+                continue;
+            }
+            last_connection_notice_active = false;
 
             if (screen_changed) {
                 last_drawn = active_screen;

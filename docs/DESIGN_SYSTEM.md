@@ -1,7 +1,7 @@
 # Design System — P-Bit TFT
 
-**Actualizado:** 2026-05-24
-**Estado:** IMPLEMENTADO — Sensor Zone activa en producción; validación en hardware ST7735 pendiente
+**Actualizado:** 2026-05-28
+**Estado:** IMPLEMENTADO — Sensor Zone activa; ghosting/flicker resuelto por ahora; LDR modos y Demo smooth implementados en firmware, pendientes de validación visual final
 
 Referencia canónica para cualquier pantalla nueva, modificación de color, icono o layout en el firmware P-Bit. Leer este documento antes de tocar cualquier color, icono o layout en archivos de producción.
 
@@ -18,14 +18,15 @@ Cada sensor tiene cuatro roles de color. Los valores viven en `include/palette.h
 
 | Sensor | P1 · Primary | Hex | P2 · Secondary | Hex | P3 · Acento cálido | Hex | P4 · Contraste frío | Hex |
 |--------|-------------|-----|----------------|-----|--------------------|-----|---------------------|-----|
-| **TEMP** | Naranja ácido | `0xFA80` | Rosa eléctrico | `0xF814` | Oro eléctrico | `0xFE45` | Azul hielo | `0x055F` |
+| **TEMP** | Fucsia eléctrico | `0xF817` | Verde ácido | `0x07E8` | Oro eléctrico | `0xFE45` | Azul hielo | `0x055F` |
 | **HUMEDAD** | Cian eléctrico | `0x075F` | Cobalto láser | `0x2A9F` | Aqua brillante | `0x8FFF` | Azul océano | `0x01F4` |
 | **LUZ** | Amarillo puro | `0xFFE0` | Ámbar eléctrico | `0xFC40` | Oro neón | `0xFE40` | Dorado oscuro | `0x7A40` |
-| **SONIDO** | Magenta punk | `0xF81F` | Verde ácido | `0x07E8` | Rojo neón | `0xF8A0` | Púrpura oscuro | `0x4011` |
+| **SONIDO** | Naranja cálido | `0xFD40` | Violeta-púrpura | `0xC01F` | Rojo neón | `0xF8A0` | Púrpura oscuro | `0x4011` |
 | **SUELO** | Lima ácido | `0x47E8` | Tierra cálida | `0xCC04` | Menta claro | `0x87F0` | Verde oscuro | `0x0300` |
-| **TERMÓMETRO** | Violeta eléctrico | `0xA01F` | Azul láser | `0x045F` | Amatista claro | `0xCC5F` | Cian frío | `0x0659` |
+| **TERMÓMETRO** | Naranja vivo | `0xFB80` | Azul láser | `0x045F` | Amatista claro | `0xCC5F` | Cian frío | `0x0659` |
 
 > Los nombres semánticos expresan la intención visual. Los valores exactos en `include/palette.h` son los únicos valores autorizados.
+> Suelo aplica además una rampa semántica runtime en `pbit_soil_visual_color()`: amarillo intenso en sequía extrema, verde entre umbrales `Seco..Húmedo` y azul al superar `Húmedo`.
 
 ### Uso semántico de los 4 roles
 
@@ -74,15 +75,17 @@ Todos los iconos son procedurales (dibujados con primitivas TFT_eSPI en runtime)
 
 | Función | Factor `s` | Tamaño aprox. | Uso |
 |---------|-----------|---------------|-----|
-| `pbit_draw_*_icon(cx, cy, color)` | s=1 | ~14×14 px | Compatible con `SensorIconDrawFn` — headers, jewels |
-| `pbit_draw_*_icon_large(...)` | s=2 | ~28×28 px | Pantallas Focus / Detail |
-| `pbit_draw_*_icon_xl(...)` | s=3 | ~42×42 px | Centro del gauge (modo DIAL) |
+| `pbit_draw_*_icon(cx, cy, color)` | s=1 | ~14×14 px | Sensor cards, headers, jewels (`SensorIconDrawFn`) |
+| `pbit_draw_*_icon_xl(cx, cy, color)` | s=3 | ~42×42 px | Centro del gauge / Focus screens |
+| `pbit_draw_*_icon_xxl(cx, cy, color, accent)` | s=3 | ~42×42 px | Dial screen — con color de acento separado |
+
+> **Nota:** No existe API `_large` (s=2). `_xl` y `_xxl` comparten escala s=3; `_xxl` añade color de acento.
 
 ### Inventario y estado
 
 | Icono | Sensor | Estado | Deuda / Notas |
 |-------|--------|--------|---------------|
-| `temp` — Termómetro | TEMP | ⚠️ Fix parcial | **Geometría v10 — canvas lleno:** tubo **4s×11s** (cy-7s→cy+4s), bulbo **r=3s** en cy+4s (bottom=cy+7s). Llena el canvas ±7s igual que todos los demás íconos. Ratio total 6s×14s. Render order: tubo→canal→bulbo. Mercurio (detail): canal vacío cy-6s→cy-2s + mercurio cy-2s→cy+4s + bulbo último. Pendiente: canal usa `0x1082` hardcodeado. |
+| `temp` — Termómetro | TEMP | ✅ **FINAL** | Geometría v17: silueta centrada en `cx` con tubo `fillRoundRect(cx-2s, cy-7s, 4s, 11s)`, canal vacío `fillRect(cx-s, cy-6s, 2s, 4s, bg)`, bulbo `fillCircle(cx, cy+4s, 3s+1)` y ticks `(4s)/3`. `pbit_draw_temp_icon`, `_xl` y el fallback `_xxl(cx, cy, color)` son **monocromos**: no dibujan `TFT_WHITE` ni acentos internos. Solo `pbit_draw_temp_icon_xxl(cx, cy, color, accent)`, usado por Dial, conserva detalle multicolor/mercurio. Deuda técnica no visual: canal usa `0x1082` hardcodeado. |
 | `humidity` — Gota | HUMEDAD | ✅ Aprobado en código | Silueta sólida sin donut interior. Pendiente validación en hardware |
 | `light` — Sol | LUZ | ✅ Funcional | Rayos diagonales de 1 px pueden ser poco visibles a s=1. Mejorable a 2 px si hardware lo confirma |
 | `sound` — Micrófono | SONIDO | ✅ Funcional | No tocar sin captura de hardware previa. Si base excesiva, reducir solo en hardware |
@@ -163,9 +166,11 @@ Todas las visualizaciones de un sensor deben usar el mismo rango base. No reutil
 | TEMP DHT11 | `0..50°C` / `32..122°F` |
 | DS18B20 | `-55..+125°C` / `-67..+257°F` |
 | HUMEDAD | `0..100%` |
-| LUZ | `0..20000 lux` |
+| LUZ | `0..8000 lux` |
 | SONIDO | `0..100%` |
 | SUELO | `0..100%` |
+
+Nota LUZ: `0..8000 lux` es el rango ambiental base actual para categorías, alertas y escala visual tras la calibración empírica LDR v1. La presentación visible usa helper común para `Lux`, `FC` y `Raw ADC`; Sensor Zone, cards, dashboards, dials y gráficas deben mostrar valor/unidad según el modo activo.
 
 El LED RGB debe seguir el color semántico de la visualización activa mediante `sensor_visuals.*`. Timer usa el color de estado visible; cualquier vista de solo Luz mantiene RGB apagado para no influir en el LDR.
 
@@ -255,27 +260,30 @@ Ver `docs/TFT_RENDER_RULES.md` para el protocolo anti-flicker completo (sprites,
 
 - `include/palette.h` con P1/P2/P3/P4 y helpers `pb_primary()`, `pb_secondary()`, `pb_accent_warm()`, `pb_contrast_cool()` por índice de sensor
 - Sensor Zone completa (`FOCUS`, `CARD`, `VALOR`, `GRAPH`, `GAUGE`) consume paleta canónica
-- Iconos `humidity`, `probe` y `plant` rediseñados en `src/ui_icons.cpp`
+- Icono `temp` final aplicado a small/XL/XXL: small/XL/fallback son monocromos y solo Dial/XXL con acento conserva detalle multicolor; no mezclar este estado con el icono técnico `probe`/DS18B20
+- Estados externos desconectados para `SZ_DS18` y `SZ_SOIL`: textos `Revisa IO33` / `Revisa IO35`, helper runtime común y paleta del sensor atenuada en clásicas, Sensor Zone y Lab
+- Iconos `humidity` y `plant` rediseñados en `src/ui_icons.cpp`; `probe` se mantiene separado de `temp` y no está aprobado como final
 - Icono Bluetooth añadido en `src/ui_icons.cpp` para pantalla `BLE_TOGGLE_SCREEN`
 
-### Pendiente de validación en hardware (ST7735 real)
+### Pendiente visual / vigilancia en hardware (ST7735 real)
 
 - Contraste real de P1/P2/P3/P4 sobre fondos navy — especialmente HUM vs. DS18 como identidades visualmente distinguibles
 - Legibilidad de P3/P4 en labels min/max y segmentos apagados sobre ST7735 real (vs. simulador)
+- LDR: coherencia visual `Lux / FC / Raw ADC` implementada en firmware; validar en hardware real
+- DS18/Suelo desconectados: validar en hardware real que `Sin sensor` + `Revisa IO33/IO35` caben en ES/CAT/EN y que la paleta atenuada comunica ausencia sin parecer alarma roja
 - Icono `light`: rayos diagonales de 1 px en s=1 — confirmar si son visibles o requieren 2 px
 - Icono `sound`: proporciones de base horizontal en s=1, s=2, s=3
-- Icono `temp`: mancha de `TFT_BLACK` interior sobre fondo navy
+- Demo Mode: coreografía smooth implementada; validar que no reintroduzca flicker por cambios de datos demasiado rápidos
 
 ### Decisiones de diseño abiertas
 
 **Paleta:**
 - [ ] Aprobar en hardware TEMP / HUM / DS18 como identidades visualmente distinguibles
-- [ ] Validar `PB_SOIL_P2` (tierra cálida) vs. cian menta sobre ST7735 real
+- [ ] Validar en ST7735 real la rampa de Suelo amarillo→verde→azul contra los umbrales configurados
 - [ ] Decidir si `HOME` y `CLIMA LAB` migran a paleta canónica o mantienen colores responsivos propios
 
 **Iconos:**
 - [ ] Rediseño y aprobación final del icono `probe` (DS18B20) en hardware
-- [ ] Corrección de `TFT_BLACK` en icono `temp` — añadir parámetro `bg` a la firma
 - [ ] Confirmar si diagonales del icono `light` necesitan ajuste a 2 px tras validación hardware
 
 ---

@@ -1,5 +1,5 @@
 // ui_ds18.cpp
-// Pantalla de sonda de temperatura externa DS18B20 (1-Wire, puerto J4/GPIO33).
+// Pantalla de sonda de temperatura externa DS18B20 (1-Wire, referencia PCB IO33).
 
 #include "ui_ds18.h"
 #include "tft_display.h"
@@ -11,6 +11,7 @@
 #include "layout.h"
 #include "led_control.h"
 #include "alert_engine.h"
+#include "external_sensor_state.h"
 #include "runtime_events.h"
 #include <TFT_eSPI.h>
 #include <Arduino.h>
@@ -61,7 +62,11 @@ static const char* unit_short() {
     return g_is_fahrenheit ? L(ST_UNIT_F_SHORT) : L(ST_UNIT_C_SHORT);
 }
 
-static void apply_ds18_rgb(uint8_t alert_state) {
+static void apply_ds18_rgb(uint8_t alert_state, bool no_sensor) {
+    if (no_sensor) {
+        set_rgb(48, 18, 0);
+        return;
+    }
     switch (alert_state) {
         case ALERT_CODE_LOW:
             set_rgb(0, 90, 255);
@@ -82,7 +87,7 @@ static void draw_ds18_alert_jewel(uint8_t alert_state, bool alerts_enabled, bool
 
     if (no_sensor || !alerts_enabled) {
         jewel_state = ALERT_JEWEL_OFF;
-        jewel_color = TFT_DARKGREY;
+        jewel_color = no_sensor ? pbit_external_dim_primary(SZ_DS18) : TFT_DARKGREY;
     } else if (alert_state == ALERT_CODE_LOW) {
         jewel_state = ALERT_JEWEL_WARN;
         jewel_color = TFT_BLUE;
@@ -428,13 +433,16 @@ void draw_ds18_screen(bool screen_changed, bool data_changed) {
     const uint16_t BACKGROUND_COLOR = TFT_BLACK;
     const int LEFT_PANEL_W = LA_TANK_X - 2;
     float temp_c = g_ui_readings_snapshot.temp_ds18b20;
-    bool no_sensor = (temp_c < -100.0f);
+    bool no_sensor = pbit_external_sensor_missing(SZ_DS18, g_ui_readings_snapshot);
     const bool alerts_enabled = get_ds18_alerts_enabled();
     uint8_t alert_state = alert_engine_get_code(AlertSensor::Ds18);
 
-    uint16_t value_color = TFT_DARKGREY;
-    uint16_t tank_color = TFT_DARKGREY;
-    uint16_t label_color = TFT_DARKGREY;
+    const uint16_t missing_primary = pbit_external_dim_primary(SZ_DS18);
+    const uint16_t missing_secondary = pbit_external_dim_secondary(SZ_DS18);
+    const uint16_t missing_bg = pbit_external_dim_bg(SZ_DS18);
+    uint16_t value_color = missing_primary;
+    uint16_t tank_color = missing_primary;
+    uint16_t label_color = missing_secondary;
 
     if (!no_sensor) {
         value_color = (temp_c < 0.0f) ? TFT_CYAN : getTempColor(temp_c);
@@ -478,7 +486,7 @@ void draw_ds18_screen(bool screen_changed, bool data_changed) {
             tft.fillScreen(BACKGROUND_COLOR);
             drawHeader(L(TIT_THERM));
         }
-        apply_ds18_rgb(alert_state);
+        apply_ds18_rgb(alert_state, no_sensor);
 
         tft.fillRect(0, LA_HINT_Y - 4, LEFT_PANEL_W, 18, BACKGROUND_COLOR);
         const int category_clear_x = L_ALERT_JEWEL_X + 10;
@@ -487,7 +495,7 @@ void draw_ds18_screen(bool screen_changed, bool data_changed) {
         if (no_sensor) {
             tft.setTextDatum(TC_DATUM);
             tft.setFreeFont(FONT_SMALL);
-            tft.setTextColor(TFT_RED, BACKGROUND_COLOR);
+            tft.setTextColor(missing_primary, BACKGROUND_COLOR);
             tft.drawString(L(ST_NO_SENSOR), LA_LEFT_CX, LA_HINT_Y);
             tft.setTextFont(0);
         } else {
@@ -510,12 +518,12 @@ void draw_ds18_screen(bool screen_changed, bool data_changed) {
     if (no_sensor) {
         tft.setTextDatum(TC_DATUM);
         tft.setFreeFont(FONT_VALUE);
-        tft.setTextColor(TFT_DARKGREY, BACKGROUND_COLOR);
+        tft.setTextColor(missing_secondary, BACKGROUND_COLOR);
         tft.drawString("---", LA_LEFT_CX, LA_VALUE_TOP);
         tft.setTextFont(0);
 
         tft.setFreeFont(FONT_SMALL);
-        tft.setTextColor(TFT_DARKGREY, BACKGROUND_COLOR);
+        tft.setTextColor(missing_primary, BACKGROUND_COLOR);
         tft.drawString(L(ST_CHECK_DS18), LA_LEFT_CX, LA_CATEGORY_Y);
         tft.setTextFont(0);
     } else {
@@ -540,8 +548,9 @@ void draw_ds18_screen(bool screen_changed, bool data_changed) {
         tft.fillRect(LA_TANK_X + 1, LA_TANK_Y + 1, LA_TANK_W - 2, LA_TANK_H - 2, TFT_BLACK);
 
         if (no_sensor) {
-            drawFillTank(LA_TANK_X, LA_TANK_Y, LA_TANK_W, LA_TANK_H, TFT_DARKGREY, -55.0f, -55.0f, 125.0f);
-            tft.drawRoundRect(LA_TANK_X, LA_TANK_Y, LA_TANK_W, LA_TANK_H, 3, TFT_DARKGREY);
+            tft.fillRect(LA_TANK_X + 1, LA_TANK_Y + 1, LA_TANK_W - 2, LA_TANK_H - 2, missing_bg);
+            drawFillTank(LA_TANK_X, LA_TANK_Y, LA_TANK_W, LA_TANK_H, missing_primary, -55.0f, -55.0f, 125.0f);
+            tft.drawRoundRect(LA_TANK_X, LA_TANK_Y, LA_TANK_W, LA_TANK_H, 3, missing_secondary);
         } else {
             float norm = constrain((temp_c + 55.0f) / 180.0f, 0.0f, 1.0f);
             int fill_px = (int)(norm * inner_h);
@@ -564,10 +573,11 @@ void draw_ds18_screen(bool screen_changed, bool data_changed) {
             tft.drawRoundRect(LA_TANK_X, LA_TANK_Y, LA_TANK_W, LA_TANK_H, 3, tank_color);
         }
 
-        tft.drawFastHLine(LA_TANK_X + 1, zero_y, LA_TANK_W - 2, TFT_WHITE);
-        tft.drawFastHLine(LA_TANK_X + LA_TANK_W + 1, zero_y, 2, TFT_WHITE);
+        const uint16_t zero_color = no_sensor ? missing_secondary : TFT_WHITE;
+        tft.drawFastHLine(LA_TANK_X + 1, zero_y, LA_TANK_W - 2, zero_color);
+        tft.drawFastHLine(LA_TANK_X + LA_TANK_W + 1, zero_y, 2, zero_color);
         tft.setTextDatum(TL_DATUM);
-        tft.setTextColor(TFT_WHITE, BACKGROUND_COLOR);
+        tft.setTextColor(zero_color, BACKGROUND_COLOR);
         tft.setFreeFont(FONT_SMALL);
         tft.drawString("0", LA_TANK_X + LA_TANK_W + 3, zero_y - 4);
         tft.setTextFont(0);

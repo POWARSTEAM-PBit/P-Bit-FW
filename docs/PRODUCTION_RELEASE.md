@@ -1,6 +1,6 @@
 # Production Release P-Bit
 
-Actualizado: 2026-05-26
+Actualizado: 2026-05-28
 
 ## Build Local
 
@@ -44,7 +44,7 @@ py -m platformio run -e esp32dev
 
 Registrar tamaño de firmware, hash de commit, fecha, operador, placa y resultado de flasheo.
 
-En esta revisión solo queda verificado el build local y la auditoría estática. El flasheo y las pruebas con hardware real deben registrarse aparte por unidad.
+En esta revisión quedan verificados el build local, la auditoría estática y una validación puntual en hardware de Demo Mode y anti-flicker/ghosting. El registro completo de flasheo y pruebas debe repetirse aparte por unidad.
 
 ## Auditoría Estática De Producción
 
@@ -54,12 +54,16 @@ Confirmado por lectura de código:
 - Guardar idioma fuerza full redraw mediante `runtime_request_ui_full_redraw()` y la UI consume el evento con `runtime_take_ui_full_redraw()`.
 - Textos visibles de UI migrados a `L(...)`/`LIn(...)`; quedan literales directos no lingüísticos como cursores, placeholders, separadores y ticks numéricos.
 - BLE sale factory-off: `ble_en` carga `false`, `init_ble()` es condicional y el reset por build-hash limpia NVS antes de evaluar BLE en una build nueva.
-- LDR entrega lux en rango `0..20000`, conserva `ldr_raw` y soporta modo visible `Raw ADC`.
+- LDR tiene base técnica y propagación visual implementadas: lux interno en rango `0..8000` por curva empírica v1, `ldr_raw` promediado, conversión `FC = lux / 10.764`, histórico RAW y unidad/valor coherentes en Luz, Sensor Zone, cards, dashboards, gráficas y dials; queda validación en hardware real.
+- Estados desconectados de sensores externos implementados en firmware: Suelo usa `Revisa IO35`, Termómetro/DS18B20 usa `Revisa IO33`, ambos con paleta del sensor atenuada y sin persistencia NVS.
+- Aviso de conexión/desconexión implementado para sensores externos: si Suelo o Termómetro cambian de estado después del arranque, aparece splash full-screen semafórico de `1500 ms`; verde con `CONECTADO` y rojo con `DESCONECTADO`, seguido de `Sensor Suelo`/`Sensor DS18B20` y `IO35`/`IO33`; no se dispara al boot ni durante Demo Mode.
+- Icono `temp` final ajustado a monocromo en small/XL/fallback; solo la versión Dial/XXL con acento conserva detalle multicolor. El icono técnico `probe`/DS18B20 sigue separado y pendiente de validación final.
 - Sensor Zone centraliza los seis sensores y sus modos visuales persistidos.
 - `Sistema` separa `Bip` (`sys_sound`) y `Alarmas` (`sys_alarm`) con persistencia independiente; ambos vuelven `OFF` por defecto tras build/reset.
 - Unidad global `C/F` persistida en `sys_unit_f`.
-- Fixes anti-flicker presentes en dials/gauges, cards, menús/footers, banda de estado en cards y `Sound VU`.
-- Modo demo runtime activable en arranque con encoder presionado durante el logo o con pulsación larga desde `Home`; muestra splash breve, simula valores solo en el snapshot visual, no persiste sensor/modo en NVS y bloquea reposo mientras está activo.
+- Fixes anti-flicker/ghosting presentes y validados por ahora en dials/gauges, cards, menús/footers, banda de estado en cards y `Sound VU`; queda como vigilancia de regresión.
+- Modo demo runtime confirmado en hardware: entra en arranque con encoder presionado durante los logos o con pulsación larga desde `Home`, muestra splash breve, simula valores solo en el snapshot visual, no persiste sensor/modo en NVS, bloquea reposo mientras está activo y sale con interacción.
+- Demo Mode tiene coreografía smooth implementada en firmware: dwell variable, refresco dedicado, curvas por sensor y gráficas sintéticas; queda validación visual final en hardware.
 
 ## Artefactos De Release
 
@@ -85,12 +89,15 @@ Después de flashear una unidad:
 - [ ] Confirmar BLE apagado por defecto y sin publicidad `PBIT-XXXX`.
 - [ ] Recorrer carrusel completo y probar una pulsación corta/larga en un sensor.
 - [ ] Verificar lecturas plausibles de DHT11, LDR, micrófono, suelo y Termómetro (`DS18B20`).
+- [ ] Verificar sensores externos desconectados: Suelo muestra `Revisa IO35`, Termómetro muestra `Revisa IO33`, con pantalla atenuada y retorno a paleta normal al reconectar sin reiniciar.
+- [ ] Verificar splash de conexión/desconexión: `CONECTADO/DESCONECTADO / Sensor Suelo / IO35` y `CONECTADO/DESCONECTADO / Sensor DS18B20 / IO33`, fondo verde/rojo correcto y sin aviso inicial al arrancar con sensores ya conectados o ya desconectados.
 - [ ] Verificar que `Bip OFF` silencia beeps de UI y que `Alarmas OFF` silencia alertas/timer audibles.
 - [ ] Cambiar `C/F`, reiniciar y confirmar que la unidad permanece guardada.
-- [ ] Verificar que LDR responde a sombra/luz y que el modo `Raw ADC` muestra lectura cruda.
-- [ ] Verificar que el icono de luz cambia con varias etapas visibles en `0..1000 lux`.
+- [ ] Validar LDR en hardware: verificar respuesta a sombra/luz, comparar contra luxómetro y confirmar que al cambiar modo todos los valores/unidades visibles son coherentes entre `lux`, `FC` y `raw`.
+- [ ] Validar Demo smooth en hardware: confirmar que la coreografía no reintroduce flicker y que los cambios de gráficas/dials/cards se sienten intencionales.
+- [ ] Verificar que el icono de luz cambia con varias etapas visibles en el tramo bajo de luz ambiental.
 - [ ] Revisar icono DS18B20 en hardware; no tratarlo como identidad final hasta aprobarlo visualmente.
-- [ ] Confirmar que `Sound VU`, cards y dials no presentan flicker visible en uso normal.
+- [ ] Vigilancia no bloqueante de regresión: revisar que `Sound VU`, cards y dials no recuperen flicker/ghosting visible en uso normal.
 - [ ] Dejar 30 minutos en reposo visible y confirmar que despierta con el encoder.
-- [ ] Activar Modo demo encendiendo con encoder presionado durante el logo y también con pulsación larga desde `Home`; confirmar salida con giro/pulsación.
+- [x] Activar Modo demo encendiendo con encoder presionado durante los logos y también con pulsación larga desde `Home`; salida confirmada con interacción.
 - [ ] Para lote piloto, hacer prueba de 24 h con BLE apagado y otra con BLE activado.

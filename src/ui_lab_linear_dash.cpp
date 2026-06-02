@@ -3,10 +3,13 @@
 
 #include "ui_lab_linear_dash.h"
 
+#include "external_sensor_state.h"
 #include "fonts.h"
 #include "io.h"
 #include "languages.h"
+#include "light_display.h"
 #include "layout.h"
+#include "sensor_visuals.h"
 #include "tft_display.h"
 #include "ui_icons.h"
 #include "ui_widgets.h"
@@ -49,6 +52,7 @@ constexpr int kBarH = 5;
 constexpr int kBarSegments = 8;
 
 struct RowData {
+    SzSensorId sensor_id;
     void (*icon_fn)(int, int, uint16_t);
     const char* label;
     uint16_t color;
@@ -76,6 +80,14 @@ static int row_center_y(int row) {
 
 static void build_value_text(const RowData& d, char* out, size_t out_sz) {
     if (!d.valid) {
+        if (d.sensor_id == SZ_DS18) {
+            snprintf(out, out_sz, "IO33");
+            return;
+        }
+        if (d.sensor_id == SZ_SOIL) {
+            snprintf(out, out_sz, "IO35");
+            return;
+        }
         snprintf(out, out_sz, "--");
         return;
     }
@@ -150,9 +162,9 @@ static void draw_dynamic(bool force_all = false) {
 
     const bool t_ok = !isnan(r.temperature);
     const bool h_ok = !isnan(r.humidity);
-    const bool l_ok = !isnan(r.ldr);
-    const bool o_ok = !isnan(r.soil_humidity);
-    const bool d_ok = r.temp_ds18b20 >= -100.0f;
+    const bool o_ok = !pbit_external_sensor_missing(SZ_SOIL, r);
+    const bool d_ok = !pbit_external_sensor_missing(SZ_DS18, r);
+    const LightDisplayReading light = light_display_from_reading(r);
 
     const float t_c = t_ok ? r.temperature : 0.0f;
     const float t_d = g_is_fahrenheit ? (t_c * 1.8f + 32.0f) : t_c;
@@ -164,20 +176,22 @@ static void draw_dynamic(bool force_all = false) {
     const char* d_u = g_is_fahrenheit ? L(ST_UNIT_F_SHORT) : L(ST_UNIT_C_SHORT);
     const float d_min = g_is_fahrenheit ? -67.0f : -55.0f;
     const float d_max = g_is_fahrenheit ? 257.0f : 125.0f;
+    const uint16_t soil_color = o_ok ? pbit_soil_visual_color(r.soil_humidity) : kGreen;
 
     const RowData rows[5] = {
-        { pbit_draw_temp_icon,     L(LAB_TEMP_SHORT),  kOrange,  t_ok, t_d,                     t_min, t_max,   "%.1f", t_u  },
-        { pbit_draw_humidity_icon, L(LAB_AIR_SHORT),   kCyan,    h_ok, h_ok ? r.humidity : 0.0f, 0.0f, 100.0f,  "%.0f", "%"  },
-        { pbit_draw_light_icon,    L(LAB_LIGHT_SHORT), kYellow,  l_ok, l_ok ? r.ldr : 0.0f,      0.0f, 20000.0f, "%.0f", "lx" },
-        { pbit_draw_plant_icon,    L(LAB_SOIL_SHORT),  kGreen,   o_ok, o_ok ? r.soil_humidity : 0.0f, 0.0f, 100.0f, "%.0f", "%" },
-        { pbit_draw_probe_icon,    "DS18B20",  kProbe,   d_ok, d_d,                    d_min, d_max,   "%.1f", d_u  },
+        { SZ_TEMP,  pbit_draw_temp_icon,     L(LAB_TEMP_SHORT),  kOrange,  t_ok, t_d,                     t_min, t_max,   "%.1f", t_u  },
+        { SZ_HUM,   pbit_draw_humidity_icon, L(LAB_AIR_SHORT),   kCyan,    h_ok, h_ok ? r.humidity : 0.0f, 0.0f, 100.0f,  "%.0f", "%"  },
+        { SZ_LIGHT, pbit_draw_light_icon,    L(LAB_LIGHT_SHORT), kYellow,  light.valid, light.valid ? light.value : 0.0f, 0.0f, light_display_max(light.mode), "%.0f", light.unit },
+        { SZ_SOIL,  pbit_draw_plant_icon,    L(LAB_SOIL_SHORT),  soil_color, o_ok, o_ok ? r.soil_humidity : 0.0f, 0.0f, 100.0f, "%.0f", "%" },
+        { SZ_DS18,  pbit_draw_probe_icon,    "DS18B20",          kProbe,   d_ok, d_d,                    d_min, d_max,   "%.1f", d_u  },
     };
 
     for (int i = 0; i < 5; ++i) {
         char value_text[20];
         build_value_text(rows[i], value_text, sizeof(value_text));
         const uint8_t bar_on = compute_bar_on(rows[i].value, rows[i].v_min, rows[i].v_max, rows[i].valid);
-        const uint16_t visible_color = rows[i].valid ? rows[i].color : kGrey;
+        const uint16_t visible_color = rows[i].valid ? rows[i].color :
+            (pbit_external_sensor_has_port_hint(rows[i].sensor_id) ? pbit_external_dim_primary(rows[i].sensor_id) : kGrey);
 
         RowCache& cache = g_last_rows[i];
         const bool changed =

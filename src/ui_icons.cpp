@@ -4,20 +4,23 @@
 
 extern TFT_eSPI tft;
 
+constexpr uint16_t kIconHighlight = 0xFFFF;
+
+static void impl_temp_detail(int cx, int cy, uint16_t c, uint16_t a, int s);
+
 // ---------------------------------------------------------------------------
-// Internal helpers — s=1 → small (~14×14 px), s=2 → large (~28×28 px).
+// Internal helpers. Small icons use s=1 (~14×14 px); XL/XXL icons use s=3 (~42×42 px).
 // Every icon fits within ±7·s px from (cx, cy).
 // ---------------------------------------------------------------------------
 
 static void impl_temp(int cx, int cy, uint16_t c, int s) {
-    // Canvas ±7s. Tubo 4s ancho (paredes 1s, canal 2s), bulbo r=3s en cy+4s.
-    // Total: 6s ancho × 14s alto (cy-7s → cy+7s). Llena el canvas como los demás íconos.
-    // NOTA: canal usa 0x1082 (bg card). Pendiente fix con parametro bg.
-    tft.fillRoundRect(cx - 2*s, cy - 7*s, 4*s, 11*s, s, c);   // tubo: cy-7s → cy+4s
-    tft.fillRect     (cx - s,   cy - 6*s, 2*s, 10*s, 0x1082); // canal interior completo
-    tft.fillCircle   (cx,       cy + 4*s, 3*s,         c);     // bulbo: r=3s, bottom=cy+7s
-    tft.drawFastHLine(cx + 2*s, cy - 5*s, 2*s, c);             // tick alto
-    tft.drawFastHLine(cx + 2*s, cy - 2*s, 2*s, c);             // tick medio
+    // Monochrome temp icon for small/XL/fallback sizes. Only the Dial detail
+    // variant may add a second colour.
+    tft.fillRoundRect(cx - 2*s, cy - 7*s, 4*s, 11*s, s, c);    // tubo: cy-7s → cy+4s
+    tft.fillRect     (cx - s,   cy - 6*s, 2*s,  4*s, 0x1082);  // canal vacío: cy-6s → cy-2s
+    tft.fillCircle   (cx, cy + 4*s, 3*s + 1, c);                // bulbo: centrado en cx
+    tft.drawFastHLine(cx + 2*s, cy - 5*s, (4*s)/3, c);          // tick alto (−1/3)
+    tft.drawFastHLine(cx + 2*s, cy - 2*s, (4*s)/3, c);          // tick medio (−1/3)
 }
 
 static void impl_probe(int cx, int cy, uint16_t c, int s) {
@@ -126,14 +129,16 @@ void pbit_draw_plant_icon_xl   (int cx, int cy, uint16_t c) { impl_plant   (cx, 
 // ---------------------------------------------------------------------------
 
 static void impl_temp_detail(int cx, int cy, uint16_t c, uint16_t a, int s) {
-    // Misma geometria que impl_temp + canal vacío arriba y mercurio (acento) abajo.
-    // Canvas lleno: cy-7s → cy+7s. A s=3 (Dial): tubo 12px, bulbo 18px Ø.
-    tft.fillRoundRect(cx - 2*s, cy - 7*s, 4*s, 11*s, s, c);   // tubo: cy-7s → cy+4s
-    tft.fillRect     (cx - s,   cy - 6*s, 2*s,  4*s, 0x1082); // canal vacío: cy-6s → cy-2s
-    tft.fillRect     (cx - s,   cy - 2*s, 2*s,  6*s, a);       // mercurio: cy-2s → cy+4s
-    tft.fillCircle   (cx,       cy + 4*s, 3*s,         c);     // bulbo último — cubre tip del mercurio
-    tft.drawFastHLine(cx + 2*s, cy - 5*s, 2*s, c);             // tick alto
-    tft.drawFastHLine(cx + 2*s, cy - 2*s, 2*s, c);             // tick medio
+    // Render order: tubo → canal vacío → bulbo (c) → mercurio blanco encima del bulbo → círculo bulbo.
+    // El rect de mercurio se dibuja DESPUÉS del bulbo para atravesar su centro visualmente,
+    // creando una columna blanca continua desde el tubo hasta el círculo interior del bulbo.
+    tft.fillRoundRect(cx - 2*s, cy - 7*s, 4*s, 11*s, s, c);       // tubo: cy-7s → cy+4s
+    tft.fillRect     (cx - s,   cy - 6*s, 2*s,  4*s, 0x1082);    // canal vacío: cy-6s → cy-2s
+    tft.fillCircle   (cx, cy + 4*s, 3*s + 1, c);                  // bulbo: centrado en cx
+    tft.fillRect     (cx - s,   cy - 2*s, 2*s,  6*s, TFT_WHITE); // mercurio: atraviesa el bulbo (cy-2s → cy+4s)
+    tft.fillCircle   (cx,       cy + 4*s, s + 3, TFT_WHITE);      // ensanche del mercurio en el bulbo, centrado en cx
+    tft.drawFastHLine(cx + 2*s, cy - 5*s, (4*s)/3, c);            // tick alto (−1/3)
+    tft.drawFastHLine(cx + 2*s, cy - 2*s, (4*s)/3, c);            // tick medio (−1/3)
 }
 
 static void impl_probe_detail(int cx, int cy, uint16_t c, uint16_t a, int s) {
@@ -160,7 +165,7 @@ static void impl_probe_detail(int cx, int cy, uint16_t c, uint16_t a, int s) {
     tft.fillRect(cx - (3*s)/2, cy - s, 3*s, 6*s, c);
 
     // V-highlight izquierdo (brillo lateral metalico), 4s alto
-    tft.drawFastVLine(cx - (3*s)/2, cy - s + 1, 4*s, TFT_WHITE);
+    tft.drawFastVLine(cx - (3*s)/2, cy - s + 1, 4*s, kIconHighlight);
 
     // Punta: r=s, centro en cy+5s (borde inferior del body)
     tft.fillCircle(cx, cy + 5*s, s, c);
@@ -169,7 +174,7 @@ static void impl_probe_detail(int cx, int cy, uint16_t c, uint16_t a, int s) {
 static void impl_humidity_detail(int cx, int cy, uint16_t c, uint16_t a, int s) {
     impl_humidity(cx, cy, c, s);
     tft.fillCircle(cx - s, cy + s, 2*s, a);
-    tft.fillCircle(cx - 2*s, cy - s, 1*s, TFT_WHITE);
+    tft.fillCircle(cx - 2*s, cy - s, 1*s, kIconHighlight);
 }
 
 static void impl_light_detail(int cx, int cy, uint16_t c, uint16_t a, int s) {
@@ -197,9 +202,9 @@ static void impl_sound_detail(int cx, int cy, uint16_t c, uint16_t a, int s) {
     // Cápsula alineada con impl_sound (8s×10s, r=3s) + grilla de ranuras blancas
     tft.fillRoundRect(cx - 4*s, cy - 7*s, 8*s, 10*s, 3*s, c);
     // Tres ranuras verticales (grilla de cápsula) centradas en el cuerpo
-    tft.fillRoundRect(cx - 2*s - 1, cy - 4*s, 3, 4*s, 1, TFT_WHITE);   // ranura L
-    tft.fillRoundRect(cx - 1,       cy - 5*s, 3, 5*s, 1, TFT_WHITE);   // ranura C (más alta)
-    tft.fillRoundRect(cx + 2*s - 1, cy - 4*s, 3, 4*s, 1, TFT_WHITE);   // ranura R
+    tft.fillRoundRect(cx - 2*s - 1, cy - 4*s, 3, 4*s, 1, kIconHighlight);   // ranura L
+    tft.fillRoundRect(cx - 1,       cy - 5*s, 3, 5*s, 1, kIconHighlight);   // ranura C (más alta)
+    tft.fillRoundRect(cx + 2*s - 1, cy - 4*s, 3, 4*s, 1, kIconHighlight);   // ranura R
     // Cuello y base (acento)
     tft.fillRect     (cx - s,   cy + 3*s, 2*s, 2*s,  a);
     tft.fillRoundRect(cx - 5*s, cy + 5*s, 10*s, 2*s, s, a);
@@ -224,7 +229,7 @@ void pbit_draw_light_icon_xxl   (int cx, int cy, uint16_t c, uint16_t a) { impl_
 void pbit_draw_sound_icon_xxl   (int cx, int cy, uint16_t c, uint16_t a) { impl_sound_detail   (cx, cy, c, a, 3); }
 void pbit_draw_plant_icon_xxl   (int cx, int cy, uint16_t c, uint16_t a) { impl_plant_detail   (cx, cy, c, a, 3); }
 
-void pbit_draw_temp_icon_xxl    (int cx, int cy, uint16_t c) { pbit_draw_temp_icon_xxl    (cx, cy, c, c); }
+void pbit_draw_temp_icon_xxl    (int cx, int cy, uint16_t c) { impl_temp    (cx, cy, c, 3); }
 void pbit_draw_probe_icon_xxl   (int cx, int cy, uint16_t c) { pbit_draw_probe_icon_xxl   (cx, cy, c, c); }
 void pbit_draw_humidity_icon_xxl(int cx, int cy, uint16_t c) { pbit_draw_humidity_icon_xxl(cx, cy, c, c); }
 void pbit_draw_light_icon_xxl   (int cx, int cy, uint16_t c) { pbit_draw_light_icon_xxl   (cx, cy, c, c); }

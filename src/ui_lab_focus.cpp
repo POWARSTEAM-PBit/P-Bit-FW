@@ -9,13 +9,16 @@
 
 #include "tft_display.h"
 #include "ui_widgets.h"
+#include "external_sensor_state.h"
 #include "graph_buffer.h"
 #include "layout.h"
 #include "languages.h"
+#include "light_display.h"
 #include "fonts.h"
 #include "ui_icons.h"
 #include "io.h"
 #include "runtime_events.h"
+#include "sensor_visuals.h"
 
 #include <TFT_eSPI.h>
 #include <climits>
@@ -51,6 +54,7 @@ static LabFocusSensor g_last_summary_sensor = LAB_FOCUS_COUNT;
 static bool g_last_summary_valid = false;
 static int g_last_summary_key = INT_MIN;
 static bool g_last_summary_unit_mode = false;
+static uint8_t g_last_summary_light_mode = 255;
 
 static TFT_eSprite g_graph_sprite(&tft);
 static bool g_graph_sprite_ready = false;
@@ -89,6 +93,30 @@ static uint16_t sensor_secondary_color(LabFocusSensor sensor) {
     return pb_secondary(focus_to_sz_id(sensor));
 }
 
+static SzSensorId focus_to_sz_sensor(LabFocusSensor sensor) {
+    return (SzSensorId)focus_to_sz_id(sensor);
+}
+
+static bool focus_external_missing(LabFocusSensor sensor, bool valid) {
+    return !valid && pbit_external_sensor_has_port_hint(focus_to_sz_sensor(sensor));
+}
+
+static uint16_t focus_primary_color(LabFocusSensor sensor, bool valid) {
+    if (focus_external_missing(sensor, valid)) {
+        return pbit_external_dim_primary(focus_to_sz_sensor(sensor));
+    }
+    if (sensor == LAB_FOCUS_SOIL && valid) {
+        return pbit_soil_visual_color(g_ui_readings_snapshot.soil_humidity);
+    }
+    return sensor_primary_color(sensor);
+}
+
+static uint16_t focus_secondary_color(LabFocusSensor sensor, bool valid) {
+    return focus_external_missing(sensor, valid)
+        ? pbit_external_dim_secondary(focus_to_sz_sensor(sensor))
+        : sensor_secondary_color(sensor);
+}
+
 static int summary_value_y() {
     return 36;
 }
@@ -102,7 +130,10 @@ static int graph_no_sensor_y(LabFocusSensor sensor) {
     return (LF_GRAPH_H / 2) + 1;
 }
 
-static uint16_t summary_bg_color(LabFocusSensor sensor) {
+static uint16_t summary_bg_color(LabFocusSensor sensor, bool valid = true) {
+    if (focus_external_missing(sensor, valid)) {
+        return pbit_external_dim_bg(focus_to_sz_sensor(sensor));
+    }
     // Base navy + 7% tint of P1 — each sensor panel has its own atmosphere color.
     const uint16_t p1 = sensor_primary_color(sensor);
     const uint8_t pr = (uint8_t)(((p1 >> 11) & 0x1F) * 255 / 31);
@@ -115,7 +146,10 @@ static uint16_t summary_bg_color(LabFocusSensor sensor) {
     );
 }
 
-static uint16_t graph_bg_color(LabFocusSensor sensor) {
+static uint16_t graph_bg_color(LabFocusSensor sensor, bool valid = true) {
+    if (focus_external_missing(sensor, valid)) {
+        return pbit_external_dim_bg(focus_to_sz_sensor(sensor));
+    }
     // Slightly darker tint than summary (5%) for the mini-graph panel.
     const uint16_t p1 = sensor_primary_color(sensor);
     const uint8_t pr = (uint8_t)(((p1 >> 11) & 0x1F) * 255 / 31);
@@ -153,6 +187,9 @@ static const char* sensor_footer() {
 }
 
 static int sensor_title_y(LabFocusSensor sensor) {
+    if (sensor == LAB_FOCUS_DS18) {
+        return LF_TITLE_Y + 2;
+    }
     return (sensor == LAB_FOCUS_HUMIDITY
          || sensor == LAB_FOCUS_SOUND
          || sensor == LAB_FOCUS_SOIL)
@@ -170,13 +207,13 @@ static bool sensor_has_value(LabFocusSensor sensor) {
         case LAB_FOCUS_HUMIDITY:
             return !isnan(r.humidity);
         case LAB_FOCUS_DS18:
-            return r.temp_ds18b20 >= -100.0f;
+            return !pbit_external_sensor_missing(SZ_DS18, r);
         case LAB_FOCUS_LIGHT:
-            return !isnan(r.ldr);
+            return light_display_from_reading(r).valid;
         case LAB_FOCUS_SOUND:
             return !isnan(r.mic);
         case LAB_FOCUS_SOIL:
-            return !isnan(r.soil_humidity);
+            return !pbit_external_sensor_missing(SZ_SOIL, r);
         default:
             return false;
     }
@@ -192,7 +229,7 @@ static float sensor_value(LabFocusSensor sensor) {
         case LAB_FOCUS_DS18:
             return g_is_fahrenheit ? (r.temp_ds18b20 * 1.8f + 32.0f) : r.temp_ds18b20;
         case LAB_FOCUS_LIGHT:
-            return r.ldr;
+            return light_display_from_reading(r).value;
         case LAB_FOCUS_SOUND:
             return r.mic;
         case LAB_FOCUS_SOIL:
@@ -204,6 +241,7 @@ static float sensor_value(LabFocusSensor sensor) {
 
 static int sensor_visible_key(LabFocusSensor sensor) {
     if (!sensor_has_value(sensor)) return INT_MIN;
+    if (sensor == LAB_FOCUS_LIGHT) return light_display_from_reading(g_ui_readings_snapshot).key;
     const float value = sensor_value(sensor);
     if (sensor_uses_decimal(sensor)) {
         return (int)lroundf(value * 10.0f);
@@ -221,7 +259,7 @@ static const char* sensor_unit(LabFocusSensor sensor) {
         case LAB_FOCUS_SOUND:
             return "%";
         case LAB_FOCUS_LIGHT:
-            return L(ST_LUX_UNIT);
+            return light_display_unit(light_display_mode());
         default:
             return "";
     }
@@ -240,7 +278,7 @@ static float sensor_min_span(LabFocusSensor sensor) {
         case LAB_FOCUS_SOIL:
             return 8.0f;
         case LAB_FOCUS_LIGHT:
-            return 100.0f;
+            return light_display_min_span(light_display_mode());
         case LAB_FOCUS_SOUND:
             return 10.0f;
         default:
@@ -253,7 +291,8 @@ static GraphBuffer* sensor_buffer(LabFocusSensor sensor) {
         case LAB_FOCUS_TEMP:     return &g_graph_temp;
         case LAB_FOCUS_HUMIDITY: return &g_graph_humidity;
         case LAB_FOCUS_DS18:     return &g_graph_ds18;
-        case LAB_FOCUS_LIGHT:    return &g_graph_light;
+        case LAB_FOCUS_LIGHT:
+            return (light_display_mode() == LIGHT_DISPLAY_RAW_ADC) ? &g_graph_light_raw : &g_graph_light;
         case LAB_FOCUS_SOUND:    return &g_graph_sound;
         case LAB_FOCUS_SOIL:     return &g_graph_soil;
         default:                 return nullptr;
@@ -324,10 +363,15 @@ static void draw_right_aligned_pair(int right_x,
 }
 
 static void clear_summary_content(LabFocusSensor sensor, bool valid) {
-    const uint16_t bg = summary_bg_color(sensor);
-    const int clear_x = LF_SUMMARY_X + 72;
+    const uint16_t bg = summary_bg_color(sensor, valid);
+    tft.setFreeFont(FONT_BODY);
+    const int title_end_x = LF_TITLE_X + tft.textWidth(sensor_title(sensor));
+    tft.setTextFont(0);
+
+    const int clear_x = max(LF_SUMMARY_X + 72, title_end_x + 4);
     const int clear_y = LF_SUMMARY_Y + 6;
-    const int clear_w = LF_SUMMARY_W - 76;
+    const int clear_right_x = LF_SUMMARY_X + LF_SUMMARY_W - 5;
+    const int clear_w = max(0, clear_right_x - clear_x + 1);
     const int clear_h = LF_SUMMARY_H - 12;
     tft.fillRect(clear_x, clear_y, clear_w, clear_h, bg);
     if (!valid) {
@@ -335,8 +379,8 @@ static void clear_summary_content(LabFocusSensor sensor, bool valid) {
     }
 }
 
-static void draw_summary_shell(LabFocusSensor sensor, uint16_t primary, uint16_t secondary) {
-    const uint16_t bg = summary_bg_color(sensor);
+static void draw_summary_shell(LabFocusSensor sensor, bool valid, uint16_t primary, uint16_t secondary) {
+    const uint16_t bg = summary_bg_color(sensor, valid);
     tft.fillRoundRect(LF_SUMMARY_X, LF_SUMMARY_Y, LF_SUMMARY_W, LF_SUMMARY_H, 4, bg);
     tft.drawRoundRect(LF_SUMMARY_X, LF_SUMMARY_Y, LF_SUMMARY_W, LF_SUMMARY_H, 4, primary);
     draw_icon(sensor, LF_ICON_CX, LF_ICON_CY, primary);
@@ -352,17 +396,24 @@ static void draw_summary_content(LabFocusSensor sensor, bool valid, uint16_t pri
     const char* unit = sensor_unit(sensor);
     const uint16_t value_color = valid ? TFT_WHITE   : TFT_DARKGREY;
     const uint16_t unit_color  = valid ? secondary  : TFT_DARKGREY;
-    const uint16_t bg = summary_bg_color(sensor);
+    const uint16_t bg = summary_bg_color(sensor, valid);
 
     clear_summary_content(sensor, valid);
 
     if (!valid) {
+        const bool has_port_hint = pbit_external_sensor_has_port_hint(focus_to_sz_sensor(sensor));
         tft.setTextDatum(TR_DATUM);
         tft.setFreeFont(FONT_SMALL);
-        tft.setTextColor(TFT_DARKGREY, bg);
+        tft.setTextColor(has_port_hint ? primary : TFT_DARKGREY, bg);
         tft.drawString(L(ST_NO_SENSOR),
                        LF_SUMMARY_X + LF_SUMMARY_W - 6,
-                       summary_no_sensor_y(sensor));
+                       has_port_hint ? 34 : summary_no_sensor_y(sensor));
+        if (has_port_hint) {
+            tft.setTextColor(primary, bg);
+            tft.drawString(L(pbit_external_sensor_check_key(focus_to_sz_sensor(sensor))),
+                           LF_SUMMARY_X + LF_SUMMARY_W - 6,
+                           48);
+        }
         tft.setTextFont(0);
         return;
     }
@@ -386,10 +437,10 @@ static void draw_summary_content(LabFocusSensor sensor, bool valid, uint16_t pri
 }
 
 static void draw_summary_panel(LabFocusSensor sensor, bool valid, bool shell_redraw) {
-    const uint16_t primary = sensor_primary_color(sensor);
-    const uint16_t secondary = sensor_secondary_color(sensor);
+    const uint16_t primary = focus_primary_color(sensor, valid);
+    const uint16_t secondary = focus_secondary_color(sensor, valid);
     if (shell_redraw) {
-        draw_summary_shell(sensor, primary, secondary);
+        draw_summary_shell(sensor, valid, primary, secondary);
     }
     draw_summary_content(sensor, valid, primary, secondary);
 }
@@ -474,12 +525,14 @@ static void render_graph_sprite(LabFocusSensor sensor, const float* data, size_t
 }
 
 static void draw_graph_panel(LabFocusSensor sensor, bool valid, bool shell_redraw) {
-    const uint16_t border = valid ? graph_border_color(sensor) : TFT_DARKGREY;
+    const bool has_port_hint = focus_external_missing(sensor, valid);
+    const uint16_t graph_bg = graph_bg_color(sensor, valid);
+    const uint16_t border = valid ? graph_border_color(sensor) : (has_port_hint ? pbit_external_dim_primary(focus_to_sz_sensor(sensor)) : TFT_DARKGREY);
     float data[GRAPH_BUFFER_SIZE];
     size_t n = 0;
 
     if (shell_redraw) {
-        tft.fillRoundRect(LF_GRAPH_X, LF_GRAPH_Y, LF_GRAPH_W, LF_GRAPH_H, 4, graph_bg_color(sensor));
+        tft.fillRoundRect(LF_GRAPH_X, LF_GRAPH_Y, LF_GRAPH_W, LF_GRAPH_H, 4, graph_bg);
     }
     // No pre-clear on non-shell updates: render_graph_sprite covers the interior with
     // fillSprite(), so a redundant fillRect here only causes a visible black flash.
@@ -488,12 +541,18 @@ static void draw_graph_panel(LabFocusSensor sensor, bool valid, bool shell_redra
     if (!valid) {
         // Sprite won't run; clear interior before drawing the no-sensor label.
         if (!shell_redraw) {
-            tft.fillRect(LF_GRAPH_X + 1, LF_GRAPH_Y + 1, LF_GRAPH_W - 2, LF_GRAPH_H - 2, graph_bg_color(sensor));
+            tft.fillRect(LF_GRAPH_X + 1, LF_GRAPH_Y + 1, LF_GRAPH_W - 2, LF_GRAPH_H - 2, graph_bg);
         }
         tft.setTextDatum(MC_DATUM);
         tft.setFreeFont(FONT_SMALL);
-        tft.setTextColor(TFT_DARKGREY, graph_bg_color(sensor));
-        tft.drawString(L(ST_NO_SENSOR), LF_GRAPH_X + (LF_GRAPH_W / 2), LF_GRAPH_Y + graph_no_sensor_y(sensor));
+        tft.setTextColor(has_port_hint ? pbit_external_dim_primary(focus_to_sz_sensor(sensor)) : TFT_DARKGREY, graph_bg);
+        tft.drawString(L(ST_NO_SENSOR), LF_GRAPH_X + (LF_GRAPH_W / 2), LF_GRAPH_Y + (has_port_hint ? 14 : graph_no_sensor_y(sensor)));
+        if (has_port_hint) {
+            tft.setTextColor(pbit_external_dim_secondary(focus_to_sz_sensor(sensor)), graph_bg);
+            tft.drawString(L(pbit_external_sensor_check_key(focus_to_sz_sensor(sensor))),
+                           LF_GRAPH_X + (LF_GRAPH_W / 2),
+                           LF_GRAPH_Y + 28);
+        }
         tft.setTextFont(0);
         return;
     }
@@ -505,13 +564,19 @@ static void draw_graph_panel(LabFocusSensor sensor, bool valid, bool shell_redra
         portEXIT_CRITICAL(&g_graph_mux);
     }
 
+    if (sensor == LAB_FOCUS_LIGHT && light_display_mode() == LIGHT_DISPLAY_FC) {
+        for (size_t i = 0; i < n; ++i) {
+            data[i] = light_display_lux_to_unit(data[i], LIGHT_DISPLAY_FC);
+        }
+    }
+
     if (n == 0) {
         if (!shell_redraw) {
-            tft.fillRect(LF_GRAPH_X + 1, LF_GRAPH_Y + 1, LF_GRAPH_W - 2, LF_GRAPH_H - 2, graph_bg_color(sensor));
+            tft.fillRect(LF_GRAPH_X + 1, LF_GRAPH_Y + 1, LF_GRAPH_W - 2, LF_GRAPH_H - 2, graph_bg);
         }
         tft.setTextDatum(MC_DATUM);
         tft.setFreeFont(FONT_SMALL);
-        tft.setTextColor(TFT_DARKGREY, graph_bg_color(sensor));
+        tft.setTextColor(TFT_DARKGREY, graph_bg);
         tft.drawString(L(ST_WAITING), LF_GRAPH_X + (LF_GRAPH_W / 2), LF_GRAPH_Y + (LF_GRAPH_H / 2) + 1);
         tft.setTextFont(0);
         return;
@@ -557,6 +622,7 @@ void draw_lab_focus_screen(bool screen_changed, bool sensor_data_changed) {
         || (g_sensor != g_last_summary_sensor)
         || (valid != g_last_summary_valid)
         || (summary_key != g_last_summary_key)
+        || (g_sensor == LAB_FOCUS_LIGHT && g_last_summary_light_mode != light_display_mode())
         || (g_last_summary_unit_mode != g_is_fahrenheit
             && (g_sensor == LAB_FOCUS_TEMP || g_sensor == LAB_FOCUS_DS18));
 
@@ -577,5 +643,6 @@ void draw_lab_focus_screen(bool screen_changed, bool sensor_data_changed) {
     g_last_summary_valid = valid;
     g_last_summary_key = summary_key;
     g_last_summary_unit_mode = g_is_fahrenheit;
+    g_last_summary_light_mode = light_display_mode();
     g_force_full_redraw = false;
 }

@@ -1,6 +1,6 @@
 # Manual de Usuario — P-Bit
 
-Actualizado: 2026-05-26
+Actualizado: 2026-05-28
 Versión firmware: ver `CHANGELOG.md`
 Idiomas de interfaz disponibles: Español, Catalán, English
 
@@ -51,7 +51,7 @@ El control físico es un único encoder rotatorio con pulsador. Se gira para nav
 |---|---|---|
 | DHT11 | Temperatura ambiente | 0..50 °C / 32..122 °F |
 | DHT11 | Humedad del aire | 0..100 % |
-| LDR | Luz ambiental | 0..20 000 lux (acotado por firmware) |
+| LDR | Luz ambiental | 0..8000 lux aproximado; modo visible `Lux` / `FC` / `Raw ADC` |
 | Micrófono analógico | Nivel de sonido | 0..100 % (relativo) |
 | Sensor capacitivo de suelo | Humedad del suelo | 0..100 % (calibrado) |
 | Sonda DS18B20 (externa) | Temperatura puntual | −55..+125 °C |
@@ -68,8 +68,8 @@ El control físico es un único encoder rotatorio con pulsador. Se gira para nav
 - Sensor de temperatura y humedad del aire (integrado en placa)
 - Sensor de luz LDR (integrado en placa)
 - Sensor de sonido (integrado en placa)
-- Conector externo para sensor de humedad de suelo (`J6`)
-- Conector externo para sonda de temperatura Termómetro, identificador técnico DS18B20 (`J4`)
+- Puerto visible de PCB para sensor de humedad de suelo (`IO35`)
+- Puerto visible de PCB para sonda de temperatura Termómetro, identificador técnico DS18B20 (`IO33`)
 - Encoder rotatorio con pulsador (control principal)
 
 ### Salidas
@@ -87,6 +87,7 @@ El control físico es un único encoder rotatorio con pulsador. Se gira para nav
 - **No colocar el sensor de suelo en agua pura** sin referencia de calibración previa.
 - **Evitar condensación** sobre la placa. En entornos muy húmedos, proteger la electrónica expuesta.
 - **En caso de lectura `Sin sensor`**, verificar la conexión del sensor externo al conector correspondiente antes de asumir fallo del dispositivo.
+- Al conectar o desconectar Suelo o Termómetro después del arranque, el P-Bit muestra brevemente un aviso semafórico: fondo verde con `CONECTADO` o fondo rojo con `DESCONECTADO`, seguido del sensor y el puerto `IO35` o `IO33`.
 - **No aplicar fuerza excesiva** al encoder. El giro debe ser suave.
 
 ---
@@ -288,7 +289,7 @@ Para activarlo:
 
 También puedes activarlo desde `Home` con una pulsación larga del encoder.
 
-Durante el Modo demo, el P-Bit recorre pantallas representativas del carrusel cada 6 segundos, anima valores de ejemplo para mostrar el comportamiento visual y bloquea el reposo automático. Para salir, gira o pulsa el encoder una vez. El Modo demo no cambia la configuración guardada del usuario.
+Durante el Modo demo, el P-Bit recorre pantallas representativas del carrusel con ritmo variable, anima valores de ejemplo con transiciones suaves y bloquea el reposo automático. Para salir, gira o pulsa el encoder una vez. La entrada desde logos y desde `Home`, la señal visual, la salida y la coreografía smooth están implementadas en firmware; la validación visual final debe hacerse en hardware. El Modo demo no cambia la configuración guardada del usuario.
 
 ---
 
@@ -357,7 +358,7 @@ El rango entre `Seco` y `Muy húmedo` se interpreta automáticamente como `Ópti
 | Opción | Qué hace |
 |---|---|
 | **Rangos** | Define umbrales `Max penumbra`, `Max interior`, `Max brillante` |
-| **Modo** | En la pantalla clásica de Luz, elige entre `Lux`, `% log` o `Raw ADC` para el valor grande |
+| **Modo** | Selecciona la unidad visible entre `Lux`, `FC` o `Raw ADC` |
 | **Alertas** | Activa o desactiva el aviso automático |
 | **Reset** | Restaura rangos y modo a valores por defecto |
 | **Salir** | Cierra el menú |
@@ -365,6 +366,10 @@ El rango entre `Seco` y `Muy húmedo` se interpreta automáticamente como `Ópti
 ### Categorías de luz
 
 `Oscuro` → `Tenue` → `Interior` → `Brillante` → `Luz solar`
+
+> **ℹ️ NOTA**
+> El modo de lectura de Luz se propaga a la pantalla clásica, Sensor Zone, cards, dials, dashboards y gráficas. Las categorías y alertas siguen usando lux interno; `Raw ADC` sirve para calibración y diagnóstico.
+> `Lux` usa la curva empírica v1 tomada con luxómetro y `FC` se calcula desde ese mismo lux con `lux / 10.764`.
 
 ### Alertas de luz
 
@@ -431,19 +436,20 @@ Las alertas usan melodías cortas según el estado:
 
 | Estado | Melodía | LED |
 |---|---|---|
-| Seco | Arpegio descendente | Rojo |
+| Seco | Arpegio descendente | Amarillo |
 | Óptimo | Arpegio ascendente | Verde |
-| Muy húmedo | Arpegio grave descendente | Azul oscuro |
+| Muy húmedo | Arpegio grave descendente | Azul |
 
 Si `Alarmas` está en `OFF`, las melodías no suenan, pero los colores de pantalla y LED siguen activos.
 
-Si el sensor no está conectado, la pantalla muestra `Sin sensor` y la indicación `Check J6 (GPIO35)`.
+Si el sensor no está conectado, la pantalla muestra `Sin sensor`, `---` y la indicación `Revisa IO35` (o su equivalente en el idioma activo).
+Cuando el sensor se desconecta o vuelve a conectarse durante el uso, aparece un aviso breve: `DESCONECTADO / Sensor Suelo / IO35` o `CONECTADO / Sensor Suelo / IO35`.
 
 ---
 
 ## 13. Pantalla de Termómetro (sonda DS18B20)
 
-El Termómetro usa una sonda externa de temperatura que se conecta al conector `J4`.
+El Termómetro usa una sonda externa de temperatura que se conecta al puerto visible de PCB `IO33`.
 
 > **⚠️ PRECAUCIÓN**
 > Verificar la orientación correcta del conector de la sonda antes de conectar. Una conexión incorrecta puede dañar la sonda o el dispositivo.
@@ -459,7 +465,8 @@ El Termómetro usa una sonda externa de temperatura que se conecta al conector `
 | **Reset** | Restaura offset, límites, unidad y alertas a valores por defecto |
 | **Salir** | Cierra el menú |
 
-Si la sonda no está conectada, la pantalla muestra `Sin sensor` y la indicación `Check J4`.
+Si la sonda no está conectada, la pantalla muestra `Sin sensor`, `---` y la indicación `Revisa IO33` (o su equivalente en el idioma activo).
+Cuando la sonda se desconecta o vuelve a conectarse durante el uso, aparece un aviso breve: `DESCONECTADO / Sensor DS18B20 / IO33` o `CONECTADO / Sensor DS18B20 / IO33`.
 
 ---
 
@@ -580,7 +587,7 @@ El LED RGB indica el estado visible del dispositivo. En diales y tarjetas sigue 
 | Sonido | Naranja | Sonido fuerte |
 | Sonido | Rojo | Sonido muy fuerte |
 | Suelo | Verde | Óptimo |
-| Suelo | Rojo | Seco |
+| Suelo | Amarillo | Seco / muy seco |
 | Suelo | Azul | Húmedo / muy húmedo |
 | Termómetro | Blanco | Normal |
 | Termómetro | Azul | Alerta: temperatura baja |
@@ -592,14 +599,14 @@ El LED RGB indica el estado visible del dispositivo. En diales y tarjetas sigue 
 
 | Problema | Causa probable | Solución |
 |---|---|---|
-| La pantalla muestra `Sin sensor` en Termómetro | Sonda DS18B20 no conectada o mal conectada | Verificar conexión en `J4` |
-| La pantalla muestra `Sin sensor` en Suelo | Sensor de suelo no conectado | Verificar conexión en `J6 (GPIO35)` |
+| La pantalla muestra `Sin sensor` en Termómetro | Sonda DS18B20 no conectada o mal conectada | Verificar conexión en `IO33` |
+| La pantalla muestra `Sin sensor` en Suelo | Sensor de suelo no conectado | Verificar conexión en `IO35` |
 | El sensor de Suelo muestra valores incorrectos | Sin calibración o calibración en condiciones diferentes | Recalibrar con `Calibrar sensor` |
 | El LED se apaga al entrar en Luz | Comportamiento esperado | Normal — el LED se apaga para no interferir con la medición |
 | Las alertas no suenan | `Alarmas` está en OFF | Activar desde `Sistema > Alarmas` |
 | El dispositivo no guarda los ajustes tras reiniciar | Se flasheó firmware nuevo | Un flash nuevo borra la configuración. Volver a configurar |
 | El valor de temperatura parece incorrecto | DHT11 sin estabilizar o con ruido térmico | Esperar 1–2 minutos desde el encendido |
-| La pantalla tiene parpadeo visible | No se ha validado en hardware real esta versión | Pendiente de validación física post-build |
+| La pantalla vuelve a mostrar parpadeo o ghosting | Regresión visual puntual tras cambios de pantalla o demo | Anotar pantalla/modo y revisar las reglas anti-flicker; el problema queda resuelto por ahora |
 | No hay respuesta al girar el encoder | El dispositivo está en un menú con edición de valor activa | Pulsar para salir de la edición antes de girar |
 
 ---

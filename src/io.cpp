@@ -7,17 +7,18 @@
 #include "alert_engine.h"
 #include "runtime_events.h"
 #include "graph_buffer.h"
+#include "sensor_connection_notice.h"
 #include <math.h>
 
 #define DHT_TYPE DHT11
 
-// LDR calibration constants.
-#define VCC_SUPPLY_VOLTAGE    3300.0 
-#define REF_RESISTANCE      10000.0 
-#define LDR_R10_OHMS        15000.0
-#define LDR_GAMMA              0.60
-#define LDR_LUX_MAX         20000.0
-#define ADC_LOW_RAIL_THRESHOLD 10
+// LDR empirical calibration v1 (2026-05-29).
+// Manual fit: lux = 10 * ((4095 - raw) / (raw + 150))^2.
+// The current divider maps high ADC counts to darkness.
+#define LDR_ADC_MAX_COUNTS      4095.0f
+#define LDR_RAW_OFFSET           150.0f
+#define LDR_EMPIRICAL_SCALE       10.0f
+#define LDR_LUX_MAX             8000.0f
 #define ADC_HIGH_RAIL_THRESHOLD 4050
 
 Reading global_readings;
@@ -32,6 +33,15 @@ static void read_fast_sensors(Reading &r);
 static void read_slow_sensors(Reading &r);
 static uint8_t dht_temp_fail_count = 0;
 static uint8_t dht_hum_fail_count = 0;
+
+static float ldr_raw_to_lux(float raw) {
+    const float safe_raw = constrain(raw, 0.0f, LDR_ADC_MAX_COUNTS);
+    if (safe_raw >= ADC_HIGH_RAIL_THRESHOLD) return 0.0f;
+
+    const float x = (LDR_ADC_MAX_COUNTS - safe_raw) / (safe_raw + LDR_RAW_OFFSET);
+    const float lux = LDR_EMPIRICAL_SCALE * x * x;
+    return isfinite(lux) ? constrain(lux, 0.0f, LDR_LUX_MAX) : LDR_LUX_MAX;
+}
 
 void sensor_reading_task(void *param) {
     DPRINTLN("[IO] Sensor task started.");
@@ -71,6 +81,7 @@ void sensor_reading_task(void *param) {
          if (!isnan(local_r.humidity))    graph_buffer_push(g_graph_humidity,  local_r.humidity);
          if (local_r.temp_ds18b20 >= -100.0f) graph_buffer_push(g_graph_ds18, local_r.temp_ds18b20);
          if (!isnan(local_r.ldr))         graph_buffer_push(g_graph_light,     local_r.ldr);
+         if (!isnan(local_r.ldr_raw))     graph_buffer_push(g_graph_light_raw, local_r.ldr_raw);
          if (!isnan(local_r.soil_humidity)) graph_buffer_push(g_graph_soil,    local_r.soil_humidity);
          graph_buffer_push(g_graph_sound, mic_peak_accum);
          portEXIT_CRITICAL(&g_graph_mux);
@@ -127,30 +138,27 @@ static void read_fast_sensors(Reading &r) {
             ldr_sum += (uint32_t)read_adc_raw(PIN_LDR_SIGNAL);
             delayMicroseconds(150);
         }
-        float ldr_raw = (float)ldr_sum / (float)LDR_ADC_SAMPLES;
-        float ldr_new;
-        if (ldr_raw <= ADC_LOW_RAIL_THRESHOLD) {
-            ldr_new = LDR_LUX_MAX;
-        } else if (ldr_raw >= ADC_HIGH_RAIL_THRESHOLD) {
-            ldr_new = 0.0f;
-        } else {
-            float v   = (ldr_raw / 4095.0f) * VCC_SUPPLY_VOLTAGE;
-            float res = (v > 0 && (VCC_SUPPLY_VOLTAGE - v) > 0) ?
-                        (REF_RESISTANCE * v) / (VCC_SUPPLY_VOLTAGE - v) : 999999.0f;
-            // GL55/GL5528-style CdS model:
-            // R = R10 * (10 lux / lux)^gamma  =>  lux = 10 * (R10 / R)^(1/gamma).
-            // R10 is set to the GL5528 midpoint (10-20 kOhm at 10 lux).
-            ldr_new = 10.0f * powf(LDR_R10_OHMS / res, 1.0f / LDR_GAMMA);
-        }
-        if (!isfinite(ldr_new)) ldr_new = LDR_LUX_MAX;
-        ldr_new = constrain(ldr_new, 0.0f, LDR_LUX_MAX);
-        r.ldr_raw = ldr_raw;
+        float ldr_raw_sample = (float)ldr_sum / (float)LDR_ADC_SAMPLES;
 
-        // Software EMA on top of the hardware filter: smooths the reading without lagging too much.
-        static float ldr_ema = -1.0f;
-        if (ldr_ema < 0.0f) ldr_ema = ldr_new; // Initialize on the first sample.
-        ldr_ema = 0.7f * ldr_ema + 0.3f * ldr_new;
-        r.ldr = ldr_ema;
+        constexpr uint8_t LDR_AVG_WINDOW = 10;
+        static float ldr_raw_window[LDR_AVG_WINDOW] = {0.0f};
+        static uint8_t ldr_raw_index = 0;
+        static uint8_t ldr_raw_count = 0;
+        static float ldr_raw_sum = 0.0f;
+
+        if (ldr_raw_count < LDR_AVG_WINDOW) {
+            ldr_raw_count++;
+        } else {
+            ldr_raw_sum -= ldr_raw_window[ldr_raw_index];
+        }
+        ldr_raw_window[ldr_raw_index] = ldr_raw_sample;
+        ldr_raw_sum += ldr_raw_sample;
+        ldr_raw_index = (uint8_t)((ldr_raw_index + 1) % LDR_AVG_WINDOW);
+
+        float ldr_raw = ldr_raw_sum / (float)ldr_raw_count;
+        float ldr_new = ldr_raw_to_lux(ldr_raw);
+        r.ldr_raw = ldr_raw;
+        r.ldr = ldr_new;
     }
     // else: r.ldr and r.ldr_raw retain their previous values — no display update needed.
 
@@ -164,6 +172,7 @@ static void read_fast_sensors(Reading &r) {
     if (++soil_cycle >= 6) {
         soil_cycle = 0;
         r.soil_humidity = read_soil_moisture();
+        sensor_connection_notice_note_sample(SZ_SOIL, !isnan(r.soil_humidity));
     }
     // else: r.soil_humidity retains its previous value.
 }
@@ -199,4 +208,5 @@ static void read_slow_sensors(Reading &r) {
     // DS18B20 in async mode (set up by init_hw): this read returns the conversion issued
     // ~1 s ago and kicks off a new one in the background. Total cost ~7 ms (vs ~94 ms sync).
     r.temp_ds18b20 = read_ds18b20_temp();
+    sensor_connection_notice_note_sample(SZ_DS18, r.temp_ds18b20 >= -100.0f);
 }

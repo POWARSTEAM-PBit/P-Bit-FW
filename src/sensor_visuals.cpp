@@ -3,6 +3,9 @@
 #include <TFT_eSPI.h>
 #include <math.h>
 
+#include "external_sensor_state.h"
+#include "hw.h"
+#include "light_display.h"
 #include "palette.h"
 
 namespace {
@@ -76,7 +79,7 @@ uint16_t pbit_sensor_gauge_arc_color(SzSensorId sensor, uint8_t amount) {
         case SZ_TEMP:
             return pbit_mix3_565(PB_TEMP_P4, TFT_YELLOW, TFT_RED, amount);
         case SZ_SOIL:
-            return pbit_mix3_565(TFT_YELLOW, PB_SOIL_P1, PB_HUM_P2, amount);
+            return pbit_soil_visual_color((float)amount * 100.0f / 255.0f);
         case SZ_HUM:
             return pbit_mix565(TFT_WHITE, PB_HUM_P2, amount);
         case SZ_DS18:
@@ -88,6 +91,29 @@ uint16_t pbit_sensor_gauge_arc_color(SzSensorId sensor, uint8_t amount) {
                                pb_accent_warm((uint8_t)sensor),
                                amount);
     }
+}
+
+uint16_t pbit_soil_visual_color(float moisture, bool valid) {
+    if (!valid || !valid_number(moisture)) return pbit_external_dim_primary(SZ_SOIL);
+
+    const float soil = constrain(moisture, 0.0f, 100.0f);
+    const int dry_thr = constrain(get_soil_threshold_dry(), 1, 99);
+    const int moist_thr = constrain(get_soil_threshold_moist(), dry_thr + 1, 100);
+    constexpr uint16_t kDryYellow = TFT_YELLOW;
+    constexpr uint16_t kHealthyGreen = PB_SOIL_P1;
+    constexpr uint16_t kWetBlue = PB_HUM_P2;
+
+    if (soil <= 0.0f) return kDryYellow;
+    if (soil < (float)dry_thr) {
+        const uint8_t amount = (uint8_t)roundf((soil / (float)dry_thr) * 255.0f);
+        return pbit_mix565(kDryYellow, kHealthyGreen, amount);
+    }
+    if (soil <= (float)moist_thr) return kHealthyGreen;
+    if (soil >= 100.0f) return kWetBlue;
+
+    const float wet_span = max(1.0f, 100.0f - (float)moist_thr);
+    const uint8_t amount = (uint8_t)roundf(((soil - (float)moist_thr) / wet_span) * 255.0f);
+    return pbit_mix565(kHealthyGreen, kWetBlue, amount);
 }
 
 uint16_t pbit_sensor_visual_color(SzSensorId sensor,
@@ -112,18 +138,18 @@ uint16_t pbit_sensor_visual_color(SzSensorId sensor,
             break;
         case SZ_LIGHT:
             valid = valid_number(reading.ldr);
-            color = pbit_sensor_gauge_arc_color(sensor, pbit_ratio_to_amount(reading.ldr, 0.0f, 20000.0f));
+            color = pbit_sensor_gauge_arc_color(sensor, pbit_ratio_to_amount(reading.ldr, 0.0f, LIGHT_LUX_MAX));
             break;
         case SZ_SOUND:
             valid = valid_number(reading.mic);
             color = pbit_sensor_gauge_arc_color(sensor, pbit_ratio_to_amount(reading.mic, 0.0f, 100.0f));
             break;
         case SZ_SOIL:
-            valid = valid_number(reading.soil_humidity);
-            color = pbit_sensor_gauge_arc_color(sensor, pbit_ratio_to_amount(reading.soil_humidity, 0.0f, 100.0f));
+            valid = !pbit_external_sensor_missing(sensor, reading);
+            color = pbit_soil_visual_color(reading.soil_humidity, valid);
             break;
         case SZ_DS18:
-            valid = valid_number(reading.temp_ds18b20) && reading.temp_ds18b20 >= -100.0f;
+            valid = !pbit_external_sensor_missing(sensor, reading);
             color = pbit_sensor_gauge_arc_color(sensor, pbit_ratio_to_amount(reading.temp_ds18b20, -55.0f, 125.0f));
             break;
         default:
@@ -133,6 +159,9 @@ uint16_t pbit_sensor_visual_color(SzSensorId sensor,
     }
 
     if (out_valid) *out_valid = valid;
+    if (!valid && pbit_external_sensor_has_port_hint(sensor)) {
+        return pbit_external_dim_primary(sensor);
+    }
     return valid ? color : TFT_DARKGREY;
 }
 

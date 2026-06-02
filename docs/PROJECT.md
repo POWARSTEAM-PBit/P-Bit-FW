@@ -52,10 +52,10 @@ El P-Bit existe para que niños, docentes y educadores puedan:
 | Sensor | Variable medida | Puerto / Pin |
 |---|---|---|
 | DHT11 | Temperatura ambiente, humedad relativa | GPIO4 |
-| LDR | Luz ambiental (0..20 000 lux en firmware) | GPIO39 |
+| LDR | Luz ambiental (0..8000 lux en firmware; modo visible `Lux`/`FC`/`Raw ADC`) | GPIO39 |
 | Micrófono (GM19767P + LM358) | Nivel de sonido (0..100 %) | GPIO36 |
-| Sensor capacitivo de suelo | Humedad del suelo (calibrado %) | J6 / GPIO35 |
-| Sonda DS18B20 (externa) | Temperatura puntual | J4 / GPIO33 |
+| Sensor capacitivo de suelo | Humedad del suelo (calibrado %) | IO35 / GPIO35 |
+| Sonda DS18B20 (externa) | Temperatura puntual | IO33 / GPIO33 |
 
 ### Interfaz y salidas
 
@@ -186,12 +186,13 @@ El idioma se selecciona en el primer encendido y puede cambiarse desde `Sistema 
 
 ## 6. Limitaciones conocidas
 
-- El LDR no es un luxómetro calibrado. El rango 0..20 000 lux está acotado por firmware; no sustituye un instrumento certificado.
+- El LDR no es un luxómetro calibrado. El rango 0..8000 lux usa la curva empírica v1 tomada con luxómetro y acotada por firmware; la coherencia visual `Lux`/`FC`/`Raw ADC` ya está implementada en firmware para las vistas de Luz, Sensor Zone, cards, dials, dashboards y gráficas. Queda validación en hardware real.
+- Los sensores externos conectables por el usuario usan estado runtime común de ausencia: Suelo muestra `Revisa IO35` y Termómetro/DS18B20 muestra `Revisa IO33`, con la paleta del sensor atenuada en lugar de un gris genérico. Este estado no se guarda en NVS.
 - El micrófono mide intensidad relativa (0..100 %), no decibelios SPL absolutos.
 - El deep sleep automático está desactivado porque en esta revisión de hardware la TFT queda en blanco al dormir. El reposo actual muestra una pantalla `ZZZ`.
-- El Modo demo es runtime: se activa encendiendo con el encoder presionado durante el logo o con pulsación larga desde `Home`, muestra una señal visual breve, rota pantallas del carrusel y no modifica preferencias guardadas.
+- El Modo demo es runtime: se activa encendiendo con el encoder presionado durante el logo o con pulsación larga desde `Home`, muestra una señal visual breve, rota pantallas del carrusel con dwell variable, anima valores y gráficas con curvas suaves, sale con giro/pulsación y no modifica preferencias guardadas. Queda validación visual final en hardware.
 - BLE sale apagado de fábrica y no forma parte del flujo normal de aula.
-- Las validaciones físicas sobre hardware real (ausencia de flicker, calibración RGB, confirmación BLE off) están pendientes de verificación sobre unidad física.
+- El ghosting/flicker de pantallas queda resuelto por ahora en hardware real; mantener vigilancia de regresión visual junto con la calibración RGB y la confirmación BLE off.
 
 ---
 

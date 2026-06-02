@@ -24,6 +24,7 @@ extern GraphBuffer  g_graph_temp;
 extern GraphBuffer  g_graph_humidity;
 extern GraphBuffer  g_graph_ds18;
 extern GraphBuffer  g_graph_light;
+extern GraphBuffer  g_graph_light_raw;
 extern GraphBuffer  g_graph_sound;
 extern GraphBuffer  g_graph_soil;
 extern portMUX_TYPE g_graph_mux;

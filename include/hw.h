@@ -9,8 +9,8 @@ constexpr size_t MAX_DEVICE_NAME_LEN = 20;
 
 #define PIN_LDR_SIGNAL     39   // LDR (SENSOR_VN)
 #define PIN_SENSOR_SONIDO  36   // Microphone (SENSOR_VP)
-#define PIN_SENSOR_HUMEDAD 35   // Soil moisture sensor (external J6)
-#define PIN_TEMP_DS18B20   33   // DS18B20 (external J3)
+#define PIN_SENSOR_HUMEDAD 35   // Soil moisture sensor (PCB IO35)
+#define PIN_TEMP_DS18B20   33   // DS18B20 (PCB IO33)
 #define PIN_DHT            4    // DHT11
 
 /**
