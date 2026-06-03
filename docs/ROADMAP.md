@@ -1,6 +1,6 @@
 # P-Bit Roadmap
 
-Actualizado: 2026-05-29
+Actualizado: 2026-06-03
 
 Referencia para priorizar el trabajo futuro del firmware P-Bit. Separa deuda técnica de mejoras de producto y ordena iteraciones de menús, sensores y UX.
 
@@ -94,6 +94,22 @@ Listas para implementar una vez que el hardware esté validado.
 |---|---|---|
 | **Paleta HOME/CLIMA** | Decidir si `HOME` y `CLIMA LAB` migran a `include/palette.h` o mantienen colores responsivos propios. | Validación Sensor Zone en HW |
 | **P3/P4 en hardware** | Verificar legibilidad de labels min/max y segmentos apagados sobre ST7735 real. | Validación hardware |
+
+### Deuda técnica post-auditoría (2026-06-03)
+
+Hallazgos de la revisión profunda de junio 2026 (Fases 0–5). Ninguno es bug ni bloqueante para producción; se documentan para abordar en ciclos futuros cuando se toquen los archivos por otra razón.
+
+| Ítem | Descripción | Severidad | Disparador sugerido |
+|---|---|---|---|
+| **Magic colors `0x1082`** | `src/ui_icons.cpp` hardcodea el bg de card en varios literales (4 usos de código + comentarios asociados) en lugar de usar `kCardBg`. Si el fondo navy cambia, los detalles internos de los iconos no se actualizan. Bloquea reutilización en pantallas con bg ≠ `0x1082`. | Baja-Media | Próxima edición de `ui_icons.cpp` |
+| **Magic colors `0x0841`** | `src/ui_lab_home_cards.cpp` (5+ ocurrencias) hardcodea valor que coincide con `kValorCardBg` (definido en `ui_lab_widget_showcase.cpp`). Deuda de consistencia. | Baja | Próxima edición de Home Cards |
+| **Rename `render_global_alert_badge`** | En `src/tft_display.cpp:481`. El nombre sugiere render de badge, pero realmente aplica RGB LED state cada loop. Static interna, no rompe nada. Nombre sugerido: `update_rgb_led_state`. | Baja | Próxima edición de `tft_display.cpp` |
+| **`struct Cache` canónico** | `src/ui_lab_focus.cpp` y `src/ui_graph.cpp` usan `static last_*` sueltas en lugar del patrón `struct *Cache` documentado en `docs/TFT_RENDER_RULES.md` Nivel 0. Las pantallas clásicas (`ui_humidity`, `ui_light`, `ui_sound`, `ui_soil`, `ui_temp`, `ui_ds18`) usan `meta_dirty` que es aceptado por la regla. No hay flicker activo. | Baja (estilo) | Próximo refactor de Focus/Graph |
+| **RGB mapping extraíble** | `src/tft_display.cpp` contiene ~170 líneas de `apply_*_rgb` que lógicamente pertenecen a `led_control.cpp`. Acoplado a `active_screen` y `g_ui_readings_snapshot`. Extracción requiere refactor de interfaz. | Baja | Si `tft_display.cpp` crece más allá de ~1100 líneas |
+| **NVS fuera de `settings_store.cpp`** | `src/lang_select.cpp:299` usa `prefs.putUChar("lang", ...)` directamente, fuera del wrapper centralizado en `settings_store.cpp`. No es hot path. Excepción al patrón. | Baja | Próxima edición de `lang_select.cpp` |
+| **Stack HWM validación HW** | `switch_screen` y `sensor_reading_task` usan stack de `4096` bytes. Suficiente para el código actual. La instrumentación ya existe bajo `FIRMWARE_DEBUG` (`src/tft_display.cpp:940`, `src/io.cpp:118`). Pendiente: activar `FIRMWARE_DEBUG` en build de validación y registrar el HWM real en condiciones de uso normal. | Media (validación) | Sesión de validación 24 h con `FIRMWARE_DEBUG=1` |
+
+> **Política**: estos ítems NO se abordan en commits aislados. Cada uno se resuelve cuando se edite el archivo por otra razón (feature, fix, refactor planeado), siempre dentro del mismo PR para mantener trazabilidad. La excepción es el stack HWM, que requiere build dedicado con flag de debug.
 
 ---
 

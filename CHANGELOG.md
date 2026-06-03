@@ -24,6 +24,16 @@
 - **Matizado:** Nivel 0 de `docs/TFT_RENDER_RULES.md` aclara cuándo es obligatorio `struct *Cache` (≥2 campos dinámicos) y cuándo `meta_dirty` es aceptable (1 campo + jewel), citando `ui_temp.cpp`/`ui_humidity.cpp`/`ui_ds18.cpp` como ejemplos válidos.
 - **Higiene:** quitada blank line al EOF en `docs/TECHNICAL.md` y `docs/TFT_RENDER_RULES.md` (limpia warnings de `git diff --check`).
 
+### Documentación — Cierre de auditoría profunda (Fases 0–5)
+
+- **Añadido:** `docs/ROADMAP.md` § "Deuda técnica post-auditoría (2026-06-03)" con 7 ítems no bloqueantes detectados en la revisión y su disparador sugerido (próxima edición del archivo correspondiente). Política: no abordar en commits aislados, sino dentro de PRs que ya toquen esos archivos.
+- **Auditadas (read-only, sin cambios de código):**
+  - Fase 2 Pantallas TFT: 7 banderas rojas grep-ables aplicadas sobre `src/ui_*.cpp`. Sin bugs de flicker activos. Sprites con lazy-init correcto, `TFT_DARKGREY` reservado para sensores internos, `pbit_external_dim_*` correctamente migrado para DS18/Suelo.
+  - Fase 3 Firmware ESP32: NVS encapsulado (excepción documentada en `lang_select.cpp`), BLE factory-off confirmado por cadena `load_ble_enabled_store()` → `init_ble()`, Bip vs Alarmas separados sin cruces, 7 mutexes inventariados sin hallazgos bloqueantes (`g_ble_tx_mutex` documentado como excepción por payload JSON + notify), core pinning correcto (UI Core 1, Sensor Core 0), sin delays largos en loops críticos.
+  - Fase 4 Arquitectura: `tft_display.cpp` (946 líneas) coherente como orquestador de UI. `SENSOR_ZONE_SCREEN` con sub-dispatch propio bien aislado. RGB LED mapping identificado como deuda extraíble pero no se mueve en este ciclo.
+  - Fase 5 Comentarios: zero TODO/FIXME en `src/` e `include/`. Calidad alta de comentarios "por qué" sobre "qué".
+- **Confirmado por code review cruzado:** las fases 0–5 pasaron revisión doble (Claude Code + Codex) con correcciones de wording incorporadas.
+
 ## 2026-05-29
 
 ### Firmware — Estados externos desconectados + temp mono
