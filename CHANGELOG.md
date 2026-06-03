@@ -2,6 +2,16 @@
 
 ## 2026-06-03
 
+### Decisión operativa — Stack HWM diferido a sesión de validación HW
+
+- **Contexto:** ítem "Stack HWM validación HW" del ROADMAP § "Deuda técnica post-auditoría". La instrumentación ya existe en `src/tft_display.cpp:940` y `src/io.cpp:118` bajo `#ifdef FIRMWARE_DEBUG`.
+- **Decisión: NO activar `FIRMWARE_DEBUG` desde esta auditoría.** Razones:
+  1. `AGENTS.md` prohíbe explícitamente cambiar flags de build (`FIRMWARE_DEBUG`, `PBIT_ENABLE_SERIAL_PLOTTER`) sin petición explícita del usuario.
+  2. Esto NO es refactor — es ejecución de un procedimiento de validación de hardware (flashear, correr 24 h, leer Serial, registrar).
+  3. Activar el flag desde un agente sin petición explícita rompería la política, aunque sea en un env separado.
+- **Acción aplicada:** entrada del ROADMAP refinada para clarificar que se mantiene abierta hasta que Pablo solicite explícitamente activar el flag o añadir un env `esp32dev_debug` aislado para la sesión de validación.
+- **Resultado:** la deuda no se cierra ni se ignora — se reposiciona como **paso operativo de validación HW**, no como deuda de refactor.
+
 ### Decisión arquitectural — ADR-001: diferir extracción de RGB LED mapping
 
 - **Contexto:** `src/tft_display.cpp` (946 líneas) contiene ~289 líneas de mapping LED RGB (`set_rgb565`, `apply_*_visual_rgb` ×6, `apply_global_alert_rgb`, `update_rgb_led_state`). El ítem "RGB mapping extraíble" del ROADMAP § "Deuda técnica post-auditoría" sugería extraer.
