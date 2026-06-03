@@ -1,5 +1,20 @@
 # Changelog
 
+## 2026-06-03
+
+### Documentación — Reglas TFT y firmware reforzadas
+
+- **Reforzado:** `docs/TFT_RENDER_RULES.md` (258 → 490 líneas) con Nivel 0 (cache canónica), sub-sección `sz_set_active`, Nivel 5 (Demo Mode), "Verificación pre-claim" con 10 proofs y "Banderas rojas grep-ables".
+- **Reforzado:** `docs/TECHNICAL.md` (987 → 1097 líneas) con Apéndice A: stack real (Arduino+PlatformIO vs ESP-IDF), 9 banderas rojas grep firmware, 8 proofs pre-claim, GPIO traps.
+
+### Mantenimiento — Limpieza de fonts y archivos basura
+
+- **Limpiado:** `include/fonts.h` reducido a las 6 fuentes que realmente se compilan (`Roboto_Regular7pt8b`, `Roboto_Light6pt8b`, `Roboto_Medium10pt8b`, `IBMPlexSans_Regular9pt8b`, `IBMPlexMono_Regular12pt8b`, `IBMPlexMono_Regular24pt8b`) + los alias `FONT_*`. Las ~30 declaraciones `extern` muertas se eliminaron; los archivos `.h` quedan en `include/` como librería disponible para reactivar.
+- **Eliminado del tracking:** `listado_completo.txt`, `platformio.zip`, `logs/xvba_debug.log`, `preview_probe_icon.html` (ya estaban en .gitignore).
+- **Eliminado del repo:** `wokwi.toml`, `diagram.json`, carpeta `archive/`.
+- **Movido:** `tools/layout_validation_snippet.cpp` → `docs/`.
+- Build verificado: `SUCCESS` — RAM 14.9% (`48940` bytes), Flash 72.1% (`945429` bytes).
+
 ## 2026-05-29
 
 ### Firmware — Estados externos desconectados + temp mono

@@ -20,6 +20,10 @@ dl_temp/
 firmware-artifacts/
 SHA256SUMS.txt
 
+# Archivos generados localmente (listados, previews, artefactos sueltos)
+listado_completo.txt
+preview_probe_icon.html
+
 # OS/editor noise
 .DS_Store
 Thumbs.db
