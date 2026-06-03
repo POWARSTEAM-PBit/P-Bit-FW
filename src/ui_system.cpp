@@ -117,8 +117,8 @@ static void draw_system_audio_panel(int x, int y, int w, int h) {
     tft.setTextDatum(TC_DATUM);
     tft.setFreeFont(FONT_SMALL);
     tft.setTextColor(PB_HUM_P3, panel_bg);
-    tft.drawString(L(MENU_SOUND), left_cx, y + 3);
-    tft.drawString(L(MENU_ALARM_SOUND), right_cx, y + 3);
+    tft.drawString(L(MENU_SOUND), left_cx, y + 2);
+    tft.drawString(L(MENU_ALARM_SOUND), right_cx, y + 2);
     tft.setTextColor(beep_col, panel_bg);
     tft.drawString(g_sound_enabled ? L(ST_ON) : L(ST_OFF), left_cx, y + h - 18);
     tft.setTextColor(alarm_col, panel_bg);

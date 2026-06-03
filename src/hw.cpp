@@ -49,6 +49,7 @@ constexpr bool TEMP_ALERTS_DEFAULT_ENABLED = false;
 constexpr int LIGHT_THRESH_DEFAULT_DIM_MAX = 100;
 constexpr int LIGHT_THRESH_DEFAULT_INDOOR_MAX = 500;
 constexpr int LIGHT_THRESH_DEFAULT_BRIGHT_MAX = 2000;
+constexpr int LIGHT_THRESH_MAX = 8000;
 constexpr uint8_t LIGHT_DISPLAY_MODE_DEFAULT = 0;
 constexpr bool LIGHT_ALERTS_DEFAULT_ENABLED = true;
 constexpr bool LIGHT_RANGE_MARKS_DEFAULT_VISIBLE = false;
@@ -502,7 +503,7 @@ void load_light_settings() {
     bool alerts_enabled = stored.alerts_enabled;
     bool range_marks_visible = stored.range_marks_visible;
 
-    if (dim_max >= 10 && bright_max <= 10000 && dim_max < indoor_max && indoor_max < bright_max) {
+    if (dim_max >= 10 && bright_max <= LIGHT_THRESH_MAX && dim_max < indoor_max && indoor_max < bright_max) {
         g_light_thresh_dim_max = dim_max;
         g_light_thresh_indoor_max = indoor_max;
         g_light_thresh_bright_max = bright_max;
@@ -517,7 +518,7 @@ void load_light_settings() {
 }
 
 bool save_light_settings(int dim_max, int indoor_max, int bright_max) {
-    if (dim_max < 10 || bright_max > 10000 || dim_max >= indoor_max || indoor_max >= bright_max) {
+    if (dim_max < 10 || bright_max > LIGHT_THRESH_MAX || dim_max >= indoor_max || indoor_max >= bright_max) {
         return false;
     }
 
@@ -778,7 +779,7 @@ float read_ds18b20_temp() {
     if (sensors.getDeviceCount() == 0) {
         sensors.begin();
         if (sensors.getDeviceCount() == 0) {
-            DPRINTLN("[DS18B20] Sin dispositivos en bus (GPIO33/J4)");
+            DPRINTLN("[DS18B20] Sin dispositivos en bus (GPIO33/IO33)");
             return -999.0f;
         }
         sensors.setResolution(9);

@@ -1,6 +1,6 @@
 # Manual Técnico del P-Bit
 
-Actualizado: 2026-05-26
+Actualizado: 2026-05-28
 
 Este documento describe el estado técnico actual del P-Bit a partir del firmware y la configuración presentes en este repositorio. Está pensado como base de entrenamiento para desarrollo, integración, soporte, mantenimiento y despliegue educativo.
 
@@ -47,9 +47,11 @@ Estado de revisión de producción/i18n:
 
 - build local verificado con `py -m platformio run -e esp32dev`
 - resultado PlatformIO: `SUCCESS`
-- memoria reportada por build: RAM `14.7%` (`48156` bytes de `327680`) y Flash `71.5%` (`936653` bytes de `1310720`)
-- revisión estática de i18n, BLE factory-off, LDR, Sensor Zone y fixes anti-flicker completada
-- validaciones de hardware real siguen pendientes de unidad física
+- memoria reportada por build: RAM `14.9%` (`48900` bytes de `327680`) y Flash `71.8%` (`941497` bytes de `1310720`)
+- revisión estática de i18n, BLE factory-off, Sensor Zone y fixes anti-flicker completada
+- ghosting/flicker validado como resuelto por ahora; mantener checks de regresión en ST7735 real
+- Modo demo validado en entrada desde logos, entrada desde `Home`, splash y salida con interacción; coreografía smooth implementada en firmware y pendiente de validación visual final en hardware
+- LDR `Lux` / `FC` / `Raw ADC` propagado en firmware a `LIGHT_SCREEN`, Sensor Zone, cards, dashboards, dials y gráficas mediante helper común de presentación
 
 ## 2. Plataforma base
 
@@ -109,8 +111,8 @@ Nota importante:
 |---|---:|---|
 | LDR | `GPIO39` | ADC, entrada solamente |
 | Micrófono | `GPIO36` | ADC, entrada solamente |
-| Humedad de suelo | `GPIO35` | ADC, entrada solamente, puerto externo `J6` |
-| DS18B20 | `GPIO33` | bus 1-Wire, puerto externo |
+| Humedad de suelo | `GPIO35` | ADC, entrada solamente; referencia visible PCB `IO35` |
+| DS18B20 | `GPIO33` | bus 1-Wire; referencia visible PCB `IO33` |
 | DHT11 | `GPIO4` | lectura digital |
 
 ### Interfaz humana
@@ -154,7 +156,7 @@ Notas de hardware:
 - La TFT no comparte estos pines I2C: `DC` y `RST` del display van a `GPIO22` y `GPIO21`, respectivamente.
 - La placa V3.1 sí deja un bus I2C físico disponible en `GPIO26/GPIO27`, pero el firmware actual todavía no llama a `Wire.begin(...)` ni usa sensores I2C.
 - Si en una iteración futura se añade un sensor I2C como `SCD41`, la inicialización correcta debe ser explícita sobre esos pines: `Wire.begin(26, 27)`.
-- En el código hay referencias mixtas a `J3` y `J4` para la sonda DS18B20; la referencia eléctrica firme es `GPIO33`. Conviene verificar la serigrafía exacta de la placa física.
+- Para soporte de usuario, la referencia visible de PCB es `IO33` para la sonda DS18B20 y `IO35` para Suelo; la referencia eléctrica firme del firmware sigue siendo `GPIO33`/`GPIO35`.
 - Esta confirmación de pines ya no depende solo del firmware: quedó contrastada también contra los archivos KiCad `P-Bit3.kicad_sch` y `P-Bit3.kicad_pcb`.
 
 ## 5. Arquitectura del firmware
@@ -245,7 +247,7 @@ Rangos canónicos usados por UI, gauges, cards, gráficas y RGB:
 |---|---:|---:|---|
 | Temperatura DHT11 | °C | `0..50 °C` / `32..122 °F` | Rango útil del DHT11 |
 | Humedad aire DHT11 | `%` | `0..100 %` | Porcentaje relativo |
-| Luz LDR | lux aproximados | `0..20000 lux` | Acotado por firmware; `Raw ADC` solo en modo específico |
+| Luz LDR | lux aproximados / `FC` / `Raw ADC` | `0..8000 lux`, `0..4095 raw` | Curva empírica v1; categorías/alertas usan lux interno |
 | Sonido MIC | `%` relativo | `0..100 %` | No dB SPL |
 | Suelo capacitivo | `%` calibrado | `0..100 %` | Mapeado desde seco/húmedo calibrados |
 | Termómetro DS18B20 | °C | `-55..+125 °C` / `-67..+257 °F` | Rango técnico de la sonda; lecturas fuera de rango se tratan como inválidas |
@@ -271,15 +273,53 @@ Se actualizan en el lazo rápido de `sensor_reading_task`:
 
 Lógica actual:
 
-- divisor resistivo con `R = 10k`
+- divisor LDR actual: a mayor luz, menor RAW ADC; a mayor oscuridad, mayor RAW ADC
 - filtro hardware adicional con `C4 = 1uF`
-- conversión aproximada a lux por fórmula logarítmica calibrada
-- rango útil normalizado a `0..20000 lux`
-- saturación alta tratada como `20000 lux`
-- lectura cruda disponible en `ldr_raw` para el modo `Raw ADC`
-- filtrado software por EMA
+- lectura cruda disponible en `ldr_raw` para el modo `Raw ADC`; se estabiliza con media móvil de 10 lecturas ADC
+- cálculo de lux aproximado a partir del RAW promediado mediante curva empírica v1
+- rango útil normalizado a `0..8000 lux`
+- `FC` calculado desde el lux calibrado con `lux / 10.764`
 
-La UI de luz ofrece tres modos de display: `Lux`, `% log` y `Raw ADC`. El modo `Raw ADC` muestra la lectura ADC directa, mientras que las vistas de cards, dials y gráficas usan el rango de lux limitado a `0..20000`.
+##### Calibración empírica LDR v1 — 2026-05-29
+
+Esta es la primera curva de LDR derivada de una comparación manual entre el RAW ADC del P-Bit y un luxómetro externo. El modelo anterior era teórico tipo GL5528 (`R10`, `gamma`, resistencia de referencia) y saturaba el tramo alto a `20000 lux`; en esta placa sobreestimaba con fuerza la luz alta, por ejemplo RAW `64` quedaba cerca de `19600 lux` cuando la muestra manual marcaba unos `3650 lux`.
+
+Durante el análisis se trató el punto `120 - 800` como dato invertido y se corrigió a `800 - 120`, porque así mantiene la relación esperada del divisor: RAW más bajo significa más luz, RAW más alto significa menos luz.
+
+Muestra base usada para la curva:
+
+| RAW ADC | Luxómetro | Firmware v1 |
+|---:|---:|---:|
+| 5 | 7400 | 6963 |
+| 43 | 4280 | 4408 |
+| 64 | 3650 | 3548 |
+| 102 | 2490 | 2511 |
+| 105 | 2200 | 2448 |
+| 122 | 2020 | 2134 |
+| 494 | 380 | 313 |
+| 750 | 138 | 138 |
+| 800 | 120 | 120 |
+| 816 | 118 | 115 |
+| 845 | 89 | 107 |
+| 1007 | 64 | 71 |
+| 1111 | 59 | 56 |
+| 1220 | 45 | 44 |
+| 1270 | 42 | 40 |
+| 1700 | 17 | 17 |
+
+El ajuste de potencia sobre la muestra queda cercano a:
+
+`lux ≈ 10.22 * ((4095 - raw) / (raw + 141))^1.962`
+
+En firmware se usa una aproximación equivalente y barata para ESP32:
+
+`x = (4095 - raw) / (raw + 150)`
+
+`lux = clamp(10 * x * x, 0, 8000)`
+
+La aproximación evita `powf` en el lazo rápido, mantiene el error medio de la muestra alrededor de `6%` y deja el máximo práctico cerca del punto más luminoso medido. Si cambia el LDR, el divisor, la carcasa o la geometría de medición, esta tabla debe repetirse y versionarse como una nueva curva.
+
+La UI de luz usa un helper común de presentación (`include/light_display.h` / `src/light_display.cpp`) para tres modos: `Lux`, `FC` y `Raw ADC`. `FC` es foot-candle calculado desde lux (`lux / 10.764`). `Raw ADC` usa la lectura ADC cruda promediada y se muestra como `raw` en campos compactos. La propagación visual está implementada en firmware para `LIGHT_SCREEN`, Sensor Zone (`Card`, `Valor`, `Focus`, `Gráfica`, `Dial`), Home cards, dashboards y gráficas. Categorías, alertas y RGB siguen usando lux interno; en vistas de solo Luz el RGB permanece apagado para no contaminar el LDR. Las gráficas RAW usan `g_graph_light_raw`.
 
 #### Sonido
 
@@ -352,6 +392,10 @@ Si `PBIT_ENABLE_GRAPH_LAB` se compila a `0`, el carrusel cae al rango clásico `
 
 Cada sensor conserva su modo visual persistido (`sz_v0` .. `sz_v5`) y `sz_sync_renderer(...)` sincroniza el sub-renderer activo solo cuando cambia pantalla, sensor o modo. Esta arquitectura evita invalidar caches en cada tick de lectura y reduce flicker en dials, cards, gráficas y vistas de valor.
 
+Los sensores externos conectables por el usuario comparten estado runtime de ausencia en `external_sensor_state.*`: `SZ_DS18` falta si `temp_ds18b20 < -100` y `SZ_SOIL` falta si `soil_humidity` es `NaN`. El helper también centraliza `ST_CHECK_DS18`/`ST_CHECK_SOIL` y colores atenuados basados en la paleta del sensor. No persiste nada en NVS; al reconectar, la siguiente lectura válida restaura colores y datos normales.
+
+`sensor_connection_notice.*` observa únicamente muestras físicas reales desde `io.cpp`, no el snapshot visual ni Demo Mode. Tras la primera muestra de baseline, si `SZ_DS18` o `SZ_SOIL` pasan de desconectados a conectados o de conectados a desconectados, encola un splash semafórico de `1500 ms`: fondo verde para `CONECTADO` y fondo rojo para `DESCONECTADO`, con tres líneas (`CONECTADO`/`DESCONECTADO`, `Sensor Suelo`/`Sensor DS18B20`, `IO35`/`IO33`). No dispara avisos por el estado inicial al boot, no usa NVS, no añade sonido/LED especial y no interrumpe Demo Mode.
+
 Para flujos transitorios como Modo demo existen `sz_set_sensor_runtime(...)` y `sz_set_viz_runtime(...)`. Cambian sensor/modo solo en RAM, piden full redraw y no escriben NVS.
 
 ### Modo demo runtime
@@ -366,17 +410,25 @@ Activación:
 
 Comportamiento:
 
-- `src/demo_mode.cpp` define una banda runtime de escenas con duración fija de 6 segundos.
+- `src/demo_mode.cpp` define una banda runtime de escenas con duración variable (`6..10 s`) para dar ritmo visual a la demo.
 - Al activarse, `tft_display.cpp` muestra una señal visual breve `MODO DEMO / Iniciando demo` antes de entrar a la primera escena.
 - Con `PBIT_ENABLE_GRAPH_LAB=1`, recorre Home, Clima, Multi, Sonido VU, seis escenas de Sensor Zone y Timer.
 - Las escenas de Sensor Zone usan setters runtime, por lo que no modifican el sensor ni el modo visual guardados.
 - Si `kDemoSimulatedReadings == true`, `demo_mode_apply_simulated_readings(...)` modifica solo `g_ui_readings_snapshot` para animar valores visuales; no toca `global_readings`, NVS, BLE ni lecturas físicas.
+- `demo_mode_value_refresh_ms()` fija un refresco demo dedicado de `220 ms`, separado de la cadencia normal de sensores/gráficas.
+- `demo_mode_graph_values(...)` genera histórico sintético para `Graph` durante demo, de modo que las gráficas muestren intención visual sin depender de buffers físicos previos.
+- Las curvas simuladas usan suavizado por sensor; el RAW del LDR se calcula con la inversa de la curva empírica v1 para que `Raw ADC` sea coherente con el lux simulado en calibración/demostración.
 - Cualquier giro o pulsación posterior del encoder ejecuta `demo_mode_stop()`, reconfigura límites del encoder y devuelve control al usuario.
 - Mientras `demo_mode_is_active()` es `true`, el reposo automático queda bloqueado.
 
+Estado actual:
+
+- entrada desde logos con encoder presionado, entrada desde `Home` con pulsación larga, señal visual y salida con interacción confirmadas en hardware.
+- coreografía smooth implementada en firmware; queda validación visual final en hardware para ajustar dwell/refresco si hiciera falta.
+
 ### Fixes anti-flicker
 
-La revisión estática confirma las mitigaciones de parpadeo en:
+Ghosting/flicker queda cerrado por ahora tras la revisión y validación práctica actual. Mantener checks de regresión cuando se cambien limpiezas, sprites, textos localizados o ritmos de Demo Mode. Las mitigaciones aplicadas cubren:
 
 - dials/gauges: caches por sensor y actualizaciones por `data_dirty`/`chrome_dirty`; los diales dibujan ticks de umbral/rango sobre el arco usando los rangos guardados
 - cards: limpieza dirigida del rectángulo de valor, banda superior ampliada para estados (`Óptimo`, `Seco`, etc.) y cache de estado
@@ -437,7 +489,8 @@ Nivel de sonido ambiental en barras apiladas. Solo lectura; no tiene menú.
 - en carrusel actual: slot de `SENSOR_ZONE_SCREEN` con sensor `SZ_LIGHT`
 - pulsación corta: alterna modo de visualización
 - menú `Rangos / Modo / Alertas / Reset / Salir`
-- modos de vista: `Lux`, `% log`, `Raw ADC`
+- modos de vista: `Lux`, `FC`, `Raw ADC`
+- propagación implementada: valor/unidad visible siguen el modo activo en pantalla clásica, Sensor Zone, cards, dashboards, dials y gráficas
 
 #### Sonido
 
@@ -740,6 +793,7 @@ Comportamiento:
 Estado actual tras auditoría estática:
 
 - los textos visibles de UI están migrados al diccionario mediante `L(...)` o `LIn(...)`
+- las unidades visibles de menú, incluido `FC` para foot-candle, usan clave del diccionario (`ST_FC_UNIT`)
 - las cadenas directas restantes localizadas por búsqueda son símbolos/no lingüísticas (`>`, `---`, separadores, ticks numéricos o `ZZZ`)
 - `LANG_COUNT`, `LIn(...)` y `normalizeLanguage(...)` están presentes y se usan en selector, menú de sistema y renderizado del idioma activo
 
@@ -858,10 +912,10 @@ Opciones raíz: `Rangos / Alertas / Reset / Salir`
 
 Opciones raíz: `Rangos / Modo / Alertas / Ver límites / Reset / Salir`
 
-- **Rangos**: `Max penumbra` → `Max interior` → `Max brillante` → Guardar. Rango editable: 10..10 000. Validación: brillante > interior > penumbra.
-- **Modo**: `Lux` / `% log` / `Raw ADC`.
+- **Rangos**: `Max penumbra` → `Max interior` → `Max brillante` → Guardar. Rango editable: 10..8000. Validación: brillante > interior > penumbra.
+- **Modo**: `Lux` / `FC` / `Raw ADC`.
 - **Ver límites**: muestra u oculta las marcas de rango en el dial. Se guarda en NVS.
-- Esta opción afecta solo al valor grande de la pantalla clásica `LIGHT_SCREEN`; las vistas actuales de Sensor Zone siguen usando lux. `Raw ADC` cambia solo el valor grande; la barra y la categoría siguen usando lux.
+- Esta opción afecta el valor/unidad visible de Luz en pantalla clásica, Sensor Zone (`Card`, `Valor`, `Focus`, `Gráfica`, `Dial`), Home cards, dashboards y gráficas. `FC` convierte el lux mostrado a foot-candle y `Raw ADC` muestra la lectura cruda promediada. Barras, categorías y alertas conservan lux interno cuando representan rangos ambientales.
 
 #### Sonido
 
@@ -878,7 +932,8 @@ Opciones raíz: `Calibrar sensor / Rangos / Alertas / Reset / Salir`
 - **Calibrar sensor**: `Seco al aire` → `En agua` → Guardar o Error. Validación: seco_raw > húmedo_raw, diferencia ≥ 300.
 - **Rangos**: `Seco` → `Húmedo` → Guardar. Validación: seco < húmedo, todos en 0..100.
 - Clasificación derivada: `0..Seco/2` = `Muy seco`; `Seco/2..Seco` = `Seco`; `Seco..Húmedo` = `Óptimo`; `Húmedo..(Húmedo+100)/2` = `Húmedo`; tramo final = `Muy húmedo`.
-- Sin sensor: muestra `Sin sensor` y `Check J6 (GPIO35)`.
+- Color visual compartido: `pbit_soil_visual_color()` usa los umbrales configurados; `0%` es amarillo intenso, el tramo bajo interpola amarillo→verde hasta `Seco`, `Seco..Húmedo` permanece verde y por encima de `Húmedo` interpola verde→azul.
+- Sin sensor: muestra `Sin sensor`, `---` y `Revisa IO35` / `Comprova IO35` / `Check IO35`, con paleta de Suelo atenuada. Al conectar/desconectar durante el uso, muestra splash semafórico `CONECTADO`/`DESCONECTADO` con `Sensor Suelo / IO35`.
 
 #### Termómetro / DS18B20
 
@@ -887,7 +942,7 @@ Opciones raíz: `Corrección / Límites / Unidad / Alertas / Reset / Salir`
 - **Corrección**: `Offset` (décimas, aprox. −5.0..+5.0) → Guardar.
 - **Límites**: `Límite bajo` → `Límite alto` → Guardar. Valores internos en Celsius.
 - **Unidad**: `Celsius` / `Fahrenheit`. Compartida con Temperatura y persistida en `sys_unit_f`.
-- Sin sensor: muestra `Sin sensor` y `Check J4`.
+- Sin sensor: muestra `Sin sensor`, `---` y `Revisa IO33` / `Comprova IO33` / `Check IO33`, con paleta de Termómetro/DS18 atenuada. Al conectar/desconectar durante el uso, muestra splash semafórico `CONECTADO`/`DESCONECTADO` con `Sensor DS18B20 / IO33`.
 
 #### Sistema
 

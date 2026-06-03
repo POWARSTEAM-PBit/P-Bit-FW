@@ -1,6 +1,6 @@
 # P-Bit Roadmap
 
-Actualizado: 2026-05-26
+Actualizado: 2026-05-29
 
 Referencia para priorizar el trabajo futuro del firmware P-Bit. Separa deuda técnica de mejoras de producto y ordena iteraciones de menús, sensores y UX.
 
@@ -13,20 +13,22 @@ El historial de lo ya implementado está en `CHANGELOG.md`. Este documento cubre
 | Indicador | Valor |
 |---|---|
 | Build | ✅ `esp32dev` — sin errores |
-| RAM | 14.7 % (`48 132` / `327 680` bytes) |
-| Flash | 71.5 % (`936 653` / `1 310 720` bytes) |
+| RAM | 14.9 % (`48 940` / `327 680` bytes) |
+| Flash | 72.1 % (`945 429` / `1 310 720` bytes) |
 | Carrusel activo | 12 pantallas con `PBIT_ENABLE_GRAPH_LAB=1` |
 | Idiomas | ES / CAT / EN — i18n completo |
 | BLE | Factory-off — gesto secreto 30 s en `Sistema` |
-| Validación hardware | **Pendiente** — bloqueador principal de todo trabajo activo |
+| Validación hardware | **En cierre** — ghosting/flicker resuelto por ahora; LDR modos, Demo smooth y estados externos `IO33/IO35` implementados en firmware, pendientes de validación visual final |
 
 ---
 
-## Ahora — Validación en hardware real
+## Ahora — Cierre en hardware real
 
-Todo el trabajo activo converge aquí. Sin esta validación, ninguna mejora de producto tiene sentido ejecutar antes.
+Todo el trabajo activo converge aquí. El ghosting/flicker de pantallas queda aprobado por ahora; mantener vigilancia de regresión mientras se validan en hardware los modos LDR, Demo Mode y producción.
 
 ### Anti-flicker visual
+
+Estado: resuelto por ahora en hardware real. Usar esta tabla como checklist de regresión si se modifican pantallas, demo o reglas de limpieza.
 
 | Pantalla | Qué verificar |
 |---|---|
@@ -45,11 +47,14 @@ Todo el trabajo activo converge aquí. Sin esta validación, ninguna mejora de p
 
 ### Sensores
 
-- [ ] LDR: rango `0..20000 lux` plausible en entorno real; RGB permanece apagado en vista de luz
+- [x] LDR: coherencia `Lux`/`FC`/`Raw ADC` implementada en firmware para Luz, Sensor Zone, cards, dashboards, dials y gráficas
+- [x] LDR: curva empírica v1 aplicada desde muestra manual RAW/luxómetro; `FC` deriva de lux con `lux / 10.764`
+- [ ] LDR: validar rango `0..8000 lux` plausible en entorno real; RGB permanece apagado en vista de luz
 - [ ] DHT11: temperatura y humedad con valores plausibles
-- [ ] DS18B20: detección correcta de presencia/ausencia de sonda
+- [x] DS18B20/Suelo: estado runtime común de ausencia implementado con `Revisa IO33` / `Revisa IO35` y paleta atenuada
+- [ ] DS18B20: detección correcta de presencia/ausencia de sonda en hardware y textos `IO33` legibles en ES/CAT/EN
 - [ ] Micrófono: respuesta visible en `Sound VU` y pantalla `Sonido`
-- [ ] Suelo: detección de ausencia de sensor; calibración seco/agua funciona
+- [ ] Suelo: detección de ausencia de sensor en hardware, textos `IO35` legibles en ES/CAT/EN y calibración seco/agua funciona
 
 ### Navegación e i18n
 
@@ -60,6 +65,9 @@ Todo el trabajo activo converge aquí. Sin esta validación, ninguna mejora de p
 - [ ] `Timer`: corto/largo responden según diseño; alarma audible al finalizar si `Alarmas` activo
 - [ ] `Sistema > Bip` silencia beeps de UI sin silenciar alertas; `Alarmas` silencia alertas/timer audibles sin ocultar alertas visuales/RGB
 - [ ] Reposo visible con `ZZZ`; despierta con encoder
+- [x] Modo demo: entrada desde logos con encoder presionado, entrada desde `Home` con pulsación larga, señal visual y salida con giro/pulsación
+- [x] Modo demo: suavizar ritmo, intención y coreografía visual para evitar sensación de cambios bruscos o sin propósito
+- [ ] Modo demo: validación visual final en hardware para confirmar que la nueva cadencia no reintroduce flicker
 
 ### Checklist formal
 
@@ -76,6 +84,8 @@ Listas para implementar una vez que el hardware esté validado.
 | Ítem | Descripción | Prioridad |
 |---|---|---|
 | **TWDT** | Task Watchdog Timer para `sensor_reading_task` y `switch_screen`. Timeout sugerido: 10 s. Requiere test de 24 h continuas en hardware. Usar el Modo demo runtime como base del ciclo continuo. | Alta |
+| **LDR calibración HW** | Validar `Lux / FC / Raw ADC` contra luz/sombra reales y ajustar la curva empírica v1 si el rango `0..8000 lux` no se siente plausible. | Alta |
+| **Demo validación HW** | Probar la coreografía smooth en ST7735 real y ajustar dwell/refresco si aparece flicker o cambios demasiado lentos. | Alta |
 | **Renombrar flag** | `PBIT_ENABLE_GRAPH_LAB` → `PBIT_ENABLE_FULL_NAV` (u otro nombre representativo). Limpiar referencias `LAB_` en enums y constantes de `tft_display.h` y `rotary.cpp`. | Media |
 
 ### Design System
@@ -93,6 +103,7 @@ Ideas acordadas con valor educativo y de producto; sin urgencia técnica.
 
 ### UX y feedback
 
+- **Demo guion educativo**: añadir secuencias temáticas futuras (aula, planta, exterior) sobre la coreografía smooth ya implementada.
 - **Gamificación de alertas**: arcoíris rápido + sonido feliz al pasar a estado óptimo desde alerta.
 - **Alertas globales en pantalla**: la lógica (`AlertEngine`) y el RGB ya funcionan. Falta decidir una posición de layout que no invada ninguna pantalla y reactivar la capa visual.
 - **Calibración real de sonido**: el menú actual usa `Niveles` interpretativos. Decidir si más adelante se añade una calibración acústica real del entorno.

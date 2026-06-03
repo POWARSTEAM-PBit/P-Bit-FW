@@ -4,6 +4,7 @@ GraphBuffer  g_graph_temp     = {{}, 0, 0};
 GraphBuffer  g_graph_humidity = {{}, 0, 0};
 GraphBuffer  g_graph_ds18     = {{}, 0, 0};
 GraphBuffer  g_graph_light    = {{}, 0, 0};
+GraphBuffer  g_graph_light_raw = {{}, 0, 0};
 GraphBuffer  g_graph_sound    = {{}, 0, 0};
 GraphBuffer  g_graph_soil     = {{}, 0, 0};
 portMUX_TYPE g_graph_mux      = portMUX_INITIALIZER_UNLOCKED;

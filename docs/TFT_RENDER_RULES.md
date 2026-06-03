@@ -2,13 +2,13 @@
 
 **Protocolo anti-flicker para ST7735 160×128 px via SPI (TFT_eSPI)**
 
-Fecha: 2026-05-24 | Versión consolidada post-Fase B/C/D
+Fecha: 2026-05-28 | Versión consolidada post-Fase B/C/D + validación puntual hardware
 
 ---
 
 ## Estado actual
 
-Las reglas de este documento ya están aplicadas en las pantallas de mayor riesgo del firmware actual: dials/gauges, cards, `Sound VU`, `Graph`, `Valor`, `Home` y pantallas de sensor clásicas. La deuda activa no es repetir la implementación anti-flicker, sino **validar en hardware real** que el ST7735 no muestra scan-line, flash negro, ghost pixels ni recortes en textos localizados.
+Las reglas de este documento ya están aplicadas en las pantallas de mayor riesgo del firmware actual: dials/gauges, cards, `Sound VU`, `Graph`, `Valor`, `Home` y pantallas de sensor clásicas. La validación puntual en hardware deja ghosting/flicker cerrado por ahora; la deuda activa es mantener checks de regresión cuando se toquen pantallas, Demo Mode, modos LDR o reglas de limpieza.
 
 Cambios cerrados desde la auditoría original:
 - `Sound VU`: sprite, EWMA asimétrico, scroll continuo e idle pulse.
@@ -16,7 +16,8 @@ Cambios cerrados desde la auditoría original:
 - `VALOR`: sparkline sprite y clears acotados.
 - `SENSOR CARD`: chrome-last rule para evitar recorte por overhang de glyphs.
 - `HOME` y cards lab: `draw_card_chrome` separado de `draw_card_value_and_tank`.
-- `LDR`: las vistas usan rango de producto `0..20000 lux`; el ADC crudo `0..4095` queda solo para calibración/debug.
+- `LDR`: `Lux`, `FC` y `Raw ADC` usan helper común de presentación; Sensor Zone/cards/gráficas/dials deben seguir valor/unidad del modo activo.
+- `Externos`: DS18B20/Termómetro y Suelo usan estado runtime común de ausencia; al desconectar se dibujan con paleta atenuada y textos `Revisa IO33` / `Revisa IO35`, sin persistencia en NVS.
 
 ## Por qué importa
 
@@ -118,6 +119,16 @@ En pantallas `Lab` con cards compuestos, los bordes, títulos, iconos y shells d
 - footer textual si cambia su estado.
 
 Evitar `fillRoundRect()` de la card completa para actualizar un número. Si el dato dinámico necesita un fondo, usar un clear rect pequeño dentro del interior del card, dejando intacto el borde.
+
+### Estado externo desconectado
+
+Para `SZ_DS18` y `SZ_SOIL`, la ausencia del sensor es un cambio de validez y por tanto ensucia chrome y datos. Usar `external_sensor_state.*` como fuente común:
+
+- DS18B20 ausente: `temp_ds18b20 < -100`, texto `ST_CHECK_DS18` (`IO33`).
+- Suelo ausente: `isnan(soil_humidity)`, texto `ST_CHECK_SOIL` (`IO35`).
+- Color: mantener identidad del sensor atenuada (`pbit_external_dim_*`), evitando gris plano o rojo dominante.
+- Layout estrecho: preferir dos líneas `Sin sensor` + `Revisa IOxx`; si no cabe, mostrar `IO33`/`IO35` compacto antes que solapar valor, icono o gráfica.
+- Conexión/desconexión: `sensor_connection_notice.*` usa splash full-screen semafórico de `1500 ms`, no overlay parcial, para evitar solapes con pantallas densas y dar tiempo real de lectura. Fondo verde para `CONECTADO`, fondo rojo para `DESCONECTADO`, tres líneas centradas (`estado`, `Sensor ...`, `IOxx`). Se dispara solo ante transiciones posteriores al baseline inicial; Demo Mode y overlays críticos tienen prioridad.
 
 ---
 
@@ -222,16 +233,17 @@ tft.drawString(unit_str, 148, 34);
 | `ui_lab_dual.cpp` | L1 | shell/content separation |
 | `ui_lab_linear_dash.cpp` | L1 | RowCache por fila |
 
-**Nota de aceptación:** "Nivel aplicado" significa que el patrón existe en código. La aceptación final para producción requiere probar esas pantallas en el P-Bit físico y firmar que no hay flicker perceptible.
+**Nota de aceptación:** "Nivel aplicado" significa que el patrón existe en código. Ghosting/flicker está cerrado por ahora; repetir checks de regresión si se cambia render, Demo Mode o cadencia de datos.
 
-## Validaciones hardware pendientes
+## Vigilancia de regresión y pendientes visuales
 
-- `LAB_SOUND_VU_STACK_SCREEN` y `LAB_SOUND_VU_WAVE_SCREEN`: scroll continuo, idle pulse visible en silencio, sin congelación periódica.
-- `SZ_VIZ_GAUGE`: ring sprite sin vibración, label de unidad restaurado después del `pushSprite()`.
-- `SZ_VIZ_CARD`: header, valor, visualización y footer sin recortes por clears dinámicos.
-- `SZ_VIZ_VALOR`: sparkline y barra segmentada sin flash negro y con contraste suficiente.
-- `SZ_VIZ_GRAPH`: etiquetas min/max y línea principal legibles en ES/CAT/EN.
-- `LIGHT`: rango `0..20000 lux`, dial con progresión visual logarítmica y RGB apagado en cualquier vista de solo Luz para no contaminar el LDR.
+- `LAB_SOUND_VU_STACK_SCREEN` y `LAB_SOUND_VU_WAVE_SCREEN`: vigilar que scroll continuo e idle pulse no recuperen congelación periódica.
+- `SZ_VIZ_GAUGE`: vigilar ring sprite sin vibración y label de unidad restaurado después del `pushSprite()`.
+- `SZ_VIZ_CARD`: vigilar header, valor, visualización y footer sin recortes por clears dinámicos.
+- `SZ_VIZ_VALOR`: vigilar sparkline y barra segmentada sin flash negro y con contraste suficiente.
+- `SZ_VIZ_GRAPH`: validar etiquetas min/max y línea principal legibles en ES/CAT/EN.
+- `LIGHT`: verificar regresión de coherencia visible `Lux / FC / Raw ADC`; mantener RGB apagado en cualquier vista de solo Luz para no contaminar el LDR.
+- `DEMO`: validar que el refresco smooth de 220 ms y las gráficas sintéticas no reintroducen flicker por frecuencia excesiva.
 
 ---
 

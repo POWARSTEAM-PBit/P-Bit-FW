@@ -1,5 +1,5 @@
 // ui_soil.cpp
-// Pantalla de humedad del suelo (sensor capacitivo externo J6).
+// Pantalla de humedad del suelo (sensor capacitivo externo, referencia PCB IO35).
 
 #include "ui_soil.h"
 #include "tft_display.h"
@@ -11,7 +11,9 @@
 #include "hw.h"
 #include "led_control.h"
 #include "alert_engine.h"
+#include "external_sensor_state.h"
 #include "runtime_events.h"
+#include "sensor_visuals.h"
 #include <TFT_eSPI.h>
 #include <Arduino.h>
 #include <stdio.h>
@@ -66,21 +68,15 @@ static int soil_category_id(float soil, bool no_sensor, int dry_thr, int moist_t
     return 4;
 }
 
-// Soil colors stay intentionally strong so the screen works as a quick
-// educational status indicator, not just a raw sensor readout.
-static void apply_soil_rgb_for_category(int category_id, bool no_sensor) {
+static void apply_soil_rgb(float soil, bool no_sensor) {
     if (no_sensor) {
-        set_rgb(120, 0, 0); // Mantener rojo oscuro para error
+        set_rgb(0, 36, 0);
         return;
     }
 
-    switch (category_id) {
-        case 0: set_rgb(255, 0, 0); break;     // Muy seco = Rojo
-        case 1: set_rgb(255, 120, 0); break;   // Seco = Naranja
-        case 2: set_rgb(0, 255, 0); break;     // Óptimo = Verde
-        case 3: set_rgb(0, 180, 255); break;   // Húmedo = Cian
-        default: set_rgb(0, 0, 200); break;    // Muy húmedo = Azul oscuro
-    }
+    uint8_t r = 0, g = 0, b = 0;
+    pbit_rgb565_to_rgb888(pbit_soil_visual_color(soil), r, g, b);
+    set_rgb(r, g, b);
 }
 
 // Draw the tiny runtime state indicator used by the soil screen.
@@ -90,7 +86,7 @@ static void draw_soil_alert_jewel(uint8_t alert_code, bool no_sensor) {
 
     if (no_sensor || !g_soil_alerts_enabled) {
         jewel_state = ALERT_JEWEL_OFF;
-        jewel_color = TFT_DARKGREY;
+        jewel_color = no_sensor ? pbit_external_dim_primary(SZ_SOIL) : TFT_DARKGREY;
     } else if (alert_code == ALERT_CODE_LOW) {
         jewel_state = ALERT_JEWEL_WARN;
         jewel_color = TFT_ORANGE;
@@ -488,7 +484,9 @@ void draw_soil_screen(bool screen_changed, bool data_changed) {
     // Coordenadas definidas en layout.h (Familia A)
 
     float soil = (float)g_ui_readings_snapshot.soil_humidity;
-    bool no_sensor = isnan(soil);
+    bool no_sensor = pbit_external_sensor_missing(SZ_SOIL, g_ui_readings_snapshot);
+    const uint16_t missing_primary = pbit_external_dim_primary(SZ_SOIL);
+    const uint16_t missing_secondary = pbit_external_dim_secondary(SZ_SOIL);
     const int dry_thr = get_soil_threshold_dry();
     const int moist_thr = get_soil_threshold_moist();
     g_soil_alerts_enabled = get_soil_alerts_enabled();
@@ -497,18 +495,19 @@ void draw_soil_screen(bool screen_changed, bool data_changed) {
     uint16_t      tankColor;
     uint16_t      categoryColor;
     int category_id = soil_category_id(soil, no_sensor, dry_thr, moist_thr);
+    const uint16_t soil_visual = pbit_soil_visual_color(soil, !no_sensor);
     if (category_id < 0) {
-        categoryText = L(ST_NO_SENSOR); tankColor = TFT_DARKGREY; categoryColor = TFT_RED;
+        categoryText = L(ST_NO_SENSOR); tankColor = missing_primary; categoryColor = missing_secondary;
     } else if (category_id == 0) {
-        categoryText = L(ST_TOO_DRY);   tankColor = TFT_RED;    categoryColor = TFT_RED;
+        categoryText = L(ST_TOO_DRY);   tankColor = soil_visual; categoryColor = soil_visual;
     } else if (category_id == 1) {
-        categoryText = L(ST_DRY);       tankColor = TFT_ORANGE; categoryColor = TFT_ORANGE;
+        categoryText = L(ST_DRY);       tankColor = soil_visual; categoryColor = soil_visual;
     } else if (category_id == 2) {
-        categoryText = L(ST_OPTIMAL);   tankColor = TFT_GREEN;  categoryColor = TFT_GREEN;
+        categoryText = L(ST_OPTIMAL);   tankColor = soil_visual; categoryColor = soil_visual;
     } else if (category_id == 3) {
-        categoryText = L(ST_MOIST);     tankColor = TFT_CYAN;   categoryColor = TFT_CYAN;
+        categoryText = L(ST_MOIST);     tankColor = soil_visual; categoryColor = soil_visual;
     } else {
-        categoryText = L(ST_SATURATED); tankColor = TFT_BLUE;   categoryColor = TFT_BLUE;
+        categoryText = L(ST_SATURATED); tankColor = soil_visual; categoryColor = soil_visual;
     }
 
     char soilStr[6];
@@ -518,7 +517,7 @@ void draw_soil_screen(bool screen_changed, bool data_changed) {
     if (screen_changed) {
         tft.fillScreen(BACKGROUND_COLOR);
         drawHeader(L(TIT_SOIL));
-        tft.drawRoundRect(LA_TANK_X, LA_TANK_Y, LA_TANK_W, LA_TANK_H, 3, TFT_DARKGREY);
+        tft.drawRoundRect(LA_TANK_X, LA_TANK_Y, LA_TANK_W, LA_TANK_H, 3, no_sensor ? missing_secondary : TFT_DARKGREY);
     }
 
     static int last_soil_drawn = -1;
@@ -555,8 +554,8 @@ void draw_soil_screen(bool screen_changed, bool data_changed) {
         if (value_changed || category_changed) {
             // Refresh only the tank region when the reading changes.
             drawFillTank(LA_TANK_X, LA_TANK_Y, LA_TANK_W, LA_TANK_H, tankColor, no_sensor ? 0.0f : soil, 0.0f, 100.0f, 3);
-            tft.drawRoundRect(LA_TANK_X, LA_TANK_Y, LA_TANK_W, LA_TANK_H, 3, TFT_DARKGREY);
-            apply_soil_rgb_for_category(category_id, no_sensor);
+            tft.drawRoundRect(LA_TANK_X, LA_TANK_Y, LA_TANK_W, LA_TANK_H, 3, no_sensor ? missing_secondary : TFT_DARKGREY);
+            apply_soil_rgb(soil, no_sensor);
         }
 
         const char* unitStr = "%";
@@ -565,10 +564,10 @@ void draw_soil_screen(bool screen_changed, bool data_changed) {
             if (no_sensor) {
                 tft.setTextDatum(MC_DATUM);
                 tft.setFreeFont(FONT_BODY);
-                tft.setTextColor(TFT_RED, BACKGROUND_COLOR);
+                tft.setTextColor(missing_primary, BACKGROUND_COLOR);
                 tft.drawString(L(ST_NO_SENSOR), LA_LEFT_CX, LA_VALUE_TOP + 8);
                 tft.setFreeFont(FONT_SMALL);
-                tft.setTextColor(TFT_DARKGREY, BACKGROUND_COLOR);
+                tft.setTextColor(missing_primary, BACKGROUND_COLOR);
                 tft.drawString(L(ST_CHECK_SOIL), LA_LEFT_CX, LA_VALUE_TOP + 24);
                 tft.setTextFont(0);
             } else {

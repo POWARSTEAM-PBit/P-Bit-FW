@@ -1,4 +1,5 @@
 #include "ui_lab_widget_showcase.h"
+#include "external_sensor_state.h"
 #include "sensor_zone.h"
 #include "palette.h"
 #include "sensor_visuals.h"
@@ -8,6 +9,7 @@
 #include "hw.h"
 #include "io.h"
 #include "languages.h"
+#include "light_display.h"
 #include "layout.h"
 #include "runtime_events.h"
 #include "tft_display.h"
@@ -67,6 +69,7 @@ struct ValueRenderCache {
     bool sensor_valid = false;
     int value_key = INT_MIN;
     bool fahrenheit = false;
+    uint8_t light_mode = 0;
     bool chrome_drawn = false;  // tracks whether the top badges are currently on screen
 };
 
@@ -87,6 +90,7 @@ struct GaugeRenderCache {
     int value_key = INT_MIN;
     uint8_t icon_bucket = 255;
     bool fahrenheit = false;
+    uint8_t light_mode = 0;
     int  last_active_until = -1;  // ring segment cache (avoid re-drawing every segment when ratio unchanged)
 };
 
@@ -105,6 +109,30 @@ static GaugeRenderCache g_gauge_cache;
 static ValueLabSensor g_value_sensor = VALUE_SENSOR_TEMP;
 static ValueRenderCache g_value_cache;
 static TempLabCache g_mix_cache;
+
+static SzSensorId gauge_to_sz_sensor(GaugeLabSensor sensor) {
+    return (SzSensorId)sensor;
+}
+
+static SzSensorId value_to_sz_sensor(ValueLabSensor sensor) {
+    return (SzSensorId)sensor;
+}
+
+static bool gauge_external_missing(GaugeLabSensor sensor, bool valid) {
+    return !valid && pbit_external_sensor_has_port_hint(gauge_to_sz_sensor(sensor));
+}
+
+static bool value_external_missing(ValueLabSensor sensor, bool valid) {
+    return !valid && pbit_external_sensor_has_port_hint(value_to_sz_sensor(sensor));
+}
+
+static uint16_t missing_primary(SzSensorId sensor, uint16_t fallback) {
+    return pbit_external_sensor_has_port_hint(sensor) ? pbit_external_dim_primary(sensor) : fallback;
+}
+
+static uint16_t missing_secondary(SzSensorId sensor, uint16_t fallback) {
+    return pbit_external_sensor_has_port_hint(sensor) ? pbit_external_dim_secondary(sensor) : fallback;
+}
 
 struct GaugeSpec {
     GaugeLabSensor sensor;
@@ -140,7 +168,7 @@ static int display_temp_key(bool* out_valid = nullptr) {
 }
 
 static int display_probe_key(bool* out_valid = nullptr) {
-    const bool valid = g_ui_readings_snapshot.temp_ds18b20 >= -100.0f;
+    const bool valid = !pbit_external_sensor_missing(SZ_DS18, g_ui_readings_snapshot);
     if (out_valid) *out_valid = valid;
     if (!valid) return INT_MIN;
     return (int)lroundf(display_temp(g_ui_readings_snapshot.temp_ds18b20) * 10.0f);
@@ -170,7 +198,7 @@ static TFT_eSprite g_sparkline_spr(&tft);
 static int g_sparkline_spr_w = 0;
 static int g_sparkline_spr_h = 0;
 
-static void draw_sparkline(int x, int y, int w, int h, const GraphBuffer& buf, uint16_t line_color, uint16_t grid_color, uint16_t bg_color = kBg) {
+static void draw_sparkline(int x, int y, int w, int h, ValueLabSensor sensor, const GraphBuffer& buf, uint16_t line_color, uint16_t grid_color, uint16_t bg_color = kBg) {
     if (g_sparkline_spr_w != w || g_sparkline_spr_h != h) {
         if (g_sparkline_spr_w != 0) g_sparkline_spr.deleteSprite();
         g_sparkline_spr.setColorDepth(16);
@@ -184,6 +212,12 @@ static void draw_sparkline(int x, int y, int w, int h, const GraphBuffer& buf, u
     portENTER_CRITICAL(&g_graph_mux);
     count = graph_buffer_get(buf, data, GRAPH_BUFFER_SIZE);
     portEXIT_CRITICAL(&g_graph_mux);
+
+    if (sensor == VALUE_SENSOR_LIGHT && light_display_mode() == LIGHT_DISPLAY_FC) {
+        for (size_t i = 0; i < count; ++i) {
+            data[i] = light_display_lux_to_unit(data[i], LIGHT_DISPLAY_FC);
+        }
+    }
 
     g_sparkline_spr.fillSprite(bg_color);
     g_sparkline_spr.drawRoundRect(0, 0, w, h, 3, grid_color);
@@ -284,10 +318,10 @@ static bool gauge_sensor_valid(GaugeLabSensor sensor) {
     switch (sensor) {
         case GAUGE_SENSOR_TEMP:  return !isnan(r.temperature);
         case GAUGE_SENSOR_HUM:   return !isnan(r.humidity);
-        case GAUGE_SENSOR_LIGHT: return !isnan(r.ldr);
+        case GAUGE_SENSOR_LIGHT: return light_display_from_reading(r).valid;
         case GAUGE_SENSOR_SOUND: return !isnan(r.mic);
-        case GAUGE_SENSOR_SOIL:  return !isnan(r.soil_humidity);
-        case GAUGE_SENSOR_DS18:  return r.temp_ds18b20 >= -100.0f;
+        case GAUGE_SENSOR_SOIL:  return !pbit_external_sensor_missing(SZ_SOIL, r);
+        case GAUGE_SENSOR_DS18:  return !pbit_external_sensor_missing(SZ_DS18, r);
         default:                 return false;
     }
 }
@@ -297,7 +331,7 @@ static float gauge_sensor_value(GaugeLabSensor sensor) {
     switch (sensor) {
         case GAUGE_SENSOR_TEMP:  return display_temp(r.temperature);
         case GAUGE_SENSOR_HUM:   return r.humidity;
-        case GAUGE_SENSOR_LIGHT: return r.ldr;
+        case GAUGE_SENSOR_LIGHT: return light_display_from_reading(r).value;
         case GAUGE_SENSOR_SOUND: return r.mic;
         case GAUGE_SENSOR_SOIL:  return r.soil_humidity;
         case GAUGE_SENSOR_DS18:  return display_temp(r.temp_ds18b20);
@@ -323,7 +357,7 @@ static void gauge_sensor_range(GaugeLabSensor sensor, float& min_value, float& m
             break;
         case GAUGE_SENSOR_LIGHT:
             min_value = 0.0f;
-            max_value = 20000.0f;
+            max_value = light_display_max(light_display_mode());
             break;
         default:
             min_value = 0.0f;
@@ -338,7 +372,7 @@ static const char* gauge_sensor_unit(GaugeLabSensor sensor) {
         case GAUGE_SENSOR_DS18:
             return temp_unit();
         case GAUGE_SENSOR_LIGHT:
-            return L(ST_LUX_UNIT);
+            return light_display_unit(light_display_mode());
         case GAUGE_SENSOR_HUM:
         case GAUGE_SENSOR_SOUND:
         case GAUGE_SENSOR_SOIL:
@@ -352,6 +386,7 @@ static int gauge_sensor_key(GaugeLabSensor sensor, bool* out_valid = nullptr) {
     const bool valid = gauge_sensor_valid(sensor);
     if (out_valid) *out_valid = valid;
     if (!valid) return INT_MIN;
+    if (sensor == GAUGE_SENSOR_LIGHT) return light_display_from_reading(g_ui_readings_snapshot).key;
     const GaugeSensorSpec& spec = gauge_spec(sensor);
     const float value = gauge_sensor_value(sensor);
     return spec.decimal ? (int)lroundf(value * 10.0f) : (int)lroundf(value);
@@ -360,8 +395,7 @@ static int gauge_sensor_key(GaugeLabSensor sensor, bool* out_valid = nullptr) {
 static float gauge_sensor_ratio(GaugeLabSensor sensor, float value, float min_value, float max_value, bool valid) {
     if (!valid || max_value <= min_value) return 0.0f;
     if (sensor == GAUGE_SENSOR_LIGHT) {
-        const float safe_value = constrain(value, 0.0f, max_value);
-        return constrain(log1pf(safe_value) / log1pf(max_value), 0.0f, 1.0f);
+        return light_display_ratio(value, light_display_mode(), true);
     }
     return constrain((value - min_value) / (max_value - min_value), 0.0f, 1.0f);
 }
@@ -373,7 +407,7 @@ static void format_gauge_value(char* out, size_t out_len, GaugeLabSensor sensor,
     }
     const GaugeSensorSpec& spec = gauge_spec(sensor);
     const float value = gauge_sensor_value(sensor);
-    if (sensor == GAUGE_SENSOR_LIGHT && value >= 10000.0f) {
+    if (sensor == GAUGE_SENSOR_LIGHT && light_display_mode() == LIGHT_DISPLAY_LUX && value >= 10000.0f) {
         snprintf(out, out_len, "%.0fK", value / 1000.0f);
         return;
     }
@@ -440,8 +474,10 @@ static void draw_gauge_limit_labels(bool valid, float min_value, float max_value
     char max_buf[16];
     format_gauge_limit(min_buf, sizeof(min_buf), min_value, "");
     format_gauge_limit(max_buf, sizeof(max_buf), max_value, "");
-    const uint16_t min_col = valid ? gauge_semantic_arc_color(g_gauge_sensor, 0)   : TFT_DARKGREY;
-    const uint16_t max_col = valid ? gauge_semantic_arc_color(g_gauge_sensor, 255) : TFT_DARKGREY;
+    const SzSensorId sz = gauge_to_sz_sensor(g_gauge_sensor);
+    const uint16_t invalid_col = missing_secondary(sz, TFT_DARKGREY);
+    const uint16_t min_col = valid ? gauge_semantic_arc_color(g_gauge_sensor, 0)   : invalid_col;
+    const uint16_t max_col = valid ? gauge_semantic_arc_color(g_gauge_sensor, 255) : invalid_col;
     tft.setTextDatum(TC_DATUM);
     tft.setFreeFont(FONT_SMALL);
     tft.setTextColor(min_col, kBg);
@@ -480,9 +516,10 @@ static uint8_t gauge_threshold_values(float* values, uint8_t max_count) {
             return 2;
         case GAUGE_SENSOR_LIGHT:
             if (!get_light_range_marks_visible() || max_count < 3) return 0;
-            values[0] = (float)get_light_threshold_dim();
-            values[1] = (float)get_light_threshold_indoor();
-            values[2] = (float)get_light_threshold_bright();
+            if (light_display_mode() == LIGHT_DISPLAY_RAW_ADC) return 0;
+            values[0] = light_display_lux_to_unit((float)get_light_threshold_dim(), light_display_mode());
+            values[1] = light_display_lux_to_unit((float)get_light_threshold_indoor(), light_display_mode());
+            values[2] = light_display_lux_to_unit((float)get_light_threshold_bright(), light_display_mode());
             return 3;
         default:
             return 0;
@@ -492,8 +529,7 @@ static uint8_t gauge_threshold_values(float* values, uint8_t max_count) {
 static float gauge_tick_ratio(GaugeLabSensor sensor, float value, float min_value, float max_value) {
     if (max_value <= min_value) return 0.0f;
     if (sensor == GAUGE_SENSOR_LIGHT) {
-        const float safe_value = constrain(value, 0.0f, max_value);
-        return constrain(log1pf(safe_value) / log1pf(max_value), 0.0f, 1.0f);
+        return light_display_ratio(value, light_display_mode(), true);
     }
     return constrain((value - min_value) / (max_value - min_value), 0.0f, 1.0f);
 }
@@ -512,7 +548,7 @@ static void draw_gauge_threshold_ticks(TFT_eSprite& spr,
 
     constexpr float start_deg = 135.0f;
     constexpr float sweep_deg = 270.0f;
-    const uint16_t tick_color = valid ? TFT_WHITE : TFT_DARKGREY;
+    const uint16_t tick_color = valid ? TFT_WHITE : missing_secondary(gauge_to_sz_sensor(g_gauge_sensor), TFT_DARKGREY);
     const int outer_r = kGaugeR + 1;
     const int inner_r = kGaugeR - kGaugeArcThickness - 4;
 
@@ -541,7 +577,7 @@ static void draw_ds18_zero_tick(TFT_eSprite& spr,
     const float zero_display = display_temp(0.0f);
     const float ratio = gauge_tick_ratio(g_gauge_sensor, zero_display, min_value, max_value);
     const float a = (start_deg + ratio * sweep_deg) * DEG_TO_RAD;
-    const uint16_t color = valid ? PB_DS18_P4 : TFT_DARKGREY;
+    const uint16_t color = valid ? PB_DS18_P4 : pbit_external_dim_secondary(SZ_DS18);
     const int outer_r = kGaugeR + 1;
     const int inner_r = kGaugeR - kGaugeArcThickness - 2;
     const int x0 = spr_cx + (int)roundf(cosf(a) * (float)inner_r);
@@ -582,6 +618,21 @@ static uint16_t gauge_icon_bucket_color(bool valid, uint8_t bucket, uint16_t fal
         return mix3_565(low_light, PB_LUZ_P1, PB_LUZ_P2, eased_amount);
     }
     return gauge_semantic_arc_color(g_gauge_sensor, amount);
+}
+
+static uint16_t gauge_primary_for_state(GaugeLabSensor sensor, bool valid) {
+    const GaugeSensorSpec& spec = gauge_spec(sensor);
+    if (valid && sensor == GAUGE_SENSOR_SOIL) {
+        return pbit_soil_visual_color(gauge_sensor_value(sensor));
+    }
+    if (valid) return spec.primary;
+    return missing_primary(gauge_to_sz_sensor(sensor), pb_contrast_cool((uint8_t)sensor));
+}
+
+static uint16_t gauge_secondary_for_state(GaugeLabSensor sensor, bool valid) {
+    const GaugeSensorSpec& spec = gauge_spec(sensor);
+    if (valid) return spec.secondary;
+    return missing_secondary(gauge_to_sz_sensor(sensor), pb_contrast_cool((uint8_t)sensor));
 }
 
 static void draw_gauge_icon_area(uint16_t color, uint16_t accent) {
@@ -685,14 +736,29 @@ static void draw_lab_gauge_data(bool valid, float ratio, uint16_t primary) {
 
     // Value text centered in sprite
     g_ring_spr.setTextDatum(MC_DATUM);
-    g_ring_spr.setTextColor(valid ? TFT_WHITE : TFT_DARKGREY, kBg);
-    g_ring_spr.setFreeFont(FONT_MENU);
-    char value_buf[16];
-    format_gauge_value(value_buf, sizeof(value_buf), g_gauge_sensor, valid);
-    if (g_ring_spr.textWidth(value_buf) > 56) {
-        g_ring_spr.setFreeFont(FONT_BODY);
+    const bool external_missing = gauge_external_missing(g_gauge_sensor, valid);
+    if (external_missing) {
+        const SzSensorId sz = gauge_to_sz_sensor(g_gauge_sensor);
+        const char* title = L(ST_NO_SENSOR);
+        const char* hint = L(pbit_external_sensor_check_key(sz));
+        g_ring_spr.setFreeFont(FONT_SMALL);
+        if (g_ring_spr.textWidth(title) > 64 || g_ring_spr.textWidth(hint) > 64) {
+            g_ring_spr.setTextFont(1);
+        }
+        g_ring_spr.setTextColor(pbit_external_dim_primary(sz), kBg);
+        g_ring_spr.drawString(title, spr_cx, spr_cy - 7);
+        g_ring_spr.setTextColor(pbit_external_dim_secondary(sz), kBg);
+        g_ring_spr.drawString(hint, spr_cx, spr_cy + 8);
+    } else {
+        g_ring_spr.setTextColor(valid ? TFT_WHITE : TFT_DARKGREY, kBg);
+        g_ring_spr.setFreeFont(FONT_MENU);
+        char value_buf[16];
+        format_gauge_value(value_buf, sizeof(value_buf), g_gauge_sensor, valid);
+        if (g_ring_spr.textWidth(value_buf) > 56) {
+            g_ring_spr.setFreeFont(FONT_BODY);
+        }
+        g_ring_spr.drawString(value_buf, spr_cx, spr_cy + 1);
     }
-    g_ring_spr.drawString(value_buf, spr_cx, spr_cy + 1);
     g_ring_spr.setTextFont(0);
 
     // Single DMA burst — no scan-line "vibration".
@@ -711,9 +777,8 @@ static void draw_lab_gauge_dynamic() {
     float max_value = 1.0f;
     gauge_sensor_range(g_gauge_sensor, min_value, max_value);
     const float ratio = gauge_sensor_ratio(g_gauge_sensor, shown_value, min_value, max_value, valid);
-    const uint16_t dim_col = pb_contrast_cool((uint8_t)g_gauge_sensor);
-    const uint16_t primary = valid ? spec.primary : dim_col;
-    const uint16_t secondary = valid ? spec.secondary : dim_col;
+    const uint16_t primary = gauge_primary_for_state(g_gauge_sensor, valid);
+    const uint16_t secondary = gauge_secondary_for_state(g_gauge_sensor, valid);
     const uint8_t icon_bucket = gauge_icon_bucket(valid, ratio);
     const uint16_t icon_color = gauge_icon_bucket_color(valid, icon_bucket, primary);
 
@@ -725,7 +790,8 @@ static void draw_lab_gauge_dynamic() {
 static const GraphBuffer& value_sensor_graph(ValueLabSensor s) {
     switch (s) {
         case VALUE_SENSOR_HUM:   return g_graph_humidity;
-        case VALUE_SENSOR_LIGHT: return g_graph_light;
+        case VALUE_SENSOR_LIGHT:
+            return (light_display_mode() == LIGHT_DISPLAY_RAW_ADC) ? g_graph_light_raw : g_graph_light;
         case VALUE_SENSOR_SOUND: return g_graph_sound;
         case VALUE_SENSOR_SOIL:  return g_graph_soil;
         case VALUE_SENSOR_DS18:  return g_graph_ds18;
@@ -739,9 +805,11 @@ static void draw_lab_value_shell() {
     draw_compact_footer();
 
     // Outer card border stays on the sensor primary color across all views.
-    const GaugeSensorSpec& vspec = gauge_spec((GaugeLabSensor)g_value_sensor);
+    const GaugeLabSensor gs = (GaugeLabSensor)g_value_sensor;
+    const bool valid = gauge_sensor_valid(gs);
+    const uint16_t border = gauge_primary_for_state(gs, valid);
 
-    drawCard(LC_SCREEN_X, LC_CARD_TOP, LC_SCREEN_W, LC_SCREEN_BOTTOM - LC_CARD_TOP + 1, vspec.primary);
+    drawCard(LC_SCREEN_X, LC_CARD_TOP, LC_SCREEN_W, LC_SCREEN_BOTTOM - LC_CARD_TOP + 1, border);
 }
 
 constexpr uint16_t kValorCardBg = 0x0841;
@@ -750,6 +818,11 @@ constexpr uint16_t kValorCardBg = 0x0841;
 static void draw_lab_value_chrome() {
     const GaugeLabSensor gs = (GaugeLabSensor)g_value_sensor;
     const GaugeSensorSpec& spec = gauge_spec(gs);
+    const bool valid = gauge_sensor_valid(gs);
+    const SzSensorId sz = value_to_sz_sensor(g_value_sensor);
+    const bool external_missing = value_external_missing(g_value_sensor, valid);
+    const uint16_t primary = valid ? spec.primary : missing_primary(sz, pb_contrast_cool((uint8_t)g_value_sensor));
+    const uint16_t secondary = valid ? spec.secondary : missing_secondary(sz, pb_contrast_cool((uint8_t)g_value_sensor));
 
     void (*icon_fn)(int, int, uint16_t);
     LangKey label_key;
@@ -788,12 +861,15 @@ static void draw_lab_value_chrome() {
             icon_badge_bg = tft.color565(28, 14, 4);
             break;
     }
+    if (external_missing) {
+        icon_badge_bg = pbit_external_dim_bg(sz);
+    }
 
     tft.fillRoundRect(12, 36, 64, 18, 4, icon_badge_bg);
-    icon_fn(22, 45, spec.primary);
-    draw_section_label(L(label_key), 34, 38, TFT_WHITE, icon_badge_bg);
+    icon_fn(22, 45, primary);
+    draw_section_label(L(label_key), 34, 38, external_missing ? secondary : TFT_WHITE, icon_badge_bg);
 
-    const uint16_t p1v = spec.primary;
+    const uint16_t p1v = primary;
     const uint8_t dbr = (uint8_t)(4  + ((p1v >> 11) & 0x1F) * 255 / 31 * 8 / 100);
     const uint8_t dbg = (uint8_t)(6  + ((p1v >> 5)  & 0x3F) * 255 / 63 * 8 / 100);
     const uint8_t dbb = (uint8_t)(14 + (p1v         & 0x1F) * 255 / 31 * 8 / 100);
@@ -805,7 +881,7 @@ static void draw_lab_value_chrome() {
     tft.fillRoundRect(dev_x, 36, dev_w, 18, 4, dev_bg);
     tft.setTextDatum(TC_DATUM);
     tft.setFreeFont(FONT_SMALL);
-    tft.setTextColor(spec.secondary, dev_bg);
+    tft.setTextColor(secondary, dev_bg);
     tft.drawString(device_str, dev_cx, 37);
     tft.setTextFont(0);
 }
@@ -814,10 +890,21 @@ static void draw_lab_value_chrome() {
 static void draw_lab_value_data() {
     const GaugeLabSensor gs = (GaugeLabSensor)g_value_sensor;
     const bool valid = gauge_sensor_valid(gs);
+    const bool external_missing = value_external_missing(g_value_sensor, valid);
+    const SzSensorId sz = value_to_sz_sensor(g_value_sensor);
     const float shown = valid ? gauge_sensor_value(gs) : 0.0f;
     float min_v = 0.0f, max_v = 1.0f;
     gauge_sensor_range(gs, min_v, max_v);
     const GaugeSensorSpec& spec = gauge_spec(gs);
+    const uint16_t invalid_color = external_missing
+        ? pbit_external_dim_primary(sz)
+        : pb_contrast_cool((uint8_t)g_value_sensor);
+    const uint16_t invalid_secondary = external_missing
+        ? pbit_external_dim_secondary(sz)
+        : pb_contrast_cool((uint8_t)g_value_sensor);
+    const float value_ratio = (gs == GAUGE_SENSOR_LIGHT)
+        ? gauge_sensor_ratio(gs, shown, min_v, max_v, valid)
+        : (valid ? constrain((shown - min_v) / (max_v - min_v), 0.0f, 1.0f) : 0.0f);
 
     // Value text area: clear only the text strip (left side, below the badges).
     // Badges occupy y=36..54; sparkline lives at y=58..89 (right side, x=88..144).
@@ -829,26 +916,41 @@ static void draw_lab_value_data() {
 
     // Segment bar (bottom)
     draw_segment_bar(18, 99, 124, 14, 9,
-                     valid ? constrain((shown - min_v) / (max_v - min_v), 0.0f, 1.0f) : 0.0f,
-                     valid ? spec.primary : pb_contrast_cool((uint8_t)g_value_sensor),
+                     value_ratio,
+                     valid ? spec.primary : invalid_color,
                      tft.color565(30, 24, 32));
 
     // Sparkline (right) — draw_sparkline already clears its own area with fillRoundRect.
-    draw_sparkline(88, 58, 56, 31, value_sensor_graph(g_value_sensor),
-                   spec.secondary, tft.color565(32, 44, 64), tft.color565(8, 16, 28));
+    draw_sparkline(88, 58, 56, 31, g_value_sensor, value_sensor_graph(g_value_sensor),
+                   valid ? spec.secondary : invalid_secondary,
+                   external_missing ? pbit_external_dim_secondary(sz) : tft.color565(32, 44, 64),
+                   external_missing ? pbit_external_dim_bg(sz) : tft.color565(8, 16, 28));
 
     // Value text + unit
-    char val_buf[16];
-    format_gauge_value(val_buf, sizeof(val_buf), gs, valid);
     tft.setTextDatum(TL_DATUM);
-    tft.setFreeFont(FONT_MENU);
-    tft.setTextColor(valid ? TFT_WHITE : TFT_DARKGREY, kValorCardBg);
-    tft.drawString(val_buf, 18, 63);
-    const int value_w = tft.textWidth(val_buf);
+    if (external_missing) {
+        const char* title = L(ST_NO_SENSOR);
+        const char* hint = L(pbit_external_sensor_check_key(sz));
+        tft.setFreeFont(FONT_SMALL);
+        if (tft.textWidth(title) > 66 || tft.textWidth(hint) > 66) {
+            tft.setTextFont(1);
+        }
+        tft.setTextColor(invalid_color, kValorCardBg);
+        tft.drawString(title, 18, 62);
+        tft.setTextColor(invalid_secondary, kValorCardBg);
+        tft.drawString(hint, 18, 75);
+    } else {
+        char val_buf[16];
+        format_gauge_value(val_buf, sizeof(val_buf), gs, valid);
+        tft.setFreeFont(FONT_MENU);
+        tft.setTextColor(valid ? TFT_WHITE : TFT_DARKGREY, kValorCardBg);
+        tft.drawString(val_buf, 18, 63);
+        const int value_w = tft.textWidth(val_buf);
 
-    tft.setFreeFont(FONT_SMALL);
-    tft.setTextColor(valid ? spec.secondary : pb_contrast_cool((uint8_t)g_value_sensor), kValorCardBg);
-    tft.drawString(gauge_sensor_unit(gs), 18 + value_w + 4, 67);
+        tft.setFreeFont(FONT_SMALL);
+        tft.setTextColor(valid ? spec.secondary : invalid_secondary, kValorCardBg);
+        tft.drawString(gauge_sensor_unit(gs), 18 + value_w + 4, 67);
+    }
     tft.setTextFont(0);
 }
 
@@ -879,7 +981,7 @@ static uint16_t ambient_accent(bool valid, float temp_c) {
 }
 
 static uint16_t probe_accent(bool valid, float temp_c) {
-    if (!valid) return TFT_DARKGREY;
+    if (!valid) return pbit_external_dim_primary(SZ_DS18);
     if (temp_c < 0.0f) return TFT_CYAN;
     return kProbeAccent;
 }
@@ -906,10 +1008,10 @@ static void draw_badge(int x, int y, int w, const char* label, uint16_t accent) 
     tft.setTextFont(0);
 }
 
-static void draw_card_value(int cx, int y, bool valid, float shown_value, const char* footer_text, uint16_t footer_color, uint16_t bg, uint16_t value_color) {
+static void draw_card_value(int cx, int y, bool valid, float shown_value, const char* footer_text, uint16_t footer_color, uint16_t bg, uint16_t value_color, int footer_offset_y = 17) {
     tft.setTextDatum(TC_DATUM);
     tft.setFreeFont(FONT_MENU);
-    tft.setTextColor(valid ? value_color : TFT_DARKGREY, bg);
+    tft.setTextColor(valid ? value_color : footer_color, bg);
     if (valid) {
         char buf[16];
         snprintf(buf, sizeof(buf), "%.1f", shown_value);
@@ -921,7 +1023,7 @@ static void draw_card_value(int cx, int y, bool valid, float shown_value, const 
     if (!valid && footer_text && footer_text[0]) {
         tft.setFreeFont(FONT_SMALL);
         tft.setTextColor(footer_color, bg);
-        tft.drawString(footer_text, cx, y + 17);
+        tft.drawString(footer_text, cx, y + footer_offset_y);
     }
     tft.setTextFont(0);
 }
@@ -947,8 +1049,8 @@ static void draw_temp_lab_card_shell(int x,
                                      uint16_t accent) {
     const bool is_probe = badge && (strncmp(badge, "DS", 2) == 0);
     const uint16_t card_bg = temp_lab_card_bg(is_probe);
-    const uint16_t name_color = temp_lab_card_name_color(is_probe);
-    const uint16_t unit_color = temp_lab_card_unit_color(is_probe);
+    const uint16_t name_color = (!valid && is_probe) ? pbit_external_dim_primary(SZ_DS18) : temp_lab_card_name_color(is_probe);
+    const uint16_t unit_color = (!valid && is_probe) ? pbit_external_dim_secondary(SZ_DS18) : temp_lab_card_unit_color(is_probe);
     fill_lab_card(x, y, w, kTopCardH, accent, card_bg);
 
     const char* card_title = (badge && badge[0]) ? badge : title;
@@ -980,8 +1082,9 @@ static void draw_temp_lab_card_data(int x,
     tft.fillRect(x + 3, y + 17, w - 6, kTopCardH - 20, card_bg);
 
     const char* footer_text = valid ? "" : invalid_text;
-    const uint16_t footer_color = valid ? accent : TFT_DARKGREY;
-    draw_card_value(x + (w / 2), y + 19, valid, shown_temp, footer_text, footer_color, card_bg, value_color);
+    const uint16_t footer_color = accent;
+    const int footer_offset_y = (!valid && is_probe) ? 14 : 17;
+    draw_card_value(x + (w / 2), y + 19, valid, shown_temp, footer_text, footer_color, card_bg, value_color, footer_offset_y);
 }
 
 static void draw_temp_lab_card(int x,
@@ -1110,7 +1213,7 @@ static void draw_temp_lab_shell() {
 
 static void draw_temp_lab_dynamic() {
     const bool ambient_valid = !isnan(g_ui_readings_snapshot.temperature);
-    const bool probe_valid = g_ui_readings_snapshot.temp_ds18b20 >= -100.0f;
+    const bool probe_valid = !pbit_external_sensor_missing(SZ_DS18, g_ui_readings_snapshot);
     const float ambient_c = ambient_valid ? g_ui_readings_snapshot.temperature : 0.0f;
     const float probe_c = probe_valid ? g_ui_readings_snapshot.temp_ds18b20 : 0.0f;
     const float ambient_display = ambient_valid ? display_temp(ambient_c) : 0.0f;
@@ -1149,7 +1252,7 @@ static void draw_temp_lab_dynamic() {
 
 static void draw_temp_lab_incremental(const TempLabCache& cache) {
     const bool ambient_valid = !isnan(g_ui_readings_snapshot.temperature);
-    const bool probe_valid = g_ui_readings_snapshot.temp_ds18b20 >= -100.0f;
+    const bool probe_valid = !pbit_external_sensor_missing(SZ_DS18, g_ui_readings_snapshot);
     const float ambient_c = ambient_valid ? g_ui_readings_snapshot.temperature : 0.0f;
     const float probe_c = probe_valid ? g_ui_readings_snapshot.temp_ds18b20 : 0.0f;
     const float ambient_display = ambient_valid ? display_temp(ambient_c) : 0.0f;
@@ -1225,6 +1328,7 @@ uint8_t lab_gauge_get_sensor() {
 void draw_lab_gauge_temp_screen(bool screen_changed, bool sensor_data_changed) {
     bool gauge_valid = false;
     const int gauge_key = gauge_sensor_key(g_gauge_sensor, &gauge_valid);
+    const uint8_t current_light_mode = light_display_mode();
     const GaugeSensorSpec& current_spec = gauge_spec(g_gauge_sensor);
     float current_min = 0.0f, current_max = 1.0f;
     gauge_sensor_range(g_gauge_sensor, current_min, current_max);
@@ -1237,7 +1341,8 @@ void draw_lab_gauge_temp_screen(bool screen_changed, bool sensor_data_changed) {
     const bool chrome_dirty = !g_gauge_cache.valid
         || (g_gauge_cache.sensor != g_gauge_sensor)
         || (g_gauge_cache.sensor_valid != gauge_valid)
-        || (g_gauge_cache.fahrenheit != g_is_fahrenheit);
+        || (g_gauge_cache.fahrenheit != g_is_fahrenheit)
+        || (g_gauge_sensor == GAUGE_SENSOR_LIGHT && g_gauge_cache.light_mode != current_light_mode);
     const bool icon_dirty = current_icon_bucket != g_gauge_cache.icon_bucket;
     // data_dirty: every value tick (or anything chrome cares about).
     const bool data_dirty = chrome_dirty || icon_dirty || (g_gauge_cache.value_key != gauge_key);
@@ -1251,6 +1356,7 @@ void draw_lab_gauge_temp_screen(bool screen_changed, bool sensor_data_changed) {
         g_gauge_cache.value_key = gauge_key;
         g_gauge_cache.icon_bucket = current_icon_bucket;
         g_gauge_cache.fahrenheit = g_is_fahrenheit;
+        g_gauge_cache.light_mode = current_light_mode;
         g_gauge_cache.last_active_until = -1;
         return;
     }
@@ -1260,9 +1366,8 @@ void draw_lab_gauge_temp_screen(bool screen_changed, bool sensor_data_changed) {
         const float min_value = current_min;
         const float max_value = current_max;
         const float ratio = current_ratio;
-        const uint16_t dim_col = pb_contrast_cool((uint8_t)g_gauge_sensor);
-        const uint16_t primary = valid ? spec.primary : dim_col;
-        const uint16_t secondary = valid ? spec.secondary : dim_col;
+        const uint16_t primary = gauge_primary_for_state(g_gauge_sensor, valid);
+        const uint16_t secondary = gauge_secondary_for_state(g_gauge_sensor, valid);
         const uint16_t icon_color = gauge_icon_bucket_color(valid, current_icon_bucket, primary);
 
         if (chrome_dirty) {
@@ -1280,6 +1385,7 @@ void draw_lab_gauge_temp_screen(bool screen_changed, bool sensor_data_changed) {
         g_gauge_cache.value_key = gauge_key;
         g_gauge_cache.icon_bucket = current_icon_bucket;
         g_gauge_cache.fahrenheit = g_is_fahrenheit;
+        g_gauge_cache.light_mode = current_light_mode;
     }
 }
 
@@ -1287,12 +1393,14 @@ void draw_lab_value_modern_screen(bool screen_changed, bool sensor_data_changed)
     const GaugeLabSensor gs = (GaugeLabSensor)g_value_sensor;
     bool sv = false;
     const int vk = gauge_sensor_key(gs, &sv);
+    const uint8_t current_light_mode = light_display_mode();
 
     // chrome_dirty: badges (icon + device) need redraw — sensor switch, valid flip, F/C toggle.
     const bool chrome_dirty = !g_value_cache.valid
         || (g_value_cache.sensor != g_value_sensor)
         || (g_value_cache.sensor_valid != sv)
         || (g_value_cache.fahrenheit != g_is_fahrenheit)
+        || (g_value_sensor == VALUE_SENSOR_LIGHT && g_value_cache.light_mode != current_light_mode)
         || !g_value_cache.chrome_drawn;
     // data_dirty: value/bar/sparkline — every value tick.
     const bool data_dirty = chrome_dirty || (g_value_cache.value_key != vk);
@@ -1305,6 +1413,7 @@ void draw_lab_value_modern_screen(bool screen_changed, bool sensor_data_changed)
         g_value_cache.sensor_valid = sv;
         g_value_cache.value_key = vk;
         g_value_cache.fahrenheit = g_is_fahrenheit;
+        g_value_cache.light_mode = current_light_mode;
         g_value_cache.chrome_drawn = true;
         return;
     }
@@ -1321,6 +1430,7 @@ void draw_lab_value_modern_screen(bool screen_changed, bool sensor_data_changed)
         g_value_cache.sensor_valid = sv;
         g_value_cache.value_key = vk;
         g_value_cache.fahrenheit = g_is_fahrenheit;
+        g_value_cache.light_mode = current_light_mode;
     }
 }
 

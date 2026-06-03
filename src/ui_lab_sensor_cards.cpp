@@ -6,8 +6,11 @@
 #include "fonts.h"
 #include "hw.h"
 #include "languages.h"
+#include "external_sensor_state.h"
+#include "light_display.h"
 #include "layout.h"
 #include "runtime_events.h"
+#include "sensor_visuals.h"
 #include "tft_display.h"
 #include "ui_icons.h"
 #include "ui_widgets.h"
@@ -68,10 +71,10 @@ constexpr int kVizBarH   = 16;                   // Altura estándar unificada
 constexpr int kVizBottomY = kCardY + 93;         // = 120
 constexpr int kVizBarY   = kVizBottomY - kVizBarH + 1; // = 105
 constexpr int kValueClearX = kCardX + 8;
-constexpr int kValueClearY = kValueTopY - 1;
+constexpr int kValueClearY = kValueTopY + 3;  // +4px: icono llega hasta cy+7=49; evita borrar su borde inferior
 constexpr int kValueClearW = kCardW - 16;
-constexpr int kValueClearH = kVizLabelY - kValueClearY - 1;
-constexpr float kLightLuxMax = 20000.0f;
+constexpr int kValueClearH = kVizLabelY - kValueClearY + 4;
+constexpr float kLightLuxMax = LIGHT_LUX_MAX;
 
 // Colors sourced from palette.h — do not add local overrides here.
 
@@ -97,7 +100,7 @@ struct CardCache {
     int  value_clear_w = kValueClearW;
     uint16_t status_id = UINT16_MAX;
     uint8_t alert_code  = ALERT_CODE_OFF;
-    bool unit_mode    = false;
+    uint8_t unit_mode = 0;
     bool alerts_enabled = false;
     uint16_t accent   = TFT_DARKGREY;
 };
@@ -148,13 +151,25 @@ static const char* unit_temp_compact() {
     return g_is_fahrenheit ? L(ST_UNIT_F_SHORT) : L(ST_UNIT_C_SHORT);
 }
 
-static const char* unit_lux_compact() { return L(ST_LUX_UNIT); }
+static const char* unit_lux_compact() { return light_display_unit(light_display_mode()); }
 static const char* unit_pct_compact() { return "%"; }
 
 static const char* card_device_label(const LabSensorCardSpec& spec) {
     if (spec.id == CARD_SOIL) return L(LAB_SOIL_SHORT);
     if (spec.id == CARD_HUM) return L(LAB_AIR_SHORT);
     return spec.device_label ? spec.device_label : "";
+}
+
+static SzSensorId card_to_sz_sensor(const LabSensorCardSpec& spec) {
+    switch (spec.id) {
+        case CARD_TEMP:  return SZ_TEMP;
+        case CARD_HUM:   return SZ_HUM;
+        case CARD_LIGHT: return SZ_LIGHT;
+        case CARD_SOUND: return SZ_SOUND;
+        case CARD_SOIL:  return SZ_SOIL;
+        case CARD_DS18:  return SZ_DS18;
+        default:         return SZ_TEMP;
+    }
 }
 
 static LangKey temp_status_key(float temp_c, uint8_t alert_code) {
@@ -223,7 +238,9 @@ static void apply_card_header_label(const LabSensorCardSpec& spec,
     if (!state.sensor_valid) {
         state.status_id = UINT16_MAX;
         state.header_label = card_device_label(spec);
-        state.header_color = spec.secondary;
+        state.header_color = pbit_external_sensor_has_port_hint(card_to_sz_sensor(spec))
+            ? state.accent
+            : spec.secondary;
         return;
     }
 
@@ -238,35 +255,35 @@ static void apply_card_header_label(const LabSensorCardSpec& spec,
 static bool  temp_is_valid(const Reading& r)  { return !isnan(r.temperature); }
 static float temp_value_c(const Reading& r)   { return r.temperature; }
 
-static bool  ds18_is_valid(const Reading& r)  { return r.temp_ds18b20 >= -100.0f; }
+static bool  ds18_is_valid(const Reading& r)  { return !pbit_external_sensor_missing(SZ_DS18, r); }
 static float ds18_value_c(const Reading& r)   { return r.temp_ds18b20; }
 
 static bool  hum_is_valid(const Reading& r)   { return !isnan(r.humidity); }
 static float hum_value_c(const Reading& r)    { return r.humidity; }
 
-static bool  light_is_valid(const Reading& r) { return !isnan(r.ldr); }
+static bool  light_is_valid(const Reading& r) { return light_display_from_reading(r).valid; }
 static float light_value_c(const Reading& r)  { return r.ldr; }
 
 static bool  sound_is_valid(const Reading& r) { return !isnan(r.mic); }
 static float sound_value_c(const Reading& r)  { return r.mic; }
 
-static bool  soil_is_valid(const Reading& r)  { return !isnan(r.soil_humidity); }
+static bool  soil_is_valid(const Reading& r)  { return !pbit_external_sensor_missing(SZ_SOIL, r); }
 static float soil_value_c(const Reading& r)   { return r.soil_humidity; }
 
 // ── Accent (primary color) functions ─────────────────────────────────
 
-static uint16_t temp_accent(bool valid, float temp_c, uint8_t alert_code) {
+static uint16_t temp_accent(bool valid, float, uint8_t alert_code) {
     if (!valid) return TFT_DARKGREY;
     if (alert_code == ALERT_CODE_LOW)  return TFT_BLUE;
     if (alert_code == ALERT_CODE_HIGH) return TFT_RED;
-    return getTempColor(temp_c);
+    return PB_TEMP_P1;
 }
 
-static uint16_t ds18_accent(bool valid, float temp_c, uint8_t alert_code) {
-    if (!valid) return TFT_DARKGREY;
+static uint16_t ds18_accent(bool valid, float, uint8_t alert_code) {
+    if (!valid) return pbit_external_dim_primary(SZ_DS18);
     if (alert_code == ALERT_CODE_LOW)  return TFT_BLUE;
     if (alert_code == ALERT_CODE_HIGH) return TFT_RED;
-    return (temp_c < 0.0f) ? TFT_CYAN : getTempColor(temp_c);
+    return PB_DS18_P1;
 }
 
 static uint16_t hum_accent(bool valid, float, uint8_t alert_code) {
@@ -288,9 +305,10 @@ static uint16_t sound_accent(bool valid, float, uint8_t alert_code) {
     return PB_SOUND_P1;
 }
 
-static uint16_t soil_accent(bool valid, float, uint8_t alert_code) {
-    if (!valid) return PB_SOIL_P4;
-    return PB_SOIL_P1;
+static uint16_t soil_accent(bool valid, float moisture, uint8_t alert_code) {
+    (void)alert_code;
+    if (!valid) return pbit_external_dim_primary(SZ_SOIL);
+    return pbit_soil_visual_color(moisture);
 }
 
 static uint16_t temp_bar_color(float t) {
@@ -395,12 +413,12 @@ static void draw_value_compact(bool sensor_valid,
     if (!sensor_valid) {
         tft.setTextDatum(TC_DATUM);
         tft.setFreeFont(FONT_VALUE);
-        tft.setTextColor(TFT_DARKGREY, kCardBg);
+        tft.setTextColor(accent, kCardBg);
         tft.drawString("---", kCardX + kCardW / 2, kInvalidValueY);
 
         tft.setTextDatum(TC_DATUM);
         tft.setFreeFont(FONT_SMALL);
-        tft.setTextColor(TFT_DARKGREY, kCardBg);
+        tft.setTextColor(accent, kCardBg);
         tft.drawString(invalid_str, kCardX + kCardW / 2, kInvalidValueY + kInvalidLabelGapY);
         tft.setTextFont(0);
         return;
@@ -663,14 +681,15 @@ static void draw_soil_viz(bool sv, float value, uint16_t accent) {
     const int by = kVizBottomY - bh + 1;
     const int label_y = by + bh / 2 - 2;
 
-    // Three zones: 0-30 red, 30-70 green, 70-100 blue
-    const int dry_w  = (int)roundf(0.30f * kVizW);
-    const int good_w = (int)roundf(0.40f * kVizW);
-    const int wet_w  = kVizW - dry_w - good_w;
+    const int dry_thr = constrain(get_soil_threshold_dry(), 1, 99);
+    const int moist_thr = constrain(get_soil_threshold_moist(), dry_thr + 1, 100);
+    const int dry_w  = constrain((int)roundf((float)dry_thr / 100.0f * (float)kVizW), 1, kVizW - 2);
+    const int good_w = constrain((int)roundf((float)(moist_thr - dry_thr) / 100.0f * (float)kVizW), 1, kVizW - dry_w - 1);
+    const int wet_w  = max(1, kVizW - dry_w - good_w);
 
     const uint16_t dry_color  = TFT_YELLOW;
-    const uint16_t good_color = 0x07E0;
-    const uint16_t wet_color  = TFT_BLUE;
+    const uint16_t good_color = PB_SOIL_P1;
+    const uint16_t wet_color  = PB_HUM_P2;
 
     tft.fillRoundRect(kVizX,           by, dry_w,  bh, 3, dry_color);
     tft.fillRoundRect(kVizX + dry_w,   by, good_w, bh, 0, good_color);
@@ -683,7 +702,7 @@ static void draw_soil_viz(bool sv, float value, uint16_t accent) {
     tft.drawString(L(SOIL_ZONE_DRY), kVizX + dry_w / 2, label_y);
     tft.setTextColor(TFT_BLACK, good_color);
     tft.drawString(L(SOIL_ZONE_OK),  kVizX + dry_w + good_w / 2, label_y);
-    tft.setTextColor(TFT_BLACK, wet_color);
+    tft.setTextColor(TFT_WHITE, wet_color);
     tft.drawString(L(SOIL_ZONE_WET), kVizX + dry_w + good_w + wet_w / 2, label_y);
     tft.setTextFont(0);
 
@@ -750,11 +769,18 @@ static const LabSensorCardSpec& spec_for(LabSensorCardId id) {
 static CardRenderState read_state(const LabSensorCardSpec& spec) {
     CardRenderState state;
     state.sensor_valid = spec.is_valid(g_ui_readings_snapshot);
-    state.temp_c       = state.sensor_valid ? spec.value_c(g_ui_readings_snapshot) : 0.0f;
-    if (spec.is_temperature) {
+    if (spec.id == CARD_LIGHT) {
+        const LightDisplayReading display = light_display_from_reading(g_ui_readings_snapshot);
+        state.sensor_valid = display.valid;
+        state.temp_c = light_lux_valid(g_ui_readings_snapshot.ldr) ? g_ui_readings_snapshot.ldr : 0.0f;
+        state.shown_value = display.valid ? display.value : 0.0f;
+        state.value_key = display.key;
+    } else if (spec.is_temperature) {
+        state.temp_c       = state.sensor_valid ? spec.value_c(g_ui_readings_snapshot) : 0.0f;
         state.shown_value = state.sensor_valid ? to_display(state.temp_c) : 0.0f;
         state.value_key   = state.sensor_valid ? (int)lroundf(state.shown_value * 10.0f) : INT_MIN;
     } else {
+        state.temp_c       = state.sensor_valid ? spec.value_c(g_ui_readings_snapshot) : 0.0f;
         state.shown_value = state.temp_c;
         state.value_key   = state.sensor_valid ? (int)lroundf(state.temp_c) : INT_MIN;
     }
@@ -766,13 +792,21 @@ static CardRenderState read_state(const LabSensorCardSpec& spec) {
     return state;
 }
 
-static bool cache_dirty(const CardCache& cache, const CardRenderState& state) {
+static uint8_t card_unit_mode(const LabSensorCardSpec& spec) {
+    if (spec.id == CARD_LIGHT) return light_display_mode();
+    if (spec.is_temperature) return g_is_fahrenheit ? 1 : 0;
+    return 0;
+}
+
+static bool cache_dirty(const CardCache& cache,
+                        const CardRenderState& state,
+                        const LabSensorCardSpec& spec) {
     return !cache.valid
         || (cache.sensor_valid   != state.sensor_valid)
         || (cache.value_key      != state.value_key)
         || (cache.status_id      != state.status_id)
         || (cache.alert_code     != state.alert_code)
-        || (cache.unit_mode      != g_is_fahrenheit)
+        || (cache.unit_mode      != card_unit_mode(spec))
         || (cache.alerts_enabled != state.alerts_enabled)
         || (cache.accent         != state.accent);
 }
@@ -786,7 +820,7 @@ static void commit_cache(CardCache& cache,
     compute_value_clear_bounds(spec, state, cache.value_clear_x, cache.value_clear_w);
     cache.status_id      = state.status_id;
     cache.alert_code     = state.alert_code;
-    cache.unit_mode      = g_is_fahrenheit;
+    cache.unit_mode      = card_unit_mode(spec);
     cache.alerts_enabled = state.alerts_enabled;
     cache.accent         = state.accent;
 }
@@ -890,7 +924,7 @@ static void draw_card_content(const LabSensorCardSpec& spec,
     const bool sensor_flip = !cache.valid || (cache.sensor_valid != state.sensor_valid);
     const bool value_dirty = sensor_flip
         || (cache.value_key != state.value_key)
-        || (cache.unit_mode != g_is_fahrenheit)
+        || (cache.unit_mode != card_unit_mode(spec))
         || (cache.accent != state.accent);
     const bool viz_dirty = value_dirty;
     const bool status_dirty = sensor_flip
@@ -937,7 +971,7 @@ static void draw_card_screen_for(LabSensorCardId id,
     const LabSensorCardSpec& spec = spec_for(id);
     CardCache& cache = g_card_cache[id];
     const CardRenderState state = read_state(spec);
-    const bool dirty = cache_dirty(cache, state);
+    const bool dirty = cache_dirty(cache, state, spec);
     const bool needs_shell = screen_changed || (redraw_shell_when_cache_invalid && !cache.valid);
 
     if (needs_shell) {

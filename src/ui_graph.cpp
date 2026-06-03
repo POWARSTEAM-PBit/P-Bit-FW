@@ -7,9 +7,12 @@
 #include "palette.h"
 
 #include "fonts.h"
+#include "demo_mode.h"
+#include "external_sensor_state.h"
 #include "graph_buffer.h"
 #include "io.h"
 #include "languages.h"
+#include "light_display.h"
 #include "layout.h"
 #include "runtime_events.h"
 #include "tft_display.h"
@@ -21,6 +24,7 @@
 #include <string.h>
 
 extern TFT_eSPI tft;
+extern Reading g_ui_readings_snapshot;
 extern bool g_is_fahrenheit;
 
 namespace {
@@ -62,6 +66,9 @@ static float graph_display_value(GraphSensor sensor, float raw_value) {
     if (sensor == GRAPH_TEMP || sensor == GRAPH_DS18) {
         return g_is_fahrenheit ? (raw_value * 1.8f + 32.0f) : raw_value;
     }
+    if (sensor == GRAPH_LIGHT) {
+        return light_display_lux_to_unit(raw_value, light_display_mode());
+    }
     return raw_value;
 }
 
@@ -87,7 +94,7 @@ static const char* graph_sensor_unit(GraphSensor sensor) {
         case GRAPH_SOIL:
             return "%";
         case GRAPH_LIGHT:
-            return L(ST_LUX_UNIT);
+            return light_display_unit(light_display_mode());
         default:
             return "";
     }
@@ -97,7 +104,8 @@ static GraphBuffer* graph_sensor_buffer(GraphSensor sensor) {
     switch (sensor) {
         case GRAPH_TEMP:  return &g_graph_temp;
         case GRAPH_HUM:   return &g_graph_humidity;
-        case GRAPH_LIGHT: return &g_graph_light;
+        case GRAPH_LIGHT:
+            return (light_display_mode() == LIGHT_DISPLAY_RAW_ADC) ? &g_graph_light_raw : &g_graph_light;
         case GRAPH_SOUND: return &g_graph_sound;
         case GRAPH_SOIL:  return &g_graph_soil;
         case GRAPH_DS18:  return &g_graph_ds18;
@@ -115,7 +123,7 @@ static float graph_min_span(GraphSensor sensor) {
         case GRAPH_SOIL:
             return 8.0f;
         case GRAPH_LIGHT:
-            return 150.0f;
+            return light_display_min_span(light_display_mode());
         default:
             return 4.0f;
     }
@@ -216,6 +224,16 @@ static uint16_t graph_band_label_color(GraphSensor sensor) {
 
 static uint16_t graph_border_color(GraphSensor sensor) {
     return pb_primary((uint8_t)sensor);
+}
+
+static bool graph_external_missing(GraphSensor sensor) {
+    return pbit_external_sensor_missing((SzSensorId)sensor, g_ui_readings_snapshot);
+}
+
+static uint16_t graph_invalid_color(GraphSensor sensor) {
+    return pbit_external_sensor_has_port_hint((SzSensorId)sensor)
+        ? pbit_external_dim_primary((SzSensorId)sensor)
+        : TFT_DARKGREY;
 }
 
 static uint16_t graph_max_label_color(GraphSensor sensor) {
@@ -340,7 +358,7 @@ static void draw_graph_band(bool valid,
         tft.fillRect(LG_GRAPH_X + LG_GRAPH_W / 2, band_y, LG_GRAPH_W / 2 + 8, band_h, TFT_BLACK);
     }
     tft.setFreeFont(FONT_SMALL);
-    tft.setTextColor(valid ? graph_band_label_color(sensor) : TFT_DARKGREY, TFT_BLACK);
+    tft.setTextColor(valid ? graph_band_label_color(sensor) : graph_invalid_color(sensor), TFT_BLACK);
     tft.setTextDatum(TL_DATUM);
     const char* label = graph_sensor_label(sensor);
     if (tft.textWidth(label) > 104) {
@@ -394,14 +412,33 @@ void draw_graph_screen(bool screen_changed, bool sensor_data_changed) {
 
     if (need_full || sensor_data_changed) {
         size_t n = 0;
-        GraphBuffer* buffer = graph_sensor_buffer(g_graph_sensor);
-        portENTER_CRITICAL(&g_graph_mux);
-        if (buffer) {
-            n = graph_buffer_get(*buffer, data_buf, GRAPH_BUFFER_SIZE);
+        const bool external_missing = graph_external_missing(g_graph_sensor);
+        if (external_missing) {
+            n = 0;
+        } else if (!demo_mode_graph_values((uint8_t)g_graph_sensor, light_display_mode(), data_buf, GRAPH_BUFFER_SIZE, &n)) {
+            GraphBuffer* buffer = graph_sensor_buffer(g_graph_sensor);
+            portENTER_CRITICAL(&g_graph_mux);
+            if (buffer) {
+                n = graph_buffer_get(*buffer, data_buf, GRAPH_BUFFER_SIZE);
+            }
+            portEXIT_CRITICAL(&g_graph_mux);
         }
-        portEXIT_CRITICAL(&g_graph_mux);
 
-        if (n == 0) {
+        if (external_missing) {
+            const SzSensorId sensor_id = (SzSensorId)g_graph_sensor;
+            const uint16_t primary = pbit_external_dim_primary(sensor_id);
+            const uint16_t secondary = pbit_external_dim_secondary(sensor_id);
+            tft.fillRect(LG_GRAPH_X + 1, LG_GRAPH_Y + 1, LG_GRAPH_W, LG_GRAPH_H, TFT_BLACK);
+            tft.setTextDatum(MC_DATUM);
+            tft.setFreeFont(FONT_SMALL);
+            tft.setTextColor(primary, TFT_BLACK);
+            tft.drawString(L(ST_NO_SENSOR), LG_GRAPH_X + 1 + LG_GRAPH_W / 2,
+                           LG_GRAPH_Y + 31);
+            tft.setTextColor(secondary, TFT_BLACK);
+            tft.drawString(L(pbit_external_sensor_check_key(sensor_id)), LG_GRAPH_X + 1 + LG_GRAPH_W / 2,
+                           LG_GRAPH_Y + 45);
+            tft.setTextFont(0);
+        } else if (n == 0) {
             tft.fillRect(LG_GRAPH_X + 1, LG_GRAPH_Y + 1, LG_GRAPH_W, LG_GRAPH_H, TFT_BLACK);
             tft.setFreeFont(FONT_BODY);
             tft.setTextDatum(MC_DATUM);
@@ -418,7 +455,7 @@ void draw_graph_screen(bool screen_changed, bool sensor_data_changed) {
                           LG_GRAPH_W + 2,
                           LG_GRAPH_H + 2,
                           LC_CARD_RADIUS,
-                          graph_border_color(g_graph_sensor));
+                          external_missing ? pbit_external_dim_primary((SzSensorId)g_graph_sensor) : graph_border_color(g_graph_sensor));
 
         if (n > 0) {
             char value_buf[24];

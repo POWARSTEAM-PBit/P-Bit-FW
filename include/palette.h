@@ -1,5 +1,5 @@
 #pragma once
-// P-Bit sensor identity palette — retro arcade edition 2026-05-17
+// P-Bit sensor identity palette — retro arcade edition 2026-05-28
 // Fuente de verdad para colores de sensores en todas las viz del sensor zone.
 // Aplicar SOLO a: FOCUS, CARD, VALOR, GRAPH, GAUGE (sensor zone screens).
 // NO aplicar a: HOME cards, CLIMA LAB, DUAL TH — esos tienen lógica responsiva propia.
@@ -19,21 +19,21 @@
 
 // ── P1: Primary — identidad del sensor ──────────────────────────────────────
 // 6 hues únicos e inconfundibles. Máxima saturación, alta luminosidad.
-// TEMP=naranja, HUM=cian, LUZ=amarillo, SOUND=magenta, SOIL=lima, DS18=violeta
-constexpr uint16_t PB_TEMP_P1    = 0xFA80;  // naranja ácido      rgb(255,  80,   0)
+// TEMP=fucsia, HUM=cian, LUZ=amarillo, SOUND=naranja, SOIL=lima, DS18=naranja vivo
+constexpr uint16_t PB_TEMP_P1    = 0xF817;  // fucsia eléctrico   rgb(255,   0, 184)
 constexpr uint16_t PB_HUM_P1     = 0x075F;  // cian eléctrico     rgb(  0, 232, 255)
 constexpr uint16_t PB_LUZ_P1     = 0xFFE0;  // amarillo puro      rgb(255, 255,   0)
-constexpr uint16_t PB_SOUND_P1   = 0xF81F;  // magenta punk       rgb(255,   0, 255)
+constexpr uint16_t PB_SOUND_P1   = 0xFD40;  // naranja cálido     rgb(255, 168,   0)
 constexpr uint16_t PB_SOIL_P1    = 0x47E8;  // lima ácido         rgb( 64, 255,  64)
-constexpr uint16_t PB_DS18_P1    = 0xA01F;  // violeta eléctrico  rgb(160,   0, 255)
+constexpr uint16_t PB_DS18_P1    = 0xFB80;  // naranja vivo       rgb(255, 121,   0)
 
 // ── P2: Secondary — complemento, contrasta con P1 ───────────────────────────
 // Usado en: indicador de unidad (°C/%), ring exterior gauge, sparkline, label banda.
 // Cada P2 es distinto de su P1 para crear tensión visual.
-constexpr uint16_t PB_TEMP_P2    = 0xF814;  // rosa eléctrico     rgb(255,   0, 160)
+constexpr uint16_t PB_TEMP_P2    = 0x07E8;  // verde ácido        rgb(  0, 255,  64)
 constexpr uint16_t PB_HUM_P2     = 0x2A9F;  // cobalto láser      rgb( 40,  80, 255)
 constexpr uint16_t PB_LUZ_P2     = 0xFC40;  // ámbar eléctrico    rgb(255, 136,   0)
-constexpr uint16_t PB_SOUND_P2   = 0x07E8;  // verde ácido        rgb(  0, 255,  64)
+constexpr uint16_t PB_SOUND_P2   = 0xC01F;  // violeta-púrpura    rgb(197,   0, 255)
 constexpr uint16_t PB_SOIL_P2    = 0xCC04;  // tierra cálida      rgb(200, 128,  32)
 constexpr uint16_t PB_DS18_P2    = 0x045F;  // azul láser         rgb(  0, 136, 255)
 

@@ -50,6 +50,12 @@ enum LangKey : uint8_t {
     // BLE status
     ST_DISCONN,
     ST_CONNECTED,
+    ST_SENSOR_CONNECTED,
+    ST_SENSOR_DISCONNECTED,
+    ST_NOTICE_CONNECTED,
+    ST_NOTICE_DISCONNECTED,
+    ST_NOTICE_SOIL_SENSOR,
+    ST_NOTICE_DS18_SENSOR,
 
     // Sound footer labels
     ST_SND_ON,
@@ -84,9 +90,10 @@ enum LangKey : uint8_t {
     ST_UNIT_C_SHORT,
     ST_UNIT_F_SHORT,
     ST_LUX_UNIT,
+    ST_FC_UNIT,
     ST_RAW_ADC,
+    ST_RAW_UNIT,
     ST_ADC_UNIT,
-    ST_LOG_PCT,
 
     // Soil calibration
     ST_SOIL_CAL_DRY,

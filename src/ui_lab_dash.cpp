@@ -9,6 +9,7 @@
 #include "layout.h"
 #include "ui_icons.h"
 #include "hw.h"
+#include "light_display.h"
 #include <TFT_eSPI.h>
 #include <Arduino.h>
 #include <climits>
@@ -48,6 +49,7 @@ struct LabDashCache {
     int light = 0;
     int sound = 0;
     bool fahrenheit = false;
+    uint8_t light_mode = 0;
 };
 
 static LabDashCache g_last;
@@ -173,16 +175,14 @@ static void format_humidity_value(char* out, size_t out_size, float hum, bool va
     snprintf(out, out_size, "%.0f%%", hum);
 }
 
-static void format_light_value(char* out, size_t out_size, float lux, bool valid) {
-    if (!valid) {
+static void format_light_value(char* out, size_t out_size, const LightDisplayReading& light) {
+    if (!light.valid) {
         snprintf(out, out_size, "---");
         return;
     }
-    if (lux >= 10000.0f) {
-        snprintf(out, out_size, "%.0fk %s", lux / 1000.0f, L(ST_LUX_UNIT));
-    } else {
-        snprintf(out, out_size, "%.0f %s", lux, L(ST_LUX_UNIT));
-    }
+    char value_buf[12];
+    light_format_value(value_buf, sizeof(value_buf), light, true);
+    snprintf(out, out_size, "%s %s", value_buf, light.unit);
 }
 
 static void format_sound_value(char* out, size_t out_size, float level, bool valid) {
@@ -243,8 +243,7 @@ static void draw_body_row(int row_index) {
     const bool temp_valid = !isnan(temp_c);
     const float hum = g_ui_readings_snapshot.humidity;
     const bool hum_valid = !isnan(hum);
-    const float lux = g_ui_readings_snapshot.ldr;
-    const bool lux_valid = isfinite(lux);
+    const LightDisplayReading light = light_display_from_reading(g_ui_readings_snapshot);
     const float sound = g_ui_readings_snapshot.mic;
     const bool sound_valid = isfinite(sound);
 
@@ -255,11 +254,11 @@ static void draw_body_row(int row_index) {
 
     format_temp_value(temp_buf, sizeof(temp_buf), temp_c, temp_valid);
     format_humidity_value(hum_buf, sizeof(hum_buf), hum, hum_valid);
-    format_light_value(lux_buf, sizeof(lux_buf), lux, lux_valid);
+    format_light_value(lux_buf, sizeof(lux_buf), light);
     format_sound_value(sound_buf, sizeof(sound_buf), sound, sound_valid);
 
     const char* values[4] = { temp_buf, hum_buf, lux_buf, sound_buf };
-    const bool row_valid = row_value_valid(row_index, temp_valid, hum_valid, lux_valid, sound_valid);
+    const bool row_valid = row_value_valid(row_index, temp_valid, hum_valid, light.valid, sound_valid);
     draw_row_value(row_index, values[row_index], value_color_for_row(row_index, row_valid));
 }
 
@@ -272,9 +271,9 @@ void draw_lab_dash_screen(bool screen_changed, bool sensor_data_changed) {
     const float hum = g_ui_readings_snapshot.humidity;
     const bool hum_valid = !isnan(hum);
     const int hum_i = hum_valid ? (int)lroundf(hum) : INT_MIN;
-    const float light_lux = g_ui_readings_snapshot.ldr;
-    const bool light_valid = isfinite(light_lux);
-    const int light_i = light_valid ? (int)lroundf(light_lux) : INT_MIN;
+    const LightDisplayReading light = light_display_from_reading(g_ui_readings_snapshot);
+    const int light_i = light.key;
+    const uint8_t current_light_mode = light_display_mode();
     const float sound_pct = g_ui_readings_snapshot.mic;
     const bool sound_valid = isfinite(sound_pct);
     const int sound_i = sound_valid ? (int)lroundf(sound_pct) : INT_MIN;
@@ -287,7 +286,8 @@ void draw_lab_dash_screen(bool screen_changed, bool sensor_data_changed) {
         || g_last.hum_valid != hum_valid
         || g_last.hum != hum_i;
     const bool light_dirty = !g_last.valid
-        || g_last.light != light_i;
+        || g_last.light != light_i
+        || g_last.light_mode != current_light_mode;
     const bool sound_dirty = !g_last.valid
         || g_last.sound != sound_i;
     const bool need_redraw = screen_changed || temp_dirty || hum_dirty || light_dirty || sound_dirty;
@@ -317,4 +317,5 @@ void draw_lab_dash_screen(bool screen_changed, bool sensor_data_changed) {
     g_last.light = light_i;
     g_last.sound = sound_i;
     g_last.fahrenheit = fahrenheit;
+    g_last.light_mode = current_light_mode;
 }

@@ -6,6 +6,7 @@
 #include "fonts.h"
 #include "layout.h"
 #include "hw.h"
+#include "light_display.h"
 #include "led_control.h"
 #include "alert_engine.h"
 #include "runtime_events.h"
@@ -24,14 +25,6 @@ void format_light_threshold_value(int value, char* out, size_t out_size) {
         return;
     }
     snprintf(out, out_size, "< %d %s", value, L(ST_LUX_UNIT));
-}
-
-bool light_lux_valid(float lux) {
-    return !isnan(lux) && lux >= 0.0f && lux <= 20000.0f;
-}
-
-bool light_raw_valid(float raw) {
-    return !isnan(raw) && raw >= 0.0f && raw <= 4095.0f;
 }
 
 // Draw the tiny runtime alert indicator used by the light screen.
@@ -121,16 +114,6 @@ static void request_light_redraw(bool force_full = false) {
     runtime_request_ui_refresh(force_full);
 }
 
-static const char* get_light_display_mode_name(uint8_t mode) {
-    switch (mode) {
-        case 1: return L(ST_LOG_PCT);
-        case 2: return L(ST_RAW_ADC);
-        case 0:
-        default:
-            return L(ST_LUX_UNIT);
-    }
-}
-
 void start_light_menu() {
     // Snapshot persisted values so the menu opens from the active config.
     g_light_menu_state = LIGHT_MODE_MENU;
@@ -172,8 +155,8 @@ int get_light_encoder_max() {
         case LIGHT_MODE_MENU: return 5; // rangos, modo display, alertas, ver limites, reset, salir
         case LIGHT_MODE_EDIT_DIM: return g_light_indoor_max - 1;
         case LIGHT_MODE_EDIT_INDOOR: return g_light_bright_max - 1;
-        case LIGHT_MODE_EDIT_BRIGHT: return 10000;
-        case LIGHT_MODE_EDIT_DISPLAY: return 2; // lux, %, raw
+        case LIGHT_MODE_EDIT_BRIGHT: return (int)LIGHT_LUX_MAX;
+        case LIGHT_MODE_EDIT_DISPLAY: return 2; // lux, FC, raw
         case LIGHT_MODE_EDIT_ALERTS: return 1;
         case LIGHT_MODE_EDIT_MARKS: return 1;
         case LIGHT_MODE_CONFIRM_RESET: return 1;
@@ -398,7 +381,7 @@ static void draw_light_menu_screen(bool screen_changed) {
     } else if (g_light_menu_state == LIGHT_MODE_EDIT_DISPLAY) {
         // Display mode changes how the large value is presented.
         drawCenteredMenuValueScreen(L(MENU_DISPLAY_MODE),
-                                    get_light_display_mode_name(g_light_display_mode),
+                                    light_display_mode_name(g_light_display_mode),
                                     TFT_WHITE,
                                     MENU_VALUE_FONT_BODY,
                                     L(ST_TURN_PUSH));
@@ -447,7 +430,7 @@ static void draw_light_menu_screen(bool screen_changed) {
             drawCenteredMenuBodyLines(lines, colors, 3, MENU_TEXT_FONT_SMALL, LM_SUMMARY3_Y0, LM_SUMMARY3_GAP);
         } else if (g_light_last_saved_menu_index == 1) {
             drawCenteredMenuSavedScreen(saved_title,
-                                        get_light_display_mode_name(g_light_display_mode),
+                                        light_display_mode_name(g_light_display_mode),
                                         TFT_WHITE,
                                         MENU_VALUE_FONT_BODY,
                                         L(ST_PUSH_MENU));
@@ -488,14 +471,14 @@ void draw_light_screen(bool screen_changed, bool data_changed) {
     float lux = g_ui_readings_snapshot.ldr;
     float raw = g_ui_readings_snapshot.ldr_raw;
     const bool lux_valid = light_lux_valid(lux);
-    const bool raw_valid = light_raw_valid(raw);
 
     int dim_max = get_light_threshold_dim();
     int indoor_max = get_light_threshold_indoor();
     int bright_max = get_light_threshold_bright();
-    uint8_t display_mode = get_light_display_mode();
+    uint8_t display_mode = light_display_mode();
     bool alerts_enabled = get_light_alerts_enabled();
     uint8_t alert_state = alert_engine_get_code(AlertSensor::Light);
+    const LightDisplayReading display = light_display_from_values(lux, raw);
 
     const char* categoryText;
     uint16_t categoryColor;
@@ -526,23 +509,14 @@ void draw_light_screen(bool screen_changed, bool data_changed) {
         category_id = 4;
     }
 
-    float log_pct = (!lux_valid || lux < 1.0f) ? 0.0f : (log10f(lux) / log10f(20000.0f)) * 100.0f;
+    float log_pct = (!lux_valid || lux < 1.0f) ? 0.0f : (log10f(lux) / log10f(LIGHT_LUX_MAX)) * 100.0f;
     log_pct = constrain(log_pct, 0.0f, 100.0f);
 
     const int cx = tft.width() / 2;
     char value_str[10];
-    const char* unit_str = L(ST_LUX_UNIT);
-    float display_val = lux;
-    bool display_valid = lux_valid;
-
-    if (display_mode == 1) {
-        display_val = log_pct;
-        unit_str = "%";
-    } else if (display_mode == 2) {
-        display_val = raw;
-        unit_str = L(ST_ADC_UNIT);
-        display_valid = raw_valid;
-    }
+    const char* unit_str = display.unit;
+    float display_val = display.value;
+    bool display_valid = display.valid;
 
     if (screen_changed) {
         tft.fillScreen(BACKGROUND_COLOR);
@@ -558,7 +532,7 @@ void draw_light_screen(bool screen_changed, bool data_changed) {
     static bool last_jewel_alerts_en = false;
     static bool last_jewel_no_sensor = false;
 
-    int display_cache = display_valid ? (int)roundf(display_val) : -32768;
+    int display_cache = display.key;
     if (!screen_changed
         && display_cache == last_display_cache
         && category_id == last_category_id

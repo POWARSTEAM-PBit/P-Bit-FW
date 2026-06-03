@@ -12,6 +12,7 @@ uint8_t pbit_ratio_to_amount(float value, float min_value, float max_value);
 void pbit_rgb565_to_rgb888(uint16_t color, uint8_t& r, uint8_t& g, uint8_t& b);
 
 uint16_t pbit_sensor_gauge_arc_color(SzSensorId sensor, uint8_t amount);
+uint16_t pbit_soil_visual_color(float moisture, bool valid = true);
 uint16_t pbit_sensor_visual_color(SzSensorId sensor,
                                   const Reading& reading,
                                   bool fahrenheit,
