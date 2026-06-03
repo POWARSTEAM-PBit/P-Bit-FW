@@ -2,7 +2,9 @@
 
 **Protocolo anti-flicker para ST7735 160×128 px via SPI (TFT_eSPI)**
 
-Fecha: 2026-05-28 | Versión consolidada post-Fase B/C/D + validación puntual hardware
+Fecha: 2026-06-03 | Versión consolidada post-Fase B/C/D + auditoría de reglas-fuente.
+
+> Este documento es **la fuente única** de patterns de render del P-Bit. Cualquier otro skill, doc o memoria que describa patterns anti-flicker debe limitarse a apuntar aquí, no a duplicar las reglas — duplicación garantiza desincronización.
 
 ---
 
@@ -22,6 +24,78 @@ Cambios cerrados desde la auditoría original:
 ## Por qué importa
 
 El ST7735 no tiene doble buffer. Cada `fillRect` o `drawString` sobre el TFT es una secuencia de comandos SPI síncronos que el panel pinta fila a fila mientras el CPU sigue ejecutando el loop. Si en el mismo frame borramos una zona y luego la redibujamos, el ojo humano ve el negro intermedio como "flash" o "flicker", especialmente en sensores que actualizan a >10 Hz (sonido, luz).
+
+---
+
+## Nivel 0 — Plantilla canónica de cache (primera línea de defensa)
+
+Cada pantalla con datos dinámicos declara un struct cache *en la traducción del archivo*, no en el header. Sin cache → no hay forma de detectar "nada cambió" → cada tick redibuja → flicker garantizado.
+
+```cpp
+// src/ui_my_sensor.cpp — al inicio del archivo, ANTES de la función pública
+namespace {
+struct MyScreenCache {
+    bool     valid       = false;        // marcador "primer dibujo hecho"
+    int      value_key   = INT_MIN;      // valor cuantizado: (int)roundf(v*10) para 1 decimal
+    uint8_t  alert_code  = ALERT_CODE_OFF;
+    bool     alerts_en   = true;         // último estado de alertas globales
+    bool     unit_mode_f = false;        // último C/F; o último LDR mode (Lux/FC/Raw)
+    bool     no_sensor   = false;        // último estado conectado/desconectado (externos)
+    uint16_t accent      = 0;            // último color accent (cambia con sensor o estado)
+};
+MyScreenCache g_cache;
+}  // anonymous namespace
+```
+
+### Reglas de la clave (`*_key`)
+
+| Formato de display | Cómo cuantizar |
+|---|---|
+| `%.0f` (entero) | `(int)roundf(v)` — **nunca** `(int)v`, trunca |
+| `%.1f` (1 decimal) | `(int)roundf(v * 10.0f)` |
+| `%.2f` (2 decimales) | `(int)roundf(v * 100.0f)` |
+| String semántico (`Óptimo`, `Seco`, ...) | enum id, no `strcmp` cada frame |
+| String libre | `strncmp` con buffer cacheado |
+
+### Cómo se usa la cache (template)
+
+```cpp
+void draw_my_screen(bool screen_changed, bool sensor_data_changed) {
+    // 1. Snapshot y key
+    const float val   = g_ui_readings_snapshot.my_value;
+    const bool  valid = !isnan(val);
+    const int   key   = valid ? (int)roundf(val * 10.0f) : INT_MIN;
+
+    // 2. Detección de cambios
+    const bool chrome_dirty = !g_cache.valid
+                           || screen_changed
+                           || (valid != !g_cache.no_sensor)
+                           || (g_alerts_enabled != g_cache.alerts_en)
+                           || (current_alert_code() != g_cache.alert_code)
+                           || (g_is_fahrenheit != g_cache.unit_mode_f);
+    const bool data_dirty   = chrome_dirty || (key != g_cache.value_key);
+
+    if (!sensor_data_changed && !data_dirty) return;     // nada que hacer
+
+    // 3. Chrome primero solo si toca
+    if (chrome_dirty) draw_my_chrome();
+
+    // 4. Data siempre que data_dirty
+    if (data_dirty) {
+        clear_value_zone();        // SOLO el rectángulo del valor
+        draw_value(val, valid);
+    }
+
+    // 5. ÚLTIMO: redibujar elementos chrome que tocan zona de datos (icono, label adyacente)
+    if (chrome_dirty) draw_chrome_overlap_last();
+
+    // 6. Cache update — al final, una sola vez
+    g_cache = { true, key, current_alert_code(), g_alerts_enabled,
+                g_is_fahrenheit, !valid, current_accent() };
+}
+```
+
+> **Regla**: si tu pantalla no tiene un `struct *Cache` propio o no actualiza todos sus campos al final, considérala rota aunque "se vea bien" — el flicker aparece en hardware con cargas reales, no en simulador.
 
 ---
 
@@ -163,6 +237,24 @@ static void draw_card_content(const LabSensorCardSpec& spec, ...) {
 
 **Regla general**: cualquier elemento chrome cuyo bounding box se solape con la zona de datos adyacente debe redibujarse AL FINAL, después de todos los `fillRect` de limpieza.
 
+### Caso especial: `sz_set_active` evita double-header en SENSOR_ZONE_SCREEN
+
+`SENSOR_ZONE_SCREEN` es un *contenedor* que delega a un sub-renderer (`ui_lab_focus`, `ui_lab_widget_showcase`, `ui_graph`, `ui_lab_sensor_cards`). El contenedor ya dibuja el header — el sub-renderer no debe dibujarlo otra vez (causa flicker en y=0..19 y double-print que se ve un frame).
+
+**Patrón canónico** (`src/sensor_zone.cpp:188`):
+
+```cpp
+// En tft_display.cpp:906 — ANTES de entrar al sub-renderer
+sz_set_active(true);
+sz_render_active_sensor(screen_changed, data_changed);
+sz_set_active(false);   // línea 928
+
+// En cada sub-renderer (ui_lab_focus.cpp:631, ui_graph.cpp:405, etc.):
+if (!sz_is_active()) drawHeader(L(TIT_LAB_FOCUS));
+```
+
+> **Regla**: si añades un nuevo sub-renderer para `SENSOR_ZONE_SCREEN`, su primera línea de `drawHeader(...)` **debe** estar guardada por `if (!sz_is_active())`. Si haces `drawHeader` incondicional, vas a ver parpadeo en la franja superior cada vez que cambia un valor.
+
 ---
 
 ## Nivel 4 — Sprites para zonas con >20 SPI calls/frame
@@ -213,6 +305,22 @@ tft.drawString(unit_str, 148, 34);
 
 ---
 
+## Nivel 5 — Demo Mode: cadencia y aislamiento
+
+Demo Mode usa un refresco propio de `220 ms` (ver `demo_mode_value_refresh_ms()` en `src/demo_mode.cpp`). Toda pantalla que reciba `sensor_data_changed=true` durante demo debe responder en ≤ ese tick sin redibujar chrome.
+
+### Reglas obligatorias durante Demo Mode
+
+1. **No cambiar la cadencia base** sin recalibrar todas las cards: `220 ms` está elegido para que las curvas suaves se vean fluidas sin disparar flicker — duplicarlo o reducirlo rompe ese equilibrio.
+2. **Demo solo escribe `g_ui_readings_snapshot`**, nunca `global_readings`, NVS ni BLE. Cualquier pantalla que mire otra fuente que `g_ui_readings_snapshot` se queda congelada en demo.
+3. **Setters runtime de Sensor Zone** (`sz_set_sensor_runtime`, `sz_set_viz_runtime`) cambian sensor/modo solo en RAM y piden full redraw. Si una pantalla cachea sensor/modo, debe comparar contra estos setters y invalidar cache.
+4. **`sensor_connection_notice.*` no dispara durante demo** — la rama de baseline filtra eventos durante `demo_mode_is_active()`.
+5. **Si una pantalla nueva no tiene path de Demo Mode**, registra una escena en `src/demo_mode.cpp` con `dwell` apropiado (rango actual `6..10 s`) o documenta por qué se omite.
+
+> **Regla de regresión**: tras cualquier cambio en render dinámico, entrar a Demo Mode (encoder presionado en boot, o long-press en `LAB_HOME_CARDS`) y observar 30 segundos. Si el flicker aparece solo en demo, casi siempre es un clear acotado a 1 cifra que no soporta dos cifras, o un sprite que se inicializa cada frame.
+
+---
+
 ## Tabla de estado — todas las pantallas (mayo 2026)
 
 | Archivo | Nivel aplicado | Notas |
@@ -247,6 +355,55 @@ tft.drawString(unit_str, 148, 34);
 
 ---
 
+## Verificación pre-claim — proof obligatorio antes de decir "listo"
+
+Esta sección existe porque siempre caemos en los mismos errores TFT pese a tener reglas: las reglas describen QUÉ hacer pero no obligan a PROBAR que se hizo. Ahora sí.
+
+### Checklist de proof (cada item debe pasar antes de cerrar una tarea de render)
+
+```
+□ proof 1 — La función pública tiene firma (bool screen_changed, bool sensor_data_changed)
+            y EARLY-RETURN cuando ambos son false y no hay data_dirty.
+
+□ proof 2 — Existe un struct *Cache propio en el archivo .cpp (no header).
+            Todos sus campos se actualizan al final de cada redraw exitoso.
+
+□ proof 3 — `fillScreen(...)` aparece en el archivo **0 veces**, o solo dentro de
+            `if (screen_changed)`. Verificable con:
+              rg -n 'fillScreen' src/ui_my_screen.cpp
+
+□ proof 4 — Cada `fillRect(...)` dinámico tiene ancho ≤ ancho del campo (no full-screen).
+            Cada `fillRoundRect(...)` está dentro de `if (chrome_dirty)` o equivalente.
+
+□ proof 5 — El ícono y el header/label adyacentes se redibujan AL FINAL
+            si su bounding box solapa con la zona de datos (Nivel 3).
+
+□ proof 6 — Si la pantalla vive dentro de SENSOR_ZONE_SCREEN, su `drawHeader(...)`
+            está guardado por `if (!sz_is_active())`.
+
+□ proof 7 — Si se añade sprite: lazy-init con flag `*_ready`, fillSprite UNA vez por
+            frame, pushSprite UNA vez, y restore de labels pisados después del push.
+
+□ proof 8 — Compilación local pasa: `py -m platformio run -e esp32dev` con SUCCESS.
+            Reportar RAM/Flash y diff vs baseline si cambian > ±200 bytes.
+
+□ proof 9 — Demo Mode activado y observado ≥30 s: ningún campo dinámico parpadea,
+            ningún chrome se redibuja en cada tick, transiciones entre escenas limpias.
+
+□ proof 10 — Hardware real validado (no solo simulador) para cambios en:
+             clears, sprites, fuentes, idiomas largos (CAT/EN), pantallas LAB densas.
+```
+
+### Regla de cierre
+
+Si al menos uno de los proofs no se ejecutó, **decir "queda pendiente proof X"** en el reporte final. Nunca cerrar tarea diciendo "listo, compila" si no se corrió Demo Mode o no se vio en hardware. El compilador no detecta flicker.
+
+### Por qué este nivel es nuevo (lección 2026-06)
+
+La auditoría identificó que las reglas Nivel 1-5 describen patterns correctamente pero no exigen evidencia. Resultado: tareas marcadas como "completadas" con bugs visibles en hardware. Esta sección cambia el contrato: sin proofs, no hay close.
+
+---
+
 ## Trampas frecuentes (checklist de code review)
 
 - [ ] `fillRoundRect` de toda la card en update de valor → separar en chrome + data
@@ -256,3 +413,78 @@ tft.drawString(unit_str, 148, 34);
 - [ ] Chrome dibujado antes de los clears de datos → redibujar chrome al final si hay solapamiento de bounding box
 - [ ] Ring sprite pusheado sobre label de unidad → redibujar label de unidad post-push
 - [ ] Función de ring original sin llamadas → `-Wunused-function` (limpiar o comentar)
+
+---
+
+## Banderas rojas grep-ables (revisión por terminal)
+
+Estas son las queries que cualquier code review de render debe correr antes de aprobar un cambio. Cada match positivo es "explica o arregla", no un fail automático — pero deja la decisión consciente.
+
+### `fillScreen` fuera de `screen_changed`
+
+```bash
+rg -n 'tft\.fillScreen\(' src/ui_*.cpp src/sensor_zone.cpp src/tft_display.cpp
+```
+
+Cada hit debe estar dentro de `if (screen_changed)`, `if (force_full_redraw)` o función de boot/transición explícita. Cualquier otro contexto es candidato a flicker.
+
+### `fillRoundRect` en función dinámica
+
+```bash
+rg -n 'fillRoundRect' src/ui_*.cpp
+```
+
+Si el match está en una función llamada en cada `sensor_data_changed=true`, está rompiendo Nivel 2 — separar en `draw_*_chrome` / `draw_*_data`.
+
+### `fillRect` con ancho de pantalla en función dinámica
+
+```bash
+rg -n 'fillRect\(\s*0\s*,' src/ui_*.cpp
+rg -n 'fillRect\([^,]+,\s*[^,]+,\s*(tft\.width\(\)|160|TFT_WIDTH)' src/ui_*.cpp
+```
+
+Clear full-width borra elementos vecinos. Si no es bloque `screen_changed`, acota al ancho del campo.
+
+### `TFT_DARKGREY` para estado "sin sensor" (regla obsoleta)
+
+```bash
+rg -n 'TFT_DARKGREY' src/ui_*.cpp
+```
+
+La regla actual es `pbit_external_dim_*` (identidad atenuada del sensor), no gris plano. Cada hit debería migrarse a la nueva paleta.
+
+### `drawHeader` sin guard `sz_is_active`
+
+```bash
+rg -n -B1 -A1 'drawHeader\(' src/ui_lab_*.cpp src/ui_graph.cpp
+```
+
+Cada `drawHeader(...)` en un sub-renderer de `SENSOR_ZONE_SCREEN` debe ir precedido por `if (!sz_is_active())`.
+
+### Cache no declarada o no actualizada
+
+```bash
+rg -n 'struct.*Cache' src/ui_*.cpp
+```
+
+Cada pantalla con datos dinámicos debe tener un struct cache. Si no aparece, falta Nivel 0.
+
+### Sprite sin lazy-init flag
+
+```bash
+rg -n 'createSprite\(' src/ui_*.cpp
+```
+
+Cada `createSprite` debe estar guardada por un flag `g_*_ready` o equivalente. Crear sprite cada frame fragmenta heap y causa stutter.
+
+### Funciones unused (candidatas a eliminar)
+
+```bash
+# compilar con flag de warnings y filtrar
+py -m platformio run -e esp32dev 2>&1 | rg 'Wunused-function|Wunused-variable'
+```
+
+Cualquier `[-Wunused-function]` en `ui_*.cpp` o `sensor_zone.cpp` es código muerto candidato a borrar en cleanup.
+
+> **Cadencia recomendada**: correr este bloque de greps al cierre de cada PR que toque `src/ui_*` o `src/tft_display.cpp`. Anotar en el reporte cuántos hits aparecieron y cuáles se decidió tolerar.
+

@@ -985,3 +985,113 @@ Sin submenú raíz de lista.
 - `docs/PRODUCTION_CHECKLIST.md` — checklist de producción
 - `platformio.ini` — configuración de build
 - `lib/TFT_eSPI/User_Setup.h` — configuración del display
+
+---
+
+## Apéndice A — Banderas rojas y verificación pre-claim de firmware
+
+> Esta sección es paralela a la "Verificación pre-claim" de `docs/TFT_RENDER_RULES.md`, pero para temas de firmware no-render. Si una tarea toca render, **además** se aplica el protocolo del doc TFT.
+
+Para temas estrictamente de pantalla/render, no duplicar reglas aquí — consultar `docs/TFT_RENDER_RULES.md` directamente.
+
+### A.1 Stack real del proyecto (recordatorio para evitar mezclar con ESP-IDF)
+
+| Tema | Realidad P-Bit |
+|---|---|
+| Framework | **Arduino**, no ESP-IDF (`platformio.ini:framework = arduino`) |
+| Build | `py -m platformio run -e esp32dev` |
+| Flash | `py -m platformio run -e esp32dev -t upload` (o desde IDE) |
+| Monitor serial | `py -m platformio device monitor -b 115200` |
+| Config | Flags en `platformio.ini` + `include/config.h`. **No hay** `sdkconfig`, no hay `idf.py`, no hay `menuconfig` |
+| Tareas | Arduino `setup()/loop()` + FreeRTOS `xTaskCreatePinnedToCore` para UI/sensors |
+| NVS | `Preferences` (wrapper Arduino), no `nvs_flash_set_*` directo |
+| BLE | `NimBLE-Arduino`, no `esp_bt_*` directo |
+| OTA / Secure Boot / Flash encryption | **No habilitados** — fuera de scope del producto educativo |
+
+Cualquier patrón ESP-IDF puro (idf.py, sdkconfig, esp_ota_ops, partition CSV custom) **no aplica** en este firmware. El skill global `esp32-firmware-engineer` está orientado a ESP-IDF y se debe filtrar contra esta realidad.
+
+### A.2 Banderas rojas grep-ables (firmware no-render)
+
+```bash
+# 1. Bloqueo prolongado en tareas FreeRTOS — sospechoso si está en UI/sensor task
+rg -n 'delay\(\s*[0-9]{4,}\s*\)' src/        # delay >= 1000 ms
+
+# 2. NVS write en ISR o callback síncrono del encoder (rotary callbacks corren en task context, pero verificar)
+rg -n -B2 'prefs\.put|nvs_set' src/rotary.cpp src/io.cpp
+
+# 3. String dinámico en hot path (fragmentación de heap)
+rg -n 'String\s+[a-z_]+\s*=' src/ui_*.cpp src/io.cpp
+
+# 4. malloc/new en hot path
+rg -n '\b(malloc|new\s+\w)' src/ui_*.cpp src/io.cpp
+
+# 5. portMUX/portENTER fuera de readings_mux conocido
+rg -n 'portENTER_CRITICAL|portEXIT_CRITICAL|taskENTER_CRITICAL' src/
+
+# 6. Funciones marcadas IRAM_ATTR (deben ser cortas; bloqueo es disaster)
+rg -n 'IRAM_ATTR' src/ include/
+
+# 7. Lecturas ADC sin atenuación 11dB (rango incorrecto)
+rg -n 'analogSetPinAttenuation|analogReadResolution|adcAttachPin' src/
+
+# 8. esp_sleep_* fuera del path de reposo
+rg -n 'esp_sleep_' src/
+
+# 9. -D flags activos que no deben llegar a producción
+rg -n '^(\s*)-D(FIRMWARE_DEBUG|PBIT_ENABLE_SERIAL_PLOTTER)' platformio.ini
+```
+
+Cada hit positivo es "explica o arregla", no fail automático.
+
+### A.3 Verificación pre-claim (firmware)
+
+Antes de cerrar tarea de firmware no-render, los 8 proofs siguientes:
+
+```
+□ proof 1 — Build local pasa: `py -m platformio run -e esp32dev` con SUCCESS.
+
+□ proof 2 — RAM/Flash reportados y comparados con baseline. Si delta > ±200 bytes,
+            explicar la causa. Si delta > +2 KB Flash o > +1 KB RAM, ya es un
+            cambio sustantivo que debe justificarse en el commit/PR.
+
+□ proof 3 — Si tocaste NVS: claves nuevas o cambios de tipo documentados en § 9.
+            Build-hash bump si rompe compatibilidad con builds previos.
+
+□ proof 4 — Si tocaste sensores (`src/io.cpp`): verificar que el rango canónico
+            (§ 6 tabla) sigue siendo válido. Para LDR, validar contra § 7 muestra
+            empírica v1.
+
+□ proof 5 — Si tocaste Demo Mode: validar que cadencia 220 ms sigue siendo el tick
+            base (ver `docs/TFT_RENDER_RULES.md` § Nivel 5).
+
+□ proof 6 — Si tocaste BLE: confirmar que sigue siendo factory-off (`ble_en=false`),
+            que el reset por build-hash funciona, y que el gesto secreto del
+            SYSTEM_SCREEN no se documenta en USER_GUIDE.
+
+□ proof 7 — Si tocaste tareas (UI/sensor/loop): stack usado vs asignado (`uxTaskGetStackHighWaterMark`).
+            Si pasa de 75% del stack reservado, ampliar stack o reducir scope.
+
+□ proof 8 — Hardware real validado (no solo build) para cambios en: pinout,
+            timing crítico, ISR, sleep/wakeup, paths que afectan al usuario final.
+
+□ Si algún proof no se ejecutó: decir "queda pendiente proof X" en el reporte.
+  Nunca cerrar tarea diciendo "listo, compila" si no se corrió en hardware.
+```
+
+### A.4 Cómo NO romper el chip por descuido
+
+- **GPIO34, GPIO35, GPIO36, GPIO39** son input-only. Cualquier `pinMode(.., OUTPUT)` en estos pines silenciosamente no funciona; verificar el pin destino.
+- **GPIO12** es strapping pin (voltage select de flash). El encoder B vive ahí: ya está fijo y funciona. No reusar para otra cosa sin estudiar el strap.
+- **DS18B20** (`GPIO33`) requiere `INPUT_PULLUP` antes del bus scan; si se quita, el OneWire falla silenciosamente.
+- **ADC ATT 11dB** está configurado en `src/io.cpp` para todos los ADC del proyecto; cualquier nuevo sensor analógico debe pasar por la misma configuración para tener rango útil completo.
+- **I2C en `GPIO26/27`** está físicamente disponible pero el firmware **no llama** `Wire.begin(...)`. Si se añade un sensor I2C, la inicialización debe ser `Wire.begin(26, 27)` explícita.
+
+### A.5 Cuándo pedir ayuda al usuario antes de seguir
+
+- Cambios de pinout (PCB y firmware deben moverse juntos).
+- Cambios de cadencia de Demo Mode o de tasks (rompen anti-flicker validado).
+- Activación de BLE como feature visible (decisión de producto).
+- Cualquier cambio que afecte el contrato del menú raíz del Sistema (`Bip` / `Alarmas` / `Reposo` / `Idioma` / `Reset` / `Salir`).
+
+> Esta lista es deliberadamente corta. Para todo lo demás, las reglas del firmware son las que estén explícitas en este documento y en `AGENTS.md`. Cuando un pattern no esté documentado y la decisión sea ambigua, pregunta antes de inventarte una regla.
+
