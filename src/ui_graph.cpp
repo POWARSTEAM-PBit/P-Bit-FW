@@ -391,13 +391,19 @@ uint8_t graph_get_sensor() {
 }
 
 void draw_graph_screen(bool screen_changed, bool sensor_data_changed) {
-    static GraphSensor last_sensor = (GraphSensor)0xFF;
+    // Cache canónica del frame anterior — ver docs/TFT_RENDER_RULES.md Nivel 0.
+    // Locale a la función porque la pantalla GRAPH es singleton (un único renderer
+    // global, no instancias por sensor). data_buf también queda aquí por escala.
+    struct GraphCache {
+        GraphSensor sensor      = (GraphSensor)0xFF; // sensor último frame
+        GraphSensor band_sensor = (GraphSensor)0xFF; // sensor de la band ya pintada
+        bool        band_valid  = false;
+        char        band_value[24] = "";
+    };
+    static GraphCache cache;
     static float data_buf[GRAPH_BUFFER_SIZE];
-    static char last_band_value[24] = "";
-    static bool last_band_valid = false;
-    static GraphSensor last_band_sensor = (GraphSensor)0xFF;
 
-    const bool sensor_switched = (last_sensor != g_graph_sensor);
+    const bool sensor_switched = (cache.sensor != g_graph_sensor);
     const bool need_full = screen_changed || sensor_switched;
 
     if (need_full) {
@@ -407,7 +413,7 @@ void draw_graph_screen(bool screen_changed, bool sensor_data_changed) {
 
     if (need_full) {
         tft.fillRect(0, L_CONTENT_TOP, tft.width(), LG_GRAPH_Y - L_CONTENT_TOP - 1, TFT_BLACK);
-        last_sensor = g_graph_sensor;
+        cache.sensor = g_graph_sensor;
     }
 
     if (need_full || sensor_data_changed) {
@@ -461,23 +467,23 @@ void draw_graph_screen(bool screen_changed, bool sensor_data_changed) {
             char value_buf[24];
             format_graph_value(value_buf, sizeof(value_buf), g_graph_sensor, data_buf[n - 1]);
             const bool band_changed = need_full
-                || last_band_sensor != g_graph_sensor
-                || !last_band_valid
-                || strcmp(last_band_value, value_buf) != 0;
+                || cache.band_sensor != g_graph_sensor
+                || !cache.band_valid
+                || strcmp(cache.band_value, value_buf) != 0;
             if (band_changed) {
                 draw_graph_band(true, g_graph_sensor, value_buf, need_full);
-                strncpy(last_band_value, value_buf, sizeof(last_band_value) - 1);
-                last_band_value[sizeof(last_band_value) - 1] = '\0';
-                last_band_valid = true;
-                last_band_sensor = g_graph_sensor;
+                strncpy(cache.band_value, value_buf, sizeof(cache.band_value) - 1);
+                cache.band_value[sizeof(cache.band_value) - 1] = '\0';
+                cache.band_valid = true;
+                cache.band_sensor = g_graph_sensor;
             }
         } else {
-            const bool band_changed = need_full || last_band_sensor != g_graph_sensor || last_band_valid;
+            const bool band_changed = need_full || cache.band_sensor != g_graph_sensor || cache.band_valid;
             if (band_changed) {
                 draw_graph_band(false, g_graph_sensor, "", need_full);
-                last_band_value[0] = '\0';
-                last_band_valid = false;
-                last_band_sensor = g_graph_sensor;
+                cache.band_value[0] = '\0';
+                cache.band_valid = false;
+                cache.band_sensor = g_graph_sensor;
             }
         }
     }

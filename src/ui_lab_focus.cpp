@@ -50,11 +50,17 @@ constexpr int LF_HINT_Y = 120;
 
 static LabFocusSensor g_sensor = LAB_FOCUS_HUMIDITY;
 static bool g_force_full_redraw = true;
-static LabFocusSensor g_last_summary_sensor = LAB_FOCUS_COUNT;
-static bool g_last_summary_valid = false;
-static int g_last_summary_key = INT_MIN;
-static bool g_last_summary_unit_mode = false;
-static uint8_t g_last_summary_light_mode = 255;
+
+// Cache canónica del summary panel — ver docs/TFT_RENDER_RULES.md Nivel 0.
+// Todos los campos se actualizan al final de cada redraw exitoso.
+struct FocusCache {
+    LabFocusSensor sensor    = LAB_FOCUS_COUNT;
+    bool           valid     = false;
+    int            key       = INT_MIN;
+    bool           unit_mode = false;
+    uint8_t        light_mode = 255;
+};
+static FocusCache g_cache;
 
 static TFT_eSprite g_graph_sprite(&tft);
 static bool g_graph_sprite_ready = false;
@@ -619,11 +625,11 @@ void draw_lab_focus_screen(bool screen_changed, bool sensor_data_changed) {
     const bool valid = sensor_has_value(g_sensor);
     const int summary_key = sensor_visible_key(g_sensor);
     const bool summary_dirty = need_full
-        || (g_sensor != g_last_summary_sensor)
-        || (valid != g_last_summary_valid)
-        || (summary_key != g_last_summary_key)
-        || (g_sensor == LAB_FOCUS_LIGHT && g_last_summary_light_mode != light_display_mode())
-        || (g_last_summary_unit_mode != g_is_fahrenheit
+        || (g_sensor != g_cache.sensor)
+        || (valid != g_cache.valid)
+        || (summary_key != g_cache.key)
+        || (g_sensor == LAB_FOCUS_LIGHT && g_cache.light_mode != light_display_mode())
+        || (g_cache.unit_mode != g_is_fahrenheit
             && (g_sensor == LAB_FOCUS_TEMP || g_sensor == LAB_FOCUS_DS18));
 
     if (need_full) {
@@ -639,10 +645,11 @@ void draw_lab_focus_screen(bool screen_changed, bool sensor_data_changed) {
         draw_graph_panel(g_sensor, valid, false);
     }
 
-    g_last_summary_sensor = g_sensor;
-    g_last_summary_valid = valid;
-    g_last_summary_key = summary_key;
-    g_last_summary_unit_mode = g_is_fahrenheit;
-    g_last_summary_light_mode = light_display_mode();
+    // Actualizar cache al final del frame (Nivel 0 del contrato anti-flicker).
+    g_cache.sensor     = g_sensor;
+    g_cache.valid      = valid;
+    g_cache.key        = summary_key;
+    g_cache.unit_mode  = g_is_fahrenheit;
+    g_cache.light_mode = light_display_mode();
     g_force_full_redraw = false;
 }

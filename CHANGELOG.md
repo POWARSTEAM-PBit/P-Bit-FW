@@ -2,6 +2,14 @@
 
 ## 2026-06-03
 
+### Refactor — `struct Cache` canónico en `ui_lab_focus` y `ui_graph`
+
+- **`src/ui_lab_focus.cpp`:** 5 variables `static g_last_summary_*` sueltas reemplazadas por `struct FocusCache` con campos nombrados (`sensor`, `valid`, `key`, `unit_mode`, `light_mode`). Instancia `g_cache` static a nivel namespace. La actualización de la cache se concentra al final del frame en un solo bloque etiquetado, siguiendo el contrato Nivel 0 de `docs/TFT_RENDER_RULES.md`.
+- **`src/ui_graph.cpp`:** 4 variables `static` de cache locales a `draw_graph_screen()` (`last_sensor`, `last_band_value`, `last_band_valid`, `last_band_sensor`) reemplazadas por `struct GraphCache` (`sensor`, `band_sensor`, `band_valid`, `band_value[24]`). Locale a la función — la pantalla GRAPH es singleton y no requiere caché compartida fuera. `data_buf[GRAPH_BUFFER_SIZE]` sigue siendo `static` local (no es cache, es scratch buffer del frame actual).
+- **Sin cambio funcional.** Los registros de "dirty" y los redibujados se comportan exactamente igual; solo se agrupan los flags por archivo.
+- **Resultado:** cierra el ítem "`struct Cache` canónico" de la deuda técnica post-auditoría. Las pantallas con cache canónica ahora cumplen Nivel 0 explícitamente — auditable por `rg -n 'struct.*Cache' src -g 'ui_*.cpp'`.
+- Build verificado: `SUCCESS` — RAM 14.9% (`48924` bytes, **-16** vs commit anterior), Flash 72.1% (`945565` bytes, **-36**). El delta negativo es esperado: agrupar campos en struct mejora padding/alineamiento.
+
 ### Refactor — NVS de idioma encapsulado en `settings_store`
 
 - **Añadido:** `include/settings_store.h` declara `load_language_store()` y `save_language_store(uint8_t lang)`.
