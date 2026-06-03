@@ -3,12 +3,12 @@
 
 #include "lang_select.h"
 #include "languages.h"
+#include "settings_store.h" // load_language_store / save_language_store
 #include "ui_widgets.h"  // Para tft
 #include "fonts.h"       // para FONT_MENU, FONT_HEADER
 #include "rotary.h"      // Para DI_ENCODER_A/B/SW y rotaryEncoder
 #include "runtime_events.h"
 #include <ESP32RotaryEncoder.h>
-#include <Preferences.h>
 #include <Arduino.h>
 
 // ---------------------------------------------------------------
@@ -281,24 +281,12 @@ const char* L(LangKey key) {
 // loadLanguage() restores the last saved language from NVS.
 // ---------------------------------------------------------------
 void loadLanguage() {
-    Preferences prefs;
-    prefs.begin("pbit", true);
-    if (prefs.isKey("lang")) {
-        g_language = normalizeLanguage((Language)prefs.getUChar("lang", LANG_ES));
-    } else {
-        g_language = LANG_ES;
-    }
-    prefs.end();
+    g_language = normalizeLanguage((Language)load_language_store());
 }
 
 void saveLanguage(Language language) {
     g_language = normalizeLanguage(language);
-
-    Preferences prefs;
-    prefs.begin("pbit", false);
-    prefs.putUChar("lang", (uint8_t)g_language);
-    prefs.end();
-
+    save_language_store((uint8_t)g_language);
     runtime_request_ui_full_redraw();
 }
 
@@ -369,14 +357,9 @@ static void drawMenuFull(int sel, Language current_menu_lang) {
 // ---------------------------------------------------------------
 void showLanguageMenu() {
     // Cargar idioma guardado como preselección inicial (si existe)
-    Preferences prefs;
-    prefs.begin("pbit", true);
     int initial_sel = 0;
-    if (prefs.isKey("lang")) {
-        uint8_t saved = prefs.getUChar("lang", 0);
-        if (saved < MENU_LANG_COUNT) initial_sel = (int)saved;
-    }
-    prefs.end();
+    uint8_t saved = load_language_store();
+    if (saved < MENU_LANG_COUNT) initial_sel = (int)saved;
 
     // Configurar encoder para el menú (límites 0-2, circular, sin callbacks)
     rotaryEncoder.setEncoderType(EncoderType::FLOATING);

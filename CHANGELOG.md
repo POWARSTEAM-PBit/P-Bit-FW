@@ -2,6 +2,14 @@
 
 ## 2026-06-03
 
+### Refactor — NVS de idioma encapsulado en `settings_store`
+
+- **Añadido:** `include/settings_store.h` declara `load_language_store()` y `save_language_store(uint8_t lang)`.
+- **Añadido:** `src/settings_store.cpp` implementa ambas funciones usando el patrón `ScopedPrefs` consistente con el resto del módulo.
+- **Refactorizado:** `src/lang_select.cpp` elimina su uso directo de `Preferences`. `loadLanguage()`, `saveLanguage()` y `showLanguageMenu()` ahora delegan en las funciones del store. Quitado `#include <Preferences.h>`.
+- **Resultado:** NVS queda 100% encapsulado en `settings_store` (cierra la excepción documentada en ROADMAP § "Deuda técnica post-auditoría").
+- Build verificado: `SUCCESS` — RAM 14.9% (`48940` bytes, sin cambio), Flash 72.1% (`945601` bytes, **-904 bytes** vs commit anterior por eliminación de dos copias inline del patrón `Preferences::begin/end`).
+
 ### Mantenimiento — Limpieza de magic numbers y rename (deuda técnica)
 
 - **Corregido:** `src/ui_icons.cpp` — los 4 literales `0x1082` en código reemplazados por `kIconCardBg` (constante local documentada). Los comentarios explican el workaround de transparencia de icono. Centraliza el valor y reduce duplicación.

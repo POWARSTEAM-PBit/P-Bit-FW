@@ -626,9 +626,10 @@ Esta clave se borra junto con el resto del namespace `pbit` en cada nuevo flash 
 
 #### Idioma
 
-- gestionado desde el módulo de idioma con persistencia propia
-- el idioma activo se normaliza con `normalizeLanguage(...)`
-- `LANG_COUNT` define el límite de idiomas soportados
+- `lang` (`uint8_t`, default `0 = LANG_ES`) — idioma activo de la UI
+- acceso encapsulado: `load_language_store()` / `save_language_store(uint8_t)` en `include/settings_store.h` y `src/settings_store.cpp`
+- `src/lang_select.cpp` delega en esas funciones (no abre `Preferences` directamente)
+- el valor leído se normaliza con `normalizeLanguage(...)`; `LANG_COUNT` define el límite de idiomas soportados
 - `LIn(language, key)` permite renderizar textos en un idioma explícito
 - `L(key)` traduce usando el idioma activo
 

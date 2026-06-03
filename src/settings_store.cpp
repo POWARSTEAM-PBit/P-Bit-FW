@@ -241,6 +241,16 @@ void save_sz_viz_store(uint8_t sensor_id, uint8_t viz_mode) {
     prefs.prefs.putUChar(key, viz_mode);
 }
 
+uint8_t load_language_store() {
+    ScopedPrefs prefs(true);
+    return prefs.prefs.getUChar("lang", 0); // 0 = LANG_ES default
+}
+
+void save_language_store(uint8_t lang) {
+    ScopedPrefs prefs(false);
+    prefs.prefs.putUChar("lang", lang);
+}
+
 bool load_ble_enabled_store() {
     ScopedPrefs prefs(true);
     return prefs.prefs.getBool("ble_en", false);
