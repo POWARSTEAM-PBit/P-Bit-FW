@@ -1090,7 +1090,32 @@ Antes de cerrar tarea de firmware no-render, los 8 proofs siguientes:
 - **ADC ATT 11dB** está configurado en `src/io.cpp` para todos los ADC del proyecto; cualquier nuevo sensor analógico debe pasar por la misma configuración para tener rango útil completo.
 - **I2C en `GPIO26/27`** está físicamente disponible pero el firmware **no llama** `Wire.begin(...)`. Si se añade un sensor I2C, la inicialización debe ser `Wire.begin(26, 27)` explícita.
 
-### A.5 Cuándo pedir ayuda al usuario antes de seguir
+### A.5 Build de depuración (esp32dev_debug)
+
+Environment separado en `platformio.ini` que activa `-DFIRMWARE_DEBUG` solo para esa build. **No tocar `esp32dev` de producción** ni descomentar `FIRMWARE_DEBUG` en `include/config.h`.
+
+```powershell
+py -m platformio run -e esp32dev_debug                # solo compilar
+py -m platformio run -e esp32dev_debug -t upload      # compilar + flashear
+py -m platformio device monitor --baud 115200         # leer Serial
+```
+
+Con `FIRMWARE_DEBUG` activo, ambas tasks emiten periódicamente el high water mark de stack:
+
+```
+[Stack] DisplayTask HWM free: 2400 bytes (worst: 1800)
+[Stack] SensorTask HWM free: 2880 bytes (worst: 1600)
+```
+
+Semántica:
+- En ESP32 + `framework-arduinoespressif32`, `uxTaskGetStackHighWaterMark()` ya devuelve **bytes** directamente (NO words; ver comentario `"in bytes not words"` en `task.h` del SDK local). El firmware imprime el valor crudo.
+- **HWM free** = el **menor stack libre observado por FreeRTOS** para esa tarea desde el boot hasta esa muestra. No es stack libre instantáneo; es la marca histórica que FreeRTOS mantiene internamente.
+- **worst** = peor valor (más bajo) observado por el código de instrumentación mientras esta build ha estado corriendo en esta sesión.
+- Muestreo cada `1000 ms`. Log cuando el `worst` empeora o cada `60 s`.
+
+Para volver a build de producción tras la validación: `py -m platformio run -e esp32dev`. El env `esp32dev_debug` está versionado en `platformio.ini`, pero no se invoca en CI ni se entrega como build de producción.
+
+### A.6 Cuándo pedir ayuda al usuario antes de seguir
 
 - Cambios de pinout (PCB y firmware deben moverse juntos).
 - Cambios de cadencia de Demo Mode o de tasks (rompen anti-flicker validado).

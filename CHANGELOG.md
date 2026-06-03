@@ -1,5 +1,16 @@
 # Changelog
 
+## 2026-06-04
+
+### Build de depuración — env `esp32dev_debug` + instrumentación periódica de Stack HWM
+
+- **Añadido:** `[env:esp32dev_debug]` en `platformio.ini` que extiende `esp32dev` y añade `-DFIRMWARE_DEBUG`. El env de producción `esp32dev` queda intacto. `include/config.h` mantiene `FIRMWARE_DEBUG` comentado para que la activación pase exclusivamente por build flag del env separado.
+- **Mejorado:** instrumentación `#ifdef FIRMWARE_DEBUG` en `src/tft_display.cpp` (DisplayTask) y `src/io.cpp` (SensorTask). Antes reportaba una sola vez por tarea; ahora muestrea cada `1000 ms` y emite log cuando el peor caso histórico empeora o cada `60 s`. Valores reportados directamente en **bytes**: en ESP32 + `framework-arduinoespressif32`, `uxTaskGetStackHighWaterMark()` ya devuelve bytes, no words (a diferencia del vanilla FreeRTOS). Cero overhead cuando `FIRMWARE_DEBUG` no está definido — todo el bloque se compila fuera.
+- **Documentado:** `docs/TECHNICAL.md` § A.5 explica cómo compilar/subir/monitorizar con el env debug y qué buscar en Serial.
+- **Documentado:** `docs/ROADMAP.md` ítem "Stack HWM validación HW" actualizado: infraestructura lista, pendiente medir en hardware real en sesión prolongada.
+- **Autorización:** activación de `FIRMWARE_DEBUG` realizada bajo petición explícita del usuario per `AGENTS.md`. Plan revisado y aprobado por code review cruzado (Claude + Codex) antes de aplicar.
+- **Sin impacto en producción:** `py -m platformio run -e esp32dev` sigue dando el binario producción intacto. Solo `py -m platformio run -e esp32dev_debug` activa la build de validación.
+
 ## 2026-06-03
 
 ### Decisión operativa — Stack HWM diferido a sesión de validación HW

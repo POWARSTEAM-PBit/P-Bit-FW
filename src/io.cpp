@@ -116,8 +116,28 @@ void sensor_reading_task(void *param) {
 #endif
 
 #ifdef FIRMWARE_DEBUG
-      static bool _hwm_reported = false;
-      if (!_hwm_reported) { _hwm_reported = true; DPRINT("[Stack] SensorTask HWM: %u words\n", uxTaskGetStackHighWaterMark(NULL)); }
+      // Reporte periódico de Stack HWM — muestreo cada 1 s, log al
+      // empeorar el peor caso o cada 60 s. En este stack (ESP32 +
+      // framework-arduinoespressif32) uxTaskGetStackHighWaterMark()
+      // devuelve directamente bytes, NO words (a diferencia del vanilla
+      // FreeRTOS). Ver header local task.h: "in bytes not words".
+      {
+          static uint32_t hwm_last_sample_ms = 0;
+          static uint32_t hwm_last_report_ms = 0;
+          static UBaseType_t hwm_worst = (UBaseType_t)-1;
+          const uint32_t hwm_now = millis();
+          if (hwm_now - hwm_last_sample_ms >= 1000) {
+              hwm_last_sample_ms = hwm_now;
+              const UBaseType_t hwm = uxTaskGetStackHighWaterMark(NULL);
+              const bool worsened = (hwm < hwm_worst);
+              if (worsened) hwm_worst = hwm;
+              if (worsened || (hwm_now - hwm_last_report_ms >= 60000)) {
+                  hwm_last_report_ms = hwm_now;
+                  DPRINT("[Stack] SensorTask HWM free: %u bytes (worst: %u)\n",
+                         (unsigned)hwm, (unsigned)hwm_worst);
+              }
+          }
+      }
 #endif
       vTaskDelayUntil(&last_wake_tick, pdMS_TO_TICKS(30)); // 20 ms sound window + stable 30 Hz cadence
    }
