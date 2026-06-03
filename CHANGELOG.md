@@ -2,6 +2,18 @@
 
 ## 2026-06-03
 
+### Decisión arquitectural — ADR-001: diferir extracción de RGB LED mapping
+
+- **Contexto:** `src/tft_display.cpp` (946 líneas) contiene ~289 líneas de mapping LED RGB (`set_rgb565`, `apply_*_visual_rgb` ×6, `apply_global_alert_rgb`, `update_rgb_led_state`). El ítem "RGB mapping extraíble" del ROADMAP § "Deuda técnica post-auditoría" sugería extraer.
+- **Evaluadas 3 opciones:** (A) mover a `led_control.cpp` — **descartada**, invierte capas (driver dependiendo de UI/sensor_zone/alert_engine); (B) crear módulo nuevo `ui_led_feedback.cpp/.h` con move puro — atractivo pero pre-flash; (C) diferir.
+- **Decisión: opción C — diferir.** Razones:
+  1. El trigger documentado (`tft_display.cpp > 1100 líneas`) **no se ha cumplido**: está en 946.
+  2. El cambio es **hardware-visible**: regresiones del LED RGB el compilador no las detecta; requieren validación en placa.
+  3. NO es un move puro total: `g_is_fahrenheit` se usa con `extern` manual en muchos `.cpp` sin header propio. Extraerlo limpio requiere diseño de contrato, no solo traslado.
+  4. El beneficio es organizativo, no funcional; las deudas de menor riesgo ya están cerradas.
+- **Política futura:** si se extrae más adelante, hacerlo a `ui_led_feedback.cpp/.h` (nombre acordado por code review cruzado Claude+Codex). NO a `led_control.cpp`.
+- **Resultado:** ítem queda **abierto en ROADMAP** con su trigger original (>1100 líneas). ADR-001 documenta la evaluación y la decisión para que no se reabra en futuras sesiones.
+
 ### Refactor — `struct Cache` canónico en `ui_lab_focus` y `ui_graph`
 
 - **`src/ui_lab_focus.cpp`:** 5 variables `static g_last_summary_*` sueltas reemplazadas por `struct FocusCache` con campos nombrados (`sensor`, `valid`, `key`, `unit_mode`, `light_mode`). Instancia `g_cache` static a nivel namespace. La actualización de la cache se concentra al final del frame en un solo bloque etiquetado, siguiendo el contrato Nivel 0 de `docs/TFT_RENDER_RULES.md`.
