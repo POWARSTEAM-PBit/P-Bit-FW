@@ -2,6 +2,13 @@
 
 ## 2026-06-03
 
+### Firmware — BLE scan response con nombre del dispositivo
+
+- **Corregido:** `src/ble.cpp` añade el nombre del dispositivo (`PBIT-XXXX`) al `scan response` mediante `adv->setScanResponse(true)` + `scanData.setName(dev_name)` antes de `adv->start()`. Sin esto, clientes BLE que filtran por `namePrefix=PBIT-` no resolvían el dispositivo aunque el advertising fuera visible. No afecta producción porque BLE sigue factory-off (`ble_en=false`); el fix mejora la detección cuando se activa el gesto secreto en `Sistema` para debug/diagnóstico.
+- **Documentado:** `docs/TECHNICAL.md` § 10 (Modo BLE activo) menciona el `scan response` con `namePrefix=PBIT-`.
+- **Origen del fix:** rama remota antigua `feat/lux-ldr` (commit `2e4e961` de 2025-10-26 por Rafata). Detectado durante auditoría de ramas remotas previo a su limpieza. Sin este port, la rama no podría borrarse sin perder el cambio.
+- Build verificado: `SUCCESS` — RAM 14.9% (`48940` bytes, sin cambio), Flash 72.2% (`946505` bytes, `+1076`).
+
 ### Documentación — Reglas TFT y firmware reforzadas
 
 - **Reforzado:** `docs/TFT_RENDER_RULES.md` con Nivel 0 (cache canónica), sub-sección `sz_set_active`, Nivel 5 (Demo Mode), "Verificación pre-claim" con 10 proofs y "Banderas rojas grep-ables".

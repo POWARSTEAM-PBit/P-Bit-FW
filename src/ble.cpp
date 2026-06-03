@@ -250,6 +250,15 @@ void init_ble() {
     NimBLEAdvertising *adv = NimBLEDevice::getAdvertising();
     adv->addServiceUUID(NEW_SERVICE_UUID);
     adv->addServiceUUID(NimBLEUUID(LEGACY_SERVICE_UUID16));
+
+    // Pone el nombre del dispositivo en el scan response para que escaneos
+    // BLE externos con namePrefix "PBIT-" lo encuentren (sin esto, el cliente
+    // ve el advertising pero no resuelve el nombre por namePrefix).
+    adv->setScanResponse(true);
+    NimBLEAdvertisementData scanData;
+    scanData.setName(dev_name);
+    adv->setScanResponseData(scanData);
+
     adv->start();
 
     DPRINTLN("[BLE] Advertising started");

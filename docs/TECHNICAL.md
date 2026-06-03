@@ -687,6 +687,7 @@ Flujo interno:
 Cuando `ble_en == true`, el dispositivo inicia publicidad BLE con nombre derivado de la MAC:
 
 - formato: `PBIT-XXXX`
+- nombre publicado en `scan response` (`adv->setScanResponse(true)` + `scanData.setName(dev_name)` en `src/ble.cpp`), de modo que escaneos BLE externos con filtro `namePrefix=PBIT-` resuelven el dispositivo correctamente.
 
 ### Servicios y características
 
