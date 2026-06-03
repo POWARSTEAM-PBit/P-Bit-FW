@@ -5,6 +5,12 @@
 extern TFT_eSPI tft;
 
 constexpr uint16_t kIconHighlight = 0xFFFF;
+// kIconCardBg — color de fondo de card (navy oscuro) usado para "borrar"
+// detalles internos de iconos (canal vacío del termómetro, membrana del mic,
+// etc.). Coincide con el bg de la mayoría de cards del firmware.
+// Workaround documentado: los iconos no reciben parámetro bg explícito.
+// Ver docs/ROADMAP.md § deuda técnica: "Magic colors 0x1082".
+constexpr uint16_t kIconCardBg  = 0x1082;
 
 static void impl_temp_detail(int cx, int cy, uint16_t c, uint16_t a, int s);
 
@@ -17,7 +23,7 @@ static void impl_temp(int cx, int cy, uint16_t c, int s) {
     // Monochrome temp icon for small/XL/fallback sizes. Only the Dial detail
     // variant may add a second colour.
     tft.fillRoundRect(cx - 2*s, cy - 7*s, 4*s, 11*s, s, c);    // tubo: cy-7s → cy+4s
-    tft.fillRect     (cx - s,   cy - 6*s, 2*s,  4*s, 0x1082);  // canal vacío: cy-6s → cy-2s
+    tft.fillRect     (cx - s,   cy - 6*s, 2*s,  4*s, kIconCardBg);  // canal vacío: cy-6s → cy-2s
     tft.fillCircle   (cx, cy + 4*s, 3*s + 1, c);                // bulbo: centrado en cx
     tft.drawFastHLine(cx + 2*s, cy - 5*s, (4*s)/3, c);          // tick alto (−1/3)
     tft.drawFastHLine(cx + 2*s, cy - 2*s, (4*s)/3, c);          // tick medio (−1/3)
@@ -62,9 +68,9 @@ static void impl_humidity(int cx, int cy, uint16_t c, int s) {
     // Base width ±3s is tangent to the circle at cy-2s (sqrt(5²-4²)=3), giving a smooth teardrop.
     tft.fillTriangle(cx, cy - 7*s, cx - 3*s, cy - 2*s, cx + 3*s, cy - 2*s, c);
     // Highlight reflejo: punto de brillo en cuadrante superior-izquierdo de la gota.
-    // Usa 0x1082 (bg card) — mismo paradigma que el canal de aire del termometro.
+    // Usa kIconCardBg (bg card) — mismo paradigma que el canal de aire del termometro.
     // Unifica el set: todos los iconos tienen UN elemento de estructura interna.
-    tft.fillCircle(cx - 2*s, cy - s, s, 0x1082);
+    tft.fillCircle(cx - 2*s, cy - s, s, kIconCardBg);
 }
 
 static void impl_light(int cx, int cy, uint16_t c, int s) {
@@ -83,10 +89,10 @@ static void impl_sound(int cx, int cy, uint16_t c, int s) {
     // Cápsula más estrecha que alta (8s×10s, r=3s) para diferenciarse
     // de un círculo; a s=1 da 8×10px — claramente cápsula de micrófono.
     tft.fillRoundRect(cx - 4*s, cy - 7*s, 8*s, 10*s, 3*s, c);   // cápsula mic
-    // Linea de membrana: franja horizontal en 0x1082 — separa visualmente
+    // Linea de membrana: franja horizontal en kIconCardBg — separa visualmente
     // la parte superior de la capsula del diafragma. Mismo paradigma que
     // el canal de aire del termometro: estructura interior en color bg.
-    tft.drawFastHLine(cx - 3*s, cy - 3*s, 6*s, 0x1082);           // membrana mic
+    tft.drawFastHLine(cx - 3*s, cy - 3*s, 6*s, kIconCardBg);           // membrana mic
     tft.fillRect     (cx - s,   cy + 3*s, 2*s, 2*s,  c);         // cuello
     tft.fillRoundRect(cx - 5*s, cy + 5*s, 10*s, 2*s, s, c);      // base
 }
@@ -133,7 +139,7 @@ static void impl_temp_detail(int cx, int cy, uint16_t c, uint16_t a, int s) {
     // El rect de mercurio se dibuja DESPUÉS del bulbo para atravesar su centro visualmente,
     // creando una columna blanca continua desde el tubo hasta el círculo interior del bulbo.
     tft.fillRoundRect(cx - 2*s, cy - 7*s, 4*s, 11*s, s, c);       // tubo: cy-7s → cy+4s
-    tft.fillRect     (cx - s,   cy - 6*s, 2*s,  4*s, 0x1082);    // canal vacío: cy-6s → cy-2s
+    tft.fillRect     (cx - s,   cy - 6*s, 2*s,  4*s, kIconCardBg);    // canal vacío: cy-6s → cy-2s
     tft.fillCircle   (cx, cy + 4*s, 3*s + 1, c);                  // bulbo: centrado en cx
     tft.fillRect     (cx - s,   cy - 2*s, 2*s,  6*s, TFT_WHITE); // mercurio: atraviesa el bulbo (cy-2s → cy+4s)
     tft.fillCircle   (cx,       cy + 4*s, s + 3, TFT_WHITE);      // ensanche del mercurio en el bulbo, centrado en cx

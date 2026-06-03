@@ -32,6 +32,7 @@ extern bool     g_is_fahrenheit;
 namespace {
 
 constexpr uint16_t kBg       = TFT_BLACK;
+constexpr uint16_t kCardBg   = 0x0841;    // interior de card (navy oscuro, ver DESIGN_SYSTEM.md)
 constexpr uint16_t kFrame    = 0x2945;   // dark blue-grey border
 constexpr uint16_t kOrange   = TFT_ORANGE;
 constexpr uint16_t kCyan     = TFT_CYAN;
@@ -110,7 +111,7 @@ static uint16_t sound_state_color(float s) {
 static void draw_card_shell(int col, int row, uint16_t accent) {
     const int x = kCol[col];
     const int y = kRow[row];
-    tft.fillRoundRect(x, y, kCardW, kCardH, LC_MASTER_CARD_RADIUS, 0x0841);
+    tft.fillRoundRect(x, y, kCardW, kCardH, LC_MASTER_CARD_RADIUS, kCardBg);
     tft.drawRoundRect(x, y, kCardW, kCardH, LC_MASTER_CARD_RADIUS, accent);
 }
 
@@ -145,7 +146,7 @@ static void draw_card_chrome(const CardData& d) {
     const int y = kRow[d.row];
 
     // clear full card interior
-    tft.fillRoundRect(x + 1, y + 1, kCardW - 2, kCardH - 2, 3, 0x0841);
+    tft.fillRoundRect(x + 1, y + 1, kCardW - 2, kCardH - 2, 3, kCardBg);
 
     // icon
     const int icon_x = x + 15;
@@ -155,7 +156,7 @@ static void draw_card_chrome(const CardData& d) {
     // tag label
     tft.setTextDatum(TL_DATUM);
     tft.setTextFont(2);
-    tft.setTextColor(TFT_WHITE, 0x0841);
+    tft.setTextColor(TFT_WHITE, kCardBg);
     tft.drawString(d.tag, x + 29, y + 6);
     tft.setTextFont(0);
 
@@ -179,7 +180,7 @@ static void draw_card_value_and_tank(const CardData& d) {
     // targeted clear of value text area only
     tft.setFreeFont(FONT_BODY);
     const int fh = tft.fontHeight();
-    tft.fillRect(value_x, y + 22, value_max_w, fh + 4, 0x0841);
+    tft.fillRect(value_x, y + 22, value_max_w, fh + 4, kCardBg);
 
     // value
     tft.setTextDatum(TL_DATUM);
@@ -192,13 +193,13 @@ static void draw_card_value_and_tank(const CardData& d) {
             || strcmp(d.unit, L(ST_UNIT_C_SHORT)) == 0
             || strcmp(d.unit, L(ST_UNIT_F_SHORT)) == 0;
         snprintf(full, sizeof(full), "%s%s%s", buf, tight_unit ? "" : " ", d.unit);
-        tft.setTextColor(TFT_WHITE, 0x0841);
+        tft.setTextColor(TFT_WHITE, kCardBg);
         if (tft.textWidth(full) > value_max_w) {
             tft.setFreeFont(FONT_SMALL);
         }
         tft.drawString(full, value_x, y + 24);
     } else {
-        tft.setTextColor(TFT_DARKGREY, 0x0841);
+        tft.setTextColor(TFT_DARKGREY, kCardBg);
         tft.drawString("--", value_x, y + 24);
     }
     tft.setTextFont(0);

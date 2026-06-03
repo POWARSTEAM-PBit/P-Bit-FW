@@ -2,6 +2,13 @@
 
 ## 2026-06-03
 
+### Mantenimiento — Limpieza de magic numbers y rename (deuda técnica)
+
+- **Corregido:** `src/ui_icons.cpp` — los 4 literales `0x1082` en código reemplazados por `kIconCardBg` (constante local documentada). Los comentarios explican el workaround de transparencia de icono. Centraliza el valor y reduce duplicación.
+- **Corregido:** `src/ui_lab_home_cards.cpp` — los literales `0x0841` reemplazados por `kCardBg` (constante añadida al bloque de constantes del archivo). Consistencia con el patrón del resto de lab screens.
+- **Renombrado:** `render_global_alert_badge()` → `update_rgb_led_state()` en `src/tft_display.cpp`. El nombre anterior sugería renderizar un badge; en realidad aplica estado LED RGB cada loop. Función `static` interna, sin impacto en la API.
+- Build verificado: `SUCCESS` — RAM 14.9% (`48940` bytes, sin cambio), Flash 72.2% (`946505` bytes, sin cambio).
+
 ### Firmware — BLE scan response con nombre del dispositivo
 
 - **Corregido:** `src/ble.cpp` añade el nombre del dispositivo (`PBIT-XXXX`) al `scan response` mediante `adv->setScanResponse(true)` + `scanData.setName(dev_name)` antes de `adv->start()`. Sin esto, clientes BLE que filtran por `namePrefix=PBIT-` no resolvían el dispositivo aunque el advertising fuera visible. No afecta producción porque BLE sigue factory-off (`ble_en=false`); el fix mejora la detección cuando se activa el gesto secreto en `Sistema` para debug/diagnóstico.

@@ -478,7 +478,7 @@ static void apply_global_alert_rgb(const GlobalAlertSummary& summary) {
     }
 }
 
-static void render_global_alert_badge() {
+static void update_rgb_led_state() {
     const GlobalAlertSummary summary = alert_engine_get_global_summary();
 
     apply_global_alert_rgb(summary);
@@ -935,7 +935,7 @@ void switch_screen(void *param) {
 
         } // fin del if(screen_changed...)
 
-        render_global_alert_badge();
+        update_rgb_led_state();
 
 #ifdef FIRMWARE_DEBUG
         static bool _hwm_reported = false;

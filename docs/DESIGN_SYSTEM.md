@@ -85,7 +85,7 @@ Todos los iconos son procedurales (dibujados con primitivas TFT_eSPI en runtime)
 
 | Icono | Sensor | Estado | Deuda / Notas |
 |-------|--------|--------|---------------|
-| `temp` — Termómetro | TEMP | ✅ **FINAL** | Geometría v17: silueta centrada en `cx` con tubo `fillRoundRect(cx-2s, cy-7s, 4s, 11s)`, canal vacío `fillRect(cx-s, cy-6s, 2s, 4s, bg)`, bulbo `fillCircle(cx, cy+4s, 3s+1)` y ticks `(4s)/3`. `pbit_draw_temp_icon`, `_xl` y el fallback `_xxl(cx, cy, color)` son **monocromos**: no dibujan `TFT_WHITE` ni acentos internos. Solo `pbit_draw_temp_icon_xxl(cx, cy, color, accent)`, usado por Dial, conserva detalle multicolor/mercurio. Deuda técnica no visual: canal usa `0x1082` hardcodeado. |
+| `temp` — Termómetro | TEMP | ✅ **FINAL** | Geometría v17: silueta centrada en `cx` con tubo `fillRoundRect(cx-2s, cy-7s, 4s, 11s)`, canal vacío `fillRect(cx-s, cy-6s, 2s, 4s, bg)`, bulbo `fillCircle(cx, cy+4s, 3s+1)` y ticks `(4s)/3`. `pbit_draw_temp_icon`, `_xl` y el fallback `_xxl(cx, cy, color)` son **monocromos**: no dibujan `TFT_WHITE` ni acentos internos. Solo `pbit_draw_temp_icon_xxl(cx, cy, color, accent)`, usado por Dial, conserva detalle multicolor/mercurio. Canal usa `kIconCardBg` (constante `0x1082` en `src/ui_icons.cpp`). |
 | `humidity` — Gota | HUMEDAD | ✅ Aprobado en código | Silueta sólida sin donut interior. Pendiente validación en hardware |
 | `light` — Sol | LUZ | ✅ Funcional | Rayos diagonales de 1 px pueden ser poco visibles a s=1. Mejorable a 2 px si hardware lo confirma |
 | `sound` — Micrófono | SONIDO | ✅ Funcional | No tocar sin captura de hardware previa. Si base excesiva, reducir solo en hardware |
