@@ -1,6 +1,6 @@
 # Informe completo de UX/UI para dashboards ambientales en pantallas TFT 1.8" 160x128 con ESP32 y TFT_eSPI
 
-Nota de vigencia (2026-05-20): este informe es investigación previa de patrones visuales, no la descripción del firmware actual. La UI vigente se documenta en `ANALISIS_PANTALLAS_EXPERIMENTALES_PBIT.md` y en `visualizer_scenes/README.md`: Home, Clima, Multi, Sonido VU, Sensor Zone, Timer y Sistema; LDR en `0..20000 lux`; i18n ES/CAT/EN centralizado; BLE factory-off oculto.
+Nota de vigencia (2026-06-03): este informe es investigación previa de patrones visuales, no la descripción del firmware actual. La UI vigente se documenta en `docs/TFT_RENDER_RULES.md`, `docs/DESIGN_SYSTEM.md` y `visualizer_scenes/README.md`: Home, Clima, Multi, Sonido VU, Sensor Zone, Timer y Sistema; LDR en `0..8000 lux` (curva empírica v1); i18n ES/CAT/EN centralizado; BLE factory-off oculto.
 
 ## Resumen ejecutivo
 

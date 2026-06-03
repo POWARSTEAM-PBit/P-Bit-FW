@@ -95,7 +95,12 @@ void draw_my_screen(bool screen_changed, bool sensor_data_changed) {
 }
 ```
 
-> **Regla**: si tu pantalla no tiene un `struct *Cache` propio o no actualiza todos sus campos al final, considérala rota aunque "se vea bien" — el flicker aparece en hardware con cargas reales, no en simulador.
+> **Regla — cuándo Cache vs cuándo meta_dirty**:
+>
+> - **Pantallas con ≥2 campos dinámicos independientes** (ej. Focus con valor + barra + sparkline; cards multi-sensor; gauge con ring + label central): OBLIGATORIO `struct *Cache` propio con todos los campos actualizados al final del redraw. Sin Cache, la pantalla está rota aunque "se vea bien" — el flicker aparece en hardware con cargas reales, no en simulador.
+> - **Pantallas con 1 campo + jewel de alerta** (ej. `ui_temp.cpp`, `ui_humidity.cpp`, `ui_ds18.cpp`): aceptable `meta_dirty` (ver Nivel 1) sin struct, siempre que el clear esté acotado al ancho exacto del campo y el chrome se redibuje al final.
+>
+> En ambos casos vale la consigna anti-flicker: nunca repintar chrome cuando solo cambió el valor.
 
 ---
 
@@ -420,66 +425,68 @@ La auditoría identificó que las reglas Nivel 1-5 describen patterns correctame
 
 Estas son las queries que cualquier code review de render debe correr antes de aprobar un cambio. Cada match positivo es "explica o arregla", no un fail automático — pero deja la decisión consciente.
 
+> **Nota PowerShell/cmd:** `src/ui_*.cpp` NO se expande como glob en PowerShell ni en cmd. Usar siempre la forma `src -g 'ui_*.cpp'` para que `ripgrep` (`rg`) resuelva el patrón internamente. En bash/zsh ambas funcionan.
+
 ### `fillScreen` fuera de `screen_changed`
 
-```bash
-rg -n 'tft\.fillScreen\(' src/ui_*.cpp src/sensor_zone.cpp src/tft_display.cpp
+```powershell
+rg -n 'tft\.fillScreen\(' src -g 'ui_*.cpp' -g 'sensor_zone.cpp' -g 'tft_display.cpp'
 ```
 
 Cada hit debe estar dentro de `if (screen_changed)`, `if (force_full_redraw)` o función de boot/transición explícita. Cualquier otro contexto es candidato a flicker.
 
 ### `fillRoundRect` en función dinámica
 
-```bash
-rg -n 'fillRoundRect' src/ui_*.cpp
+```powershell
+rg -n 'fillRoundRect' src -g 'ui_*.cpp'
 ```
 
 Si el match está en una función llamada en cada `sensor_data_changed=true`, está rompiendo Nivel 2 — separar en `draw_*_chrome` / `draw_*_data`.
 
 ### `fillRect` con ancho de pantalla en función dinámica
 
-```bash
-rg -n 'fillRect\(\s*0\s*,' src/ui_*.cpp
-rg -n 'fillRect\([^,]+,\s*[^,]+,\s*(tft\.width\(\)|160|TFT_WIDTH)' src/ui_*.cpp
+```powershell
+rg -n 'fillRect\(\s*0\s*,' src -g 'ui_*.cpp'
+rg -n 'fillRect\([^,]+,\s*[^,]+,\s*(tft\.width\(\)|160|TFT_WIDTH)' src -g 'ui_*.cpp'
 ```
 
 Clear full-width borra elementos vecinos. Si no es bloque `screen_changed`, acota al ancho del campo.
 
 ### `TFT_DARKGREY` para estado "sin sensor" (regla obsoleta)
 
-```bash
-rg -n 'TFT_DARKGREY' src/ui_*.cpp
+```powershell
+rg -n 'TFT_DARKGREY' src -g 'ui_*.cpp'
 ```
 
 La regla actual es `pbit_external_dim_*` (identidad atenuada del sensor), no gris plano. Cada hit debería migrarse a la nueva paleta.
 
 ### `drawHeader` sin guard `sz_is_active`
 
-```bash
-rg -n -B1 -A1 'drawHeader\(' src/ui_lab_*.cpp src/ui_graph.cpp
+```powershell
+rg -n -B1 -A1 'drawHeader\(' src -g 'ui_lab_*.cpp' -g 'ui_graph.cpp'
 ```
 
 Cada `drawHeader(...)` en un sub-renderer de `SENSOR_ZONE_SCREEN` debe ir precedido por `if (!sz_is_active())`.
 
 ### Cache no declarada o no actualizada
 
-```bash
-rg -n 'struct.*Cache' src/ui_*.cpp
+```powershell
+rg -n 'struct.*Cache' src -g 'ui_*.cpp'
 ```
 
-Cada pantalla con datos dinámicos debe tener un struct cache. Si no aparece, falta Nivel 0.
+Cada pantalla con datos dinámicos debe tener un struct cache **o** un bloque `meta_dirty` propio (ver Nivel 0). Si no aparece ninguno de los dos, falta Nivel 0.
 
 ### Sprite sin lazy-init flag
 
-```bash
-rg -n 'createSprite\(' src/ui_*.cpp
+```powershell
+rg -n 'createSprite\(' src -g 'ui_*.cpp'
 ```
 
 Cada `createSprite` debe estar guardada por un flag `g_*_ready` o equivalente. Crear sprite cada frame fragmenta heap y causa stutter.
 
 ### Funciones unused (candidatas a eliminar)
 
-```bash
+```powershell
 # compilar con flag de warnings y filtrar
 py -m platformio run -e esp32dev 2>&1 | rg 'Wunused-function|Wunused-variable'
 ```
@@ -487,4 +494,3 @@ py -m platformio run -e esp32dev 2>&1 | rg 'Wunused-function|Wunused-variable'
 Cualquier `[-Wunused-function]` en `ui_*.cpp` o `sensor_zone.cpp` es código muerto candidato a borrar en cleanup.
 
 > **Cadencia recomendada**: correr este bloque de greps al cierre de cada PR que toque `src/ui_*` o `src/tft_display.cpp`. Anotar en el reporte cuántos hits aparecieron y cuáles se decidió tolerar.
-

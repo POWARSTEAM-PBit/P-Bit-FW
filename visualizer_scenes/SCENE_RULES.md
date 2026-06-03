@@ -40,7 +40,7 @@ Cada archivo debe empezar con comentarios breves:
 - No inventar layouts nuevos.
 - Mantener nombres de escena coherentes con los README de cada carpeta.
 - Para Home, cards, Sensor Zone, dials y VU, reflejar la separación shell/data y los clears acotados aunque el snippet sea estático.
-- Para luz, usar lux `0..20000` como escala de usuario; raw ADC `0..4095` solo en escenas de calibración/debug.
+- Para luz, usar lux `0..8000` como escala de usuario; raw ADC `0..4095` solo en escenas de calibración/debug.
 - Para i18n, usar el texto de `LangKey` ES/CAT/EN o anotar qué idioma simula la escena.
 - BLE debe marcarse como `hidden-debug`; está factory-off y fuera del carrusel.
 

@@ -1,6 +1,6 @@
 # P-Bit — Descripción del Proyecto
 
-Actualizado: 2026-05-24
+Actualizado: 2026-06-03
 
 ---
 
@@ -34,8 +34,8 @@ El P-Bit existe para que niños, docentes y educadores puedan:
 |---|---|
 | MCU | ESP32 (módulo Dev) |
 | Framework | Arduino via PlatformIO |
-| RAM usada | ~14.7 % (48 KB de 328 KB) |
-| Flash usada | 71.5 % (936653 bytes de 1310720) |
+| RAM usada | ~14.9 % (48940 bytes de 327680) |
+| Flash usada | 72.1 % (945429 bytes de 1310720) |
 
 ### Pantalla
 

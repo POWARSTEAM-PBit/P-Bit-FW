@@ -4,16 +4,25 @@
 
 ### Documentación — Reglas TFT y firmware reforzadas
 
-- **Reforzado:** `docs/TFT_RENDER_RULES.md` (258 → 490 líneas) con Nivel 0 (cache canónica), sub-sección `sz_set_active`, Nivel 5 (Demo Mode), "Verificación pre-claim" con 10 proofs y "Banderas rojas grep-ables".
-- **Reforzado:** `docs/TECHNICAL.md` (987 → 1097 líneas) con Apéndice A: stack real (Arduino+PlatformIO vs ESP-IDF), 9 banderas rojas grep firmware, 8 proofs pre-claim, GPIO traps.
+- **Reforzado:** `docs/TFT_RENDER_RULES.md` con Nivel 0 (cache canónica), sub-sección `sz_set_active`, Nivel 5 (Demo Mode), "Verificación pre-claim" con 10 proofs y "Banderas rojas grep-ables".
+- **Reforzado:** `docs/TECHNICAL.md` con Apéndice A: stack real (Arduino+PlatformIO vs ESP-IDF), 9 banderas rojas grep firmware, 8 proofs pre-claim, GPIO traps.
 
 ### Mantenimiento — Limpieza de fonts y archivos basura
 
 - **Limpiado:** `include/fonts.h` reducido a las 6 fuentes que realmente se compilan (`Roboto_Regular7pt8b`, `Roboto_Light6pt8b`, `Roboto_Medium10pt8b`, `IBMPlexSans_Regular9pt8b`, `IBMPlexMono_Regular12pt8b`, `IBMPlexMono_Regular24pt8b`) + los alias `FONT_*`. Las ~30 declaraciones `extern` muertas se eliminaron; los archivos `.h` quedan en `include/` como librería disponible para reactivar.
-- **Eliminado del tracking:** `listado_completo.txt`, `platformio.zip`, `logs/xvba_debug.log`, `preview_probe_icon.html` (ya estaban en .gitignore).
+- **Eliminado del tracking:** `platformio.zip` y `logs/xvba_debug.log` (ya cubiertos por reglas existentes en `.gitignore`); `listado_completo.txt` y `preview_probe_icon.html` (entradas añadidas a `.gitignore` en este commit para evitar re-tracking).
 - **Eliminado del repo:** `wokwi.toml`, `diagram.json`, carpeta `archive/`.
 - **Movido:** `tools/layout_validation_snippet.cpp` → `docs/`.
 - Build verificado: `SUCCESS` — RAM 14.9% (`48940` bytes), Flash 72.1% (`945429` bytes).
+
+### Mantenimiento — Corrección documental post-limpieza
+
+- **Corregido:** referencias rotas tras borrar `archive/` — `AGENTS.md` (línea histórica eliminada) y `visualizer_scenes/09_lab_graphs/informe_ux_ui_pbit_tft.md` (apunta ahora a `docs/TFT_RENDER_RULES.md` y `docs/DESIGN_SYSTEM.md`).
+- **Actualizado:** `docs/PROJECT.md`, `docs/TECHNICAL.md`, `docs/PRODUCTION_CHECKLIST.md` y `docs/PRODUCTION_RELEASE.md` con tamaños de build vigentes (`48940`/`945429`, fecha 2026-06-03).
+- **Actualizado:** documentación del visualizador para el rango LDR vigente `0..8000 lux` con curva empírica v1.
+- **Mejorado:** todos los comandos `rg` de `docs/TFT_RENDER_RULES.md` y `docs/TECHNICAL.md` reescritos con `src -g 'ui_*.cpp'` para que funcionen en PowerShell/cmd sin requerir expansión de glob por shell. Añadida nota explicativa en cada bloque.
+- **Matizado:** Nivel 0 de `docs/TFT_RENDER_RULES.md` aclara cuándo es obligatorio `struct *Cache` (≥2 campos dinámicos) y cuándo `meta_dirty` es aceptable (1 campo + jewel), citando `ui_temp.cpp`/`ui_humidity.cpp`/`ui_ds18.cpp` como ejemplos válidos.
+- **Higiene:** quitada blank line al EOF en `docs/TECHNICAL.md` y `docs/TFT_RENDER_RULES.md` (limpia warnings de `git diff --check`).
 
 ## 2026-05-29
 

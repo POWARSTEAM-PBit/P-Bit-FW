@@ -1,6 +1,6 @@
 # Checklist de Producción P-Bit
 
-Actualizado: 2026-05-28
+Actualizado: 2026-06-03
 
 Usar esta lista antes de entregar una build o una unidad flasheada.
 
@@ -9,7 +9,7 @@ Estado de esta revisión: build y auditoría estática completados; Demo Mode y 
 ## 1. Configuración de build
 
 - [x] `py -m platformio run -e esp32dev` compila sin errores.
-- [x] Resultado de build registrado: RAM `14.7%` (`48156`/`327680`) y Flash `71.5%` (`936653`/`1310720`).
+- [x] Resultado de build registrado: RAM `14.9%` (`48940`/`327680`) y Flash `72.1%` (`945429`/`1310720`).
 - [x] `include/config.h`: `PBIT_ENABLE_GRAPH_LAB=1` para el carrusel actual con `Home/Clima/Multi/Sonido VU` y `SENSOR_ZONE_SCREEN`.
 - [x] `PBIT_ENABLE_SERIAL_PLOTTER=0` para producción.
 - [x] `FIRMWARE_DEBUG` sigue comentado.
@@ -71,5 +71,5 @@ Estado de esta revisión: build y auditoría estática completados; Demo Mode y 
 - [x] No incluir `.pio/`, logs locales, `.zip`, `.bin`, `.elf`, `.map`, `.exe` ni artefactos temporales nuevos en esta actualización documental.
 - [x] Revisar `git status --short` antes de cerrar la build.
 - [x] Registrar cambios de documentación en `CHANGELOG.md`.
-- [x] `logs/xvba_debug.log` identificado como no pertinente para este commit salvo decisión del usuario.
+- [x] `logs/xvba_debug.log` queda fuera del tracking e ignorado como log local.
 - [ ] Si se genera un paquete de release, separar binarios/ejecutables grandes de la documentación cuando se haga la pasada de higiene planificada.

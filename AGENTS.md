@@ -32,8 +32,6 @@ Guía breve para agentes que trabajen en este repo P-Bit.
 - Visualizador: `visualizer_scenes/README.md`, `visualizer_scenes/SCENE_RULES.md` y escenas por carpeta.
 - Cambios relevantes deben quedar en `CHANGELOG.md`.
 
-Archivos archivados (no leer para decisiones actuales): `archive/`.
-
 ## Qué No Tocar Sin Permiso
 
 - No editar código si el usuario pidió solo documentación.

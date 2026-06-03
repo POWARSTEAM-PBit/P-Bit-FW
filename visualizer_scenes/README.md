@@ -25,7 +25,7 @@ Reglas:
 - los snippets deben ser planos, pensados para el visualizador: sin `setup()`, sin `loop()`, sin `#include`
 - si una escena es una variante del firmware real, indicarlo en un comentario al inicio
 - los textos traducibles deben referenciar la `LangKey` equivalente o indicar el idioma simulado
-- LDR se documenta como `0..20000 lux`; raw ADC `0..4095` queda para calibración/debug
+- LDR se documenta como `0..8000 lux` con curva empírica v1; raw ADC `0..4095` queda para calibración/debug
 - BLE es factory-off y oculto; no tratar sus escenas como flujo visible normal
 
 Convención recomendada:

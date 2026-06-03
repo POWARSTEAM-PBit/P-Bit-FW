@@ -1,6 +1,6 @@
 # Manual Técnico del P-Bit
 
-Actualizado: 2026-05-28
+Actualizado: 2026-06-03
 
 Este documento describe el estado técnico actual del P-Bit a partir del firmware y la configuración presentes en este repositorio. Está pensado como base de entrenamiento para desarrollo, integración, soporte, mantenimiento y despliegue educativo.
 
@@ -47,7 +47,7 @@ Estado de revisión de producción/i18n:
 
 - build local verificado con `py -m platformio run -e esp32dev`
 - resultado PlatformIO: `SUCCESS`
-- memoria reportada por build: RAM `14.9%` (`48900` bytes de `327680`) y Flash `71.8%` (`941497` bytes de `1310720`)
+- memoria reportada por build: RAM `14.9%` (`48940` bytes de `327680`) y Flash `72.1%` (`945429` bytes de `1310720`)
 - revisión estática de i18n, BLE factory-off, Sensor Zone y fixes anti-flicker completada
 - ghosting/flicker validado como resuelto por ahora; mantener checks de regresión en ST7735 real
 - Modo demo validado en entrada desde logos, entrada desde `Home`, splash y salida con interacción; coreografía smooth implementada en firmware y pendiente de validación visual final en hardware
@@ -1012,30 +1012,32 @@ Cualquier patrón ESP-IDF puro (idf.py, sdkconfig, esp_ota_ops, partition CSV cu
 
 ### A.2 Banderas rojas grep-ables (firmware no-render)
 
-```bash
+> **Nota PowerShell/cmd:** `src/ui_*.cpp` NO se expande como glob en PowerShell ni en cmd. Usar siempre `src -g 'ui_*.cpp'` para que `rg` resuelva el patrón internamente. En bash/zsh ambas formas funcionan.
+
+```powershell
 # 1. Bloqueo prolongado en tareas FreeRTOS — sospechoso si está en UI/sensor task
-rg -n 'delay\(\s*[0-9]{4,}\s*\)' src/        # delay >= 1000 ms
+rg -n 'delay\(\s*[0-9]{4,}\s*\)' src         # delay >= 1000 ms
 
 # 2. NVS write en ISR o callback síncrono del encoder (rotary callbacks corren en task context, pero verificar)
 rg -n -B2 'prefs\.put|nvs_set' src/rotary.cpp src/io.cpp
 
 # 3. String dinámico en hot path (fragmentación de heap)
-rg -n 'String\s+[a-z_]+\s*=' src/ui_*.cpp src/io.cpp
+rg -n 'String\s+[a-z_]+\s*=' src -g 'ui_*.cpp' -g 'io.cpp'
 
 # 4. malloc/new en hot path
-rg -n '\b(malloc|new\s+\w)' src/ui_*.cpp src/io.cpp
+rg -n '\b(malloc|new\s+\w)' src -g 'ui_*.cpp' -g 'io.cpp'
 
 # 5. portMUX/portENTER fuera de readings_mux conocido
-rg -n 'portENTER_CRITICAL|portEXIT_CRITICAL|taskENTER_CRITICAL' src/
+rg -n 'portENTER_CRITICAL|portEXIT_CRITICAL|taskENTER_CRITICAL' src
 
 # 6. Funciones marcadas IRAM_ATTR (deben ser cortas; bloqueo es disaster)
-rg -n 'IRAM_ATTR' src/ include/
+rg -n 'IRAM_ATTR' src include
 
 # 7. Lecturas ADC sin atenuación 11dB (rango incorrecto)
-rg -n 'analogSetPinAttenuation|analogReadResolution|adcAttachPin' src/
+rg -n 'analogSetPinAttenuation|analogReadResolution|adcAttachPin' src
 
 # 8. esp_sleep_* fuera del path de reposo
-rg -n 'esp_sleep_' src/
+rg -n 'esp_sleep_' src
 
 # 9. -D flags activos que no deben llegar a producción
 rg -n '^(\s*)-D(FIRMWARE_DEBUG|PBIT_ENABLE_SERIAL_PLOTTER)' platformio.ini
@@ -1094,4 +1096,3 @@ Antes de cerrar tarea de firmware no-render, los 8 proofs siguientes:
 - Cualquier cambio que afecte el contrato del menú raíz del Sistema (`Bip` / `Alarmas` / `Reposo` / `Idioma` / `Reset` / `Salir`).
 
 > Esta lista es deliberadamente corta. Para todo lo demás, las reglas del firmware son las que estén explícitas en este documento y en `AGENTS.md`. Cuando un pattern no esté documentado y la decisión sea ambigua, pregunta antes de inventarte una regla.
-

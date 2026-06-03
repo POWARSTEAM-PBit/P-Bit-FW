@@ -37,7 +37,7 @@ Escenas que faltan para cubrir la UI actual:
 - Sensor Zone valor (`SZ_VIZ_VALOR`) para al menos Temp/Luz/Sonido
 - Sensor Zone dial (`SZ_VIZ_GAUGE`) para al menos Temp/Luz/Sonido
 - Sensor Zone card (`SZ_VIZ_CARD`) para los seis sensores
-- Graph para Luz con escala `0..20000 lux`
+- Graph para Luz con escala `0..8000 lux`
 
 Notas:
 

@@ -1,6 +1,6 @@
 # Production Release P-Bit
 
-Actualizado: 2026-05-28
+Actualizado: 2026-06-03
 
 ## Build Local
 
@@ -12,11 +12,11 @@ py -m platformio run -e esp32dev
 
 Última verificación local de esta revisión:
 
-- Fecha: 2026-05-26
+- Fecha: 2026-06-03
 - Comando: `py -m platformio run -e esp32dev`
 - Resultado: `SUCCESS`
-- RAM: `14.7%` (`48132` bytes de `327680`)
-- Flash: `71.5%` (`936653` bytes de `1310720`)
+- RAM: `14.9%` (`48940` bytes de `327680`)
+- Flash: `72.1%` (`945429` bytes de `1310720`)
 
 Artefactos generados en `.pio/build/esp32dev/`:
 
@@ -79,7 +79,7 @@ Para GitHub Releases o paquete externo, incluir:
 
 No versionar nuevos `.bin`, `.elf`, `.map`, `.exe`, logs o temporales dentro del repo activo.
 
-`logs/xvba_debug.log` aparece como log local modificado en el árbol de trabajo; no es pertinente para el commit de documentación/release salvo decisión explícita del usuario.
+`logs/xvba_debug.log` queda fuera del tracking e ignorado como log local; no incluirlo en paquetes ni commits de release.
 
 ## Validación De Unidad
 

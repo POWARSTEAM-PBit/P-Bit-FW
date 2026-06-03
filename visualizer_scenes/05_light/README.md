@@ -26,6 +26,6 @@ Notas de estado:
 
 - `LIGHT_SCREEN` ya no es parada directa del carrusel visible.
 - Se abre como menú/configuración desde Sensor Zone con `SZ_LIGHT` mediante pulsación larga.
-- La magnitud de usuario es lux calibrado `0..20000`; el valor raw ADC `0..4095` es solo calibración/debug.
-- Home, Sensor Zone valor, dial, card y gráfica deben usar escala `0..20000 lux`.
+- La magnitud de usuario es lux calibrado `0..8000`; el valor raw ADC `0..4095` es solo calibración/debug.
+- Home, Sensor Zone valor, dial, card y gráfica deben usar escala `0..8000 lux`.
 - Mantener la nota de producto: el RGB se apaga en luz para no contaminar la lectura LDR.
