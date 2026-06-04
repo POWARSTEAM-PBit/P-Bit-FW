@@ -24,9 +24,9 @@ Tras la sesión, para volver a producción: reflashea con `py -m platformio run 
 - Unidad probada (serial/etiqueta): `___________`
 - Cable USB usado (marca/calidad): `___________`
 - Fuente de alimentación (PC USB / cargador X mA): `___________`
-- Hash del commit flasheado (`git log -1 --oneline`): `___________`
-- Build flasheado: RAM `_____` bytes, Flash `_____` bytes
-- Idioma seleccionado en boot: `___________`
+- Hash del commit flasheado (`git log -1 --oneline`): `c743fdd feat: add debug build environment esp32dev_debug with stack HWM instrumentation`
+- Build flasheado: RAM `48964` bytes, Flash `947861` bytes
+- Idioma seleccionado en boot: `Español por defecto; selector apareció en primer boot post-flash, pero se omitió tras reset sin confirmación`
 
 ---
 
@@ -54,10 +54,10 @@ py -m platformio device monitor --baud 115200 --port COMx | Tee-Object -FilePath
 
 Sustituye `COMx` por tu puerto real. Verás el output en pantalla y simultáneamente se guarda en el `.log`. Mientras esto corre, puedes usar VSCode para todo lo demás.
 
-- [ ] Puerto COM identificado: `___________`
-- [ ] Comando ejecutado en terminal separado de VSCode.
-- [ ] Verificado primer arranque del ESP32 visible en Serial (`rst:0x..` y boot trace).
-- [ ] Reset reason del primer boot observado: `___________`
+- [x] Puerto COM identificado: `COM8 — USB-SERIAL CH340`
+- [x] Comando ejecutado en terminal separado de VSCode.
+- [x] Verificado primer arranque del ESP32 visible en Serial (`rst:0x..` y boot trace).
+- [x] Reset reason del primer boot observado: `rst:0x1 (POWERON_RESET)` / firmware `Reset reason: 1`
 
 ### Al terminar la sesión
 
@@ -89,7 +89,7 @@ Procedimiento: borrar NVS si fuese necesario (flashear de nuevo) y arrancar en f
 - [ ] Tras confirmar, la UI principal aparece con el idioma elegido.
 - [ ] Reiniciar y comprobar que el idioma queda persistido (no vuelve a salir el selector).
 
-Anomalías observadas: `___________`
+Anomalías observadas: `2026-06-04: el selector de idioma apareció tras flashear, pero al reiniciar sin confirmar idioma ya no volvió a aparecer; la UI continuó en Inicio con idioma español por defecto. Posible edge case: fw_stamp queda guardado antes de confirmar idioma. Diagnosticar al final.`
 
 ### 1.2 Carrusel completo
 
@@ -97,22 +97,22 @@ Anomalías observadas: `___________`
 > `HOME → CLIMA → MULTI → SONIDO VU → TEMPERATURA → HUMEDAD → LUZ → SONIDO → SUELO → TERMÓMETRO → TIMER → SISTEMA`
 > 12 posiciones, circular.
 
-- [ ] HOME se ve correctamente (cards 2×2 con T/H/L/S).
-- [ ] CLIMA se ve correctamente (LAB_DUAL_TH, temp + hum).
-- [ ] MULTI se ve correctamente (LAB_HOME_CARDS o equivalente).
-- [ ] SONIDO VU se ve correctamente (animación reactiva al micro).
-- [ ] TEMPERATURA visible, datos plausibles.
-- [ ] HUMEDAD visible, datos plausibles.
-- [ ] LUZ visible, datos plausibles.
-- [ ] SONIDO visible, datos plausibles.
-- [ ] SUELO visible (con sensor → datos; sin sensor → `Revisa IO35`).
-- [ ] TERMÓMETRO visible (con sonda → datos; sin sonda → `Revisa IO33`).
-- [ ] TIMER visible.
-- [ ] SISTEMA visible.
-- [ ] El carrusel da la vuelta completa (de SISTEMA → HOME).
+- [ ] HOME se ve correctamente (cards 2×2 con T/H/L/S). **Anomalía:** valor de lux con más de 3 dígitos se monta sobre barra/card y, al volver a menos dígitos, deja fantasmas.
+- [x] CLIMA se ve correctamente (LAB_DUAL_TH, temp + hum).
+- [x] MULTI/TEMP LAB se ve correctamente. Nota visual menor: en card de DS18B20 desconectado, subir `--` y `Revisa IO33` aprox. `Y-3 px`.
+- [x] SONIDO VU se ve correctamente (animación reactiva al micro). Nota: parpadeo leve con valores muy altos, posiblemente propio de la animación VU.
+- [x] TEMPERATURA visible, datos plausibles. Vista con card superior y gráfica inferior se ve bien.
+- [x] HUMEDAD visible, datos plausibles. Modos por pulsación: `Humedad → Hum Lab → Hum gráfica → Hum dial → Hum tarjeta → Humedad`.
+- [x] LUZ visible, datos plausibles. Pantalla dedicada se ve bien.
+- [x] SONIDO visible, datos plausibles.
+- [x] SUELO visible sin sensor → `Revisa IO35` con estado atenuado/desaturado.
+- [x] TERMÓMETRO visible sin sonda → `Revisa IO33`; se ve bien, con ajuste visual pendiente ya anotado.
+- [x] TIMER visible.
+- [x] SISTEMA visible. Se observan Idioma, uptime/tiempo corriendo, ID, Bip OFF y Alarmas OFF.
+- [x] El carrusel da la vuelta completa (de SISTEMA → HOME).
 - [ ] Ningún texto se sale del borde de la pantalla en ningún idioma probado.
 
-Anomalías observadas: `___________`
+Anomalías observadas: `HOME/Luz: valor lux de 4+ dígitos invade barra/card y no limpia completamente al reducir dígitos; probable clear dinámico insuficiente o ancho reservado demasiado pequeño.`
 
 ### 1.3 Modos de cada sensor (SENSOR_ZONE_SCREEN)
 
@@ -121,20 +121,20 @@ Anomalías observadas: `___________`
 
 Para cada sensor (TEMP, HUM, LUZ, SONIDO, SUELO, DS18):
 
-- [ ] Pulsación corta cambia de modo. Modos cubiertos por sensor: `___________`
+- [x] Pulsación corta cambia de modo. Modos cubiertos por sensor: `HUMEDAD: Humedad → Hum Lab → Hum gráfica → Hum dial → Hum tarjeta → Humedad`; `LDR/LUZ: rota por todas las pantallas/modos`; `SONIDO: rota por sus pantallas/modos correctamente`; `SONIDO LAB: cambia de pantalla/modo al presionar`
 - [ ] Pulsación larga abre el menú clásico del sensor.
-- [ ] Cada modo redibuja sin flicker visible.
+- [x] Cada modo redibuja sin flicker visible. Humedad probada con soplido al sensor: valores cambian bien, sin flicker/fantasmas.
 
 Sensor con problema de flicker (si alguno): `___________`
 
 ### 1.4 Timer
 
-- [ ] Pulsación corta entra en modo cronómetro o cuenta atrás (según diseño).
+- [x] Pulsación corta entra en modo cronómetro o cuenta atrás (según diseño).
 - [ ] Pulsación larga abre menú del timer.
-- [ ] El dígito se actualiza sin flicker.
-- [ ] Reset del timer funciona.
+- [x] El dígito se actualiza sin flicker.
+- [x] Reset del timer funciona.
 
-Anomalías observadas: `___________`
+Anomalías observadas: `Mejora visual menor: en estado LISTO, subir el texto aprox. 2 px (Y-2). Funcional OK: inicia, cambia color/estado, pausa con tonos rojizos e instrucciones actualizadas, continúa, se detiene y pulsación larga reinicia.`
 
 ---
 
@@ -142,10 +142,10 @@ Anomalías observadas: `___________`
 
 ### 2.1 DHT11 (temperatura ambiente + humedad)
 
-- [ ] Temperatura ambiente plausible (rango razonable según habitación).
-- [ ] Humedad ambiente plausible.
-- [ ] Soplar aire caliente: temperatura sube en pocos segundos.
-- [ ] Soplar aire húmedo: humedad sube en pocos segundos.
+- [x] Temperatura ambiente plausible (rango razonable según habitación).
+- [x] Humedad ambiente plausible.
+- [x] Soplar aire caliente: temperatura sube en pocos segundos.
+- [x] Soplar aire húmedo: humedad sube en pocos segundos.
 - [ ] Si DHT11 está desconectado: la pantalla muestra estado de fallo o valores `---`.
 
 Lectura en condiciones controladas (si tienes referencia):
@@ -156,11 +156,11 @@ Lectura en condiciones controladas (si tienes referencia):
 
 ### 2.2 LDR (luz)
 
-- [ ] Modo `lux` muestra valores en rango `0..8000`.
+- [x] Modo `lux` muestra valores en rango `0..8000`.
 - [ ] Modo `FC` muestra valores derivados (`lux / 10.764`).
 - [ ] Modo `raw` muestra valores ADC.
-- [ ] Tapar el LDR baja la lectura visiblemente.
-- [ ] Lámpara directa sube la lectura visiblemente.
+- [x] Tapar el LDR baja la lectura visiblemente.
+- [x] Lámpara directa sube la lectura visiblemente.
 - [ ] **RGB LED apagado en LIGHT_SCREEN** (no debe iluminarse — distorsiona la lectura del LDR).
 
 Lectura comparada con luxómetro (si tienes):
@@ -170,46 +170,46 @@ Lectura comparada con luxómetro (si tienes):
 
 ### 2.3 Micrófono
 
-- [ ] `SONIDO VU` reacciona al ruido del entorno.
-- [ ] Aplaudir cerca: barra/animación reacciona claramente.
+- [x] `SONIDO VU` reacciona al ruido del entorno.
+- [x] Aplaudir/soplar cerca: barra/animación reacciona claramente.
 - [ ] Silencio en habitación: barra/animación cae al mínimo.
 - [ ] Modo SONIDO clásico también reacciona.
 
-Anomalías observadas: `___________`
+Anomalías observadas: `Micrófono funcional pero parece poco sensible/mal calibrado: reacciona más claramente al soplar que al hablar. Evaluar opción de calibrar "silencio" y "ruido" o ajustar thresholds/gain.`
 
 ### 2.4 Sensor de Suelo (IO35)
 
 Procedimiento: probar con sensor desconectado, después conectarlo en caliente.
 
-- [ ] Sin sensor conectado: pantalla muestra `Revisa IO35` con paleta atenuada (no gris plano).
-- [ ] Conectar sensor en caliente: aparece **splash verde** `CONECTADO / Sensor Suelo / IO35` durante ~1.5 s.
-- [ ] Tras el splash, la pantalla muestra valor de humedad de suelo.
-- [ ] Desconectar el sensor en caliente: aparece **splash rojo** `DESCONECTADO / Sensor Suelo / IO35` durante ~1.5 s.
+- [x] Sin sensor conectado: pantalla muestra `Revisa IO35` con paleta atenuada (no gris plano).
+- [x] Conectar sensor en caliente: aparece **splash verde** `CONECTADO / Sensor Suelo / IO35` durante ~1.5 s.
+- [x] Tras el splash, la pantalla muestra valor de humedad de suelo.
+- [x] Desconectar el sensor en caliente: aparece **splash rojo** `DESCONECTADO / Sensor Suelo / IO35` durante ~1.5 s.
 - [ ] Tras el splash, vuelve a estado `Revisa IO35`.
 - [ ] Splash NO aparece en boot (solo en cambios de estado posteriores).
 - [ ] Splash NO aparece durante Demo Mode.
 
 Calibración:
-- [ ] Menú largo desde sensor SUELO abre menú de calibración.
+- [x] Menú largo desde sensor SUELO abre menú de calibración.
 - [ ] Calibración seco (sensor al aire) registra valor.
 - [ ] Calibración mojado (sensor en agua) registra valor.
 - [ ] Umbrales `seco / óptimo / húmedo` editables y persistentes.
 
-Anomalías observadas: `___________`
+Anomalías observadas: `Ajuste visual solicitado para estado desconectado en Suelo y DS18B20: card superior solo "Sin Sensor", con color más vivo/entonado a la paleta y Y+2; card inferior solo "Revisa IOxx" y Y-4 para centrar mejor. Valores de suelo se ven plausibles y correctos. BUG render/UX bloqueante: pantalla/menú de calibración de Suelo genera mucho flicker cada vez que cambian valores, y cambian constantemente; afecta todo el cuerpo salvo título/línea. Al cargar el menú de configuración/calibración no dibuja fondo propio, queda el fondo de la pantalla del sensor; otros menús sí tienen fondo. No hay salida/cancelación segura sin guardar: para salir hay que seleccionar obligatoriamente el valor a calibrar y luego el siguiente, quedando guardados; Pablo tuvo que resetear para no guardar. Propuesta: pulsación larga vuelve al menú anterior conservando calibración previa para evitar reset si se entra o calibra mal. Pendiente posterior: calibración general con raw al aire y sumergido en agua en ~5 P-Bits para promediar defaults de firmware.`
 
 ### 2.5 Termómetro DS18B20 (IO33)
 
 Procedimiento: probar con sonda desconectada, después conectarla en caliente.
 
-- [ ] Sin sonda conectada: pantalla muestra `Revisa IO33` con paleta atenuada.
-- [ ] Conectar sonda en caliente: aparece **splash verde** `CONECTADO / Sensor DS18B20 / IO33` durante ~1.5 s.
-- [ ] Tras el splash, muestra temperatura.
-- [ ] Desconectar sonda: aparece **splash rojo** `DESCONECTADO / Sensor DS18B20 / IO33` durante ~1.5 s.
-- [ ] Tras el splash, vuelve a `Revisa IO33`.
+- [x] Sin sonda conectada: pantalla muestra `Revisa IO33` con paleta atenuada.
+- [x] Conectar sonda en caliente: aparece **splash verde** `CONECTADO / Sensor DS18B20 / IO33` durante ~1.5 s.
+- [x] Tras conectar sonda, muestra temperatura correctamente.
+- [x] Desconectar sonda: aparece **splash rojo** `DESCONECTADO / Sensor DS18B20 / IO33` durante ~1.5 s.
+- [x] Tras el splash, vuelve a `Revisa IO33`.
 - [ ] Splash NO aparece en boot.
-- [ ] Lectura plausible (T ambiente o T agua tibia según prueba).
+- [x] Lectura plausible (T ambiente o T agua tibia según prueba). Conecta bien y muestra splash verde.
 
-Anomalías observadas: `___________`
+Anomalías observadas: `Mejora visual menor: en estado DS18B20 desconectado dentro de Temp Lab, subir "--" y "Revisa IO33" aprox. 3 px. Con sonda conectada, visual y lectura OK.`
 
 ### 2.6 Alertas visuales/RGB/Audio
 
@@ -233,46 +233,51 @@ Anomalías observadas: `___________`
 > `Bip` = beeps de UI (rotary, navegación, confirmaciones).
 > `Alarmas` = audio de alertas + timer.
 
-- [ ] `Sistema > Bip OFF` silencia beeps de UI (rotary, navegación).
-- [ ] Con `Bip OFF`, `Alarmas ON`: alertas siguen sonando.
-- [ ] Con `Bip ON`, `Alarmas OFF`: navegación sigue beep, pero alertas y timer mudos.
+- [x] `Sistema > Bip OFF` silencia beeps de UI (rotary, navegación). Observado inicialmente OFF; pulsar en Sistema activa Bip correctamente y volver a pulsar lo apaga.
+- [ ] Con `Bip OFF`, `Alarmas ON`: alertas siguen sonando. Visualmente `Alarmas` queda ON al activarla.
+- [x] Con `Bip ON`, `Alarmas OFF`: navegación sigue beep, pero alertas y timer mudos. Bip toggle funciona ON/OFF y persiste tras reset.
 - [ ] Visual de alerta (RGB + jewel) **siempre activo** independiente de `Alarmas`.
+
+Anomalías/observaciones: `Bip y Alarmas aparecieron OFF tras flashear debug; Pablo no recuerda haberlos apagado. Luego Bip y Alarmas se activaron y persistieron tras reset, por lo que NVS de estos toggles funciona. Revisar al final si OFF inicial era default intencional o efecto del reset por build-hash.`
 
 ### 3.2 Unidad Celsius / Fahrenheit
 
-- [ ] Cambiar a Fahrenheit afecta TEMPERATURA y TERMÓMETRO simultáneamente.
-- [ ] Reiniciar el P-Bit: la unidad persiste (NVS `sys_unit_f`).
-- [ ] Volver a Celsius funciona igual y persiste.
+- [x] Cambiar a Fahrenheit afecta TEMPERATURA y TERMÓMETRO simultáneamente, y se propaga a otras pantallas donde aparece temperatura.
+- [x] Reiniciar el P-Bit: la unidad persiste (NVS `sys_unit_f`).
+- [x] Volver a Celsius funciona igual y persiste.
 
 ### 3.3 Reposo
 
-- [ ] Sin tocar el encoder durante el tiempo configurado, la pantalla entra en modo reposo (mensaje `ZZZ` visible o pantalla apagada).
-- [ ] Tocar el encoder despierta el P-Bit a la pantalla previa.
-- [ ] Demo Mode NO entra en reposo mientras está activo.
+- [x] Sin tocar el encoder durante el tiempo configurado, la pantalla entra en modo reposo (mensaje `ZZZ` visible o pantalla apagada). Serial: `[Power] Entering IDLE mode.`
+- [x] Tocar el encoder despierta el P-Bit a la pantalla previa. Serial: `[Power] Leaving IDLE mode.`
+- [x] Demo Mode NO entra en reposo mientras está activo. Probado con sleep configurado a 30 s durante varios minutos.
 
 ### 3.4 Idioma
 
-- [ ] Cambiar idioma desde `Sistema > Idioma` aplica el cambio sin reinicio (full redraw).
-- [ ] Reiniciar: el idioma persiste.
-- [ ] Textos en CAT y EN no se solapan ni se salen del borde en ninguna pantalla probada.
+- [x] Cambiar idioma desde `Sistema > Idioma` aplica el cambio sin reinicio (full redraw). Probado en los 3 idiomas.
+- [x] Reiniciar: el idioma persiste.
+- [x] Textos en CAT y EN no se solapan ni se salen del borde en las pantallas probadas.
 
 ### 3.5 Reset
 
 - [ ] `Sistema > Reset` pide confirmación.
 - [ ] Confirmar: limpia NVS y reinicia mostrando selector de idioma.
+- [ ] Reset general devuelve todo al estado inicial de firmware: pantallas principales seleccionadas en todos los sensores, idioma/selector inicial, Bip/Alarmas/defaults, unidades, reposo, calibraciones y demás valores NVS.
+
+Observaciones Reset: `Parece limpiar también idioma/NVS, pero el selector se ve correctamente tras forzar un reinicio adicional. Revisar si, tras Reset general desde Sistema, conviene forzar reinicio completo tipo BLE para que el estado inicial sea visible inmediatamente.`
 
 ### 3.6 Demo Mode
 
 - [ ] Encender el P-Bit manteniendo el encoder pulsado **durante el logo de boot**: entra en Demo Mode.
 - [ ] Pulsación larga desde `HOME`: también activa Demo Mode.
 - [ ] Splash breve `Modo Demo` al entrar.
-- [ ] Sensores cambian con coreografía smooth.
+- [x] Sensores cambian con coreografía smooth.
 - [ ] Gráficas dibujan datos sintéticos.
-- [ ] Cualquier interacción del encoder sale del Demo Mode.
-- [ ] Demo Mode no persiste tras reinicio.
-- [ ] No se ven flicker ni transiciones bruscas evidentes en la coreografía.
+- [x] Cualquier interacción del encoder sale del Demo Mode.
+- [x] Demo Mode no persiste tras reinicio.
+- [x] No se ven flicker ni transiciones bruscas evidentes en la coreografía.
 
-Anomalías observadas en Demo Mode: `___________`
+Anomalías observadas en Demo Mode: `Demo Mode visualmente está muy bien. Hallazgos: Timer se ve parado, debería simular actividad aunque sea falsa; Termo Lab/DS18 gráfica no muestra valores; al salir de Demo Mode quedan persistidas/seleccionadas las pantallas/modos por los que pasó el demo, y no debería afectar las selecciones principales reales del usuario. Demo Mode debe ser transitorio y restaurar modos/pantallas previos.`
 
 ---
 
@@ -291,19 +296,19 @@ App de escaneo usada: `___________`
 
 > Mantener encoder pulsado **30 segundos** estando en SISTEMA activa la pantalla oculta BLE.
 
-- [ ] Mantener 30 s el encoder en SISTEMA hace aparecer la pantalla `BLE Toggle`.
-- [ ] Activar BLE → la fila `BLE` aparece ahora en SISTEMA.
-- [ ] Escanear: **AHORA SÍ** debe aparecer el dispositivo como `PBIT-XXXX` por nombre (valida el fix de scan response del commit `2a51810`).
-- [ ] Conectar desde la app BLE: la conexión se establece.
+- [ ] Mantener 30 s el encoder en SISTEMA hace aparecer la pantalla `BLE Toggle`. Observación: actualmente parece tardar ~60 s; objetivo acordado: 30 s.
+- [x] Activar BLE → la fila `BLE` aparece ahora en SISTEMA. Al seleccionar Bluetooth se reinicia, comportamiento correcto.
+- [x] Escanear: **AHORA SÍ** debe aparecer el dispositivo como `PBIT-XXXX` por nombre (valida el fix de scan response del commit `2a51810`).
+- [x] Conectar desde la app BLE: la conexión se establece o queda disponible para conexión desde el celular.
 - [ ] Una vez conectado, recibir lecturas de sensores periódicamente.
 
 Nombre del dispositivo visto en el escáner: `___________`
 
 ### 4.3 Desactivar BLE
 
-- [ ] Volver a desactivar BLE desde la pantalla oculta.
-- [ ] Reiniciar: el escaneo NO ve `PBIT-XXXX`.
-- [ ] La fila BLE desaparece de SISTEMA.
+- [x] Volver a desactivar BLE desde la pantalla oculta.
+- [x] Reiniciar: el escaneo NO ve `PBIT-XXXX`.
+- [x] La fila BLE desaparece de SISTEMA.
 
 Anomalías observadas: `___________`
 
@@ -315,8 +320,8 @@ Anomalías observadas: `___________`
 
 | Cuándo | Estado del P-Bit antes del reinicio | Reset reason en Serial (si capturado) |
 |---|---|---|
-| `___________` | `___________` | `___________` |
-| `___________` | `___________` | `___________` |
+| `Pre-vuelo` | `Monitor serial reportó PermissionError(13) y reconectó; no se observó crash firmware asociado` | `No aplica — reconexión del monitor, después boot normal rst:0x1` |
+| `Durante calibración Suelo` | `Usuario reseteó manualmente porque no había cancelación sin guardar; tras reset vuelve a HOME/Inicio` | `Reset manual; sin evidencia de crash` |
 | `___________` | `___________` | `___________` |
 
 > Reset reasons frecuentes:
@@ -330,12 +335,12 @@ Anomalías observadas: `___________`
 
 > Solo aplica si flasheaste con `esp32dev_debug` y tenías el Serial monitor capturando. Busca en el `.log` líneas tipo `[Stack] DisplayTask HWM free: X bytes (worst: Y)`.
 
-- DisplayTask — HWM free observado al inicio: `___ bytes`
-- DisplayTask — HWM free observado al final: `___ bytes`
-- DisplayTask — peor caso (worst) observado: `___ bytes`
-- SensorTask — HWM free observado al inicio: `___ bytes`
-- SensorTask — HWM free observado al final: `___ bytes`
-- SensorTask — peor caso (worst) observado: `___ bytes`
+- DisplayTask — HWM free observado al inicio: `2272 bytes`
+- DisplayTask — HWM free observado al final: `2080 bytes` (última/peor muestra observada en log)
+- DisplayTask — peor caso (worst) observado: `2080 bytes`
+- SensorTask — HWM free observado al inicio: `3152 bytes`
+- SensorTask — HWM free observado al final: `2572 bytes` (última muestra vista hasta ahora)
+- SensorTask — peor caso (worst) observado: `2440 bytes` antes de reset manual; `2564 bytes` tras último boot observado
 
 > Interpretación rápida:
 > - `> ~2400 bytes libres` (≥60% del stack 4096): holgado.
@@ -346,9 +351,19 @@ Anomalías observadas: `___________`
 ### Otras observaciones
 
 - Texto recortado / solapado: `___________`
-- Flicker visible: `___________`
-- Color/contraste raro: `___________`
-- Comportamientos inesperados: `___________`
+- Flicker visible: `HOME/Luz deja fantasmas con lux de 4+ dígitos; menú/calibración Suelo genera mucho flicker en todo el cuerpo salvo título/línea al actualizar valores constantes; SONIDO VU tiene parpadeo leve con valores altos.`
+- Color/contraste raro: `Estados desconectados de Suelo/DS18: usar "Sin Sensor" más vivo/entonado en card superior.`
+- Comportamientos inesperados: `Selector de idioma no reaparece tras reset sin confirmar en primer boot post-flash; Bip/Alarmas arrancaron OFF.`
+- Pulido visual transversal: `En cards principales de todos los sensores, centrar horizontalmente icono, nombre del sensor (ej. "Aire") y valor+unidad (%/lux/etc.).`
+- Pulido visual LDR: `En LDR dial, aplicar oscurecido más real del ícono: a 0 lux que desaparezca o se vea gris; aumentar brillo progresivamente con la luz, similar al gauge.`
+- Mejora funcional sonido: `Micrófono parece poco sensible a voz normal; evaluar calibración de silencio/ruido o ajuste de thresholds/gain.`
+- Calibración producción Suelo: `Tomar raw seco/aire y raw mojado/agua en varias unidades (~5 P-Bits), promediar y actualizar defaults de firmware si conviene.`
+- UX calibración Suelo: `Menú debe dibujar fondo propio al entrar y ofrecer cancelación sin guardar, por ejemplo pulsación larga para volver conservando calibración anterior.`
+- Bloqueante producción: `Calibración Suelo no permite salir sin guardar; obliga a capturar pasos de calibración y guardar, o resetear.`
+- Análisis futuro i18n: `Evaluar facilidad y coste de memoria/flash de añadir más idiomas (francés, chino, alemán, etc.) antes de ampliar languages.h.`
+- Demo Mode: `No debe persistir ni contaminar selección de pantallas/modos al salir; Timer debería simular actividad; Termo Lab/DS18 debe alimentar gráfica sintética.`
+- Reset general: `Debe restaurar estado inicial de firmware completo: modos/pantallas principales por sensor, idioma/selector inicial, Bip/Alarmas/defaults, unidad, sleep, calibraciones y todos los valores NVS.`
+- Validación prolongada pendiente: `Dejar P-Bit conectado corriendo 24 h con esp32dev_debug y Serial log activo para detectar resets, WDT/brownout, drift de HWM o degradación visual.`
 
 ---
 
@@ -364,6 +379,7 @@ Anomalías observadas: `___________`
 - [ ] Firmware aprobado para producción → marcar checkboxes correspondientes en `docs/PRODUCTION_CHECKLIST.md` y actualizar fecha.
 - [ ] Hay anomalías menores → documentar en el ROADMAP como deuda y seguir adelante.
 - [ ] Hay anomalías bloqueantes → traer este checklist completo a Claude/Codex para análisis y plan de fix.
+- [ ] Prueba prolongada 24 h pendiente con `esp32dev_debug` + Serial log.
 
 ### Si hay que escalar
 
