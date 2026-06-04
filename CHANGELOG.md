@@ -2,6 +2,12 @@
 
 ## 2026-06-04
 
+### Pulido visual — Timer status text Y-2 (Lote 1A post-validación HW)
+
+- **Ajustado:** `LT_STATUS_TEXT_Y` en `include/layout.h:71` pasa de `LT_CARD_Y + 8` a `LT_CARD_Y + 6` (-2 px). El texto de estado del Timer (`LISTO`/`EN CURSO`/`PAUSADO`/`TERMINADO`) sube 2 px para mejor alineación dentro de la card del cronómetro, según observación de Pablo en `docs/HARDWARE_VALIDATION_2026-06-04.md` § Fase 1.4.
+- **Sin cambio de tamaño de build:** `LT_STATUS_TEXT_Y` es `constexpr int` evaluado en compile time. Builds con el mismo uso de memoria que el commit anterior: producción `48924`/`945565`, debug `48964`/`947861`.
+- Build verificado: ambos envs `SUCCESS`.
+
 ### Build de depuración — env `esp32dev_debug` + instrumentación periódica de Stack HWM
 
 - **Añadido:** `[env:esp32dev_debug]` en `platformio.ini` que extiende `esp32dev` y añade `-DFIRMWARE_DEBUG`. El env de producción `esp32dev` queda intacto. `include/config.h` mantiene `FIRMWARE_DEBUG` comentado para que la activación pase exclusivamente por build flag del env separado.
