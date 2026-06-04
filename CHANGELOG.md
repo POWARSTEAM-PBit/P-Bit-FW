@@ -2,6 +2,15 @@
 
 ## 2026-06-04
 
+### Pulido visual — Estados desconectados Suelo/DS18 en focus (Lote 1B post-validación HW)
+
+- **`src/ui_lab_focus.cpp`:** en `LAB_SENSOR_FOCUS_SCREEN` con sensor externo (DS18B20/Suelo) desconectado, ya no se duplica "Sin Sensor" + "Revisa IOxx" en ambas cards. Ahora:
+  - Card superior (summary panel) -> solo "Sin Sensor", Y de `34` -> `36` (Y+2).
+  - Card inferior (graph panel) -> solo "Revisa IO33" / "Revisa IO35", Y de `LF_GRAPH_Y+28` -> `LF_GRAPH_Y+24` (Y-4).
+- El render de sensores no externos (DHT/LDR/mic) en `LAB_SENSOR_FOCUS_SCREEN` no cambia.
+- Color de los textos sin cambios (se mantiene la paleta `pbit_external_dim_*` consensuada). Cualquier ajuste de "color más vivo/entonado" se evaluará en un lote posterior.
+- Build verificado: ambos envs `SUCCESS`.
+
 ### Pulido visual — Timer status text Y-2 (Lote 1A post-validación HW)
 
 - **Ajustado:** `LT_STATUS_TEXT_Y` en `include/layout.h:71` pasa de `LT_CARD_Y + 8` a `LT_CARD_Y + 6` (-2 px). El texto de estado del Timer (`LISTO`/`EN CURSO`/`PAUSADO`/`TERMINADO`) sube 2 px para mejor alineación dentro de la card del cronómetro, según observación de Pablo en `docs/HARDWARE_VALIDATION_2026-06-04.md` § Fase 1.4.

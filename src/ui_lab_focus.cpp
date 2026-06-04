@@ -411,15 +411,11 @@ static void draw_summary_content(LabFocusSensor sensor, bool valid, uint16_t pri
         tft.setTextDatum(TR_DATUM);
         tft.setFreeFont(FONT_SMALL);
         tft.setTextColor(has_port_hint ? primary : TFT_DARKGREY, bg);
+        // Externos (DS18/Suelo) -> solo "Sin Sensor" centrado verticalmente (Y+2 vs antes).
+        // "Revisa IOxx" se muestra en graph panel (card inferior).
         tft.drawString(L(ST_NO_SENSOR),
                        LF_SUMMARY_X + LF_SUMMARY_W - 6,
-                       has_port_hint ? 34 : summary_no_sensor_y(sensor));
-        if (has_port_hint) {
-            tft.setTextColor(primary, bg);
-            tft.drawString(L(pbit_external_sensor_check_key(focus_to_sz_sensor(sensor))),
-                           LF_SUMMARY_X + LF_SUMMARY_W - 6,
-                           48);
-        }
+                       has_port_hint ? 36 : summary_no_sensor_y(sensor));
         tft.setTextFont(0);
         return;
     }
@@ -551,13 +547,19 @@ static void draw_graph_panel(LabFocusSensor sensor, bool valid, bool shell_redra
         }
         tft.setTextDatum(MC_DATUM);
         tft.setFreeFont(FONT_SMALL);
-        tft.setTextColor(has_port_hint ? pbit_external_dim_primary(focus_to_sz_sensor(sensor)) : TFT_DARKGREY, graph_bg);
-        tft.drawString(L(ST_NO_SENSOR), LF_GRAPH_X + (LF_GRAPH_W / 2), LF_GRAPH_Y + (has_port_hint ? 14 : graph_no_sensor_y(sensor)));
         if (has_port_hint) {
+            // Externos (DS18/Suelo) -> solo "Revisa IOxx" centrado verticalmente (Y-4 vs antes).
+            // "Sin Sensor" se muestra en summary panel (card superior).
             tft.setTextColor(pbit_external_dim_secondary(focus_to_sz_sensor(sensor)), graph_bg);
             tft.drawString(L(pbit_external_sensor_check_key(focus_to_sz_sensor(sensor))),
                            LF_GRAPH_X + (LF_GRAPH_W / 2),
-                           LF_GRAPH_Y + 28);
+                           LF_GRAPH_Y + 24);
+        } else {
+            // No externos (DHT/LDR/mic) -> "Sin Sensor" centrado en la card como antes.
+            tft.setTextColor(TFT_DARKGREY, graph_bg);
+            tft.drawString(L(ST_NO_SENSOR),
+                           LF_GRAPH_X + (LF_GRAPH_W / 2),
+                           LF_GRAPH_Y + graph_no_sensor_y(sensor));
         }
         tft.setTextFont(0);
         return;
