@@ -1,5 +1,25 @@
 # Changelog
 
+## 2026-06-05
+
+### Estabilidad — Vendorización driver DHT RMT (P0 IWDT fix)
+
+- **Problema:** sesión de validación HW 2026-06-04 detectó 3 panics `Interrupt wdt timeout on CPU0` durante 24 h con Adafruit DHT 1.4.6. Backtrace en `DHT::readHumidity()` → `DHT::read()`. Causa raíz: la librería usa `noInterrupts()` durante el polling de pulsos del sensor, bloqueando IRQs por encima del límite del Interrupt WDT (~300 ms) en peor caso.
+- **Spike validador (17h09m):** se probó `htmltiger/dhtESP32-rmt@1.0.0` (MIT, RMT peripheral). Resultado: 0 Guru, 0 IWDT, 0 panics. Hipótesis confirmada.
+- **Fix:** driver local vendorizado en `include/pbit_dht.h` + `src/pbit_dht.cpp`, adaptado de `htmltiger/dhtESP32-rmt v1.0` (MIT, atribución completa preservada) con cinco parches del P-Bit:
+  - `uint8_t data[5] = {0}` en el buffer de bits (elimina UB del shift-left sobre memoria sin inicializar, y dimensión exacta porque solo se accede a [0..4]).
+  - Singleton estático con `static uint32_t last_read_ms` para el rate-limit, eliminando la tabla dinámica de pines con `new pin_grp[1]` (zero heap allocation).
+  - Validación `tot_items >= 1` antes de leer `rx_items[0]` (fix UB en caso de ringbuffer vacío).
+  - Suma de pulsos en `uint16_t` en lugar de `uint8_t` para evitar truncamiento silencioso.
+  - Cleanup explícito (`rmt_rx_stop` + `rmt_driver_uninstall`) en todos los error paths intermedios, no solo en el éxito.
+  - Estados prefijados `PBIT_DHT_*` para evitar colisiones con otras definiciones globales.
+- **`platformio.ini`:** eliminadas dependencias `adafruit/DHT sensor library@1.4.6` y `adafruit/Adafruit Unified Sensor@1.1.15`. NO se añade `htmltiger/dhtESP32-rmt` como dependencia externa: el driver es ahora local.
+- **`src/io.cpp`:** lectura DHT pasa de alternar humedad/temperatura cada segundo a una sola llamada `pbit_dht11_read(t, h)` que devuelve ambos por RMT capture. Manejo explícito de `PBIT_DHT_TOO_SOON` (no cuenta como fallo). Contadores `[DHT] OK / TOO_SOON / ERR` añadidos bajo `FIRMWARE_DEBUG` para futuras sesiones de soak.
+- **Limitación de validación HW:** el DHT11 está soldado al PCB del P-Bit. No se prueba desconexión física. Los caminos de error del driver están auditados en código: todos pasan por cleanup uniforme antes de retornar.
+- **Decisión técnica:** se descartó `beegee-tokyo/DHTesp` (archivada, GPL-3.0, sigue usando `portENTER_CRITICAL`). Se descartó aumentar `CONFIG_ESP_INT_WDT_TIMEOUT_MS` (anti-patrón). RMT scheduler-friendly es la solución arquitecturalmente correcta y la implementación local con parches elimina los riesgos de calidad detectados en la librería externa.
+- **Soak provisional 16h09m (2026-06-05 18:40 → 2026-06-06 10:46) con BLE activo:** 0 Guru, 0 IWDT, 0 reinicios post-boot. Contadores DHT al cierre: `OK:56804 / TOO_SOON:0 / ERR:12` (error rate 0.021%, todos recuperables). Stack worst: DisplayTask 2108 bytes libres; SensorTask 1944 bytes libres. Soak final 24h sobre firmware candidato a producción se ejecutará tras cerrar lotes pre-soak restantes.
+- **Builds (DHT RMT aislado, sin pulidos visuales encima):** `esp32dev` RAM `49020` (+96 vs baseline pre-fix) / Flash `950845` (+5280). `esp32dev_debug` RAM `49060` / Flash `953337`.
+
 ## 2026-06-04
 
 ### Pulido visual — Estados desconectados Suelo/DS18 en focus (Lote 1B post-validación HW)

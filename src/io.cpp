@@ -1,6 +1,6 @@
 #include <Arduino.h>
 #include "config.h"
-#include <DHT.h>
+#include "pbit_dht.h"  // Driver DHT11 RMT local — sustituye Adafruit DHT por IWDT timeout.
 #include "io.h"
 #include "hw.h"  // Reuse the hardware layer for DS18B20 and shared sensor helpers.
 #include "ble.h"
@@ -10,7 +10,7 @@
 #include "sensor_connection_notice.h"
 #include <math.h>
 
-#define DHT_TYPE DHT11
+// pbit_dht expone enum PbitDhtStatus; no usamos macro local DHT_TYPE.
 
 // LDR empirical calibration v1 (2026-05-29).
 // Manual fit: lux = 10 * ((4095 - raw) / (raw + 150))^2.
@@ -26,7 +26,7 @@ volatile bool g_sensor_data_ready = false;
 portMUX_TYPE readings_mux = portMUX_INITIALIZER_UNLOCKED;
 extern bool g_alarm_sound_enabled;
 
-DHT dht(PIN_DHT, DHT_TYPE);
+// pbit_dht no usa instancia: la lectura es función libre pbit_dht11_read(...).
 
 // Internal helpers for the sensor task.
 static void read_fast_sensors(Reading &r);
@@ -45,7 +45,8 @@ static float ldr_raw_to_lux(float raw) {
 
 void sensor_reading_task(void *param) {
     DPRINTLN("[IO] Sensor task started.");
-   dht.begin();
+    // pbit_dht no requiere init explícita: el driver RMT se instala y desinstala
+    // dentro de cada lectura.
 
    Reading local_r;
     // Start with sentinel values so the UI can show "---" or "No sensor"
@@ -198,32 +199,65 @@ static void read_fast_sensors(Reading &r) {
 }
 
 static void read_slow_sensors(Reading &r) {
-    // DHT11 hardware caps internal sampling at ~1 Hz — reading more often just returns
-    // cached values. To halve the per-cycle blocking, alternate humidity and temperature
-    // reads so each individual call costs ~25 ms instead of ~50 ms. Each channel ends
-    // up refreshed every 2 s, which is fine for room conditions that change slowly.
-    static uint8_t dht_slot = 0;  // 0 = humidity, 1 = temperature
-    if (dht_slot == 0) {
-        float h = dht.readHumidity();
-        if (!isnan(h) && h >= 0 && h <= 100) {
-            r.humidity = h;
+    // pbit_dht11_read: una sola llamada devuelve T+H simultáneamente vía RMT
+    // peripheral. Scheduler-friendly: no usa noInterrupts() — evita el IWDT
+    // timeout que disparaba Adafruit DHT. Rate-limit interno: 1 s entre
+    // lecturas (devuelve PBIT_DHT_TOO_SOON si se llama antes). Solo modifica
+    // las salidas si checksum OK.
+    float dht_t = NAN;
+    float dht_h = NAN;
+    const uint8_t dht_status = pbit_dht11_read(dht_t, dht_h);
+
+    if (dht_status == PBIT_DHT_OK) {
+        // Humedad
+        if (!isnan(dht_h) && dht_h >= 0 && dht_h <= 100) {
+            r.humidity = dht_h;
             dht_hum_fail_count = 0;
         } else {
             if (dht_hum_fail_count < 2) dht_hum_fail_count++;
             if (dht_hum_fail_count >= 2) r.humidity = NAN;
         }
-        dht_slot = 1;
-    } else {
-        float t = dht.readTemperature();
-        if (!isnan(t) && t >= -20 && t <= 80) {
-            r.temperature = t;
+        // Temperatura
+        if (!isnan(dht_t) && dht_t >= -20 && dht_t <= 80) {
+            r.temperature = dht_t;
             dht_temp_fail_count = 0;
         } else {
             if (dht_temp_fail_count < 2) dht_temp_fail_count++;
             if (dht_temp_fail_count >= 2) r.temperature = NAN;
         }
-        dht_slot = 0;
+    } else if (dht_status == PBIT_DHT_TOO_SOON) {
+        // Rate limit interno: mantener valores anteriores. No cuenta como fallo.
+    } else {
+        // Error transitorio (TIMEOUT, NACK, BAD_DATA, CHECKSUM, etc.). El DHT11
+        // está soldado al PCB, así que no esperamos "sin sensor"; estos errores
+        // son glitches que el counter tolera hasta NAN.
+        if (dht_hum_fail_count < 2) dht_hum_fail_count++;
+        if (dht_hum_fail_count >= 2) r.humidity = NAN;
+        if (dht_temp_fail_count < 2) dht_temp_fail_count++;
+        if (dht_temp_fail_count >= 2) r.temperature = NAN;
     }
+
+    // Instrumentación bajo FIRMWARE_DEBUG: contadores DHT cada 60 s.
+#ifdef FIRMWARE_DEBUG
+    {
+        static uint32_t cnt_ok = 0;
+        static uint32_t cnt_too_soon = 0;
+        static uint32_t cnt_err = 0;
+        static uint8_t  last_err = PBIT_DHT_OK;
+        static uint32_t last_log_ms = 0;
+
+        if (dht_status == PBIT_DHT_OK)            cnt_ok++;
+        else if (dht_status == PBIT_DHT_TOO_SOON) cnt_too_soon++;
+        else { cnt_err++; last_err = dht_status; }
+
+        const uint32_t now_ms = millis();
+        if (now_ms - last_log_ms >= 60000) {
+            last_log_ms = now_ms;
+            DPRINT("[DHT] OK:%u TOO_SOON:%u ERR:%u (last_err:%u)\n",
+                   (unsigned)cnt_ok, (unsigned)cnt_too_soon, (unsigned)cnt_err, (unsigned)last_err);
+        }
+    }
+#endif
 
     // DS18B20 in async mode (set up by init_hw): this read returns the conversion issued
     // ~1 s ago and kicks off a new one in the background. Total cost ~7 ms (vs ~94 ms sync).
