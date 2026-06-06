@@ -127,6 +127,7 @@ struct CardData {
     float   min_value;
     float   max_value;
     bool    mic_extra_drop;
+    bool    compact_large_lux;
 };
 
 struct HomeCardsCache {
@@ -188,11 +189,19 @@ static void draw_card_value_and_tank(const CardData& d) {
     if (d.valid) {
         char buf[16];
         char full[20];
-        snprintf(buf, sizeof(buf), d.fmt, d.value);
-        const bool tight_unit = strcmp(d.unit, "%") == 0
+        bool hide_unit = false;
+        if (d.compact_large_lux && d.value >= 1000.0f) {
+            snprintf(buf, sizeof(buf), "%.1fk", d.value / 1000.0f);
+            hide_unit = true;
+        } else {
+            snprintf(buf, sizeof(buf), d.fmt, d.value);
+        }
+        const bool no_unit = hide_unit || d.unit[0] == '\0';
+        const bool tight_unit = no_unit
+            || strcmp(d.unit, "%") == 0
             || strcmp(d.unit, L(ST_UNIT_C_SHORT)) == 0
             || strcmp(d.unit, L(ST_UNIT_F_SHORT)) == 0;
-        snprintf(full, sizeof(full), "%s%s%s", buf, tight_unit ? "" : " ", d.unit);
+        snprintf(full, sizeof(full), "%s%s%s", buf, tight_unit ? "" : " ", no_unit ? "" : d.unit);
         tft.setTextColor(TFT_WHITE, kCardBg);
         if (tft.textWidth(full) > value_max_w) {
             tft.setFreeFont(FONT_SMALL);
@@ -223,16 +232,17 @@ static CardData build_card_data(int index) {
     const float t_d  = g_is_fahrenheit ? (t_c * 1.8f + 32.0f) : t_c;
     const char* t_u  = g_is_fahrenheit ? L(ST_UNIT_F_SHORT) : L(ST_UNIT_C_SHORT);
     const LightDisplayReading light = light_display_from_reading(r);
+    const bool light_lux_mode = (light.mode == LIGHT_DISPLAY_LUX);
 
     switch (index) {
         case 0:
-            return { 0, 0, kOrange,  draw_home_temp_icon,     L(LAB_TEMP_SHORT),  t_ok, t_d, "%.0f", t_u,  g_is_fahrenheit ? 32.0f : 0.0f, g_is_fahrenheit ? 122.0f : 50.0f, false };
+            return { 0, 0, kOrange,  draw_home_temp_icon,     L(LAB_TEMP_SHORT),  t_ok, t_d, "%.0f", t_u,  g_is_fahrenheit ? 32.0f : 0.0f, g_is_fahrenheit ? 122.0f : 50.0f, false, false };
         case 1:
-            return { 1, 0, kCyan,    draw_home_humidity_icon, L(LAB_AIR_SHORT),   h_ok, h_ok ? r.humidity : 0.0f, "%.0f", "%", 0.0f, 100.0f, false };
+            return { 1, 0, kCyan,    draw_home_humidity_icon, L(LAB_AIR_SHORT),   h_ok, h_ok ? r.humidity : 0.0f, "%.0f", "%", 0.0f, 100.0f, false, false };
         case 2:
-            return { 0, 1, kYellow,  draw_home_light_icon,    L(LAB_LIGHT_SHORT), light.valid, light.valid ? light.value : 0.0f, "%.0f", light.unit, 0.0f, light_display_max(light.mode), false };
+            return { 0, 1, kYellow,  draw_home_light_icon,    light_lux_mode ? "Lux" : L(LAB_LIGHT_SHORT), light.valid, light.valid ? light.value : 0.0f, "%.0f", light_lux_mode ? "" : light.unit, 0.0f, light_display_max(light.mode), false, light_lux_mode };
         default:
-            return { 1, 1, kMagenta, draw_home_sound_icon,    L(LAB_SOUND_SHORT), s_ok, s_ok ? r.mic : 0.0f, "%.0f", "%", 0.0f, 100.0f, true };
+            return { 1, 1, kMagenta, draw_home_sound_icon,    L(LAB_SOUND_SHORT), s_ok, s_ok ? r.mic : 0.0f, "%.0f", "%", 0.0f, 100.0f, true, false };
     }
 }
 

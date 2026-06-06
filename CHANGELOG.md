@@ -20,6 +20,15 @@
 - **Soak provisional 16h09m (2026-06-05 18:40 → 2026-06-06 10:46) con BLE activo:** 0 Guru, 0 IWDT, 0 reinicios post-boot. Contadores DHT al cierre: `OK:56804 / TOO_SOON:0 / ERR:12` (error rate 0.021%, todos recuperables). Stack worst: DisplayTask 2108 bytes libres; SensorTask 1944 bytes libres. Soak final 24h sobre firmware candidato a producción se ejecutará tras cerrar lotes pre-soak restantes.
 - **Builds (DHT RMT aislado, sin pulidos visuales encima):** `esp32dev` RAM `49020` (+96 vs baseline pre-fix) / Flash `950845` (+5280). `esp32dev_debug` RAM `49060` / Flash `953337`.
 
+### Pulido visual — ajustes pre-soak final
+
+- **HOME/Luz:** en `src/ui_lab_home_cards.cpp`, la tarjeta pequeña muestra `Lux` como etiqueta superior en modo Lux y elimina la unidad inferior; valores `>= 1000` se compactan como `1.2k` para evitar invasión de la barra/card y restos visuales al volver a 3 dígitos.
+- **Termómetro tarjeta:** en `src/ui_lab_sensor_cards.cpp`, el estado desconectado de `LAB_DS18_CARD_SCREEN` sube `---` y `Revisa IO33` 3 px, sin mover Suelo ni otros sensores.
+- **LDR dial:** en `src/ui_lab_widget_showcase.cpp`, el icono de Luz arranca casi gris/negro a 0 lux y aumenta brillo de forma más progresiva, alineado con la lectura visual del gauge.
+- **Suelo defaults:** en `src/hw.cpp`, la calibración por defecto pasa a `dry=3550` / `wet=1855`, basada en 5 P-Bits medidos (`Aire`: 3560, 3490, 3520, 3640, 3530; `Agua`: 1889, 1830, 1840, 1918, 1805).
+- **Sensor Lab Focus:** en `src/ui_lab_focus.cpp`, los estados desconectados de Suelo/DS18 alinean icono, nombre y `Sin sensor` sobre el mismo centro Y en la card superior; `Revisa IO33/IO35` queda centrado geométricamente en la card inferior con clear redondeado para preservar esquinas. El hint inferior ahora dice `Cambia vista de sensor` / `Change sensor view`, con fallback automático de fuente si el ancho lo requiere.
+- **Builds combinados (DHT RMT + pulidos visuales):** `esp32dev` RAM `49020` / Flash `951161` (+316 Flash vs DHT-only por los pulidos). `esp32dev_debug` RAM `49060` / Flash `953649`.
+
 ## 2026-06-04
 
 ### Pulido visual — Estados desconectados Suelo/DS18 en focus (Lote 1B post-validación HW)

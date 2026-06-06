@@ -198,7 +198,7 @@ static const char* const STRINGS[LANG_KEY_COUNT][LANG_COUNT] = {
 
 // Graph screen
 /* TIT_GRAPH         */ { "GRÁFICA",              "GRÀFICA",              "GRAPH"              },
-/* GRAPH_PUSH_SENSOR */ { "Pulsa: vista",        "Prem: vista",           "Press: view"        },
+/* GRAPH_PUSH_SENSOR */ { "Cambia vista de sensor","Canvia vista de sensor","Change sensor view" },
 /* ST_WAITING        */ { "Esperando...",         "Esperant...",          "Waiting..."         },
 /* GRAPH_LABEL_TEMP_AIR */ { "Temp. del aire",  "Temp. de l'aire",       "Air temp"           },
 /* GRAPH_LABEL_HUM_AIR  */ { "Humedad del Aire", "Humitat de l'aire",     "Air humidity"       },

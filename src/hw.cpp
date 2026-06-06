@@ -24,8 +24,8 @@ SemaphoreHandle_t g_adc_mutex = nullptr;
 
 } // namespace
 
-constexpr int SOIL_DEFAULT_DRY = 3408;
-constexpr int SOIL_DEFAULT_WET = 1904;
+constexpr int SOIL_DEFAULT_DRY = 3550;
+constexpr int SOIL_DEFAULT_WET = 1855;
 constexpr int SOIL_MIN_VALID_DELTA = 300;
 constexpr int SOIL_THRESH_DEFAULT_DRY = 20;
 constexpr int SOIL_THRESH_DEFAULT_OPTIMAL = 55;
@@ -717,9 +717,9 @@ float read_soil_moisture() {
     //     1. Leave the sensor in dry air  -> note the raw value from Serial -> SOIL_DRY
     //     2. Submerge the sensor in water  -> note the raw value from Serial -> SOIL_WET
     //
-    // Measured values on P-Bit (previous revision, 3.3V sensor, 11dB attenuation):
-    //   Dry   raw ~= 3408  (~2746 mV, correct for a Capacitive V2 at 3.3V)
-    //   Wet   raw ~= 1904  (~1534 mV, 1504-count delta, good dynamic range)
+    // Measured values on five P-Bits (2026-06-05, 3.3V sensor, 11dB attenuation):
+    //   Dry air raw avg ~= 3550  (samples: 3560, 3490, 3520, 3640, 3530)
+    //   Water   raw avg ~= 1855  (samples: 1889, 1830, 1840, 1918, 1805)
     const uint8_t SAMPLE_COUNT = 12;
     const int DISCONNECT_LOW_THRESHOLD = 80;
     const int DISCONNECT_AVG_THRESHOLD = 1400;

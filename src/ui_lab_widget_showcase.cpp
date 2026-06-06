@@ -613,8 +613,8 @@ static uint16_t gauge_icon_bucket_color(bool valid, uint8_t bucket, uint16_t fal
     }
     if (g_gauge_sensor == GAUGE_SENSOR_LIGHT) {
         const float normalized = (float)bucket / (float)kGaugeIconBucketMax;
-        const uint8_t eased_amount = (uint8_t)roundf((log1pf(normalized * 19.0f) / log1pf(19.0f)) * 255.0f);
-        const uint16_t low_light = tft.color565(56, 44, 4);
+        const uint8_t eased_amount = (uint8_t)roundf(powf(normalized, 1.35f) * 255.0f);
+        const uint16_t low_light = tft.color565(14, 14, 14);
         return mix3_565(low_light, PB_LUZ_P1, PB_LUZ_P2, eased_amount);
     }
     return gauge_semantic_arc_color(g_gauge_sensor, amount);

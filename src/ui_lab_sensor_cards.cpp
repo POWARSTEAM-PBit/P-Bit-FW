@@ -409,17 +409,18 @@ static void draw_value_compact(bool sensor_valid,
                                uint16_t accent,
                                bool is_temperature,
                                const char* compact_unit,
-                               const char* invalid_str) {
+                               const char* invalid_str,
+                               int invalid_y_offset = 0) {
     if (!sensor_valid) {
         tft.setTextDatum(TC_DATUM);
         tft.setFreeFont(FONT_VALUE);
         tft.setTextColor(accent, kCardBg);
-        tft.drawString("---", kCardX + kCardW / 2, kInvalidValueY);
+        tft.drawString("---", kCardX + kCardW / 2, kInvalidValueY + invalid_y_offset);
 
         tft.setTextDatum(TC_DATUM);
         tft.setFreeFont(FONT_SMALL);
         tft.setTextColor(accent, kCardBg);
-        tft.drawString(invalid_str, kCardX + kCardW / 2, kInvalidValueY + kInvalidLabelGapY);
+        tft.drawString(invalid_str, kCardX + kCardW / 2, kInvalidValueY + kInvalidLabelGapY + invalid_y_offset);
         tft.setTextFont(0);
         return;
     }
@@ -909,7 +910,8 @@ static void draw_card_dynamic(const LabSensorCardSpec& spec, const CardRenderSta
                        state.accent,
                        spec.is_temperature,
                        spec.compact_unit_fn(),
-                       L(spec.invalid_bottom_key));
+                       L(spec.invalid_bottom_key),
+                       spec.id == CARD_DS18 ? -3 : 0);
 
     // Sensor-specific horizontal visualization
     spec.draw_viz(state.sensor_valid, state.temp_c, state.accent);
@@ -943,7 +945,8 @@ static void draw_card_content(const LabSensorCardSpec& spec,
                            state.accent,
                            spec.is_temperature,
                            spec.compact_unit_fn(),
-                           L(spec.invalid_bottom_key));
+                           L(spec.invalid_bottom_key),
+                           spec.id == CARD_DS18 ? -3 : 0);
     }
 
     if (viz_dirty) {
