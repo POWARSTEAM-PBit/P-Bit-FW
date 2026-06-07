@@ -49,6 +49,9 @@ constexpr int LF_TITLE_Y = LF_SUMMARY_Y + 10;
 constexpr int LF_HINT_Y = 120;
 constexpr int LF_SUMMARY_CENTER_Y = LF_SUMMARY_Y + (LF_SUMMARY_H / 2);
 constexpr int LF_GRAPH_CENTER_Y = LF_GRAPH_Y + (LF_GRAPH_H / 2);
+constexpr int LF_BODY_CENTER_TOP_Y = LF_SUMMARY_CENTER_Y - 9;
+constexpr int LF_SMALL_SUMMARY_CENTER_TOP_Y = LF_SUMMARY_CENTER_Y - 8;
+constexpr int LF_SMALL_GRAPH_CENTER_TOP_Y = LF_GRAPH_CENTER_Y - 8;
 
 static LabFocusSensor g_sensor = LAB_FOCUS_HUMIDITY;
 static bool g_force_full_redraw = true;
@@ -194,17 +197,6 @@ static const char* sensor_footer() {
     return L(GRAPH_PUSH_SENSOR);
 }
 
-static int sensor_title_y(LabFocusSensor sensor) {
-    if (sensor == LAB_FOCUS_DS18) {
-        return LF_TITLE_Y + 2;
-    }
-    return (sensor == LAB_FOCUS_HUMIDITY
-         || sensor == LAB_FOCUS_SOUND
-         || sensor == LAB_FOCUS_SOIL)
-        ? (LF_TITLE_Y + 1)
-        : LF_TITLE_Y;
-}
-
 static bool sensor_uses_decimal(LabFocusSensor sensor);
 
 static bool sensor_has_value(LabFocusSensor sensor) {
@@ -310,14 +302,14 @@ static GraphBuffer* sensor_buffer(LabFocusSensor sensor) {
 static void draw_icon(LabFocusSensor sensor, int cx, int cy, uint16_t color) {
     switch (sensor) {
         case LAB_FOCUS_TEMP:
-            pbit_draw_temp_icon(cx, cy, color);
+            pbit_draw_temp_icon(cx, cy - 1, color);
             break;
         case LAB_FOCUS_DS18:
             pbit_draw_probe_icon(cx, cy, color);
             break;
 
         case LAB_FOCUS_HUMIDITY:
-            pbit_draw_humidity_icon(cx, cy, color);
+            pbit_draw_humidity_icon(cx, cy - 1, color);
             break;
 
         case LAB_FOCUS_LIGHT:
@@ -395,13 +387,8 @@ static void draw_summary_shell(LabFocusSensor sensor, bool valid, uint16_t prima
 
     tft.setFreeFont(FONT_BODY);
     tft.setTextColor(primary, bg);
-    if (focus_external_missing(sensor, valid)) {
-        tft.setTextDatum(ML_DATUM);
-        tft.drawString(sensor_title(sensor), LF_TITLE_X, LF_SUMMARY_CENTER_Y);
-    } else {
-        tft.setTextDatum(TL_DATUM);
-        tft.drawString(sensor_title(sensor), LF_TITLE_X, sensor_title_y(sensor));
-    }
+    tft.setTextDatum(TL_DATUM);
+    tft.drawString(sensor_title(sensor), LF_TITLE_X, LF_BODY_CENTER_TOP_Y);
     tft.setTextFont(0);
 }
 
@@ -415,14 +402,14 @@ static void draw_summary_content(LabFocusSensor sensor, bool valid, uint16_t pri
 
     if (!valid) {
         const bool has_port_hint = pbit_external_sensor_has_port_hint(focus_to_sz_sensor(sensor));
-        tft.setTextDatum(has_port_hint ? MR_DATUM : TR_DATUM);
+        tft.setTextDatum(TR_DATUM);
         tft.setFreeFont(FONT_SMALL);
-        tft.setTextColor(has_port_hint ? primary : TFT_DARKGREY, bg);
+        tft.setTextColor(has_port_hint ? sensor_primary_color(sensor) : TFT_DARKGREY, bg);
         // Externos (DS18/Suelo) -> icono, nombre y "Sin Sensor" comparten centro Y.
         // "Revisa IOxx" se muestra centrado en graph panel (card inferior).
         tft.drawString(L(ST_NO_SENSOR),
                        LF_SUMMARY_X + LF_SUMMARY_W - 6,
-                       has_port_hint ? LF_SUMMARY_CENTER_Y : summary_no_sensor_y(sensor));
+                       has_port_hint ? LF_SMALL_SUMMARY_CENTER_TOP_Y : summary_no_sensor_y(sensor));
         tft.setTextFont(0);
         return;
     }
@@ -557,10 +544,11 @@ static void draw_graph_panel(LabFocusSensor sensor, bool valid, bool shell_redra
         if (has_port_hint) {
             // Externos (DS18/Suelo) -> solo "Revisa IOxx" en el centro geométrico.
             // "Sin Sensor" se muestra en summary panel (card superior).
-            tft.setTextColor(pbit_external_dim_secondary(focus_to_sz_sensor(sensor)), graph_bg);
+            tft.setTextColor(sensor_primary_color(sensor), graph_bg);
+            tft.setTextDatum(TC_DATUM);
             tft.drawString(L(pbit_external_sensor_check_key(focus_to_sz_sensor(sensor))),
                            LF_GRAPH_X + (LF_GRAPH_W / 2),
-                           LF_GRAPH_CENTER_Y);
+                           LF_SMALL_GRAPH_CENTER_TOP_Y);
         } else {
             // No externos (DHT/LDR/mic) -> "Sin Sensor" centrado en la card como antes.
             tft.setTextColor(TFT_DARKGREY, graph_bg);

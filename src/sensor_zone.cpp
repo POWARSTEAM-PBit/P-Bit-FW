@@ -96,6 +96,35 @@ void sz_set_viz_runtime(uint8_t sensor_id, uint8_t viz_mode) {
     runtime_request_ui_full_redraw();
 }
 
+void sz_snapshot_runtime(SzRuntimeSnapshot& out) {
+    out.sensor = g_sensor;
+    for (uint8_t i = 0; i < SZ_SENSOR_COUNT; i++) {
+        out.viz[i] = g_viz[i];
+    }
+    out.graph_sensor = graph_get_sensor();
+    out.focus_sensor = (uint8_t)lab_focus_get_sensor();
+    out.gauge_sensor = lab_gauge_get_sensor();
+    out.value_sensor = lab_value_get_sensor();
+    out.card_sensor  = lab_sensor_card_get_sz_sensor();
+}
+
+void sz_restore_runtime(const SzRuntimeSnapshot& in) {
+    if (in.sensor < SZ_SENSOR_COUNT) {
+        g_sensor = in.sensor;
+    }
+    for (uint8_t i = 0; i < SZ_SENSOR_COUNT; i++) {
+        if (in.viz[i] < SZ_VIZ_COUNT) {
+            g_viz[i] = in.viz[i];
+        }
+    }
+    if (in.graph_sensor < SZ_SENSOR_COUNT) graph_set_sensor(in.graph_sensor);
+    if (in.focus_sensor < (uint8_t)LAB_FOCUS_COUNT) lab_focus_set_sensor((LabFocusSensor)in.focus_sensor);
+    if (in.gauge_sensor < SZ_SENSOR_COUNT) lab_gauge_set_sensor(in.gauge_sensor);
+    if (in.value_sensor < SZ_SENSOR_COUNT) lab_value_set_sensor(in.value_sensor);
+    if (in.card_sensor < SZ_SENSOR_COUNT) lab_sensor_card_set_sensor(kSzToCardId[in.card_sensor]);
+    runtime_request_ui_full_redraw();
+}
+
 void sz_next_sensor() {
     g_sensor = (SzSensorId)((uint8_t)(g_sensor + 1) % SZ_SENSOR_COUNT);
     save_sz_sensor_store((uint8_t)g_sensor);

@@ -1,4 +1,5 @@
 #include "ui_lab_widget_showcase.h"
+#include "demo_mode.h"
 #include "external_sensor_state.h"
 #include "sensor_zone.h"
 #include "palette.h"
@@ -209,9 +210,15 @@ static void draw_sparkline(int x, int y, int w, int h, ValueLabSensor sensor, co
 
     float data[GRAPH_BUFFER_SIZE];
     size_t count = 0;
-    portENTER_CRITICAL(&g_graph_mux);
-    count = graph_buffer_get(buf, data, GRAPH_BUFFER_SIZE);
-    portEXIT_CRITICAL(&g_graph_mux);
+
+    const bool used_demo = demo_mode_is_active()
+        && demo_mode_graph_values((uint8_t)sensor, light_display_mode(),
+                                  data, GRAPH_BUFFER_SIZE, &count);
+    if (!used_demo) {
+        portENTER_CRITICAL(&g_graph_mux);
+        count = graph_buffer_get(buf, data, GRAPH_BUFFER_SIZE);
+        portEXIT_CRITICAL(&g_graph_mux);
+    }
 
     if (sensor == VALUE_SENSOR_LIGHT && light_display_mode() == LIGHT_DISPLAY_FC) {
         for (size_t i = 0; i < count; ++i) {
@@ -1008,7 +1015,30 @@ static void draw_badge(int x, int y, int w, const char* label, uint16_t accent) 
     tft.setTextFont(0);
 }
 
-static void draw_card_value(int cx, int y, bool valid, float shown_value, const char* footer_text, uint16_t footer_color, uint16_t bg, uint16_t value_color, int footer_offset_y = 17) {
+static void draw_probe_missing_block(int x, int y, int w, uint16_t bg, uint16_t accent) {
+    const int cx = x + (w / 2);
+    const int center_y = y + (kTopCardH / 2);
+    constexpr int kLineStep = 11;
+
+    tft.setTextDatum(TC_DATUM);
+    tft.setFreeFont(FONT_SMALL);
+    tft.setTextColor(pbit_external_dim_secondary(SZ_DS18), bg);
+    tft.drawString("DS18B20", cx, center_y - kLineStep - 11);
+    tft.setTextColor(accent, bg);
+    tft.drawString(L(ST_NO_SENSOR), cx, center_y - 8);
+    tft.drawString(L(ST_CHECK_DS18), cx, center_y + kLineStep - 5);
+    tft.setTextFont(0);
+}
+
+static void draw_card_value(int cx,
+                            int y,
+                            bool valid,
+                            float shown_value,
+                            const char* footer_text,
+                            uint16_t footer_color,
+                            uint16_t bg,
+                            uint16_t value_color,
+                            int footer_offset_y = 17) {
     tft.setTextDatum(TC_DATUM);
     tft.setFreeFont(FONT_MENU);
     tft.setTextColor(valid ? value_color : footer_color, bg);
@@ -1052,6 +1082,9 @@ static void draw_temp_lab_card_shell(int x,
     const uint16_t name_color = (!valid && is_probe) ? pbit_external_dim_primary(SZ_DS18) : temp_lab_card_name_color(is_probe);
     const uint16_t unit_color = (!valid && is_probe) ? pbit_external_dim_secondary(SZ_DS18) : temp_lab_card_unit_color(is_probe);
     fill_lab_card(x, y, w, kTopCardH, accent, card_bg);
+    if (!valid && is_probe) {
+        return;
+    }
 
     const char* card_title = (badge && badge[0]) ? badge : title;
     tft.setTextDatum(TL_DATUM);
@@ -1080,11 +1113,24 @@ static void draw_temp_lab_card_data(int x,
     const uint16_t value_color = TFT_WHITE;
 
     tft.fillRect(x + 3, y + 17, w - 6, kTopCardH - 20, card_bg);
+    if (!valid && is_probe) {
+        draw_probe_missing_block(x, y, w, card_bg, accent);
+        return;
+    }
 
     const char* footer_text = valid ? "" : invalid_text;
     const uint16_t footer_color = accent;
-    const int footer_offset_y = (!valid && is_probe) ? 14 : 17;
-    draw_card_value(x + (w / 2), y + 19, valid, shown_temp, footer_text, footer_color, card_bg, value_color, footer_offset_y);
+    const int value_y = valid ? (y + 21) : (y + 19);
+    const int footer_offset_y = 17;
+    draw_card_value(x + (w / 2),
+                    value_y,
+                    valid,
+                    shown_temp,
+                    footer_text,
+                    footer_color,
+                    card_bg,
+                    value_color,
+                    footer_offset_y);
 }
 
 static void draw_temp_lab_card(int x,

@@ -1,7 +1,9 @@
 #include <Arduino.h>
 #include "timer.h"
+#include "demo_mode.h"
 #include "led_control.h"
 #include "config.h"
+#include "tft_display.h"
 
 extern bool g_alarm_sound_enabled;
 
@@ -52,6 +54,10 @@ static bool is_countdown_mode() {
 }
 
 static unsigned long get_visible_timer_ms() {
+    if (demo_mode_is_active() && active_screen == TIMER_SCREEN) {
+        return (unsigned long)demo_mode_simulated_timer_ms();
+    }
+
     if (is_countdown_mode()) {
         const unsigned long preset_ms = getTimerPresetMs();
         const unsigned long elapsed_ms = userTimerRunning ? (millis() - userTimerStart) : userTimerElapsed;

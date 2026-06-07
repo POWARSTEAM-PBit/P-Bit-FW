@@ -47,6 +47,22 @@ void sz_set_sensor(uint8_t sensor_id);
 void sz_set_sensor_runtime(uint8_t sensor_id);
 void sz_set_viz_runtime(uint8_t sensor_id, uint8_t viz_mode);
 
+// Snapshot/restore de estado runtime de SENSOR_ZONE.
+// Util para Demo Mode: el carrusel modifica sensor activo y modos de varios
+// sensores, pero al salir debe devolver exactamente la seleccion del usuario.
+// No toca NVS; solo estado en memoria.
+struct SzRuntimeSnapshot {
+    SzSensorId sensor;
+    SzVizMode  viz[SZ_SENSOR_COUNT];
+    uint8_t graph_sensor;
+    uint8_t focus_sensor;
+    uint8_t gauge_sensor;
+    uint8_t value_sensor;
+    uint8_t card_sensor;
+};
+void sz_snapshot_runtime(SzRuntimeSnapshot& out);
+void sz_restore_runtime(const SzRuntimeSnapshot& in);
+
 // Advance to the next sensor (wraps around). Persists and requests redraw.
 void sz_next_sensor();
 

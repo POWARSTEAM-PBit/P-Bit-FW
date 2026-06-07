@@ -1,5 +1,17 @@
 # Changelog
 
+## 2026-06-06
+
+### UX — Fixes Demo Mode (Lote 3 pre-soak final)
+
+- **Timer simulado:** `src/timer.cpp` usa `demo_mode_simulated_timer_ms()` cuando Demo Mode está activo en `TIMER_SCREEN`, mostrando un ciclo 0..59 s relativo al inicio del demo sin tocar `userTimerRunning`, `userTimerStart` ni `userTimerElapsed`.
+- **Sparklines demo:** `src/ui_lab_widget_showcase.cpp` usa `demo_mode_graph_values()` como fuente sintética durante Demo Mode antes de leer buffers históricos reales; Termo Lab/DS18 y el resto de sensores muestran líneas demo aunque no haya historial físico.
+- **Estado pre-demo restaurado:** `include/sensor_zone.h` y `src/sensor_zone.cpp` añaden `SzRuntimeSnapshot` runtime-only para preservar sensor activo, los 6 modos `g_viz[]` y los sub-renderers sincronizados por Sensor Zone (Focus, Graph, Gauge, Valor/Termo Lab y Sensor Card). `src/demo_mode.cpp` restaura ese snapshot y `active_screen` al salir, evitando que las escenas demo contaminen la selección del usuario. No toca NVS.
+- **Alineación desconectados:** `src/ui_lab_focus.cpp` evita depender de datums verticales tipo `MC/MR/ML` en los textos externos desconectados; usa Y top calculado desde el centro visual de las cards para alinear mejor `Sin sensor` y `Revisa IO33/IO35`. Tras revisar `glyph_ab` real de TFT_eSPI/FreeFonts, `Revisa IO33/IO35` baja 1 px para coincidir con el centro matemático del card inferior. Los textos de alerta (`Sin sensor`, `Revisa IO33/IO35`) usan color vivo del sensor mientras fondos, bordes e iconos permanecen desaturados.
+- **Alineación conectados:** `src/ui_lab_focus.cpp` normaliza la Y de los nombres conectados (`TEMP.`, `AIRE`, `LUZ`, `MIC`, `SUELO`, `DS18B20`) con la misma fórmula FreeFont usada en desconectados; el valor principal y su unidad mantienen su composición visual original. Los iconos pequeños de Temperatura y Humedad suben 1 px porque su centro de masa visual cae ~1 px por debajo del centro de bbox.
+- **Temp Lab multisensor:** `src/ui_lab_widget_showcase.cpp` baja 2 px los valores válidos de las dos cards superiores (`DHT11` y `DS18B20`). Cuando DS18 está desconectado, el header normal se omite y la card superior derecha usa un bloque centrado de 3 líneas (`DS18B20` / `Sin sensor` / `Revisa IO33`) con `Sin sensor` y `Revisa IO33` en color vivo de alerta.
+- **Builds:** `esp32dev` RAM `49044` / Flash `951737` (+24 RAM / +576 Flash vs post-A+B). `esp32dev_debug` RAM `49084` / Flash `954177` (+24 RAM / +528 Flash).
+
 ## 2026-06-05
 
 ### Estabilidad — Vendorización driver DHT RMT (P0 IWDT fix)

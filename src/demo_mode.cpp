@@ -62,6 +62,12 @@ uint8_t g_scene_index = 0;
 uint32_t g_next_change_ms = 0;
 bool g_pending_first_scene = false;
 uint32_t g_splash_until_ms = 0;
+bool g_pre_demo_saved = false;
+Screen g_pre_demo_active_screen = BOOT_SCREEN;
+#if PBIT_ENABLE_GRAPH_LAB
+SzRuntimeSnapshot g_pre_demo_sz_snapshot;
+#endif
+uint32_t g_demo_started_ms = 0;
 
 float smoothstep(float x) {
     x = constrain(x, 0.0f, 1.0f);
@@ -154,6 +160,15 @@ void apply_scene(uint8_t index) {
 } // namespace
 
 void demo_mode_start(bool consume_current_release) {
+    if (!g_pre_demo_saved) {
+        g_pre_demo_active_screen = active_screen;
+#if PBIT_ENABLE_GRAPH_LAB
+        sz_snapshot_runtime(g_pre_demo_sz_snapshot);
+#endif
+        g_pre_demo_saved = true;
+    }
+    g_demo_started_ms = millis();
+
     g_demo_active = true;
     g_wait_boot_release = consume_current_release;
     g_scene_index = 0;
@@ -168,6 +183,15 @@ void demo_mode_stop() {
     g_wait_boot_release = false;
     g_pending_first_scene = false;
     g_splash_until_ms = 0;
+
+    if (g_pre_demo_saved) {
+        active_screen = g_pre_demo_active_screen;
+#if PBIT_ENABLE_GRAPH_LAB
+        sz_restore_runtime(g_pre_demo_sz_snapshot);
+#endif
+        g_pre_demo_saved = false;
+    }
+
     runtime_mark_sensor_data_ready();
     runtime_request_ui_full_redraw();
 }
@@ -253,4 +277,9 @@ bool demo_mode_consume_boot_release() {
     if (!g_demo_active || !g_wait_boot_release) return false;
     g_wait_boot_release = false;
     return true;
+}
+
+uint32_t demo_mode_simulated_timer_ms() {
+    if (!g_demo_active) return 0;
+    return (millis() - g_demo_started_ms) % 60000UL;
 }
