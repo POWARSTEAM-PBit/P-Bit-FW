@@ -480,35 +480,80 @@ void drawResetChoicePrompt(const char* title,
                            uint8_t selected_choice,
                            const char* footer_text,
                            uint16_t footer_color) {
-    clearMenuBands();
+    const uint16_t danger_bg = tft.color565(132, 0, 12);
+    const uint16_t panel_bg = tft.color565(54, 0, 8);
+    const uint16_t panel_border = tft.color565(255, 118, 64);
+    const uint16_t danger_text = tft.color565(255, 232, 206);
+    const uint16_t danger_dim = tft.color565(220, 126, 126);
+    const uint16_t no_selected_bg = TFT_YELLOW;
+    const uint16_t yes_selected_bg = TFT_WHITE;
+    constexpr int panel_x = 8;
+    constexpr int panel_y = 30;
+    constexpr int panel_w = 144;
+    constexpr int panel_h = 76;
+    constexpr int button_w = 54;
+    constexpr int button_h = 22;
+    constexpr int button_y = 76;
+    constexpr int no_x = 20;
+    constexpr int yes_x = 86;
+    tft.fillScreen(danger_bg);
 
     const int cx = tft.width() / 2;
-    const int no_x = cx - 28;
-    const int yes_x = cx + 28;
+
+    tft.setTextDatum(C_BASELINE);
+    tft.setFreeFont(FONT_HEADER);
+    tft.setTextColor(TFT_WHITE, danger_bg);
+    tft.drawString(title, cx, L_HEADER_Y);
+    tft.setTextFont(0);
+    tft.drawFastHLine(LC_MASTER_HEADER_LINE_X,
+                      L_HEADER_LINE,
+                      LC_MASTER_HEADER_LINE_W,
+                      TFT_WHITE);
+
+    tft.fillRoundRect(panel_x, panel_y, panel_w, panel_h, 5, panel_bg);
+    tft.drawRoundRect(panel_x, panel_y, panel_w, panel_h, 5, panel_border);
 
     tft.setTextDatum(MC_DATUM);
-    tft.setFreeFont(FONT_BODY);
-    tft.setTextColor(TFT_RED, TFT_BLACK);
-    tft.drawString(title, cx, 44);
-
     tft.setFreeFont(FONT_SMALL);
-    tft.setTextColor(TFT_WHITE, TFT_BLACK);
+    tft.setTextColor(danger_text, panel_bg);
     if (line1 && line1[0] != '\0') {
-        tft.drawString(line1, cx, 68);
+        tft.drawString(line1, cx, 41);
     }
     if (line2 && line2[0] != '\0') {
-        tft.drawString(line2, cx, 84);
+        tft.drawString(line2, cx, 54);
     }
 
+    tft.drawFastHLine(panel_x + 12, 69, panel_w - 24, panel_border);
+
+    const bool no_selected = (selected_choice == 0);
+    const bool yes_selected = (selected_choice == 1);
+    tft.fillRoundRect(no_x, button_y, button_w, button_h, 4,
+                      no_selected ? no_selected_bg : panel_bg);
+    tft.drawRoundRect(no_x, button_y, button_w, button_h, 4,
+                      no_selected ? TFT_WHITE : danger_dim);
+    tft.fillRoundRect(yes_x, button_y, button_w, button_h, 4,
+                      yes_selected ? yes_selected_bg : panel_bg);
+    tft.drawRoundRect(yes_x, button_y, button_w, button_h, 4,
+                      yes_selected ? TFT_WHITE : danger_dim);
+
     tft.setFreeFont(FONT_BODY);
-    tft.setTextColor(selected_choice == 0 ? TFT_YELLOW : TFT_DARKGREY, TFT_BLACK);
-    tft.drawString(no_text, no_x, 102);
-    tft.setTextColor(selected_choice == 1 ? TFT_RED : TFT_DARKGREY, TFT_BLACK);
-    tft.drawString(yes_text, yes_x, 102);
+    tft.setTextColor(no_selected ? TFT_BLACK : danger_dim,
+                     no_selected ? no_selected_bg : panel_bg);
+    tft.drawString(no_text, no_x + button_w / 2, button_y + button_h / 2 - 2);
+    tft.setTextColor(yes_selected ? danger_bg : danger_dim,
+                     yes_selected ? yes_selected_bg : panel_bg);
+    tft.drawString(yes_text, yes_x + button_w / 2, button_y + button_h / 2 - 2);
     tft.setTextFont(0);
 
     if (footer_text && footer_text[0] != '\0') {
-        drawFooterHint(footer_text, cx, LM_MENU_FOOTER_Y, footer_color);
+        tft.setTextDatum(MC_DATUM);
+        tft.setFreeFont(FONT_SMALL);
+        tft.setTextColor(footer_color, danger_bg);
+        if (tft.textWidth(footer_text) > tft.width() - 4) {
+            tft.setTextFont(1);
+        }
+        tft.drawString(footer_text, cx, LM_MENU_FOOTER_Y - 4);
+        tft.setTextFont(0);
     }
 }
 

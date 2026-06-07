@@ -42,7 +42,7 @@ Estado de esta revisión: build y auditoría estática completados; Demo Mode y 
 
 - [x] Estado esperado de fábrica por código: BLE `OFF`.
 - [x] `load_ble_enabled_store()` usa default `false` para `ble_en`.
-- [x] Reset por build-hash limpia el namespace NVS antes de evaluar BLE en una build nueva.
+- [x] Reset por firmware-stamp limpia el namespace NVS antes de evaluar BLE en un binario nuevo.
 - [x] `init_ble()` solo se ejecuta si `load_ble_enabled_store()` devuelve `true`.
 - [x] La pantalla `Sistema` no muestra fila BLE cuando `ble_en == false`.
 - [x] La pantalla oculta BLE solo aparece manteniendo el encoder 30 s en `Sistema` según auditoría estática.

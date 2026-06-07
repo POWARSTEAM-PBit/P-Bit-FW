@@ -1,5 +1,15 @@
 # Changelog
 
+## 2026-06-07
+
+### Fix — Reset general reinicia tras limpiar NVS
+
+- **Sistema > Reset:** al confirmar `SI`, `src/ui_system.cpp` borra la configuración con `reset_all_settings()`, muestra overlay `Reset aplicado` / `Reiniciando...` y llama a `esp_restart()`. Esto evita quedarse en una UI con estado en RAM parcialmente actualizado y fuerza que el siguiente arranque use defaults completos.
+- **Selector de idioma robusto:** `include/settings_store.h` / `src/settings_store.cpp` añaden `has_language_store()` y `src/main.cpp` muestra el selector mientras la clave `lang` no exista. Además, `fw_stamp` ahora deriva del ELF SHA256 real (`esp_ota_get_app_elf_sha256`) en vez de depender del timestamp de compilación de `main.cpp`, de modo que un binario nuevo limpia NVS aunque el cambio haya ocurrido solo en otra unidad de traducción. Esto evita que el P-Bit arranque silenciosamente en español tras flasheos parciales.
+- **Reset en rojo ordenado:** `drawResetChoicePrompt()` usa fondo rojo full-screen más intenso, título superior con línea blanca como el resto de pantallas, panel central rojo oscuro para la descripción y botones `NO` / `SI` legibles. `NO` sigue seleccionado por defecto; `SI` queda visualmente más peligroso al seleccionarlo.
+- **Catalán compacto:** textos de sensores externos desconectados pasan de `Sense sensor` / `Comprova IO33/IO35` a `No sensor` / `Revisa IO33/IO35` para evitar desbordes en cards compactas.
+- **Documentado:** `docs/DESIGN_SYSTEM.md`, `docs/TECHNICAL.md`, `docs/USER_GUIDE.md`, `docs/PRODUCTION_CHECKLIST.md` y `docs/PRODUCTION_RELEASE.md` aclaran la gramática visual del Reset `danger`, el reinicio tras Reset global, el selector hasta confirmar idioma y la restauración de calibraciones, umbrales, idioma, unidad, Bip, Alarmas y demás valores NVS.
+
 ## 2026-06-06
 
 ### UX — Fixes Demo Mode (Lote 3 pre-soak final)
@@ -158,7 +168,7 @@
 ### Firmware — Estados externos desconectados + temp mono
 
 - **Añadido:** `external_sensor_state.*` centraliza el estado runtime de ausencia para sensores externos: DS18B20/Termómetro falta con `temp_ds18b20 < -100` y Suelo falta con `soil_humidity = NaN`.
-- **Ajustado:** textos visibles de desconexión pasan a referencias de PCB visibles: `Revisa IO33` / `Comprova IO33` / `Check IO33` para Termómetro y `Revisa IO35` / `Comprova IO35` / `Check IO35` para Suelo.
+- **Ajustado:** textos visibles de desconexión pasan a referencias de PCB visibles: `Revisa IO33` / `Revisa IO33` / `Check IO33` para Termómetro y `Revisa IO35` / `Revisa IO35` / `Check IO35` para Suelo.
 - **Ajustado:** pantallas clásicas, Sensor Zone, Graph y vistas Lab usan paleta del sensor atenuada para DS18/Suelo desconectados, evitando gris plano o rojo dominante y manteniendo retorno runtime al reconectar.
 - **Refinado:** el estado desconectado queda menos desaturado para mejorar legibilidad; los textos accionables `Sin sensor` / `Revisa IO33/IO35` ganan prioridad visual y se ajustan en Y en Focus y Temp Lab.
 - **Añadido:** splash semafórico de conexión/desconexión para sensores externos: al conectar muestra fondo verde con `CONECTADO / Sensor Suelo|Sensor DS18B20 / IO35|IO33`; al desconectar muestra fondo rojo con `DESCONECTADO / Sensor Suelo|Sensor DS18B20 / IO35|IO33`. Dura `1500 ms`, no se dispara al boot ni durante Demo Mode.

@@ -105,16 +105,17 @@ void    save_sz_sensor_store(uint8_t sensor_id);
 uint8_t load_sz_viz_store(uint8_t sensor_id);
 void    save_sz_viz_store(uint8_t sensor_id, uint8_t viz_mode);
 
-// BLE feature gate — factory-disabled. Cleared on every new flash (build hash reset).
+// BLE feature gate — factory-disabled. Cleared on every new firmware image.
 bool load_ble_enabled_store();
 void save_ble_enabled_store(bool enabled);
 
 // Language — UI display language persisted across reboots.
 // Stored as uint8_t (casted Language enum). Returns LANG_ES (0) if key absent.
+bool    has_language_store();
 uint8_t load_language_store();
 void    save_language_store(uint8_t lang);
 
-// Firmware build stamp — resets NVS whenever a new binary is flashed.
-// Stores/loads a 32-bit FNV-1a hash of the build timestamp.
+// Firmware stamp — resets NVS whenever a new binary is flashed.
+// Stores/loads a compact hash derived from the running ELF SHA256.
 uint32_t load_fw_build_stamp_store();
 void     save_fw_build_stamp_store(uint32_t stamp);

@@ -53,7 +53,7 @@ Confirmado por lectura de código:
 - i18n usa `LANG_COUNT`, `LIn(...)`, `normalizeLanguage(...)` y `L(...)`.
 - Guardar idioma fuerza full redraw mediante `runtime_request_ui_full_redraw()` y la UI consume el evento con `runtime_take_ui_full_redraw()`.
 - Textos visibles de UI migrados a `L(...)`/`LIn(...)`; quedan literales directos no lingüísticos como cursores, placeholders, separadores y ticks numéricos.
-- BLE sale factory-off: `ble_en` carga `false`, `init_ble()` es condicional y el reset por build-hash limpia NVS antes de evaluar BLE en una build nueva.
+- BLE sale factory-off: `ble_en` carga `false`, `init_ble()` es condicional y el reset por firmware-stamp limpia NVS antes de evaluar BLE en un binario nuevo.
 - LDR tiene base técnica y propagación visual implementadas: lux interno en rango `0..8000` por curva empírica v1, `ldr_raw` promediado, conversión `FC = lux / 10.764`, histórico RAW y unidad/valor coherentes en Luz, Sensor Zone, cards, dashboards, gráficas y dials; queda validación en hardware real.
 - Estados desconectados de sensores externos implementados en firmware: Suelo usa `Revisa IO35`, Termómetro/DS18B20 usa `Revisa IO33`, ambos con paleta del sensor atenuada y sin persistencia NVS.
 - Aviso de conexión/desconexión implementado para sensores externos: si Suelo o Termómetro cambian de estado después del arranque, aparece splash full-screen semafórico de `1500 ms`; verde con `CONECTADO` y rojo con `DESCONECTADO`, seguido de `Sensor Suelo`/`Sensor DS18B20` y `IO35`/`IO33`; no se dispara al boot ni durante Demo Mode.

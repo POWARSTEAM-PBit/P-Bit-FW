@@ -199,6 +199,17 @@ Reglas:
 - El texto visible debe venir de `L(KEY)`; no usar strings hardcodeados.
 - Solo Suelo usa `Calibrar` como calibración real. Luz y Sonido usan rangos/niveles interpretativos.
 
+### Confirmación de Reset
+
+Todas las confirmaciones de `Reset` usan `drawResetChoicePrompt()` como pantalla `danger` común:
+
+- Fondo rojo full-screen para indicar acción destructiva.
+- Header estándar: título superior (`Reset` o `Reset total`) y línea blanca en `L_HEADER_LINE`.
+- Panel central rojo oscuro con dos líneas descriptivas de la acción (`Por defecto` / `de temperatura`, `Restaurar` / `fábrica`, etc.).
+- Botones `NO` / `SI` dentro del panel; `NO` es la selección por defecto y se dibuja con fondo amarillo, mientras `SI` queda como acción peligrosa al seleccionarse.
+- El hint inferior permanece en la posición de menú (`LM_MENU_FOOTER_Y - 4`) y conserva el texto de interacción.
+- No usar esta pantalla para acciones reversibles ni para confirmaciones informativas: es exclusiva de resets destructivos.
+
 ### Selectores y valores de menú
 
 Los estados de edición (`ON/OFF`, `Celsius/Fahrenheit`, límites numéricos, modos de lectura) usan `drawCenteredMenuValueScreen()`, que dibuja el valor dentro de una card central:

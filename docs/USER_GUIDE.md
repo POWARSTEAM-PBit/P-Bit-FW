@@ -125,7 +125,7 @@ En el primer arranque (o tras un flash de firmware nuevo) aparece la pantalla de
 ✅ El dispositivo guarda el idioma y pasa directamente a la pantalla `Home`.
 
 > **ℹ️ NOTA**
-> En arranques posteriores sin flash nuevo, el P-Bit carga el idioma guardado y arranca directamente sin mostrar el selector.
+> En arranques posteriores sin flash nuevo, el P-Bit carga el idioma guardado y arranca directamente sin mostrar el selector. Si la configuración está limpia o el idioma nunca se confirmó, el selector vuelve a aparecer.
 
 ---
 
@@ -545,6 +545,8 @@ Desactivar `Bip` **no** silencia las alertas automáticas. Desactivar `Alarmas` 
 > El Reset de Sistema borra toda la configuración guardada: calibraciones, umbrales, límites, idioma, unidades y preferencias de audio. Esta acción no se puede deshacer.
 
 Opciones de confirmación: `NO` (por defecto) / `SI`
+
+Al confirmar `SI`, el P-Bit muestra `Reiniciando...`, reinicia y vuelve al flujo inicial. En el siguiente arranque aparece el selector de idioma porque la configuración guardada quedó limpia. Las pantallas de confirmación de Reset usan fondo rojo de alerta.
 
 ---
 

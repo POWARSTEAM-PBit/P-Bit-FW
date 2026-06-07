@@ -168,7 +168,7 @@ Orden real de `setup()`:
 1. `Serial.begin`
 2. `nvs_flash_init` (con erase automático si hay páginas corruptas)
 3. incremento de contador RTC de arranque
-4. reset de NVS por build-hash si el firmware es nuevo (ver sección 9)
+4. reset de NVS por stamp derivado del ELF SHA256 si el firmware es nuevo (ver sección 9)
 5. cálculo de nombre de dispositivo desde MAC
 6. inicialización de TFT
 7. inicialización de LED RGB y buzzer
@@ -622,13 +622,14 @@ Namespace utilizado:
 
 - `ble_en` (bool, default `false`) — controla si el BLE se inicializa en el arranque
 
-Esta clave se borra junto con el resto del namespace `pbit` en cada nuevo flash (ver build-hash reset a continuación).
+Esta clave se borra junto con el resto del namespace `pbit` cuando cambia la huella del firmware (ver firmware-stamp reset a continuación).
 
 #### Idioma
 
 - `lang` (`uint8_t`, default `0 = LANG_ES`) — idioma activo de la UI
-- acceso encapsulado: `load_language_store()` / `save_language_store(uint8_t)` en `include/settings_store.h` y `src/settings_store.cpp`
+- acceso encapsulado: `has_language_store()` / `load_language_store()` / `save_language_store(uint8_t)` en `include/settings_store.h` y `src/settings_store.cpp`
 - `src/lang_select.cpp` delega en esas funciones (no abre `Preferences` directamente)
+- en cold boot se muestra el selector hasta que exista la clave `lang`; esto cubre NVS limpia, reset general y reinicios ocurridos antes de confirmar idioma
 - el valor leído se normaliza con `normalizeLanguage(...)`; `LANG_COUNT` define el límite de idiomas soportados
 - `LIn(language, key)` permite renderizar textos en un idioma explícito
 - `L(key)` traduce usando el idioma activo
@@ -643,12 +644,12 @@ El flag de control es la clave NVS `ble_en` (bool, namespace `pbit`, default `fa
 
 Comportamiento:
 
-- En cada nuevo flash, la clave se borra porque el build-hash FNV-1a detecta el nuevo binario y llama a `clear_all_settings_store()`, que limpia el namespace `pbit` entero. `ble_en` vuelve a `false` (su default implícito al no existir).
+- En cada nuevo binario, la clave se borra porque `src/main.cpp` calcula un stamp compacto a partir del ELF SHA256 (`esp_ota_get_app_elf_sha256`) y llama a `clear_all_settings_store()` si cambia frente a `fw_stamp`. `ble_en` vuelve a `false` (su default implícito al no existir).
 - En reinicios normales entre flashes, el valor persistido se respeta: si el usuario activó el BLE, sigue activo.
 - `init_ble()` solo se llama si `load_ble_enabled_store()` devuelve `true`. Si devuelve `false`, el stack NimBLE nunca se inicia y el dispositivo no emite señal BLE.
 - El indicador BLE de `Sistema` solo se dibuja si `ble_en == true`; aparece como badge compacto dentro de la card superior de ID, no como panel propio. En estado de fábrica queda oculto.
 
-Nota de producción: si se flashea sobre una unidad de desarrollo que tenía BLE activado, validar antes de entregar que el dispositivo no anuncia BLE. El reset por build-hash se ejecuta antes de cargar BLE/settings, así que una build nueva debe volver a `OFF` desde el primer arranque.
+Nota de producción: si se flashea sobre una unidad de desarrollo que tenía BLE activado, validar antes de entregar que el dispositivo no anuncia BLE. El reset por firmware-stamp se ejecuta antes de cargar BLE/settings, así que un binario nuevo debe volver a `OFF` desde el primer arranque.
 
 ### Pantalla BLE Toggle (gesto secreto de producción)
 
@@ -880,7 +881,7 @@ Con `PBIT_ENABLE_GRAPH_LAB=1`:
 
 ### Arranque — Selector de idioma
 
-En cold boot: selector visible en `Español` / `Catalán` / `English`. Encoder en rango `0..2` circular. Al confirmar, idioma se guarda y pantalla se limpia. Idioma preseleccionado = último guardado; default = Español.
+En cold boot: selector visible en `Español` / `Catalán` / `English` cuando `lang` no existe en NVS. Encoder en rango `0..2` circular. Al confirmar, idioma se guarda y pantalla se limpia. Idioma preseleccionado = último guardado si existe; default = Español.
 
 ### Acciones rápidas fuera de menú
 
@@ -935,7 +936,7 @@ Opciones raíz: `Calibrar sensor / Rangos / Alertas / Reset / Salir`
 - **Rangos**: `Seco` → `Húmedo` → Guardar. Validación: seco < húmedo, todos en 0..100.
 - Clasificación derivada: `0..Seco/2` = `Muy seco`; `Seco/2..Seco` = `Seco`; `Seco..Húmedo` = `Óptimo`; `Húmedo..(Húmedo+100)/2` = `Húmedo`; tramo final = `Muy húmedo`.
 - Color visual compartido: `pbit_soil_visual_color()` usa los umbrales configurados; `0%` es amarillo intenso, el tramo bajo interpola amarillo→verde hasta `Seco`, `Seco..Húmedo` permanece verde y por encima de `Húmedo` interpola verde→azul.
-- Sin sensor: muestra `Sin sensor`, `---` y `Revisa IO35` / `Comprova IO35` / `Check IO35`, con paleta de Suelo atenuada. Al conectar/desconectar durante el uso, muestra splash semafórico `CONECTADO`/`DESCONECTADO` con `Sensor Suelo / IO35`.
+- Sin sensor: muestra `Sin sensor`, `---` y `Revisa IO35` / `Revisa IO35` / `Check IO35`, con paleta de Suelo atenuada. Al conectar/desconectar durante el uso, muestra splash semafórico `CONECTADO`/`DESCONECTADO` con `Sensor Suelo / IO35`.
 
 #### Termómetro / DS18B20
 
@@ -944,7 +945,7 @@ Opciones raíz: `Corrección / Límites / Unidad / Alertas / Reset / Salir`
 - **Corrección**: `Offset` (décimas, aprox. −5.0..+5.0) → Guardar.
 - **Límites**: `Límite bajo` → `Límite alto` → Guardar. Valores internos en Celsius.
 - **Unidad**: `Celsius` / `Fahrenheit`. Compartida con Temperatura y persistida en `sys_unit_f`.
-- Sin sensor: muestra `Sin sensor`, `---` y `Revisa IO33` / `Comprova IO33` / `Check IO33`, con paleta de Termómetro/DS18 atenuada. Al conectar/desconectar durante el uso, muestra splash semafórico `CONECTADO`/`DESCONECTADO` con `Sensor DS18B20 / IO33`.
+- Sin sensor: muestra `Sin sensor`, `---` y `Revisa IO33` / `Revisa IO33` / `Check IO33`, con paleta de Termómetro/DS18 atenuada. Al conectar/desconectar durante el uso, muestra splash semafórico `CONECTADO`/`DESCONECTADO` con `Sensor DS18B20 / IO33`.
 
 #### Sistema
 
@@ -952,7 +953,7 @@ Opciones raíz en grid 2×3: `Bip / Alarmas / Reposo / Idioma / Reset / Salir`
 
 - **Reposo**: `30 seg / 1 min / 2 min / 5 min / 10 min / Nunca`.
 - **Idioma**: `Español / Catalán / English`. Solicita full redraw con `runtime_request_ui_full_redraw()`.
-- **Reset**: borra todo el namespace `pbit`. Incluye calibraciones, umbrales, idioma, unidad, Bip, Alarmas.
+- **Reset**: borra todo el namespace `pbit`, muestra overlay de reinicio y llama a `esp_restart()`. Incluye calibraciones, umbrales, idioma, unidad, Bip, Alarmas y `fw_stamp`; el siguiente arranque se comporta como primer boot de firmware limpio y vuelve a mostrar selector de idioma.
 
 #### Timer
 
@@ -973,7 +974,7 @@ Sin submenú raíz de lista.
 - `SAVED` es un estado intermedio: una pulsación adicional vuelve al menú raíz.
 - Menús raíz y selectores de opción binaria/discreta envuelven en bucle.
 - Ediciones numéricas no envuelven.
-- Confirmaciones de `Reset` usan `NO / SI` (circular).
+- Confirmaciones de `Reset` usan `drawResetChoicePrompt()`: pantalla roja `danger`, header estándar con línea blanca, panel central con descripción de la acción y botones `NO / SI` circulares. `NO` es la selección por defecto; `SI` confirma la acción destructiva.
 
 ---
 
@@ -1069,7 +1070,7 @@ Antes de cerrar tarea de firmware no-render, los 8 proofs siguientes:
             base (ver `docs/TFT_RENDER_RULES.md` § Nivel 5).
 
 □ proof 6 — Si tocaste BLE: confirmar que sigue siendo factory-off (`ble_en=false`),
-            que el reset por build-hash funciona, y que el gesto secreto del
+            que el reset por firmware-stamp funciona, y que el gesto secreto del
             SYSTEM_SCREEN no se documenta en USER_GUIDE.
 
 □ proof 7 — Si tocaste tareas (UI/sensor/loop): stack usado vs asignado (`uxTaskGetStackHighWaterMark`).

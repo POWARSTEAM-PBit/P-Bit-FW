@@ -10,6 +10,7 @@
 #include "runtime_events.h"
 #include "palette.h"
 #include <stdio.h>
+#include <esp_system.h>
 
 static SysMenuState g_sys_menu_state = SYS_MODE_NORMAL;
 static uint8_t g_sys_menu_index = 0;
@@ -33,6 +34,17 @@ const int NUM_SLEEP_OPTIONS = sizeof(SLEEP_OPTIONS) / sizeof(SLEEP_OPTIONS[0]);
 
 static void draw_system_header(const char* title) {
     drawHeader(title);
+}
+
+static void draw_system_reset_restart_overlay() {
+    tft.fillScreen(TFT_BLACK);
+    draw_system_header(L(MENU_FULL_RESET));
+    tft.setTextDatum(MC_DATUM);
+    tft.setFreeFont(FONT_BODY);
+    tft.setTextColor(TFT_WHITE, TFT_BLACK);
+    tft.drawString(L(MENU_RESET_DONE), tft.width() / 2, 55);
+    tft.drawString(L(ST_RESTARTING), tft.width() / 2, 78);
+    tft.setTextFont(0);
 }
 
 static const char* get_sleep_option_name(int index) {
@@ -282,15 +294,10 @@ uint8_t handle_system_button() {
         case SYS_MODE_CONFIRM_RESET:
             if (g_sys_reset_choice == 1) {
                 reset_all_settings();
-                g_language = LANG_ES;
-                g_sys_sound_enabled = g_sound_enabled;
-                g_sys_alarm_sound_enabled = g_alarm_sound_enabled;
-                g_sys_sleep_ms = get_sleep_timeout();
-                g_sys_lang_index = (uint8_t)normalizeLanguage(g_language);
-                g_sys_reset_choice = 0;
-                g_sys_saved_kind = 3;
-                g_sys_menu_state = SYS_MODE_SAVED;
-                force_full = true;
+                draw_system_reset_restart_overlay();
+                delay(700);
+                esp_restart();
+                return 0; // unreachable
             } else {
                 g_sys_menu_state = SYS_MODE_MENU;
             }

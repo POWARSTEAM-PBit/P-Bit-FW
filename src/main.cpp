@@ -12,6 +12,7 @@
 #include <esp_sleep.h> // Sleep modes and wake-up helpers
 #include <esp_system.h>
 #include <esp_timer.h>
+#include <esp_ota_ops.h>
 #include <nvs_flash.h>
 #include <driver/rtc_io.h>
 #include <stdio.h>
@@ -164,7 +165,9 @@ static void failFastOnTaskCreateError(const char* task_name) {
 }
 
 static uint32_t firmwareBuildHash() {
-    const char* s = __DATE__ " " __TIME__;
+    char sha[65];
+    const int written = esp_ota_get_app_elf_sha256(sha, sizeof(sha));
+    const char* s = (written > 1) ? sha : (__DATE__ " " __TIME__);
     uint32_t h = 2166136261u;
     for (; *s; ++s) h = (h ^ (uint8_t)*s) * 16777619u;
     return h;
@@ -196,6 +199,7 @@ void setup() {
         clear_all_settings_store();
         save_fw_build_stamp_store(kBuildHash);
     }
+    const bool language_confirmed = has_language_store();
     
     // Module initialization.
     set_devicename();
@@ -206,7 +210,7 @@ void setup() {
     pinMode((uint8_t)DI_ENCODER_SW, INPUT_PULLUP);
     bool demo_boot_requested = (digitalRead((uint8_t)DI_ENCODER_SW) == LOW);
 
-    // BLE is factory-disabled. The build-hash reset above clears ble_en on every
+    // BLE is factory-disabled. The firmware-stamp reset above clears ble_en on every
     // new flash, so the device always ships with BLE off until unlocked via the
     // secret 30 s hold gesture on SYSTEM_SCREEN.
     if (load_ble_enabled_store()) {
@@ -248,8 +252,9 @@ void setup() {
             persistPowerState(POWER_ACTIVE, SLEEP_INTENT_NONE);
             if (demo_boot_requested) {
                 loadLanguage();
-            } else if (settings_wiped) {
-                // First boot with this firmware version — force language selection.
+            } else if (!language_confirmed) {
+                // First boot with clean settings, or a previous boot reset before
+                // language confirmation — force language selection until saved.
                 showLanguageMenu();
             } else {
                 // Returning cold boot — language already confirmed, load silently.

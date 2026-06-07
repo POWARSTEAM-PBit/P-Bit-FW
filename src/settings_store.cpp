@@ -246,6 +246,11 @@ uint8_t load_language_store() {
     return prefs.prefs.getUChar("lang", 0); // 0 = LANG_ES default
 }
 
+bool has_language_store() {
+    ScopedPrefs prefs(true);
+    return prefs.prefs.isKey("lang");
+}
+
 void save_language_store(uint8_t lang) {
     ScopedPrefs prefs(false);
     prefs.prefs.putUChar("lang", lang);
