@@ -1,5 +1,15 @@
 # Changelog
 
+## 2026-06-08
+
+### UX/Firmware — Suelo suavizado y calibración con confirmación
+
+- **Promedio móvil:** `src/hw.cpp` reemplaza la EMA de Suelo por una ventana móvil de `10` porcentajes ya calibrados. El filtro se resetea al detectar sensor desconectado o al cambiar la calibración, evitando que valores antiguos contaminen el nuevo mapeo.
+- **Calibración protegida:** si `Calibrar sensor` se selecciona con el sensor de Suelo desconectado (`soil_humidity = NaN`), `src/ui_soil.cpp` muestra `Sin sensor` / `Conecta sensor` / `Revisa IO35` y no entra al flujo de captura.
+- **Guardar explícito:** tras capturar `En aire` y `En agua`, la calibración ya no se guarda de inmediato. Ahora muestra un resumen `SECO xxxx` / `MOJADO xxxx` con dos opciones: `Salir` y `Guardar`. `Salir` es la opción inicial y descarta los valores; `Guardar` es la única ruta que escribe NVS.
+- **i18n:** `include/languages.h` y `src/lang_select.cpp` añaden `Conecta sensor` y `Guardar` para evitar strings visibles hardcodeados.
+- **Builds:** `esp32dev` SUCCESS — RAM `49100` / Flash `954541`; `esp32dev_debug` SUCCESS — RAM `49156` / Flash `957001`.
+
 ## 2026-06-07
 
 ### Fix — Calibración Suelo cancelable y sin flicker fuerte

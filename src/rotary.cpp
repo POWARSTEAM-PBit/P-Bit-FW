@@ -177,7 +177,10 @@ static void configure_app_rotary_bounds() {
 
 static void configure_soil_ui_rotary_bounds() {
     SoilCalibrationState state = getSoilCalibrationState();
-    bool circular = (state == SOIL_CAL_MENU || state == SOIL_CAL_EDIT_ALERTS || state == SOIL_CAL_RESET_CONFIRM);
+    bool circular = (state == SOIL_CAL_MENU
+                  || state == SOIL_CAL_REVIEW_SAVE
+                  || state == SOIL_CAL_EDIT_ALERTS
+                  || state == SOIL_CAL_RESET_CONFIRM);
     rotaryEncoder.setBoundaries(getSoilCalibrationEncoderMin(), getSoilCalibrationEncoderMax(), circular);
     rotaryEncoder.setStepValue(1);
     rotaryEncoder.setEncoderValue(getSoilCalibrationEncoderValue());
@@ -575,7 +578,7 @@ void buttonCallback(unsigned long duration) {
         if ((next_state == SOIL_CAL_WAIT_DRY || next_state == SOIL_CAL_THRESH_DRY) && g_sound_enabled) {
             play_soil_confirm_beep();
         }
-        if (next_state == SOIL_CAL_WAIT_WET && g_sound_enabled) {
+        if ((next_state == SOIL_CAL_WAIT_WET || next_state == SOIL_CAL_REVIEW_SAVE) && g_sound_enabled) {
             beep(1350, 45);
         }
         if ((next_state == SOIL_CAL_THRESH_MOIST || next_state == SOIL_CAL_EDIT_ALERTS) && g_sound_enabled) {

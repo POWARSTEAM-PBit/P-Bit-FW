@@ -343,7 +343,7 @@ Lógica actual:
 - mapeo a porcentaje usando dos puntos de calibración:
   - referencia seca
   - referencia húmeda
-- suavizado por EMA
+- suavizado por ventana móvil de 10 porcentajes ya calibrados; se resetea al detectar desconexión o cambio de calibración
 
 ### Sensores lentos
 
@@ -933,7 +933,8 @@ Opciones raíz: `Niveles / Alertas / Ver límites / Reset / Salir`
 
 Opciones raíz: `Calibrar sensor / Rangos / Alertas / Reset / Salir`
 
-- **Calibrar sensor**: `Seco al aire` → `En agua` → Guardar o Error. Validación: seco_raw > húmedo_raw, diferencia ≥ 300.
+- **Calibrar sensor**: `Seco al aire` → `En agua` → resumen `SECO/MOJADO` → `Salir` o `Guardar`. `Salir` descarta los valores capturados; `Guardar` valida seco_raw > húmedo_raw y diferencia ≥ 300 antes de escribir NVS.
+- **Sensor ausente**: si `Calibrar sensor` se selecciona con `soil_humidity = NaN`, muestra `Sin sensor` / `Conecta sensor` / `Revisa IO35` y no entra a captura.
 - **Cancelar calibración**: una pulsación larga durante `Seco al aire`, `En agua`, `Rangos`, `Alertas` o confirmación de `Reset` vuelve al menú de Suelo sin escribir NVS. Desde el menú raíz, la pulsación larga sale de la configuración.
 - **RAW live**: durante `Seco al aire` / `En agua`, la pantalla muestrea cada 250 ms con deadband de 3 cuentas ADC y redibuja solo la card del valor después del shell inicial para evitar flicker.
 - **Rangos**: `Seco` → `Húmedo` → Guardar. Validación: seco < húmedo, todos en 0..100.
