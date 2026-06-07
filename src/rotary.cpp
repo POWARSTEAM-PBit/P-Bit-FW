@@ -441,6 +441,18 @@ void knobCallback(long value) {
 }
 
 static bool handle_button_long_press() {
+    if (active_screen == SOIL_SCREEN && soilCalibrationIsActive()) {
+        if (cancelSoilCalibration()) {
+            if (soilCalibrationIsActive()) {
+                configure_soil_ui_rotary_bounds();
+            } else {
+                configure_app_rotary_bounds();
+            }
+            if (g_sound_enabled) beep(900, 22);
+            return true;
+        }
+    }
+
 #if PBIT_ENABLE_GRAPH_LAB
     if (active_screen == LAB_HOME_CARDS_SCREEN) {
         demo_mode_start(false);
@@ -972,6 +984,7 @@ void poll_rotary_aux() {
             || (active_screen == LIGHT_SCREEN && !light_menu_is_active())
             || (active_screen == SOUND_SCREEN && !sound_menu_is_active())
             || (active_screen == SOIL_SCREEN && !soilCalibrationIsActive())
+            || (active_screen == SOIL_SCREEN && soilCalibrationIsActive())
             || (active_screen == DS18B20_SCREEN && !ds18_menu_is_active())
             || (active_screen == SYSTEM_SCREEN && !system_menu_is_active())
 #if PBIT_ENABLE_GRAPH_LAB

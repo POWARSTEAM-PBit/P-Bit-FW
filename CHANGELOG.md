@@ -2,6 +2,14 @@
 
 ## 2026-06-07
 
+### Fix — Calibración Suelo cancelable y sin flicker fuerte
+
+- **Cancelación segura:** `src/rotary.cpp` consume pulsación larga mientras la calibración de Suelo está activa y llama a `cancelSoilCalibration()` en `src/ui_soil.cpp`. En subpasos (`En aire`, `En agua`, rangos, alertas y confirmación de reset) vuelve al menú de calibración sin guardar; desde el menú raíz sale a la pantalla normal. La pulsación larga ya no cae al `buttonCallback()` de release, evitando capturas o guardados accidentales.
+- **Persistencia protegida:** cancelar descarta RAW temporales, recarga umbrales/alertas persistidos cuando aplica y no llama a `save_soil_calibration()`, `save_soil_thresholds()`, `set_soil_alerts_enabled()` ni `reset_soil_settings()`.
+- **Anti-flicker:** el RAW live de calibración se muestrea cada `250 ms` con deadband de `3` cuentas ADC y, tras el shell inicial, solo redibuja la card del valor. Ya no se limpia título/footer/card completa por cada jitter del ADC.
+- **Fondo propio:** `draw_soil_calibration_screen()` recibe el `screen_changed` del router y `startSoilCalibration()` solicita redraw completo, evitando residuos de la pantalla de Suelo al reentrar al menú. También se elimina el footer duplicado en la confirmación de Reset de Suelo.
+- **Builds:** `esp32dev` SUCCESS — RAM `49052` / Flash `953465`; `esp32dev_debug` SUCCESS — RAM `49092` / Flash `955929`.
+
 ### Fix — Reset general reinicia tras limpiar NVS
 
 - **Sistema > Reset:** al confirmar `SI`, `src/ui_system.cpp` borra la configuración con `reset_all_settings()`, muestra overlay `Reset aplicado` / `Reiniciando...` y llama a `esp_restart()`. Esto evita quedarse en una UI con estado en RAM parcialmente actualizado y fuerza que el siguiente arranque use defaults completos.

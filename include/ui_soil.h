@@ -22,6 +22,7 @@ enum SoilCalibrationState : uint8_t {
 bool soilCalibrationIsActive();
 SoilCalibrationState getSoilCalibrationState();
 void startSoilCalibration();
+bool cancelSoilCalibration();
 void setSoilCalibrationInputValue(int value);
 int getSoilCalibrationEncoderMin();
 int getSoilCalibrationEncoderMax();

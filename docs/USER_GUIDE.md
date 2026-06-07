@@ -424,6 +424,8 @@ El rango entre `Seco` y `Muy húmedo` se interpreta automáticamente como `Ópti
 4. Si la diferencia entre ambos valores es suficiente (≥ 300 cuentas ADC), la calibración se guarda.
 5. Si aparece `Error`, repite el proceso asegurando que los dos valores estén bien diferenciados.
 
+Durante la calibración, una pulsación larga cancela el paso actual sin guardar cambios y vuelve al menú de Suelo. Desde el menú raíz, la pulsación larga cierra la configuración.
+
 ### Alertas del sensor de suelo
 
 Los rangos de suelo se definen con dos umbrales:

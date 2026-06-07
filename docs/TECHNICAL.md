@@ -504,6 +504,7 @@ Nivel de sonido ambiental en barras apiladas. Solo lectura; no tiene menú.
 - en carrusel actual: slot de `SENSOR_ZONE_SCREEN` con sensor `SZ_SOIL`
 - pulsación corta: alterna modo de visualización
 - menú `Calibrar sensor / Rangos / Alertas / Reset / Salir`
+- dentro de la calibración, pulsación larga cancela el subpaso sin escribir NVS; en el menú raíz sale de configuración
 - clasificación actual derivada desde dos umbrales editables: `Muy seco`, `Seco`, `Óptimo`, `Húmedo`, `Muy húmedo`
 
 #### Termómetro / DS18B20
@@ -933,6 +934,8 @@ Opciones raíz: `Niveles / Alertas / Ver límites / Reset / Salir`
 Opciones raíz: `Calibrar sensor / Rangos / Alertas / Reset / Salir`
 
 - **Calibrar sensor**: `Seco al aire` → `En agua` → Guardar o Error. Validación: seco_raw > húmedo_raw, diferencia ≥ 300.
+- **Cancelar calibración**: una pulsación larga durante `Seco al aire`, `En agua`, `Rangos`, `Alertas` o confirmación de `Reset` vuelve al menú de Suelo sin escribir NVS. Desde el menú raíz, la pulsación larga sale de la configuración.
+- **RAW live**: durante `Seco al aire` / `En agua`, la pantalla muestrea cada 250 ms con deadband de 3 cuentas ADC y redibuja solo la card del valor después del shell inicial para evitar flicker.
 - **Rangos**: `Seco` → `Húmedo` → Guardar. Validación: seco < húmedo, todos en 0..100.
 - Clasificación derivada: `0..Seco/2` = `Muy seco`; `Seco/2..Seco` = `Seco`; `Seco..Húmedo` = `Óptimo`; `Húmedo..(Húmedo+100)/2` = `Húmedo`; tramo final = `Muy húmedo`.
 - Color visual compartido: `pbit_soil_visual_color()` usa los umbrales configurados; `0%` es amarillo intenso, el tramo bajo interpola amarillo→verde hasta `Seco`, `Seco..Húmedo` permanece verde y por encima de `Húmedo` interpola verde→azul.
