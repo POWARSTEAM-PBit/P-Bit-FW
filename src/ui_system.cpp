@@ -368,36 +368,45 @@ static void draw_system_menu_screen(bool screen_changed) {
             L(MENU_SLEEP),
             L(MENU_TITLE)
         };
-        drawSettingsGridMenu(items, 4, g_sys_menu_index, L(MENU_RESET), L(MENU_EXIT));
-        drawFooterHint(L(INSTR_SEL), cx, LM_MENU_FOOTER_Y);
-        last_menu_index = (int)g_sys_menu_index;
+        const uint8_t selected_index = g_sys_menu_index;
+        const bool grid_full_redraw = state_changed || last_menu_index < 0;
+        drawSettingsGridMenu(items, 4, selected_index, L(MENU_RESET), L(MENU_EXIT),
+                             grid_full_redraw, last_menu_index);
+        if (grid_full_redraw) {
+            drawFooterHint(L(INSTR_SEL), cx, LM_MENU_FOOTER_Y);
+        }
+        last_menu_index = (int)selected_index;
     } else if (g_sys_menu_state == SYS_MODE_EDIT_SOUND) {
         drawCenteredMenuValueScreen(L(MENU_SOUND),
                                     g_sys_sound_enabled ? L(ST_ON) : L(ST_OFF),
                                     g_sys_sound_enabled ? TFT_GREEN : TFT_RED,
                                     MENU_VALUE_FONT_BODY,
-                                    L(ST_TURN_PUSH));
+                                    L(ST_TURN_PUSH),
+                                    state_changed);
         last_sound_value = g_sys_sound_enabled ? 1 : 0;
     } else if (g_sys_menu_state == SYS_MODE_EDIT_ALARM_SOUND) {
         drawCenteredMenuValueScreen(L(MENU_ALARM_SOUND),
                                     g_sys_alarm_sound_enabled ? L(ST_ON) : L(ST_OFF),
                                     g_sys_alarm_sound_enabled ? TFT_GREEN : TFT_RED,
                                     MENU_VALUE_FONT_BODY,
-                                    L(ST_TURN_PUSH));
+                                    L(ST_TURN_PUSH),
+                                    state_changed);
         last_alarm_sound_value = g_sys_alarm_sound_enabled ? 1 : 0;
     } else if (g_sys_menu_state == SYS_MODE_EDIT_SLEEP) {
         drawCenteredMenuValueScreen(L(MENU_SLEEP),
                                     get_sleep_option_name(get_sleep_option_index(g_sys_sleep_ms)),
                                     TFT_WHITE,
                                     MENU_VALUE_FONT_BODY,
-                                    L(ST_TURN_PUSH));
+                                    L(ST_TURN_PUSH),
+                                    state_changed);
         last_sleep_index = get_sleep_option_index(g_sys_sleep_ms);
     } else if (g_sys_menu_state == SYS_MODE_EDIT_LANG) {
         drawCenteredMenuValueScreen(L(MENU_TITLE),
                                     get_language_name(g_sys_lang_index),
                                     TFT_WHITE,
                                     MENU_VALUE_FONT_BODY,
-                                    L(ST_TURN_PUSH));
+                                    L(ST_TURN_PUSH),
+                                    state_changed);
         last_lang_index = (int)g_sys_lang_index;
     } else if (g_sys_menu_state == SYS_MODE_CONFIRM_RESET) {
         // Reset confirmation keeps the danger shell stable while the encoder

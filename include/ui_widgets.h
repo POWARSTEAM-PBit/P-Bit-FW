@@ -60,13 +60,16 @@ void drawSettingsGridMenu(const char* const* primary_items,
                           uint8_t primary_count,
                           uint8_t selected_index,
                           const char* reset_text,
-                          const char* exit_text);
+                          const char* exit_text,
+                          bool force_redraw = true,
+                          int previous_selected_index = -1);
 // Draw the common "title + value + footer hint" menu layout.
 void drawCenteredMenuValueScreen(const char* title,
                                  const char* value,
                                  uint16_t value_color,
                                  MenuValueFont value_font,
                                  const char* footer_text,
+                                 bool force_redraw = true,
                                  uint16_t footer_color = TFT_CYAN);
 // Draw the common saved/confirmation screen variant using the same centered layout.
 void drawCenteredMenuSavedScreen(const char* title,

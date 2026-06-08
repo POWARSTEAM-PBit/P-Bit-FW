@@ -2,6 +2,28 @@
 
 ## 2026-06-08
 
+### Fix UX — Ghost tiles y "Ver límites" circular (M4A)
+
+- **Ghost tiles al rotar rápido:** `drawSettingsGridMenu()` limpia el rectángulo completo del tile antes de redibujarlo y, si el encoder salta más de una posición entre frames, redibuja todos los tiles individualmente sin `clearMenuBands()` ni `fillScreen()`.
+- **Snapshot renderizado:** los menús raíz de Temperatura, Humedad, Luz, Sonido, Suelo, Termómetro/DS18B20 y Sistema guardan en `last_menu_index` el índice local que realmente se dibujó, evitando leer un global que pudo cambiar durante el frame.
+- **"Ver límites" circular:** `LIGHT_MODE_EDIT_MARKS` y `SOUND_MODE_EDIT_MARKS` entran en las reglas circulares del encoder, igual que otros toggles binarios.
+- **Scope acotado:** terminología `Rangos/Niveles/Límites`, cancelación sin guardar y paridad de marcas visuales quedan para M4B/M4C/M4D.
+- **Builds:** `esp32dev` SUCCESS — RAM `49116` / Flash `955801`; `esp32dev_debug` SUCCESS — RAM `49156` / Flash `958273`.
+
+### Perf TFT — Editores de valor sin flicker por giro de encoder
+
+- **Card incremental:** `drawCenteredMenuValueScreen()` acepta `force_redraw`. Al entrar al editor dibuja título, footer, card y borde; durante giro de encoder solo refresca el interior del valor y actualiza el borde/acento si cambia el estado.
+- **Migrado:** editores numéricos, toggles y selectores de Temperatura, Humedad, Luz, Sonido, Suelo, Termómetro/DS18B20 y Sistema pasan `state_changed` al helper común.
+- **Regla canónica:** `docs/TFT_RENDER_RULES.md` y `docs/TECHNICAL.md` documentan el patrón incremental para cards de valor editable.
+- **Builds:** `esp32dev` SUCCESS — RAM `49116` / Flash `955793`; `esp32dev_debug` SUCCESS — RAM `49156` / Flash `958269`.
+
+### Perf TFT — Menús raíz 2×3 sin flicker por selección
+
+- **Grid incremental:** `drawSettingsGridMenu()` acepta `force_redraw` y `previous_selected_index`. Al entrar al menú dibuja todos los tiles; durante navegación con encoder solo redibuja el tile anterior y el nuevo.
+- **Migrado:** menús raíz de Temperatura, Humedad, Luz, Sonido, Suelo, Termómetro/DS18B20 y Sistema pasan `state_changed`/`last_menu_index` al helper y redibujan el footer solo en redraw completo.
+- **Geometría preservada:** `Reset` y `Salir` permanecen fijados en la fila inferior incluso cuando el menú tiene 2 o 3 opciones primarias.
+- **Builds:** `esp32dev` SUCCESS — RAM `49116` / Flash `955533`; `esp32dev_debug` SUCCESS — RAM `49156` / Flash `957981`.
+
 ### Perf TFT — Reset sin flicker por giro de encoder
 
 - **Shell incremental:** `drawResetChoicePrompt()` se divide en `drawResetChoicePromptShell()` y `updateResetChoiceButtons()`. El fondo rojo, header, panel y descripción se dibujan solo al entrar; cambiar `NO` / `SI` redibuja únicamente los dos botones.

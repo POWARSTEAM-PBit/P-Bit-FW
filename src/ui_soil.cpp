@@ -574,9 +574,14 @@ static void draw_soil_calibration_screen(bool screen_changed) {
                 L(MENU_RANGES),
                 L(MENU_ALERTS)
             };
-            drawSettingsGridMenu(items, 3, g_soil_menu_index, L(MENU_RESET), L(MENU_EXIT));
-            drawFooterHint(L(INSTR_SEL), cx, LM_MENU_FOOTER_Y);
-            last_menu_index = (int)g_soil_menu_index;
+            const uint8_t selected_index = g_soil_menu_index;
+            const bool grid_full_redraw = state_changed || last_menu_index < 0;
+            drawSettingsGridMenu(items, 3, selected_index, L(MENU_RESET), L(MENU_EXIT),
+                                 grid_full_redraw, last_menu_index);
+            if (grid_full_redraw) {
+                drawFooterHint(L(INSTR_SEL), cx, LM_MENU_FOOTER_Y);
+            }
+            last_menu_index = (int)selected_index;
         }
         last_drawn_state = g_soil_cal_state;
         return;
@@ -670,7 +675,8 @@ static void draw_soil_calibration_screen(bool screen_changed) {
                                     g_soil_alerts_enabled ? L(ST_ON) : L(ST_OFF),
                                     g_soil_alerts_enabled ? TFT_GREEN : TFT_RED,
                                     MENU_VALUE_FONT_TIMER,
-                                    L(ST_TURN_PUSH));
+                                    L(ST_TURN_PUSH),
+                                    state_changed);
         last_alerts_enabled = (int)g_soil_alerts_enabled;
     }
 
@@ -699,7 +705,8 @@ static void draw_soil_calibration_screen(bool screen_changed) {
                                     value_buf,
                                     value_color,
                                     MENU_VALUE_FONT_TIMER,
-                                    L(ST_TURN_PUSH));
+                                    L(ST_TURN_PUSH),
+                                    state_changed);
     }
 
     if ((g_soil_cal_state == SOIL_CAL_DONE || g_soil_cal_state == SOIL_CAL_ERROR)

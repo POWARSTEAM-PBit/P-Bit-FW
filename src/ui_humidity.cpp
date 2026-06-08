@@ -294,9 +294,14 @@ static void draw_humidity_menu_screen(bool screen_changed) {
                 L(MENU_RANGES),
                 L(MENU_ALERTS)
             };
-            drawSettingsGridMenu(items, 2, g_hum_menu_index, L(MENU_RESET), L(MENU_EXIT));
-            drawFooterHint(L(INSTR_SEL), cx, LM_MENU_FOOTER_Y);
-            last_menu_index = (int)g_hum_menu_index;
+            const uint8_t selected_index = g_hum_menu_index;
+            const bool grid_full_redraw = state_changed || last_menu_index < 0;
+            drawSettingsGridMenu(items, 2, selected_index, L(MENU_RESET), L(MENU_EXIT),
+                                 grid_full_redraw, last_menu_index);
+            if (grid_full_redraw) {
+                drawFooterHint(L(INSTR_SEL), cx, LM_MENU_FOOTER_Y);
+            }
+            last_menu_index = (int)selected_index;
         }
         last_drawn_state = g_hum_menu_state;
         return;
@@ -315,7 +320,8 @@ static void draw_humidity_menu_screen(bool screen_changed) {
                                         value_buf,
                                         color,
                                         MENU_VALUE_FONT_TIMER,
-                                        L(ST_TURN_PUSH));
+                                        L(ST_TURN_PUSH),
+                                        state_changed);
             last_edit_val = current_val;
         }
     }
@@ -327,7 +333,8 @@ static void draw_humidity_menu_screen(bool screen_changed) {
                                         g_hum_edit_alerts ? L(ST_ON) : L(ST_OFF),
                                         g_hum_edit_alerts ? TFT_GREEN : TFT_RED,
                                         MENU_VALUE_FONT_TIMER,
-                                        L(ST_TURN_PUSH));
+                                        L(ST_TURN_PUSH),
+                                        state_changed);
             last_alert_value = alert_value;
         }
     }

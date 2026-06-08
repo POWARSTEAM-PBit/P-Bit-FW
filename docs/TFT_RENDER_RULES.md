@@ -218,8 +218,8 @@ Un menú no es "estático" si el encoder puede cambiar selección o valor varias
 | Elemento | Capa | Cuándo se redibuja |
 |---|---|---|
 | Fondo, header, línea, footer/hint | Shell | Solo al entrar al estado o por `screen_changed` |
-| Grid 2×3 de settings | Chrome interactivo | Al entrar se dibujan todos los tiles; al girar solo tile anterior + tile nuevo |
-| Card de valor editable | Shell + data | Título/card/borde al entrar; al girar solo interior del valor |
+| Grid 2×3 de settings | Chrome interactivo | Al entrar se dibujan todos los tiles; al girar normal solo tile anterior + tile nuevo; si el encoder salta >1 posición, todos los tiles se redibujan individualmente sin `clearMenuBands()` |
+| Card de valor editable | Shell + data | `drawCenteredMenuValueScreen(..., state_changed)`: título/footer/card al entrar; al girar solo interior del valor y borde/acento si cambia |
 | Confirmación de Reset | Shell danger + botones | Fondo rojo/panel/texto al entrar; al girar solo botones `NO`/`SI` |
 
 Reglas estrictas:
@@ -228,6 +228,7 @@ Reglas estrictas:
 - `drawHeader()` y `drawFooterHint()` son shell; no se redibujan en cada tick si el texto no cambia.
 - `clearMenuBands(kMenuBand_All)` y `clearMenuBands(kMenuBand_Title | kMenuBand_Body)` son aceptables para cambio de estado, no para navegación interna.
 - Todo menú con encoder mantiene cache de lo visible: `last_drawn_state`, `last_menu_index`, `last_edit_value`, `last_toggle_value`, `last_reset_choice`, `last_saved_kind` o equivalente.
+- El `last_menu_index` de grids debe guardar el índice local que se acaba de dibujar, no releer el global mutable después de llamar al helper. Si el encoder cambia durante el frame, releer el global puede dejar seleccionado un tile fantasma.
 - Si una función helper común no ofrece modo incremental, no usarla en hot path de encoder; separar `draw_*Shell()` de `update_*Data()` / `update_*Buttons()`.
 
 ### Plantilla para confirmaciones Reset

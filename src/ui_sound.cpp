@@ -354,9 +354,14 @@ static void draw_sound_menu_screen(bool screen_changed) {
             L(MENU_ALERTS),
             L(MENU_SHOW_LIMITS)
         };
-        drawSettingsGridMenu(items, 3, g_sound_menu_index, L(MENU_RESET), L(MENU_EXIT));
-        drawFooterHint(L(INSTR_SEL), cx, LM_MENU_FOOTER_Y);
-        last_menu_index = (int)g_sound_menu_index;
+        const uint8_t selected_index = g_sound_menu_index;
+        const bool grid_full_redraw = state_changed || last_menu_index < 0;
+        drawSettingsGridMenu(items, 3, selected_index, L(MENU_RESET), L(MENU_EXIT),
+                             grid_full_redraw, last_menu_index);
+        if (grid_full_redraw) {
+            drawFooterHint(L(INSTR_SEL), cx, LM_MENU_FOOTER_Y);
+        }
+        last_menu_index = (int)selected_index;
     } else if (g_sound_menu_state >= SOUND_MODE_EDIT_QUIET && g_sound_menu_state <= SOUND_MODE_EDIT_LOUD) {
         const char* title = L(MENU_SND_MAX_QUIET);
         int value = g_sound_quiet_max;
@@ -370,21 +375,23 @@ static void draw_sound_menu_screen(bool screen_changed) {
 
         char value_buf[12];
         snprintf(value_buf, sizeof(value_buf), "< %d%%", value);
-        drawCenteredMenuValueScreen(title, value_buf, TFT_WHITE, MENU_VALUE_FONT_TIMER, L(ST_TURN_PUSH));
+        drawCenteredMenuValueScreen(title, value_buf, TFT_WHITE, MENU_VALUE_FONT_TIMER, L(ST_TURN_PUSH), state_changed);
         last_edit_value = value;
     } else if (g_sound_menu_state == SOUND_MODE_EDIT_ALERTS) {
         drawCenteredMenuValueScreen(L(MENU_ALERTS),
                                     g_sound_alerts_enabled ? L(ST_ON) : L(ST_OFF),
                                     g_sound_alerts_enabled ? TFT_GREEN : TFT_RED,
                                     MENU_VALUE_FONT_TIMER,
-                                    L(ST_TURN_PUSH));
+                                    L(ST_TURN_PUSH),
+                                    state_changed);
         last_alert_value = g_sound_alerts_enabled ? 1 : 0;
     } else if (g_sound_menu_state == SOUND_MODE_EDIT_MARKS) {
         drawCenteredMenuValueScreen(L(MENU_SHOW_LIMITS),
                                     g_sound_marks_visible ? L(ST_ON) : L(ST_OFF),
                                     g_sound_marks_visible ? TFT_GREEN : TFT_RED,
                                     MENU_VALUE_FONT_BODY,
-                                    L(ST_TURN_PUSH));
+                                    L(ST_TURN_PUSH),
+                                    state_changed);
         last_marks_value = g_sound_marks_visible ? 1 : 0;
     } else if (g_sound_menu_state == SOUND_MODE_CONFIRM_RESET) {
         if (state_changed) {

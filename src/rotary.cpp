@@ -224,6 +224,7 @@ static void configure_sound_ui_rotary_bounds() {
     SoundMenuState state = get_sound_menu_state();
     bool circular = (state == SOUND_MODE_MENU
                   || state == SOUND_MODE_EDIT_ALERTS
+                  || state == SOUND_MODE_EDIT_MARKS
                   || state == SOUND_MODE_CONFIRM_RESET);
     rotaryEncoder.setBoundaries(get_sound_encoder_min(), get_sound_encoder_max(), circular);
     rotaryEncoder.setStepValue(1);
@@ -235,6 +236,7 @@ static void configure_light_ui_rotary_bounds() {
     bool circular = (state == LIGHT_MODE_MENU
                   || state == LIGHT_MODE_EDIT_DISPLAY
                   || state == LIGHT_MODE_EDIT_ALERTS
+                  || state == LIGHT_MODE_EDIT_MARKS
                   || state == LIGHT_MODE_CONFIRM_RESET);
     rotaryEncoder.setBoundaries(get_light_encoder_min(), get_light_encoder_max(), circular);
     rotaryEncoder.setStepValue(1);

@@ -359,9 +359,14 @@ static void draw_light_menu_screen(bool screen_changed) {
             L(MENU_ALERTS),
             L(MENU_SHOW_LIMITS)
         };
-        drawSettingsGridMenu(items, 4, g_light_menu_index, L(MENU_RESET), L(MENU_EXIT));
-        drawFooterHint(L(INSTR_SEL), cx, LM_MENU_FOOTER_Y);
-        last_menu_index = (int)g_light_menu_index;
+        const uint8_t selected_index = g_light_menu_index;
+        const bool grid_full_redraw = state_changed || last_menu_index < 0;
+        drawSettingsGridMenu(items, 4, selected_index, L(MENU_RESET), L(MENU_EXIT),
+                             grid_full_redraw, last_menu_index);
+        if (grid_full_redraw) {
+            drawFooterHint(L(INSTR_SEL), cx, LM_MENU_FOOTER_Y);
+        }
+        last_menu_index = (int)selected_index;
     } else if (g_light_menu_state >= LIGHT_MODE_EDIT_DIM && g_light_menu_state <= LIGHT_MODE_EDIT_BRIGHT) {
         // Threshold editing keeps the current value centered and compact.
         const char* title = L(MENU_LIGHT_MAX_DIM);
@@ -376,7 +381,7 @@ static void draw_light_menu_screen(bool screen_changed) {
 
         char value_buf[16];
         format_light_threshold_value(value, value_buf, sizeof(value_buf));
-        drawCenteredMenuValueScreen(title, value_buf, TFT_WHITE, MENU_VALUE_FONT_TIMER, L(ST_TURN_PUSH));
+        drawCenteredMenuValueScreen(title, value_buf, TFT_WHITE, MENU_VALUE_FONT_TIMER, L(ST_TURN_PUSH), state_changed);
         last_edit_value = value;
     } else if (g_light_menu_state == LIGHT_MODE_EDIT_DISPLAY) {
         // Display mode changes how the large value is presented.
@@ -384,7 +389,8 @@ static void draw_light_menu_screen(bool screen_changed) {
                                     light_display_mode_name(g_light_display_mode),
                                     TFT_WHITE,
                                     MENU_VALUE_FONT_BODY,
-                                    L(ST_TURN_PUSH));
+                                    L(ST_TURN_PUSH),
+                                    state_changed);
         last_display_mode = (int)g_light_display_mode;
     } else if (g_light_menu_state == LIGHT_MODE_EDIT_ALERTS) {
         // Alert toggle mirrors the same ON/OFF interaction used elsewhere.
@@ -392,14 +398,16 @@ static void draw_light_menu_screen(bool screen_changed) {
                                     g_light_alerts_enabled ? L(ST_ON) : L(ST_OFF),
                                     g_light_alerts_enabled ? TFT_GREEN : TFT_RED,
                                     MENU_VALUE_FONT_BODY,
-                                    L(ST_TURN_PUSH));
+                                    L(ST_TURN_PUSH),
+                                    state_changed);
         last_display_mode = (int)g_light_alerts_enabled;
     } else if (g_light_menu_state == LIGHT_MODE_EDIT_MARKS) {
         drawCenteredMenuValueScreen(L(MENU_SHOW_LIMITS),
                                     g_light_marks_visible ? L(ST_ON) : L(ST_OFF),
                                     g_light_marks_visible ? TFT_GREEN : TFT_RED,
                                     MENU_VALUE_FONT_BODY,
-                                    L(ST_TURN_PUSH));
+                                    L(ST_TURN_PUSH),
+                                    state_changed);
         last_marks_value = g_light_marks_visible ? 1 : 0;
     } else if (g_light_menu_state == LIGHT_MODE_CONFIRM_RESET) {
         if (state_changed) {

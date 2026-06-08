@@ -135,6 +135,10 @@ static void draw_settings_grid_tile(int x, int y, int w, int h,
                         : exit_action ? PB_SOUND_P3
                         : PB_HUM_P3;
 
+    // Clear the full tile box first: rounded fills do not cover the corner
+    // pixels, so a fast selection change can otherwise leave selected-border
+    // residue in hardware.
+    tft.fillRect(x, y, w, h, TFT_BLACK);
     tft.fillRoundRect(x, y, w, h, 4, panel_bg);
     tft.drawRoundRect(x, y, w, h, 4, border);
     if (selected) {
@@ -156,7 +160,9 @@ void drawSettingsGridMenu(const char* const* primary_items,
                           uint8_t primary_count,
                           uint8_t selected_index,
                           const char* reset_text,
-                          const char* exit_text) {
+                          const char* exit_text,
+                          bool force_redraw,
+                          int previous_selected_index) {
     constexpr int kTileW = 70;
     constexpr int kTileH = 22;
     constexpr int kX0 = 8;
@@ -165,31 +171,108 @@ void drawSettingsGridMenu(const char* const* primary_items,
     constexpr int kRowGap = 26;
 
     if (primary_count > 4) primary_count = 4;
-
-    clearMenuBands(kMenuBand_Title | kMenuBand_Body);
-
-    for (uint8_t i = 0; i < primary_count; ++i) {
-        const int x = (i & 1) ? kX1 : kX0;
-        const int y = kY0 + (i / 2) * kRowGap;
-        draw_settings_grid_tile(x, y, kTileW, kTileH,
-                                primary_items[i],
-                                selected_index == i,
-                                false,
-                                false);
-    }
-
     const uint8_t reset_index = primary_count;
     const uint8_t exit_index = primary_count + 1;
-    draw_settings_grid_tile(kX0, kY0 + 2 * kRowGap, kTileW, kTileH,
-                            reset_text,
-                            selected_index == reset_index,
-                            true,
-                            false);
-    draw_settings_grid_tile(kX1, kY0 + 2 * kRowGap, kTileW, kTileH,
-                            exit_text,
-                            selected_index == exit_index,
-                            false,
-                            true);
+    const uint8_t item_count = primary_count + 2;
+
+    auto draw_tile_at_index = [&](uint8_t index) {
+        if (index >= item_count) return;
+        if (index < primary_count) {
+            const int x = (index & 1) ? kX1 : kX0;
+            const int y = kY0 + (index / 2) * kRowGap;
+            draw_settings_grid_tile(x, y, kTileW, kTileH,
+                                    primary_items[index],
+                                    selected_index == index,
+                                    false,
+                                    false);
+            return;
+        }
+        if (index == reset_index) {
+            draw_settings_grid_tile(kX0, kY0 + 2 * kRowGap, kTileW, kTileH,
+                                    reset_text,
+                                    selected_index == reset_index,
+                                    true,
+                                    false);
+            return;
+        }
+        draw_settings_grid_tile(kX1, kY0 + 2 * kRowGap, kTileW, kTileH,
+                                exit_text,
+                                selected_index == exit_index,
+                                false,
+                                true);
+    };
+
+    if (force_redraw || previous_selected_index < 0 || previous_selected_index >= item_count) {
+        clearMenuBands(kMenuBand_Title | kMenuBand_Body);
+        for (uint8_t i = 0; i < item_count; ++i) {
+            draw_tile_at_index(i);
+        }
+        return;
+    }
+
+    const int prev = previous_selected_index;
+    const int curr = (int)selected_index;
+    const int delta = (prev > curr) ? (prev - curr) : (curr - prev);
+    if (delta > 1) {
+        for (uint8_t i = 0; i < item_count; ++i) {
+            draw_tile_at_index(i);
+        }
+        return;
+    }
+
+    if ((uint8_t)previous_selected_index != selected_index) {
+        draw_tile_at_index((uint8_t)previous_selected_index);
+    }
+    draw_tile_at_index(selected_index);
+}
+
+constexpr int kMenuValueCardX = 20;
+constexpr int kMenuValueCardY = 58;
+constexpr int kMenuValueCardW = 120;
+constexpr int kMenuValueCardH = 38;
+constexpr int kMenuValueTextY = 75;
+
+static uint16_t menu_value_card_bg() { return tft.color565(4, 8, 18); }
+static uint16_t menu_value_card_shadow() { return tft.color565(18, 12, 34); }
+
+static void draw_centered_menu_value_shell(const char* title,
+                                           uint16_t value_color,
+                                           const char* footer_text,
+                                           uint16_t footer_color,
+                                           uint16_t title_color) {
+    const uint16_t card_bg = menu_value_card_bg();
+    const uint16_t card_shadow = menu_value_card_shadow();
+
+    drawCenteredMenuFrame(title, title_color, footer_text, footer_color);
+    tft.fillRoundRect(kMenuValueCardX, kMenuValueCardY, kMenuValueCardW, kMenuValueCardH, 5, card_bg);
+    tft.drawRoundRect(kMenuValueCardX, kMenuValueCardY, kMenuValueCardW, kMenuValueCardH, 5, value_color);
+    tft.drawRoundRect(kMenuValueCardX + 1, kMenuValueCardY + 1, kMenuValueCardW - 2, kMenuValueCardH - 2, 4, card_shadow);
+}
+
+static void update_centered_menu_value(const char* value,
+                                       uint16_t value_color,
+                                       MenuValueFont value_font) {
+    const int cx = tft.width() / 2;
+    const uint16_t card_bg = menu_value_card_bg();
+    const uint16_t card_shadow = menu_value_card_shadow();
+
+    tft.drawRoundRect(kMenuValueCardX, kMenuValueCardY, kMenuValueCardW, kMenuValueCardH, 5, value_color);
+    tft.drawRoundRect(kMenuValueCardX + 1, kMenuValueCardY + 1, kMenuValueCardW - 2, kMenuValueCardH - 2, 4, card_shadow);
+    tft.fillRect(kMenuValueCardX + 3, kMenuValueCardY + 3,
+                 kMenuValueCardW - 6, kMenuValueCardH - 6, card_bg);
+
+    tft.setTextDatum(MC_DATUM);
+    const bool prefer_timer = (value_font == MENU_VALUE_FONT_TIMER);
+    tft.setFreeFont(prefer_timer ? FONT_TIMER : FONT_BODY);
+    if (tft.textWidth(value) > kMenuValueCardW - 12) {
+        tft.setFreeFont(FONT_SMALL);
+    }
+    if (tft.textWidth(value) > kMenuValueCardW - 12) {
+        tft.setTextFont(1);
+    }
+    tft.setTextColor(value_color, card_bg);
+    tft.drawString(value, cx, kMenuValueTextY);
+    tft.setTextFont(0);
 }
 
 static void draw_centered_menu_value(const char* title,
@@ -197,34 +280,13 @@ static void draw_centered_menu_value(const char* title,
                                      uint16_t value_color,
                                      MenuValueFont value_font,
                                      const char* footer_text,
+                                     bool force_redraw,
                                      uint16_t footer_color,
                                      uint16_t title_color) {
-    drawCenteredMenuFrame(title, title_color, footer_text, footer_color);
-
-    const int cx = tft.width() / 2;
-    const int card_x = 20;
-    const int card_y = 58;
-    const int card_w = 120;
-    const int card_h = 38;
-    const uint16_t card_bg = tft.color565(4, 8, 18);
-    const uint16_t card_shadow = tft.color565(18, 12, 34);
-
-    tft.fillRoundRect(card_x, card_y, card_w, card_h, 5, card_bg);
-    tft.drawRoundRect(card_x, card_y, card_w, card_h, 5, value_color);
-    tft.drawRoundRect(card_x + 1, card_y + 1, card_w - 2, card_h - 2, 4, card_shadow);
-
-    tft.setTextDatum(MC_DATUM);
-    const bool prefer_timer = (value_font == MENU_VALUE_FONT_TIMER);
-    tft.setFreeFont(prefer_timer ? FONT_TIMER : FONT_BODY);
-    if (tft.textWidth(value) > card_w - 12) {
-        tft.setFreeFont(FONT_SMALL);
+    if (force_redraw) {
+        draw_centered_menu_value_shell(title, value_color, footer_text, footer_color, title_color);
     }
-    if (tft.textWidth(value) > card_w - 12) {
-        tft.setTextFont(1);
-    }
-    tft.setTextColor(value_color, card_bg);
-    tft.drawString(value, cx, 75);
-    tft.setTextFont(0);
+    update_centered_menu_value(value, value_color, value_font);
 }
 
 void drawCenteredMenuValueScreen(const char* title,
@@ -232,8 +294,9 @@ void drawCenteredMenuValueScreen(const char* title,
                                  uint16_t value_color,
                                  MenuValueFont value_font,
                                  const char* footer_text,
+                                 bool force_redraw,
                                  uint16_t footer_color) {
-    draw_centered_menu_value(title, value, value_color, value_font, footer_text, footer_color, TFT_YELLOW);
+    draw_centered_menu_value(title, value, value_color, value_font, footer_text, force_redraw, footer_color, TFT_YELLOW);
 }
 
 void drawCenteredMenuSavedScreen(const char* title,
@@ -242,7 +305,7 @@ void drawCenteredMenuSavedScreen(const char* title,
                                  MenuValueFont value_font,
                                  const char* footer_text,
                                  uint16_t footer_color) {
-    draw_centered_menu_value(title, value, value_color, value_font, footer_text, footer_color, PB_SOUND_P1);
+    draw_centered_menu_value(title, value, value_color, value_font, footer_text, true, footer_color, PB_SOUND_P1);
 }
 
 void drawCenteredMenuBodyLines(const char* const* lines,

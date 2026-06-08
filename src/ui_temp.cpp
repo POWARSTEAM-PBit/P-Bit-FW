@@ -368,9 +368,14 @@ static void draw_temp_menu_screen(bool screen_changed) {
             L(MENU_UNIT),
             L(MENU_ALERTS)
         };
-        drawSettingsGridMenu(items, 3, g_temp_menu_index, L(MENU_RESET), L(MENU_EXIT));
-        drawFooterHint(L(INSTR_SEL), cx, LM_MENU_FOOTER_Y);
-        last_menu_index = (int)g_temp_menu_index;
+        const uint8_t selected_index = g_temp_menu_index;
+        const bool grid_full_redraw = state_changed || last_menu_index < 0;
+        drawSettingsGridMenu(items, 3, selected_index, L(MENU_RESET), L(MENU_EXIT),
+                             grid_full_redraw, last_menu_index);
+        if (grid_full_redraw) {
+            drawFooterHint(L(INSTR_SEL), cx, LM_MENU_FOOTER_Y);
+        }
+        last_menu_index = (int)selected_index;
     } else if (g_temp_menu_state == TEMP_MODE_EDIT_LOW || g_temp_menu_state == TEMP_MODE_EDIT_HIGH) {
         // Limit editing uses the same centered numeric layout in both units.
         bool low_mode = (g_temp_menu_state == TEMP_MODE_EDIT_LOW);
@@ -381,7 +386,8 @@ static void draw_temp_menu_screen(bool screen_changed) {
                                     value_buf,
                                     low_mode ? TFT_CYAN : TFT_ORANGE,
                                     MENU_VALUE_FONT_TIMER,
-                                    L(ST_TURN_PUSH));
+                                    L(ST_TURN_PUSH),
+                                    state_changed);
         last_edit_value = get_temp_encoder_value();
     } else if (g_temp_menu_state == TEMP_MODE_EDIT_UNIT) {
         // Unit selection is a binary toggle between Celsius and Fahrenheit.
@@ -390,7 +396,8 @@ static void draw_temp_menu_screen(bool screen_changed) {
                                                      : L(MENU_UNIT_C),
                                     TFT_WHITE,
                                     MENU_VALUE_FONT_BODY,
-                                    L(ST_TURN_PUSH));
+                                    L(ST_TURN_PUSH),
+                                    state_changed);
         last_unit_value = (int)g_temp_edit_unit;
     } else if (g_temp_menu_state == TEMP_MODE_EDIT_ALERTS) {
         // Alert enable/disable uses the same compact ON/OFF interaction as the
@@ -399,7 +406,8 @@ static void draw_temp_menu_screen(bool screen_changed) {
                                     g_temp_edit_alerts ? L(ST_ON) : L(ST_OFF),
                                     g_temp_edit_alerts ? TFT_GREEN : TFT_RED,
                                     MENU_VALUE_FONT_TIMER,
-                                    L(ST_TURN_PUSH));
+                                    L(ST_TURN_PUSH),
+                                    state_changed);
         last_alert_value = g_temp_edit_alerts ? 1 : 0;
     } else if (g_temp_menu_state == TEMP_MODE_CONFIRM_RESET) {
         if (state_changed) {

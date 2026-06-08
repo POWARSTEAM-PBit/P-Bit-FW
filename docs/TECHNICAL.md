@@ -971,8 +971,8 @@ Sin submenú raíz de lista.
 
 ### Regla común de todos los menús
 
-- Los menús raíz de settings usan grid 2×3 con `Reset` abajo izquierda y `Salir` abajo derecha.
-- Las pantallas de selección/edición muestran el valor activo dentro de una card central con borde semántico.
+- Los menús raíz de settings usan grid 2×3 con `Reset` abajo izquierda y `Salir` abajo derecha. El helper `drawSettingsGridMenu()` soporta redraw incremental: al entrar dibuja todos los tiles; durante navegación normal redibuja el tile anterior y el nuevo; si el encoder salta más de una posición entre frames, redibuja todos los tiles individualmente sin limpiar la pantalla completa. Los callers guardan un snapshot local del índice realmente dibujado para evitar tiles fantasma.
+- Las pantallas de selección/edición muestran el valor activo dentro de una card central con borde semántico. `drawCenteredMenuValueScreen()` soporta redraw incremental: al entrar dibuja título, footer y card; durante giro de encoder refresca solo el interior del valor y el borde/acento si cambia.
 - Gira para cambiar opción o valor.
 - Pulsa para confirmar el paso actual.
 - `SAVED` es un estado intermedio: una pulsación adicional vuelve al menú raíz.
