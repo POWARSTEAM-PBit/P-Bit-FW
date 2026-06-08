@@ -419,8 +419,8 @@ El rango entre `Seco` y `Muy húmedo` se interpreta automáticamente como `Ópti
 ### Cómo calibrar el sensor de suelo
 
 1. Entra en `Calibrar sensor`.
-2. Con el sensor **al aire** (seco), pulsa para registrar el valor `Seco al aire`.
-3. Introduce el sensor en agua (o en suelo muy húmedo), espera unos segundos y pulsa para registrar `En agua`.
+2. Con el sensor **al aire** (seco), espera a que el RAW se estabilice y elige `Captura`. `Salir` vuelve al menú sin guardar.
+3. Introduce el sensor en agua (o en suelo muy húmedo), espera unos segundos y elige `Captura`. `Salir` vuelve al menú sin guardar.
 4. Revisa el resumen de valores `SECO` / `MOJADO`.
 5. Elige `Guardar` para aplicar la calibración o `Salir` para descartarla.
 6. Si aparece `Error`, repite el proceso asegurando que los dos valores estén bien diferenciados (≥ 300 cuentas ADC).

@@ -721,10 +721,25 @@ float read_soil_moisture() {
     //   Dry air raw avg ~= 3550  (samples: 3560, 3490, 3520, 3640, 3530)
     //   Water   raw avg ~= 1855  (samples: 1889, 1830, 1840, 1918, 1805)
     const uint8_t SAMPLE_COUNT = 12;
+    const uint8_t PERCENT_AVG_WINDOW = 10;
     const int DISCONNECT_LOW_THRESHOLD = 80;
     const int DISCONNECT_AVG_THRESHOLD = 1400;
     const int DISCONNECT_HIGH_THRESHOLD = 3900;
     const int DISCONNECT_NOISE_THRESHOLD = 900;
+    static float percent_window[PERCENT_AVG_WINDOW] = {0.0f};
+    static uint8_t percent_window_index = 0;
+    static uint8_t percent_window_count = 0;
+    static float percent_window_sum = 0.0f;
+    static int last_cal_dry = -1;
+    static int last_cal_wet = -1;
+
+    if (last_cal_dry != g_soil_cal_dry || last_cal_wet != g_soil_cal_wet) {
+        percent_window_index = 0;
+        percent_window_count = 0;
+        percent_window_sum = 0.0f;
+        last_cal_dry = g_soil_cal_dry;
+        last_cal_wet = g_soil_cal_wet;
+    }
 
     int raw_min = 4095;
     int raw_max = 0;
@@ -748,17 +763,24 @@ float read_soil_moisture() {
         (raw_max - raw_min) >= DISCONNECT_NOISE_THRESHOLD;
 
     if (likely_disconnected) {
+        percent_window_index = 0;
+        percent_window_count = 0;
+        percent_window_sum = 0.0f;
         return NAN;
     }
 
     int percent = map(raw_avg, g_soil_cal_dry, g_soil_cal_wet, 0, 100);
 
-    // Moderate EMA (0.80/0.20): with a 1504-count span the noise stays under 1% per count.
-    static float ema = -1.0f;
     int clamped = constrain(percent, 0, 100);
-    if (ema < 0.0f) ema = (float)clamped;
-    ema = 0.80f * ema + 0.20f * (float)clamped;
-    return ema;
+    if (percent_window_count < PERCENT_AVG_WINDOW) {
+        percent_window_count++;
+    } else {
+        percent_window_sum -= percent_window[percent_window_index];
+    }
+    percent_window[percent_window_index] = (float)clamped;
+    percent_window_sum += (float)clamped;
+    percent_window_index = (uint8_t)((percent_window_index + 1) % PERCENT_AVG_WINDOW);
+    return percent_window_sum / (float)percent_window_count;
 }
 
 float read_ds18b20_temp() {

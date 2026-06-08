@@ -98,6 +98,7 @@ enum LangKey : uint8_t {
     // Soil calibration
     ST_SOIL_CAL_DRY,
     ST_SOIL_CAL_WET,
+    ST_SOIL_CONNECT_SENSOR,
     ST_SOIL_PUSH_CAPTURE,
     ST_SOIL_CAL_SAVED,
     ST_SOIL_CAL_ERROR,
@@ -128,11 +129,13 @@ enum LangKey : uint8_t {
 
     // Shared menu strings
     MENU_SAVED,
+    MENU_SAVE,
     MENU_RESET,
     MENU_ALERTS,
     MENU_EXIT,
     MENU_NO,
     MENU_YES,
+    MENU_CAPTURE,
     MENU_DEFAULTS,
     MENU_ERROR,
     MENU_LIMITS,

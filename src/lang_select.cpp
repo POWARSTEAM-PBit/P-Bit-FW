@@ -97,6 +97,7 @@ static const char* const STRINGS[LANG_KEY_COUNT][LANG_COUNT] = {
 
   /* ST_SOIL_CAL_DRY */ { "En aire",             "A l'aire",             "In air"             },
   /* ST_SOIL_CAL_WET */ { "En agua",             "En aigua",             "In water"           },
+  /* ST_SOIL_CONNECT_SENSOR */ { "Conecta sensor","Connecta sensor",      "Connect sensor"     },
   /* ST_SOIL_PUSH_CAPTURE */ { "Pulsa: guardar",     "Prem: desa",       "Press: save"        },
   /* ST_SOIL_CAL_SAVED */ { "Calibrado",         "Calibrat",             "Calibrated"         },
   /* ST_SOIL_CAL_ERROR */ { "Valores inválidos", "Valors invàlids",      "Invalid values"     },
@@ -125,11 +126,13 @@ static const char* const STRINGS[LANG_KEY_COUNT][LANG_COUNT] = {
 
 // Shared menu strings
 /* MENU_SAVED        */  { "Guardado",              "Desat",                "Saved"              },
+/* MENU_SAVE         */  { "Guardar",               "Desar",                "Save"               },
 /* MENU_RESET        */  { "Reset",                 "Reset",                "Reset"              },
 /* MENU_ALERTS       */  { "Alertas",               "Alertes",              "Alerts"             },
 /* MENU_EXIT         */  { "Salir",                 "Sortir",               "Exit"               },
 /* MENU_NO           */  { "NO",                    "NO",                   "NO"                 },
 /* MENU_YES          */  { "SÍ",                    "SÍ",                   "YES"                },
+/* MENU_CAPTURE      */  { "Captura",               "Captura",              "Capture"            },
 /* MENU_DEFAULTS     */  { "Por defecto",           "Per defecte",          "Defaults"           },
 /* MENU_ERROR        */  { "Error",                 "Error",                "Error"              },
 /* MENU_LIMITS       */  { "Límites",               "Límits",               "Limits"             },

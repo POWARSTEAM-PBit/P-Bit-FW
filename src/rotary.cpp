@@ -179,6 +179,8 @@ static void configure_soil_ui_rotary_bounds() {
     SoilCalibrationState state = getSoilCalibrationState();
     bool circular = (state == SOIL_CAL_MENU
                   || state == SOIL_CAL_REVIEW_SAVE
+                  || state == SOIL_CAL_WAIT_DRY
+                  || state == SOIL_CAL_WAIT_WET
                   || state == SOIL_CAL_EDIT_ALERTS
                   || state == SOIL_CAL_RESET_CONFIRM);
     rotaryEncoder.setBoundaries(getSoilCalibrationEncoderMin(), getSoilCalibrationEncoderMax(), circular);
