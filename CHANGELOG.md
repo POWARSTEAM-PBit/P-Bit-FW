@@ -2,6 +2,13 @@
 
 ## 2026-06-08
 
+### Perf TFT — Reset sin flicker por giro de encoder
+
+- **Shell incremental:** `drawResetChoicePrompt()` se divide en `drawResetChoicePromptShell()` y `updateResetChoiceButtons()`. El fondo rojo, header, panel y descripción se dibujan solo al entrar; cambiar `NO` / `SI` redibuja únicamente los dos botones.
+- **Migrado:** confirmaciones de Reset en Temperatura, Humedad, Luz, Sonido, Suelo, Termómetro/DS18B20 y Sistema usan el nuevo patrón incremental.
+- **Regla canónica:** `docs/TFT_RENDER_RULES.md`, `docs/DESIGN_SYSTEM.md`, `docs/TECHNICAL.md`, `AGENTS.md` y el skill local `pbit-tft-screen` documentan que menús con encoder son pantallas dinámicas y no deben repintar pantalla completa por giro.
+- **Builds:** `esp32dev` SUCCESS — RAM `49116` / Flash `955137`; `esp32dev_debug` SUCCESS — RAM `49156` / Flash `957601`.
+
 ### UX/Firmware — Suelo suavizado y calibración con confirmación
 
 - **Promedio móvil:** `src/hw.cpp` reemplaza la EMA de Suelo por una ventana móvil de `10` porcentajes ya calibrados. El filtro se resetea al detectar sensor desconectado o al cambiar la calibración, evitando que valores antiguos contaminen el nuevo mapeo.

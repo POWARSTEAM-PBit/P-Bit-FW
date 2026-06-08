@@ -19,6 +19,7 @@ Guía breve para agentes que trabajen en este repo P-Bit.
 - Usar `L(KEY)`/`LIn(...)` para textos visibles; no introducir strings hardcodeados salvo identificadores técnicos (`DHT11`, `DS18B20`, `LDR`, `GPIO`, etc.).
 - Terminología visible: `Sonido`, no `Ruido`; `Gráfica`, no `Graf`; `Termómetro`/`Termo` para la sonda externa, dejando `DS18B20` como identificador técnico.
 - Menús raíz de settings: usar `drawSettingsGridMenu()` 2x3. Máximo 4 opciones primarias; `Reset` abajo izquierda y `Salir` abajo derecha. Solo Suelo usa `Calibrar` como calibración real.
+- Menús con encoder: cachear estado/índice/valor visible; no redibujar menú completo por giro. `fillScreen()`/`drawHeader()` solo al entrar o cambiar de estado; en navegación interna actualizar solo tiles, botones o valor dinámico.
 
 ## Docs Canónicos
 

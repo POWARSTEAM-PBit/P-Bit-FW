@@ -402,13 +402,13 @@ static void draw_temp_menu_screen(bool screen_changed) {
                                     L(ST_TURN_PUSH));
         last_alert_value = g_temp_edit_alerts ? 1 : 0;
     } else if (g_temp_menu_state == TEMP_MODE_CONFIRM_RESET) {
-        drawResetChoicePrompt(L(MENU_RESET),
-                              L(MENU_DEFAULTS),
-                              L(MENU_RESET_SUB_TEMP),
-                              L(MENU_NO),
-                              L(MENU_YES),
-                              g_temp_reset_choice,
-                              L(ST_TURN_PUSH));
+        if (state_changed) {
+            drawResetChoicePromptShell(L(MENU_RESET),
+                                       L(MENU_DEFAULTS),
+                                       L(MENU_RESET_SUB_TEMP),
+                                       L(ST_TURN_PUSH));
+        }
+        updateResetChoiceButtons(L(MENU_NO), L(MENU_YES), g_temp_reset_choice);
         last_reset_choice = (int)g_temp_reset_choice;
     } else if (g_temp_menu_state == TEMP_MODE_SAVED) {
         // Saved state previews the updated setting before returning to menu.

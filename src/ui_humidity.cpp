@@ -333,13 +333,13 @@ static void draw_humidity_menu_screen(bool screen_changed) {
     }
 
     if (g_hum_menu_state == HUM_MODE_CONFIRM_RESET && (state_changed || last_reset_choice != (int)g_hum_reset_choice)) {
-        drawResetChoicePrompt(L(MENU_RESET),
-                              L(MENU_DEFAULTS),
-                              L(MENU_RESET_SUB_HUM),
-                              L(MENU_NO),
-                              L(MENU_YES),
-                              g_hum_reset_choice,
-                              L(ST_TURN_PUSH));
+        if (state_changed) {
+            drawResetChoicePromptShell(L(MENU_RESET),
+                                       L(MENU_DEFAULTS),
+                                       L(MENU_RESET_SUB_HUM),
+                                       L(ST_TURN_PUSH));
+        }
+        updateResetChoiceButtons(L(MENU_NO), L(MENU_YES), g_hum_reset_choice);
         last_reset_choice = (int)g_hum_reset_choice;
     }
 

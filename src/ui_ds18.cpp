@@ -359,13 +359,13 @@ static void draw_ds18_menu_screen(bool screen_changed) {
                                     L(ST_TURN_PUSH));
         last_alert_value = g_ds18_edit_alerts ? 1 : 0;
     } else if (g_ds18_menu_state == DS18_MODE_CONFIRM_RESET) {
-        drawResetChoicePrompt(L(MENU_RESET),
-                              L(MENU_DEFAULTS),
-                              L(MENU_RESET_SUB_PROBE),
-                              L(MENU_NO),
-                              L(MENU_YES),
-                              g_ds18_reset_choice,
-                              L(ST_TURN_PUSH));
+        if (state_changed) {
+            drawResetChoicePromptShell(L(MENU_RESET),
+                                       L(MENU_DEFAULTS),
+                                       L(MENU_RESET_SUB_PROBE),
+                                       L(ST_TURN_PUSH));
+        }
+        updateResetChoiceButtons(L(MENU_NO), L(MENU_YES), g_ds18_reset_choice);
         last_reset_choice = (int)g_ds18_reset_choice;
     } else if (g_ds18_menu_state == DS18_MODE_SAVED) {
         const char* saved_title = g_ds18_save_ok ? L(MENU_SAVED)

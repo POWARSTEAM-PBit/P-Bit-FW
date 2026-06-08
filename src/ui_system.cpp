@@ -400,14 +400,15 @@ static void draw_system_menu_screen(bool screen_changed) {
                                     L(ST_TURN_PUSH));
         last_lang_index = (int)g_sys_lang_index;
     } else if (g_sys_menu_state == SYS_MODE_CONFIRM_RESET) {
-        // Reset confirmation uses the shared binary prompt helper.
-        drawResetChoicePrompt(L(MENU_FULL_RESET),
-                              L(MENU_RESTORE_ALL),
-                              L(MENU_TO_DEFAULTS),
-                              L(MENU_NO),
-                              L(MENU_YES),
-                              g_sys_reset_choice,
-                              L(ST_TURN_PUSH));
+        // Reset confirmation keeps the danger shell stable while the encoder
+        // only refreshes the NO/SI buttons.
+        if (state_changed) {
+            drawResetChoicePromptShell(L(MENU_FULL_RESET),
+                                       L(MENU_RESTORE_ALL),
+                                       L(MENU_TO_DEFAULTS),
+                                       L(ST_TURN_PUSH));
+        }
+        updateResetChoiceButtons(L(MENU_NO), L(MENU_YES), g_sys_reset_choice);
         last_reset_choice = (int)g_sys_reset_choice;
     } else if (g_sys_menu_state == SYS_MODE_SAVED) {
         if (g_sys_saved_kind == 0) {

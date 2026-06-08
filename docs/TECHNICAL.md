@@ -978,7 +978,7 @@ Sin submenú raíz de lista.
 - `SAVED` es un estado intermedio: una pulsación adicional vuelve al menú raíz.
 - Menús raíz y selectores de opción binaria/discreta envuelven en bucle.
 - Ediciones numéricas no envuelven.
-- Confirmaciones de `Reset` usan `drawResetChoicePrompt()`: pantalla roja `danger`, header estándar con línea blanca, panel central con descripción de la acción y botones `NO / SI` circulares. `NO` es la selección por defecto; `SI` confirma la acción destructiva.
+- Confirmaciones de `Reset` usan shell incremental: `drawResetChoicePromptShell()` dibuja fondo rojo `danger`, header, línea, panel y descripción solo al entrar; `updateResetChoiceButtons()` refresca únicamente `NO / SI` durante navegación con encoder. `drawResetChoicePrompt()` queda como wrapper compatible para dibujos completos.
 
 ---
 

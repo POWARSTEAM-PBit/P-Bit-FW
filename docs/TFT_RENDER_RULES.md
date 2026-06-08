@@ -211,6 +211,41 @@ Para `SZ_DS18` y `SZ_SOIL`, la ausencia del sensor es un cambio de validez y por
 
 ---
 
+## Nivel 2.6 — Menús con encoder también son pantallas dinámicas
+
+Un menú no es "estático" si el encoder puede cambiar selección o valor varias veces por segundo. Las reglas anti-flicker aplican igual que en sensores:
+
+| Elemento | Capa | Cuándo se redibuja |
+|---|---|---|
+| Fondo, header, línea, footer/hint | Shell | Solo al entrar al estado o por `screen_changed` |
+| Grid 2×3 de settings | Chrome interactivo | Al entrar se dibujan todos los tiles; al girar solo tile anterior + tile nuevo |
+| Card de valor editable | Shell + data | Título/card/borde al entrar; al girar solo interior del valor |
+| Confirmación de Reset | Shell danger + botones | Fondo rojo/panel/texto al entrar; al girar solo botones `NO`/`SI` |
+
+Reglas estrictas:
+
+- `fillScreen()` queda prohibido dentro de un cambio de índice/valor causado por encoder. Solo se permite al entrar/cambiar de estado de menú, cambio real de pantalla, cambio de idioma completo o `force_full`.
+- `drawHeader()` y `drawFooterHint()` son shell; no se redibujan en cada tick si el texto no cambia.
+- `clearMenuBands(kMenuBand_All)` y `clearMenuBands(kMenuBand_Title | kMenuBand_Body)` son aceptables para cambio de estado, no para navegación interna.
+- Todo menú con encoder mantiene cache de lo visible: `last_drawn_state`, `last_menu_index`, `last_edit_value`, `last_toggle_value`, `last_reset_choice`, `last_saved_kind` o equivalente.
+- Si una función helper común no ofrece modo incremental, no usarla en hot path de encoder; separar `draw_*Shell()` de `update_*Data()` / `update_*Buttons()`.
+
+### Plantilla para confirmaciones Reset
+
+```cpp
+if (state_changed) {
+    drawResetChoicePromptShell(title, line1, line2, footer);
+}
+if (state_changed || last_reset_choice != choice) {
+    updateResetChoiceButtons(L(MENU_NO), L(MENU_YES), choice);
+    last_reset_choice = choice;
+}
+```
+
+Esto mantiene estable el fondo `danger` y elimina el flash rojo/negro durante alternancia `NO`/`SI`.
+
+---
+
 ## Nivel 3 — Orden de capas: chrome se redibuja ÚLTIMO
 
 ### El problema: font glyph overhang

@@ -402,13 +402,13 @@ static void draw_light_menu_screen(bool screen_changed) {
                                     L(ST_TURN_PUSH));
         last_marks_value = g_light_marks_visible ? 1 : 0;
     } else if (g_light_menu_state == LIGHT_MODE_CONFIRM_RESET) {
-        drawResetChoicePrompt(L(MENU_RESET),
-                              L(MENU_DEFAULTS),
-                              L(MENU_RESET_SUB_LIGHT),
-                              L(MENU_NO),
-                              L(MENU_YES),
-                              g_light_reset_choice,
-                              L(ST_TURN_PUSH));
+        if (state_changed) {
+            drawResetChoicePromptShell(L(MENU_RESET),
+                                       L(MENU_DEFAULTS),
+                                       L(MENU_RESET_SUB_LIGHT),
+                                       L(ST_TURN_PUSH));
+        }
+        updateResetChoiceButtons(L(MENU_NO), L(MENU_YES), g_light_reset_choice);
         last_reset_choice = (int)g_light_reset_choice;
     } else if (g_light_menu_state == LIGHT_MODE_SAVED) {
         // Saved state previews the updated setting before returning.

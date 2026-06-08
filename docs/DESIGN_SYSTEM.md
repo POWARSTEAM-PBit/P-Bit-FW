@@ -198,10 +198,11 @@ Reglas:
 - `Reset` usa acento amarillo/naranja; `Salir` usa rojo/magenta.
 - El texto visible debe venir de `L(KEY)`; no usar strings hardcodeados.
 - Solo Suelo usa `Calibrar` como calibración real. Luz y Sonido usan rangos/niveles interpretativos.
+- El grid 2×3 es también contrato anti-flicker: al entrar se puede dibujar completo, pero durante navegación con encoder solo deben refrescarse el tile anterior y el tile nuevo. Header, línea y footer no cambian por giro.
 
 ### Confirmación de Reset
 
-Todas las confirmaciones de `Reset` usan `drawResetChoicePrompt()` como pantalla `danger` común:
+Todas las confirmaciones de `Reset` usan el patrón `drawResetChoicePromptShell()` + `updateResetChoiceButtons()` como pantalla `danger` común:
 
 - Fondo rojo full-screen para indicar acción destructiva.
 - Header estándar: título superior (`Reset` o `Reset total`) y línea blanca en `L_HEADER_LINE`.
@@ -209,6 +210,7 @@ Todas las confirmaciones de `Reset` usan `drawResetChoicePrompt()` como pantalla
 - Botones `NO` / `SI` dentro del panel; `NO` es la selección por defecto y se dibuja con fondo amarillo, mientras `SI` queda como acción peligrosa al seleccionarse.
 - El hint inferior permanece en la posición de menú (`LM_MENU_FOOTER_Y - 4`) y conserva el texto de interacción.
 - No usar esta pantalla para acciones reversibles ni para confirmaciones informativas: es exclusiva de resets destructivos.
+- Anti-flicker: el fondo rojo, header, panel y descripción son shell. Al alternar `NO` / `SI` con el encoder, solo se redibujan los botones mediante `updateResetChoiceButtons()`.
 
 ### Selectores y valores de menú
 

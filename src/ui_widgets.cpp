@@ -472,30 +472,54 @@ void drawAlertJewel(int cx, int cy, AlertJewelState state, uint16_t color) {
     }
 }
 
-void drawResetChoicePrompt(const char* title,
-                           const char* line1,
-                           const char* line2,
-                           const char* no_text,
-                           const char* yes_text,
-                           uint8_t selected_choice,
-                           const char* footer_text,
-                           uint16_t footer_color) {
-    const uint16_t danger_bg = tft.color565(132, 0, 12);
-    const uint16_t panel_bg = tft.color565(54, 0, 8);
-    const uint16_t panel_border = tft.color565(255, 118, 64);
-    const uint16_t danger_text = tft.color565(255, 232, 206);
-    const uint16_t danger_dim = tft.color565(220, 126, 126);
-    const uint16_t no_selected_bg = TFT_YELLOW;
-    const uint16_t yes_selected_bg = TFT_WHITE;
-    constexpr int panel_x = 8;
-    constexpr int panel_y = 30;
-    constexpr int panel_w = 144;
-    constexpr int panel_h = 76;
-    constexpr int button_w = 54;
-    constexpr int button_h = 22;
-    constexpr int button_y = 76;
-    constexpr int no_x = 20;
-    constexpr int yes_x = 86;
+namespace {
+
+constexpr int kResetPanelX = 8;
+constexpr int kResetPanelY = 30;
+constexpr int kResetPanelW = 144;
+constexpr int kResetPanelH = 76;
+constexpr int kResetButtonW = 54;
+constexpr int kResetButtonH = 22;
+constexpr int kResetButtonY = 76;
+constexpr int kResetNoX = 20;
+constexpr int kResetYesX = 86;
+
+uint16_t reset_danger_bg() { return tft.color565(132, 0, 12); }
+uint16_t reset_panel_bg() { return tft.color565(54, 0, 8); }
+uint16_t reset_panel_border() { return tft.color565(255, 118, 64); }
+uint16_t reset_danger_text() { return tft.color565(255, 232, 206); }
+uint16_t reset_danger_dim() { return tft.color565(220, 126, 126); }
+
+void draw_reset_choice_button(int x,
+                              const char* label,
+                              bool selected,
+                              uint16_t selected_bg,
+                              uint16_t selected_text,
+                              uint16_t panel_bg,
+                              uint16_t danger_dim) {
+    tft.fillRoundRect(x, kResetButtonY, kResetButtonW, kResetButtonH, 4,
+                      selected ? selected_bg : panel_bg);
+    tft.drawRoundRect(x, kResetButtonY, kResetButtonW, kResetButtonH, 4,
+                      selected ? TFT_WHITE : danger_dim);
+
+    tft.setFreeFont(FONT_BODY);
+    tft.setTextColor(selected ? selected_text : danger_dim,
+                     selected ? selected_bg : panel_bg);
+    tft.drawString(label, x + kResetButtonW / 2, kResetButtonY + kResetButtonH / 2 - 2);
+    tft.setTextFont(0);
+}
+
+} // namespace
+
+void drawResetChoicePromptShell(const char* title,
+                                const char* line1,
+                                const char* line2,
+                                const char* footer_text,
+                                uint16_t footer_color) {
+    const uint16_t danger_bg = reset_danger_bg();
+    const uint16_t panel_bg = reset_panel_bg();
+    const uint16_t panel_border = reset_panel_border();
+    const uint16_t danger_text = reset_danger_text();
     tft.fillScreen(danger_bg);
 
     const int cx = tft.width() / 2;
@@ -510,8 +534,8 @@ void drawResetChoicePrompt(const char* title,
                       LC_MASTER_HEADER_LINE_W,
                       TFT_WHITE);
 
-    tft.fillRoundRect(panel_x, panel_y, panel_w, panel_h, 5, panel_bg);
-    tft.drawRoundRect(panel_x, panel_y, panel_w, panel_h, 5, panel_border);
+    tft.fillRoundRect(kResetPanelX, kResetPanelY, kResetPanelW, kResetPanelH, 5, panel_bg);
+    tft.drawRoundRect(kResetPanelX, kResetPanelY, kResetPanelW, kResetPanelH, 5, panel_border);
 
     tft.setTextDatum(MC_DATUM);
     tft.setFreeFont(FONT_SMALL);
@@ -523,27 +547,7 @@ void drawResetChoicePrompt(const char* title,
         tft.drawString(line2, cx, 54);
     }
 
-    tft.drawFastHLine(panel_x + 12, 69, panel_w - 24, panel_border);
-
-    const bool no_selected = (selected_choice == 0);
-    const bool yes_selected = (selected_choice == 1);
-    tft.fillRoundRect(no_x, button_y, button_w, button_h, 4,
-                      no_selected ? no_selected_bg : panel_bg);
-    tft.drawRoundRect(no_x, button_y, button_w, button_h, 4,
-                      no_selected ? TFT_WHITE : danger_dim);
-    tft.fillRoundRect(yes_x, button_y, button_w, button_h, 4,
-                      yes_selected ? yes_selected_bg : panel_bg);
-    tft.drawRoundRect(yes_x, button_y, button_w, button_h, 4,
-                      yes_selected ? TFT_WHITE : danger_dim);
-
-    tft.setFreeFont(FONT_BODY);
-    tft.setTextColor(no_selected ? TFT_BLACK : danger_dim,
-                     no_selected ? no_selected_bg : panel_bg);
-    tft.drawString(no_text, no_x + button_w / 2, button_y + button_h / 2 - 2);
-    tft.setTextColor(yes_selected ? danger_bg : danger_dim,
-                     yes_selected ? yes_selected_bg : panel_bg);
-    tft.drawString(yes_text, yes_x + button_w / 2, button_y + button_h / 2 - 2);
-    tft.setTextFont(0);
+    tft.drawFastHLine(kResetPanelX + 12, 69, kResetPanelW - 24, panel_border);
 
     if (footer_text && footer_text[0] != '\0') {
         tft.setTextDatum(MC_DATUM);
@@ -555,6 +559,32 @@ void drawResetChoicePrompt(const char* title,
         tft.drawString(footer_text, cx, LM_MENU_FOOTER_Y - 4);
         tft.setTextFont(0);
     }
+}
+
+void updateResetChoiceButtons(const char* no_text,
+                              const char* yes_text,
+                              uint8_t selected_choice) {
+    const uint16_t danger_bg = reset_danger_bg();
+    const uint16_t panel_bg = reset_panel_bg();
+    const uint16_t danger_dim = reset_danger_dim();
+    const bool no_selected = (selected_choice == 0);
+    const bool yes_selected = (selected_choice == 1);
+
+    tft.setTextDatum(MC_DATUM);
+    draw_reset_choice_button(kResetNoX, no_text, no_selected, TFT_YELLOW, TFT_BLACK, panel_bg, danger_dim);
+    draw_reset_choice_button(kResetYesX, yes_text, yes_selected, TFT_WHITE, danger_bg, panel_bg, danger_dim);
+}
+
+void drawResetChoicePrompt(const char* title,
+                           const char* line1,
+                           const char* line2,
+                           const char* no_text,
+                           const char* yes_text,
+                           uint8_t selected_choice,
+                           const char* footer_text,
+                           uint16_t footer_color) {
+    drawResetChoicePromptShell(title, line1, line2, footer_text, footer_color);
+    updateResetChoiceButtons(no_text, yes_text, selected_choice);
 }
 
 /**

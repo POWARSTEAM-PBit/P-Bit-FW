@@ -387,13 +387,13 @@ static void draw_sound_menu_screen(bool screen_changed) {
                                     L(ST_TURN_PUSH));
         last_marks_value = g_sound_marks_visible ? 1 : 0;
     } else if (g_sound_menu_state == SOUND_MODE_CONFIRM_RESET) {
-        drawResetChoicePrompt(L(MENU_RESET),
-                              L(MENU_DEFAULTS),
-                              L(MENU_RESET_SUB_SOUND),
-                              L(MENU_NO),
-                              L(MENU_YES),
-                              g_sound_reset_choice,
-                              L(ST_TURN_PUSH));
+        if (state_changed) {
+            drawResetChoicePromptShell(L(MENU_RESET),
+                                       L(MENU_DEFAULTS),
+                                       L(MENU_RESET_SUB_SOUND),
+                                       L(ST_TURN_PUSH));
+        }
+        updateResetChoiceButtons(L(MENU_NO), L(MENU_YES), g_sound_reset_choice);
         last_reset_choice = (int)g_sound_reset_choice;
     } else if (g_sound_menu_state == SOUND_MODE_SAVED) {
         const char* saved_title = L(MENU_SAVED);

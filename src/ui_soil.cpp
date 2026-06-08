@@ -654,13 +654,13 @@ static void draw_soil_calibration_screen(bool screen_changed) {
     }
 
     if (g_soil_cal_state == SOIL_CAL_RESET_CONFIRM && (state_changed || last_reset_choice != (int)g_soil_reset_choice)) {
-        drawResetChoicePrompt(L(MENU_RESET),
-                              L(MENU_SOIL_SENSOR_LIMITS),
-                              L(MENU_RESET_SUB_SOIL),
-                              L(MENU_NO),
-                              L(MENU_YES),
-                              g_soil_reset_choice,
-                              L(ST_TURN_PUSH));
+        if (state_changed) {
+            drawResetChoicePromptShell(L(MENU_RESET),
+                                       L(MENU_SOIL_SENSOR_LIMITS),
+                                       L(MENU_RESET_SUB_SOIL),
+                                       L(ST_TURN_PUSH));
+        }
+        updateResetChoiceButtons(L(MENU_NO), L(MENU_YES), g_soil_reset_choice);
         last_reset_choice = (int)g_soil_reset_choice;
     }
 

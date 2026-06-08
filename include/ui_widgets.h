@@ -88,6 +88,16 @@ void drawCachedBarGraph(int x, int y, int w, int h, uint16_t color, float value,
 void drawSplitDecimalValue(float value, int cx, int topY, uint16_t color, uint16_t bg_color);
 void drawTimerCardContent(int cx, int cy, uint16_t borderColor, uint16_t newColor, const char* stateText, const char* time);
 void drawAlertJewel(int cx, int cy, AlertJewelState state, uint16_t color);
+// Reset prompts are split into a static danger shell and dynamic buttons so
+// encoder changes can update only the NO/SI choice without full-screen flicker.
+void drawResetChoicePromptShell(const char* title,
+                                const char* line1,
+                                const char* line2,
+                                const char* footer_text = nullptr,
+                                uint16_t footer_color = TFT_CYAN);
+void updateResetChoiceButtons(const char* no_text,
+                              const char* yes_text,
+                              uint8_t selected_choice);
 void drawResetChoicePrompt(const char* title,
                            const char* line1,
                            const char* line2,
