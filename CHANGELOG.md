@@ -1,5 +1,13 @@
 # Changelog
 
+## 2026-06-13
+
+### Documentación — ADR-002 taxonomía visible de pantallas
+
+- **Decidido:** las pantallas de un solo sensor usarán la familia conceptual `Principal / Dato / Curva / Rango / Ficha`; `Principal` queda como pantalla base sin sufijo visible.
+- **Regla de Lab:** `Lab` queda reservado para pantallas multisensor, experimentos o actividades educativas (`Clima Lab`, `Termo Lab`, `Plant Lab` futuro). Un sensor individual no usará `Lab` como sufijo visible.
+- **Alcance acotado:** `docs/ADR-002-taxonomia-pantallas.md` documenta la decisión, traducciones, prefijos abreviados y lo que no se toca todavía: enums internos, orden del carrusel, NVS, Demo Mode y arquitectura de Sensor Zone.
+
 ## 2026-06-12
 
 ### UX/Firmware — Taxonomía unificada de Límites y Marcas (M4B)
