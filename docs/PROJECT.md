@@ -1,6 +1,6 @@
 # P-Bit — Descripción del Proyecto
 
-Actualizado: 2026-06-08
+Actualizado: 2026-06-13
 
 ---
 
@@ -123,10 +123,10 @@ Con `PBIT_ENABLE_GRAPH_LAB=1` (configuración de producción), el carrusel tiene
 
 | Posición | Pantalla | Tipo |
 |---|---|---|
-| 1 | Home | Lab — visión global de sensores en cards |
-| 2 | Clima | Lab — temperatura + humedad combinados |
-| 3 | Multi | Lab — múltiples sensores con widgets |
-| 4 | Sonido VU | Lab — nivel de sonido en barras |
+| 1 | Inicio | Visión global de sensores en fichas |
+| 2 | Clima Lab | Lab — temperatura + humedad combinados |
+| 3 | Termo Lab | Lab — DHT11 + DS18B20 + diferencia térmica |
+| 4 | Sonido VU | Visualización VU de sonido |
 | 5 | Temperatura | Sensor — zona con modos visuales y menú |
 | 6 | Humedad | Sensor — zona con modos visuales y menú |
 | 7 | Luz | Sensor — zona con modos visuales y menú |
@@ -136,7 +136,7 @@ Con `PBIT_ENABLE_GRAPH_LAB=1` (configuración de producción), el carrusel tiene
 | 11 | Timer | Cronómetro y cuenta regresiva con editor HH:MM:SS |
 | 12 | Sistema | Ajustes globales del dispositivo |
 
-Cada pantalla de sensor soporta cinco modos visuales: Focus, Valor, Gráfica, Dial y Card.
+Cada pantalla de sensor soporta cinco modos visuales: Principal, Dato, Curva, Rango y Ficha. Internamente el firmware conserva nombres históricos (`Focus`, `Valor`, `Graph`, `Gauge`, `Card`) para evitar un refactor sin valor de producto.
 
 ### Alertas y feedback
 

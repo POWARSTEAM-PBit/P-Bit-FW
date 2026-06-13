@@ -71,10 +71,10 @@ struct CarouselEntry {
 };
 
 constexpr CarouselEntry kCarousel[] = {
-    { LAB_HOME_CARDS_SCREEN,     -1 },          // HOME
+    { LAB_HOME_CARDS_SCREEN,     -1 },          // INICIO
     { LAB_DUAL_TH_SCREEN,        -1 },          // CLIMA LAB
-    { LAB_WIDGET_MIX_SCREEN,     -1 },          // MULTI LAB
-    { LAB_SOUND_VU_STACK_SCREEN, -1 },          // SOUND LAB
+    { LAB_WIDGET_MIX_SCREEN,     -1 },          // TERMO LAB
+    { LAB_SOUND_VU_STACK_SCREEN, -1 },          // SONIDO VU
     { SENSOR_ZONE_SCREEN, (int8_t)SZ_TEMP  },   // TEMPERATURA
     { SENSOR_ZONE_SCREEN, (int8_t)SZ_HUM   },   // HUMEDAD
     { SENSOR_ZONE_SCREEN, (int8_t)SZ_LIGHT },   // LUZ

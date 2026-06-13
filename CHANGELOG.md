@@ -2,6 +2,13 @@
 
 ## 2026-06-13
 
+### UX/Firmware — Aplicación de ADR-002 en nombres visibles
+
+- **Sensor Zone:** los sufijos visibles cambian a `Dato`, `Curva`, `Rango` y `Ficha` (`Dada/Corba/Rang/Fitxa` en catalán; `Data/Curve/Range/Info` en inglés). La vista `Principal` sigue usando solo el nombre del sensor.
+- **Labs y VU:** `TEMP. LAB` pasa a `TERMO LAB`; `SONIDO LAB` pasa a `SONIDO VU`. `Lab` queda reservado para pantallas multisensor/experimento, según ADR-002.
+- **Docs y reglas:** `docs/PROJECT.md`, `docs/USER_GUIDE.md`, `docs/TECHNICAL.md`, `docs/DESIGN_SYSTEM.md`, `docs/TFT_RENDER_RULES.md`, `docs/PRODUCTION_CHECKLIST.md`, `AGENTS.md` e `include/sensor_zone.h` reflejan la taxonomía visible sin renombrar enums internos ni tocar NVS/carrusel.
+- **Builds:** `esp32dev` SUCCESS — RAM `49124` / Flash `957377`; `esp32dev_debug` SUCCESS — RAM `49180` / Flash `959869`.
+
 ### Documentación — ADR-002 taxonomía visible de pantallas
 
 - **Decidido:** las pantallas de un solo sensor usarán la familia conceptual `Principal / Dato / Curva / Rango / Ficha`; `Principal` queda como pantalla base sin sufijo visible.

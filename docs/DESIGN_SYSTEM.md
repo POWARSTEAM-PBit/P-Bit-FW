@@ -1,6 +1,6 @@
 # Design System — P-Bit TFT
 
-**Actualizado:** 2026-05-28
+**Actualizado:** 2026-06-13
 **Estado:** IMPLEMENTADO — Sensor Zone activa; ghosting/flicker resuelto por ahora; LDR modos y Demo smooth implementados en firmware, pendientes de validación visual final
 
 Referencia canónica para cualquier pantalla nueva, modificación de color, icono o layout en el firmware P-Bit. Leer este documento antes de tocar cualquier color, icono o layout en archivos de producción.
@@ -76,8 +76,8 @@ Todos los iconos son procedurales (dibujados con primitivas TFT_eSPI en runtime)
 | Función | Factor `s` | Tamaño aprox. | Uso |
 |---------|-----------|---------------|-----|
 | `pbit_draw_*_icon(cx, cy, color)` | s=1 | ~14×14 px | Sensor cards, headers, jewels (`SensorIconDrawFn`) |
-| `pbit_draw_*_icon_xl(cx, cy, color)` | s=3 | ~42×42 px | Centro del gauge / Focus screens |
-| `pbit_draw_*_icon_xxl(cx, cy, color, accent)` | s=3 | ~42×42 px | Dial screen — con color de acento separado |
+| `pbit_draw_*_icon_xl(cx, cy, color)` | s=3 | ~42×42 px | Centro de Rango / Principal |
+| `pbit_draw_*_icon_xxl(cx, cy, color, accent)` | s=3 | ~42×42 px | Pantalla Rango — con color de acento separado |
 
 > **Nota:** No existe API `_large` (s=2). `_xl` y `_xxl` comparten escala s=3; `_xxl` añade color de acento.
 
@@ -85,7 +85,7 @@ Todos los iconos son procedurales (dibujados con primitivas TFT_eSPI en runtime)
 
 | Icono | Sensor | Estado | Deuda / Notas |
 |-------|--------|--------|---------------|
-| `temp` — Termómetro | TEMP | ✅ **FINAL** | Geometría v17: silueta centrada en `cx` con tubo `fillRoundRect(cx-2s, cy-7s, 4s, 11s)`, canal vacío `fillRect(cx-s, cy-6s, 2s, 4s, bg)`, bulbo `fillCircle(cx, cy+4s, 3s+1)` y ticks `(4s)/3`. `pbit_draw_temp_icon`, `_xl` y el fallback `_xxl(cx, cy, color)` son **monocromos**: no dibujan `TFT_WHITE` ni acentos internos. Solo `pbit_draw_temp_icon_xxl(cx, cy, color, accent)`, usado por Dial, conserva detalle multicolor/mercurio. Canal usa `kIconCardBg` (constante `0x1082` en `src/ui_icons.cpp`). |
+| `temp` — Termómetro | TEMP | ✅ **FINAL** | Geometría v17: silueta centrada en `cx` con tubo `fillRoundRect(cx-2s, cy-7s, 4s, 11s)`, canal vacío `fillRect(cx-s, cy-6s, 2s, 4s, bg)`, bulbo `fillCircle(cx, cy+4s, 3s+1)` y ticks `(4s)/3`. `pbit_draw_temp_icon`, `_xl` y el fallback `_xxl(cx, cy, color)` son **monocromos**: no dibujan `TFT_WHITE` ni acentos internos. Solo `pbit_draw_temp_icon_xxl(cx, cy, color, accent)`, usado por Rango, conserva detalle multicolor/mercurio. Canal usa `kIconCardBg` (constante `0x1082` en `src/ui_icons.cpp`). |
 | `humidity` — Gota | HUMEDAD | ✅ Aprobado en código | Silueta sólida sin donut interior. Pendiente validación en hardware |
 | `light` — Sol | LUZ | ✅ Funcional | Rayos diagonales de 1 px pueden ser poco visibles a s=1. Mejorable a 2 px si hardware lo confirma |
 | `sound` — Micrófono | SONIDO | ✅ Funcional | No tocar sin captura de hardware previa. Si base excesiva, reducir solo en hardware |
@@ -262,7 +262,10 @@ Ver `docs/TFT_RENDER_RULES.md` para el protocolo anti-flicker completo (sprites,
 | Elemento | Término correcto | ❌ Evitar |
 |----------|-----------------|-----------|
 | Sensor externo DS18B20 | `Termómetro` / `Termo` | `DS18`, `Sonda`, `Probe` |
-| Modo de visualización gráfica | `Gráfica` | `Graf`, `Graph` |
+| Modo de tendencia de Sensor Zone | `Curva` | `Graf`, `Graph`, `Gráfica` como sufijo |
+| Modo gauge/dial de Sensor Zone | `Rango` | `Dial`, `Gauge`, `Medidor` |
+| Modo resumen de Sensor Zone | `Ficha` (`Info` en EN) | `Tarjeta`, `Card` como término visible |
+| Modo numérico de Sensor Zone | `Dato` | `Valor`, `Value`, `Lab` |
 | Sensor de sonido | `Sonido` | `Ruido`, `Sound` |
 | Textos de UI general | `L(KEY)` / `LIn(...)` | Strings en español hardcodeados |
 | Identificadores técnicos | `DHT11`, `DS18B20`, `LDR`, `GPIO` | — (estos sí pueden estar hardcodeados) |
@@ -274,8 +277,8 @@ Ver `docs/TFT_RENDER_RULES.md` para el protocolo anti-flicker completo (sprites,
 ### Implementado y activo en código
 
 - `include/palette.h` con P1/P2/P3/P4 y helpers `pb_primary()`, `pb_secondary()`, `pb_accent_warm()`, `pb_contrast_cool()` por índice de sensor
-- Sensor Zone completa (`FOCUS`, `CARD`, `VALOR`, `GRAPH`, `GAUGE`) consume paleta canónica
-- Icono `temp` final aplicado a small/XL/XXL: small/XL/fallback son monocromos y solo Dial/XXL con acento conserva detalle multicolor; no mezclar este estado con el icono técnico `probe`/DS18B20
+- Sensor Zone completa (`FOCUS`, `CARD`, `VALOR`, `GRAPH`, `GAUGE`) consume paleta canónica; sus nombres visibles son `Principal`, `Ficha`, `Dato`, `Curva` y `Rango`
+- Icono `temp` final aplicado a small/XL/XXL: small/XL/fallback son monocromos y solo Rango/XXL con acento conserva detalle multicolor; no mezclar este estado con el icono técnico `probe`/DS18B20
 - Estados externos desconectados para `SZ_DS18` y `SZ_SOIL`: textos `Revisa IO33` / `Revisa IO35`, helper runtime común y paleta del sensor atenuada en clásicas, Sensor Zone y Lab
 - Iconos `humidity` y `plant` rediseñados en `src/ui_icons.cpp`; `probe` se mantiene separado de `temp` y no está aprobado como final
 - Icono Bluetooth añadido en `src/ui_icons.cpp` para pantalla `BLE_TOGGLE_SCREEN`
@@ -320,6 +323,6 @@ Ver `docs/TFT_RENDER_RULES.md` para el protocolo anti-flicker completo (sprites,
 | Sin `palette.h` canónico — drift de colores entre pantallas | `include/palette.h` creado; Sensor Zone lo consume |
 
 **Orden de migración de paleta (aplicado y en progreso):**
-1. ✅ Pantallas nuevas (`SENSOR CARD`, `VALOR LAB`) — banco de prueba sin tocar producción
+1. ✅ Pantallas nuevas (`SENSOR CARD`, `VALOR LAB`) — banco de prueba histórico sin tocar producción; nombres visibles actuales: `Ficha` y `Dato`
 2. ✅ Sensor Zone completa — paleta canónica en todos los modos
 3. ⏳ Pantallas madre (`HOME`, `CLIMA`) — solo después de validar Sensor Zone en hardware real

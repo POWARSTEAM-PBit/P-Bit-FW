@@ -10,12 +10,12 @@ Fecha: 2026-06-03 | Versión consolidada post-Fase B/C/D + auditoría de reglas-
 
 ## Estado actual
 
-Las reglas de este documento ya están aplicadas en las pantallas de mayor riesgo del firmware actual: dials/gauges, cards, `Sound VU`, `Graph`, `Valor`, `Home` y pantallas de sensor clásicas. La validación puntual en hardware deja ghosting/flicker cerrado por ahora; la deuda activa es mantener checks de regresión cuando se toquen pantallas, Demo Mode, modos LDR o reglas de limpieza.
+Las reglas de este documento ya están aplicadas en las pantallas de mayor riesgo del firmware actual: Rango/gauge, Ficha/cards, `Sonido VU`, Curva/Graph, Dato, Inicio y pantallas de sensor clásicas. La validación puntual en hardware deja ghosting/flicker cerrado por ahora; la deuda activa es mantener checks de regresión cuando se toquen pantallas, Demo Mode, modos LDR o reglas de limpieza.
 
 Cambios cerrados desde la auditoría original:
 - `Sound VU`: sprite, EWMA asimétrico, scroll continuo e idle pulse.
-- `DIAL/GAUGE`: ring sprite 64×64 y chrome/data split.
-- `VALOR`: sparkline sprite y clears acotados.
+- `RANGO/GAUGE`: ring sprite 64×64 y chrome/data split.
+- `DATO`: sparkline sprite y clears acotados.
 - `SENSOR CARD`: chrome-last rule para evitar recorte por overhang de glyphs.
 - `HOME` y cards lab: `draw_card_chrome` separado de `draw_card_value_and_tank`.
 - `LDR`: `Lux`, `FC` y `Raw ADC` usan helper común de presentación; Sensor Zone/cards/gráficas/dials deben seguir valor/unidad del modo activo.
@@ -397,7 +397,7 @@ Demo Mode usa un refresco propio de `220 ms` (ver `demo_mode_value_refresh_ms()`
 | `ui_graph.cpp` | L1+L2 | `draw_graph_band(full_clear)` param |
 | `ui_lab_home_cards.cpp` | L1+L2 | `draw_card_chrome` + `draw_card_value_and_tank` |
 | `ui_lab_sensor_cards.cpp` | L1+L2+L3 | `chrome_dirty()` + chrome-last rule |
-| `ui_lab_widget_showcase.cpp` | L1+L2+L3+L4 | DIAL: ring sprite; Valor: sparkline sprite + `chrome_drawn` |
+| `ui_lab_widget_showcase.cpp` | L1+L2+L3+L4 | Rango: ring sprite; Dato: sparkline sprite + `chrome_drawn` |
 | `ui_lab_dash.cpp` | L1 | per-row dirty flags |
 | `ui_lab_dual.cpp` | L1 | shell/content separation |
 | `ui_lab_linear_dash.cpp` | L1 | RowCache por fila |

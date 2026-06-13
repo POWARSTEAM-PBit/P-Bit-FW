@@ -20,11 +20,11 @@ enum SzSensorId : uint8_t {
 
 // Visualization modes available for every sensor, in cycle order.
 enum SzVizMode : uint8_t {
-    SZ_VIZ_FOCUS = 0,   // Sensor Lab  (ui_lab_focus)
-    SZ_VIZ_VALOR,        // Valor Lab   (ui_lab_widget_showcase)
-    SZ_VIZ_GRAPH,        // Gráfica     (ui_graph)
-    SZ_VIZ_GAUGE,        // Gauge Lab   (ui_lab_widget_showcase)
-    SZ_VIZ_CARD,         // Sensor Card (ui_lab_sensor_cards)
+    SZ_VIZ_FOCUS = 0,   // Principal (ui_lab_focus)
+    SZ_VIZ_VALOR,       // Dato      (ui_lab_widget_showcase)
+    SZ_VIZ_GRAPH,       // Curva     (ui_graph)
+    SZ_VIZ_GAUGE,       // Rango     (ui_lab_widget_showcase)
+    SZ_VIZ_CARD,        // Ficha     (ui_lab_sensor_cards)
     SZ_VIZ_COUNT
 };
 
@@ -80,7 +80,7 @@ void sz_sync_renderer(bool force = false);
 // Display name for a sensor in FOCUS mode (short base name).
 const char* sz_sensor_name(SzSensorId id);
 
-// Full viz-aware header name (e.g. "Temp Dial", "Humedad", "Luz Graf").
+// Full visible header name (e.g. "TEMP. RANGO", "Humedad", "Luz Curva").
 // Uses current sensor + current viz mode. Call from tft_display.cpp when drawing the header.
 const char* sz_header_name();
 

@@ -1,6 +1,6 @@
 # Manual de Usuario — P-Bit
 
-Actualizado: 2026-05-28
+Actualizado: 2026-06-13
 Versión firmware: ver `CHANGELOG.md`
 Idiomas de interfaz disponibles: Español, Catalán, English
 
@@ -163,7 +163,7 @@ Mientras estás en una pantalla de sensor, haz una **pulsación corta** (pulsa y
 
 El modo de visualización cambia:
 
-`Focus` → `Valor` → `Gráfica` → `Dial` → `Card` → `Focus` …
+`Principal` → `Dato` → `Curva` → `Rango` → `Ficha` → `Principal` …
 
 Prueba a pulsar varias veces para ver cómo cambia la representación del mismo dato sin cambiar el sensor.
 
@@ -232,9 +232,9 @@ Con la configuración de producción estándar, el carrusel tiene 12 posiciones.
 
 | Posición | Pantalla | Descripción |
 |---|---|---|
-| 1 | **Home** | Visión global de todos los sensores en cards |
-| 2 | **Clima** | Temperatura y humedad del aire en vista combinada |
-| 3 | **Multi** | Múltiples sensores con widgets |
+| 1 | **Inicio** | Visión global de todos los sensores en fichas |
+| 2 | **Clima Lab** | Temperatura y humedad del aire en vista combinada |
+| 3 | **Termo Lab** | Temperatura ambiente, sonda externa y diferencia térmica |
 | 4 | **Sonido VU** | Nivel de sonido en barras tipo VU meter |
 | 5 | **Temperatura** | Temperatura ambiente con menú de configuración |
 | 6 | **Humedad** | Humedad del aire con menú de configuración |
@@ -245,17 +245,17 @@ Con la configuración de producción estándar, el carrusel tiene 12 posiciones.
 | 11 | **Timer** | Cronómetro y cuenta regresiva |
 | 12 | **Sistema** | Ajustes globales del dispositivo |
 
-Las pantallas 1–4 (Home, Clima, Multi, Sonido VU) son de solo lectura. No tienen menú de configuración.
+Las pantallas 1–4 (Inicio, Clima Lab, Termo Lab, Sonido VU) son de solo lectura. No tienen menú de configuración. `Lab` se reserva para pantallas multisensor o experimentales; las vistas de un sensor individual usan los modos de abajo.
 
 Las pantallas 5–10 son **zonas de sensor**. Dentro de cada una, la pulsación corta cambia el modo de visualización del sensor activo:
 
 | Modo | Descripción |
 |---|---|
-| **Focus** | Lectura protagonista grande |
-| **Valor** | Valor numérico con contexto visual |
-| **Gráfica** | Histórico reciente en gráfica de línea |
-| **Dial** | Lectura tipo gauge/reloj |
-| **Card** | Tarjeta compacta de lectura |
+| **Principal** | Lectura protagonista del sensor |
+| **Dato** | Dato numérico con contexto visual |
+| **Curva** | Histórico reciente en línea de tendencia |
+| **Rango** | Lectura dentro de zonas de color y límites |
+| **Ficha** | Resumen compacto de lectura |
 
 La pulsación larga en cualquier pantalla de sensor abre su menú de configuración.
 
@@ -297,7 +297,7 @@ Durante el Modo demo, el P-Bit recorre pantallas representativas del carrusel co
 
 ### Acción rápida (sin menú)
 
-Pulsación corta: cambia el modo visual del sensor (Focus / Valor / Gráfica / Dial / Card).
+Pulsación corta: cambia el modo visual del sensor (Principal / Dato / Curva / Rango / Ficha).
 
 ### Menú de configuración (pulsación larga ~1.2 s)
 

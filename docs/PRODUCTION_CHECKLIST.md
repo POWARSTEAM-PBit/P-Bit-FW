@@ -22,7 +22,7 @@ Estado de esta revisión: build y auditoría estática completados; Demo Mode y 
 - [x] Cambio de idioma solicita full redraw con `runtime_request_ui_full_redraw()` y el loop de UI lo consume con `runtime_take_ui_full_redraw()`.
 - [x] Textos visibles migrados a `L(...)`/`LIn(...)`; literales directos restantes son símbolos/no lingüísticos (`>`, `---`, separadores, ticks numéricos o `ZZZ`).
 - [x] Carrusel actual con `PBIT_ENABLE_GRAPH_LAB=1`: `Home -> Clima -> Multi -> Sonido VU -> Temperatura -> Humedad -> Luz -> Sonido -> Suelo -> Termómetro -> Timer -> Sistema`.
-- [x] `SENSOR_ZONE_SCREEN` reutiliza Sensor Zone para los seis sensores y persiste modos `Focus -> Valor -> Gráfica -> Dial -> Card`.
+- [x] `SENSOR_ZONE_SCREEN` reutiliza Sensor Zone para los seis sensores y persiste modos visibles `Principal -> Dato -> Curva -> Rango -> Ficha`.
 - [x] `Sistema` separa `Bip` y `Alarmas`; la auditoría estática confirma persistencia `sys_sound`, `sys_alarm` y `sys_unit_f` para unidad C/F.
 - [x] Anti-flicker/ghosting revisado por código y validado por ahora en hardware en dials/gauges, cards, menús/footers y `Sound VU`; mantener vigilancia de regresión.
 - [x] Modo demo runtime añadido: arranque con encoder presionado durante logo o pulsación larga desde `Home`, splash breve de entrada, sin persistir sensor/modo en NVS.
@@ -62,7 +62,7 @@ Estado de esta revisión: build y auditoría estática completados; Demo Mode y 
 - [ ] Termómetro (`DS18B20`) detecta ausencia/presencia de sonda y muestra `Revisa IO33` sin solapes en ES/CAT/EN.
 - [ ] Conexión/desconexión Suelo: al cambiar de estado después del arranque aparece splash verde/rojo `CONECTADO/DESCONECTADO / Sensor Suelo / IO35` y vuelve a la pantalla anterior.
 - [ ] Conexión/desconexión Termómetro: al cambiar de estado después del arranque aparece splash verde/rojo `CONECTADO/DESCONECTADO / Sensor DS18B20 / IO33` y vuelve a la pantalla anterior.
-- [x] Icono `temp` final: small/XL/fallback monocromos; solo Dial/XXL con acento mantiene detalle multicolor.
+- [x] Icono `temp` final: small/XL/fallback monocromos; solo Rango/XXL con acento mantiene detalle multicolor.
 - [ ] Icono técnico `probe`/DS18B20 revisado en hardware; estado actual no final.
 - [ ] Alertas visuales, RGB y audio de `Alarmas` se prueban al menos en un sensor crítico.
 

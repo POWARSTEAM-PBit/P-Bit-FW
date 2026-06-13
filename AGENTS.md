@@ -6,7 +6,7 @@ Guía breve para agentes que trabajen en este repo P-Bit.
 
 - Firmware PlatformIO/Arduino para ESP32 con TFT ST7735 160x128, encoder, LED RGB, buzzer y sensores ambientales.
 - `src/io.cpp` lee sensores y publica `Reading`; `src/tft_display.cpp` enruta pantallas; `src/rotary.cpp` centraliza encoder; `src/settings_store.cpp` encapsula NVS.
-- `SENSOR_ZONE_SCREEN` es la capa común para Temperatura, Humedad, Luz, Sonido, Suelo y Termómetro (`DS18B20` técnico), con modos `Focus`, `Valor`, `Gráfica`, `Dial` y `Card`.
+- `SENSOR_ZONE_SCREEN` es la capa común para Temperatura, Humedad, Luz, Sonido, Suelo y Termómetro (`DS18B20` técnico). Sus nombres visibles son `Principal` (sin sufijo), `Dato`, `Curva`, `Rango` y `Ficha`; los enums internos históricos (`Focus`, `Valor`, `Graph`, `Gauge`, `Card`) pueden seguir existiendo.
 - `Sistema` separa dos controles audibles:
   - `Bip` -> `g_sound_enabled` / NVS `sys_sound`: beeps de UI, navegación y confirmaciones.
   - `Alarmas` -> `g_alarm_sound_enabled` / NVS `sys_alarm`: alertas audibles y final de cuenta regresiva del `Timer`.
@@ -17,7 +17,7 @@ Guía breve para agentes que trabajen en este repo P-Bit.
 - Pantalla objetivo: 160x128 px landscape. Cualquier texto largo debe probarse mentalmente contra ese ancho.
 - Mantener shell estático separado de campos dinámicos; evitar `fillScreen` en cada tick.
 - Usar `L(KEY)`/`LIn(...)` para textos visibles; no introducir strings hardcodeados salvo identificadores técnicos (`DHT11`, `DS18B20`, `LDR`, `GPIO`, etc.).
-- Terminología visible: `Sonido`, no `Ruido`; `Gráfica`, no `Graf`; `Termómetro`/`Termo` para la sonda externa, dejando `DS18B20` como identificador técnico.
+- Terminología visible: `Sonido`, no `Ruido`; Sensor Zone usa `Dato`, `Curva`, `Rango` y `Ficha`; `Lab` solo para pantallas multisensor/experimento; `Termómetro`/`Termo` para la sonda externa, dejando `DS18B20` como identificador técnico.
 - Menús raíz de settings: usar `drawSettingsGridMenu()` 2x3. Máximo 4 opciones primarias; `Reset` abajo izquierda y `Salir` abajo derecha. Solo Suelo usa `Calibrar` como calibración real.
 - Contrato encoder-grid: si `drawSettingsGridMenu()` recibe `primary_count=N`, entonces `Reset=N`, `Salir=N+1`, `get_*_encoder_max()` debe devolver `N+1` y `set_*_input_value()` debe limitar con `get_*_encoder_min()/max()`, no con números mágicos. Definir constantes locales para `PRIMARY_COUNT`, `RESET_INDEX` y `EXIT_INDEX`.
 - Menús con encoder: cachear estado/índice/valor visible; no redibujar menú completo por giro. `fillScreen()`/`drawHeader()` solo al entrar o cambiar de estado; en navegación interna actualizar solo tiles, botones o valor dinámico.
