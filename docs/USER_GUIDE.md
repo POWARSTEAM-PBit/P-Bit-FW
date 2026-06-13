@@ -238,8 +238,8 @@ Con la configuración de producción estándar, el carrusel tiene 12 posiciones.
 | 4 | **Sonido VU** | Nivel de sonido en barras tipo VU meter |
 | 5 | **Temperatura** | Temperatura ambiente con menú de configuración |
 | 6 | **Humedad** | Humedad del aire con menú de configuración |
-| 7 | **Luz** | Luz ambiental con menú de rangos |
-| 8 | **Sonido** | Nivel de sonido con menú de niveles |
+| 7 | **Luz** | Luz ambiental con menú de límites |
+| 8 | **Sonido** | Nivel de sonido con menú de límites |
 | 9 | **Suelo** | Humedad del suelo con calibración y alertas |
 | 10 | **Termómetro** | Temperatura externa con sonda DS18B20 |
 | 11 | **Timer** | Cronómetro y cuenta regresiva |
@@ -303,11 +303,11 @@ Pulsación corta: cambia el modo visual del sensor (Focus / Valor / Gráfica / D
 
 | Opción | Qué hace |
 |---|---|
-| **Límites** | Define temperatura mínima y máxima para activar alerta |
 | **Unidad** | Elige Celsius o Fahrenheit (global, afecta también a Termómetro) |
+| **Límites** | Define temperatura mínima y máxima para activar alerta |
+| **Marcas** | Muestra u oculta las marcas de límites en el dial |
 | **Alertas** | Activa o desactiva el aviso automático |
-| **Ver límites** | Muestra u oculta las marcas de rangos en el dial |
-| **Reset** | Restaura límites, unidad y alertas a valores por defecto |
+| **Reset** | Restaura unidad, límites, marcas y alertas a valores por defecto |
 | **Salir** | Cierra el menú |
 
 ### Alertas de temperatura
@@ -330,10 +330,10 @@ Pulsación corta: cambia el modo visual del sensor (Focus / Valor / Gráfica / D
 
 | Opción | Qué hace |
 |---|---|
-| **Rangos** | Define umbrales `Seco` y `Muy húmedo` |
+| **Límites** | Define umbrales `Seco` y `Muy húmedo` |
+| **Marcas** | Muestra u oculta las marcas de límites en el dial |
 | **Alertas** | Activa o desactiva el aviso automático |
-| **Ver límites** | Muestra u oculta las marcas de niveles en el dial |
-| **Reset** | Restaura umbrales y alertas a valores por defecto |
+| **Reset** | Restaura límites, marcas y alertas a valores por defecto |
 | **Salir** | Cierra el menú |
 
 El rango entre `Seco` y `Muy húmedo` se interpreta automáticamente como `Óptimo`.
@@ -357,10 +357,11 @@ El rango entre `Seco` y `Muy húmedo` se interpreta automáticamente como `Ópti
 
 | Opción | Qué hace |
 |---|---|
-| **Rangos** | Define umbrales `Max penumbra`, `Max interior`, `Max brillante` |
 | **Modo** | Selecciona la unidad visible entre `Lux`, `FC` o `Raw ADC` |
+| **Límites** | Define umbrales `Max penumbra`, `Max interior`, `Max brillante` |
+| **Marcas** | Muestra u oculta las marcas de límites en el dial |
 | **Alertas** | Activa o desactiva el aviso automático |
-| **Reset** | Restaura rangos y modo a valores por defecto |
+| **Reset** | Restaura modo, límites, marcas y alertas a valores por defecto |
 | **Salir** | Cierra el menú |
 
 ### Categorías de luz
@@ -390,9 +391,10 @@ El rango entre `Seco` y `Muy húmedo` se interpreta automáticamente como `Ópti
 
 | Opción | Qué hace |
 |---|---|
-| **Niveles** | Define umbrales `Max silencio`, `Max normal`, `Max alto` |
+| **Límites** | Define umbrales `Max silencio`, `Max normal`, `Max alto` |
+| **Marcas** | Muestra u oculta las marcas de límites en el dial |
 | **Alertas** | Activa o desactiva el aviso automático |
-| **Reset** | Restaura umbrales y alertas a valores por defecto |
+| **Reset** | Restaura límites, marcas y alertas a valores por defecto |
 | **Salir** | Cierra el menú |
 
 ### Categorías de sonido
@@ -411,9 +413,10 @@ El rango entre `Seco` y `Muy húmedo` se interpreta automáticamente como `Ópti
 | Opción | Qué hace |
 |---|---|
 | **Calibrar sensor** | Define el punto seco y el punto húmedo para el suelo actual |
-| **Rangos** | Ajusta los porcentajes de `Seco` y `Húmedo` |
+| **Límites** | Ajusta los porcentajes de `Seco` y `Húmedo` |
+| **Marcas** | Muestra u oculta las marcas de límites en el dial |
 | **Alertas** | Activa o desactiva el aviso automático |
-| **Reset** | Restaura calibración y umbrales a valores por defecto |
+| **Reset** | Restaura calibración, límites, marcas y alertas a valores por defecto |
 | **Salir** | Cierra el menú |
 
 ### Cómo calibrar el sensor de suelo
@@ -431,9 +434,9 @@ Durante la calibración, una pulsación larga cancela el paso actual sin guardar
 
 ### Alertas del sensor de suelo
 
-Los rangos de suelo se definen con dos umbrales:
+Los rangos de suelo se ajustan con dos puntos:
 
-- Por debajo del umbral `Seco`, el dispositivo distingue automáticamente entre `Muy seco` y `Seco`.
+- Por debajo de `Seco`, el dispositivo distingue automáticamente entre `Muy seco` y `Seco`.
 - Entre `Seco` y `Húmedo`, el estado se interpreta como `Óptimo`.
 - Por encima de `Húmedo`, el dispositivo distingue automáticamente entre `Húmedo` y `Muy húmedo`.
 
@@ -463,11 +466,11 @@ El Termómetro usa una sonda externa de temperatura que se conecta al puerto vis
 
 | Opción | Qué hace |
 |---|---|
-| **Corrección** | Ajusta el offset de la sonda |
-| **Límites** | Define temperatura mínima y máxima para activar alerta |
 | **Unidad** | Elige Celsius o Fahrenheit (global, afecta también a Temperatura) |
+| **Límites** | Define temperatura mínima y máxima para activar alerta |
+| **Marcas** | Muestra u oculta las marcas de límites en el dial |
 | **Alertas** | Activa o desactiva el aviso automático |
-| **Reset** | Restaura offset, límites, unidad y alertas a valores por defecto |
+| **Reset** | Restaura unidad, límites, marcas y alertas a valores por defecto |
 | **Salir** | Cierra el menú |
 
 Si la sonda no está conectada, la pantalla muestra `Sin sensor`, `---` y la indicación `Revisa IO33` (o su equivalente en el idioma activo).
@@ -547,7 +550,7 @@ Desactivar `Bip` **no** silencia las alertas automáticas. Desactivar `Alarmas` 
 ### Reset global
 
 > **⚠️ PRECAUCIÓN**
-> El Reset de Sistema borra toda la configuración guardada: calibraciones, umbrales, límites, idioma, unidades y preferencias de audio. Esta acción no se puede deshacer.
+> El Reset de Sistema borra toda la configuración guardada: calibraciones, rangos, niveles, límites, idioma, unidades y preferencias de audio. Esta acción no se puede deshacer.
 
 Opciones de confirmación: `NO` (por defecto) / `SI`
 
@@ -641,7 +644,7 @@ Medir cerca de una ventana, una puerta y una pared interior. Comparar luz, tempe
 
 ### Experimento de riego
 
-Calibrar el sensor de suelo. Definir umbrales de `Seco` y `Húmedo`. Observar durante varios días cómo baja la humedad y decidir el momento de riego con base en los datos.
+Calibrar el sensor de suelo. Definir los rangos `Seco` y `Húmedo`. Observar durante varios días cómo baja la humedad y decidir el momento de riego con base en los datos.
 
 ### Mapa de sonido
 

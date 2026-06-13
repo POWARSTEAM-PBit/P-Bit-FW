@@ -122,7 +122,7 @@ Ideas acordadas con valor educativo y de producto; sin urgencia técnica.
 - **Demo guion educativo**: añadir secuencias temáticas futuras (aula, planta, exterior) sobre la coreografía smooth ya implementada.
 - **Gamificación de alertas**: arcoíris rápido + sonido feliz al pasar a estado óptimo desde alerta.
 - **Alertas globales en pantalla**: la lógica (`AlertEngine`) y el RGB ya funcionan. Falta decidir una posición de layout que no invada ninguna pantalla y reactivar la capa visual.
-- **Calibración real de sonido**: el menú actual usa `Niveles` interpretativos. Decidir si más adelante se añade una calibración acústica real del entorno.
+- **Calibración real de sonido**: el menú actual usa `Límites` interpretativos, no una calibración acústica real. Decidir si más adelante se añade una calibración del entorno.
 
 ### Timer y laboratorio
 

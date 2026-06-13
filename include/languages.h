@@ -191,8 +191,6 @@ enum LangKey : uint8_t {
     MENU_RESTORED,
     MENU_PUSH_CAPTURE,
 
-    // DS18 / temperature menu
-    MENU_OFFSET,
     MENU_RESET_SUB_TEMP,
     MENU_RESET_SUB_PROBE,
     MENU_RESET_SUB_HUM,

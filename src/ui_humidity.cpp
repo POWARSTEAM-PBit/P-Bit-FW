@@ -20,6 +20,10 @@ extern Reading g_ui_readings_snapshot;
 
 namespace {
 
+constexpr uint8_t HUM_MENU_PRIMARY_COUNT = 3;
+constexpr uint8_t HUM_MENU_RESET_INDEX   = HUM_MENU_PRIMARY_COUNT;
+constexpr uint8_t HUM_MENU_EXIT_INDEX    = HUM_MENU_PRIMARY_COUNT + 1;
+
 constexpr int HUM_INFO_CARD_X = 10;
 constexpr int HUM_INFO_CARD_Y = 36;
 constexpr int HUM_INFO_CARD_W = 96;
@@ -122,6 +126,7 @@ static HumidityMenuState g_hum_menu_state = HUM_MODE_NORMAL;
 static uint8_t g_hum_menu_index = 0;
 static int g_hum_edit_dry = 30;
 static int g_hum_edit_comf = 70;
+static bool g_hum_edit_marks = true;
 static bool g_hum_edit_alerts = true;
 static uint8_t g_hum_saved_kind = 0;
 static uint8_t g_hum_reset_choice = 0;
@@ -143,6 +148,7 @@ void start_humidity_menu() {
     g_hum_menu_index = 0;
     g_hum_edit_dry = get_humidity_threshold_dry();
     g_hum_edit_comf = get_humidity_threshold_comfort();
+    g_hum_edit_marks = get_humidity_range_marks_visible();
     g_hum_edit_alerts = get_humidity_alerts_enabled();
     g_hum_saved_kind = 0;
     g_hum_reset_choice = 0;
@@ -154,6 +160,7 @@ int get_humidity_encoder_min() {
         case HUM_MODE_MENU: return 0;
         case HUM_MODE_EDIT_DRY: return 0;
         case HUM_MODE_EDIT_COMFORT: return g_hum_edit_dry + 1; // Comfort siempre > Dry
+        case HUM_MODE_EDIT_MARKS: return 0;
         case HUM_MODE_EDIT_ALERTS: return 0;
         case HUM_MODE_CONFIRM_RESET: return 0;
         default: return 0;
@@ -162,9 +169,10 @@ int get_humidity_encoder_min() {
 
 int get_humidity_encoder_max() {
     switch (g_hum_menu_state) {
-        case HUM_MODE_MENU: return 3; // 4 opciones (Umbrales, Alertas, Reset, Salir)
+        case HUM_MODE_MENU: return HUM_MENU_EXIT_INDEX; // Límites, Marcas, Alertas, Reset, Salir
         case HUM_MODE_EDIT_DRY: return g_hum_edit_comf - 1; // Dry siempre < Comfort
         case HUM_MODE_EDIT_COMFORT: return 100;
+        case HUM_MODE_EDIT_MARKS: return 1;
         case HUM_MODE_EDIT_ALERTS: return 1;
         case HUM_MODE_CONFIRM_RESET: return 1;
         default: return 0;
@@ -176,6 +184,7 @@ int get_humidity_encoder_value() {
         case HUM_MODE_MENU: return (int)g_hum_menu_index;
         case HUM_MODE_EDIT_DRY: return g_hum_edit_dry;
         case HUM_MODE_EDIT_COMFORT: return g_hum_edit_comf;
+        case HUM_MODE_EDIT_MARKS: return g_hum_edit_marks ? 1 : 0;
         case HUM_MODE_EDIT_ALERTS: return g_hum_edit_alerts ? 1 : 0;
         case HUM_MODE_CONFIRM_RESET: return (int)g_hum_reset_choice;
         default: return 0;
@@ -203,6 +212,12 @@ void set_humidity_input_value(int value) {
                 request_humidity_redraw(false);
             }
             break;
+        case HUM_MODE_EDIT_MARKS:
+            if ((next == 1) != g_hum_edit_marks) {
+                g_hum_edit_marks = (next == 1);
+                request_humidity_redraw(false);
+            }
+            break;
         case HUM_MODE_EDIT_ALERTS:
             if ((next == 1) != g_hum_edit_alerts) {
                 g_hum_edit_alerts = (next == 1);
@@ -225,10 +240,14 @@ uint8_t handle_humidity_button() {
             if (g_hum_menu_index == 0) {
                 g_hum_menu_state = HUM_MODE_EDIT_DRY;
             } else if (g_hum_menu_index == 1) {
-                g_hum_menu_state = HUM_MODE_EDIT_ALERTS;
+                g_hum_menu_state = HUM_MODE_EDIT_MARKS;
             } else if (g_hum_menu_index == 2) {
+                g_hum_menu_state = HUM_MODE_EDIT_ALERTS;
+            } else if (g_hum_menu_index == HUM_MENU_RESET_INDEX) {
                 g_hum_reset_choice = 0;
                 g_hum_menu_state = HUM_MODE_CONFIRM_RESET;
+            } else if (g_hum_menu_index == HUM_MENU_EXIT_INDEX) {
+                g_hum_menu_state = HUM_MODE_NORMAL;
             } else {
                 g_hum_menu_state = HUM_MODE_NORMAL;
             }
@@ -241,9 +260,14 @@ uint8_t handle_humidity_button() {
             g_hum_saved_kind = 0;
             g_hum_menu_state = HUM_MODE_SAVED;
             break;
+        case HUM_MODE_EDIT_MARKS:
+            set_humidity_range_marks_visible(g_hum_edit_marks);
+            g_hum_saved_kind = 1;
+            g_hum_menu_state = HUM_MODE_SAVED;
+            break;
         case HUM_MODE_EDIT_ALERTS:
             set_humidity_alerts_enabled(g_hum_edit_alerts);
-            g_hum_saved_kind = 1;
+            g_hum_saved_kind = 2;
             g_hum_menu_state = HUM_MODE_SAVED;
             break;
         case HUM_MODE_CONFIRM_RESET:
@@ -251,8 +275,9 @@ uint8_t handle_humidity_button() {
                 reset_humidity_settings();
                 g_hum_edit_dry = get_humidity_threshold_dry();
                 g_hum_edit_comf = get_humidity_threshold_comfort();
+                g_hum_edit_marks = get_humidity_range_marks_visible();
                 g_hum_edit_alerts = get_humidity_alerts_enabled();
-                g_hum_saved_kind = 2;
+                g_hum_saved_kind = 3;
                 g_hum_reset_choice = 0;
                 g_hum_menu_state = HUM_MODE_SAVED;
             } else {
@@ -273,6 +298,7 @@ static void draw_humidity_menu_screen(bool screen_changed) {
     static HumidityMenuState last_drawn_state = HUM_MODE_NORMAL;
     static int last_menu_index = -1;
     static int last_edit_val = -1;
+    static int last_marks_value = -1;
     static int last_alert_value = -1;
     static int last_reset_choice = -1;
 
@@ -284,19 +310,21 @@ static void draw_humidity_menu_screen(bool screen_changed) {
         drawHeader(L(TIT_HUM));
         last_menu_index = -1;
         last_edit_val = -1;
+        last_marks_value = -1;
         last_alert_value = -1;
         last_reset_choice = -1;
     }
 
     if (g_hum_menu_state == HUM_MODE_MENU) {
         if (state_changed || last_menu_index != (int)g_hum_menu_index) {
-            const char* items[2] = {
-                L(MENU_RANGES),
+            const char* items[HUM_MENU_PRIMARY_COUNT] = {
+                L(MENU_LIMITS),
+                L(MENU_SHOW_LIMITS),
                 L(MENU_ALERTS)
             };
             const uint8_t selected_index = g_hum_menu_index;
             const bool grid_full_redraw = state_changed || last_menu_index < 0;
-            drawSettingsGridMenu(items, 2, selected_index, L(MENU_RESET), L(MENU_EXIT),
+            drawSettingsGridMenu(items, HUM_MENU_PRIMARY_COUNT, selected_index, L(MENU_RESET), L(MENU_EXIT),
                                  grid_full_redraw, last_menu_index);
             if (grid_full_redraw) {
                 drawFooterHint(L(INSTR_SEL), cx, LM_MENU_FOOTER_Y);
@@ -323,6 +351,19 @@ static void draw_humidity_menu_screen(bool screen_changed) {
                                         L(ST_TURN_PUSH),
                                         state_changed);
             last_edit_val = current_val;
+        }
+    }
+
+    if (g_hum_menu_state == HUM_MODE_EDIT_MARKS) {
+        int marks_value = g_hum_edit_marks ? 1 : 0;
+        if (state_changed || marks_value != last_marks_value) {
+            drawCenteredMenuValueScreen(L(MENU_SHOW_LIMITS),
+                                        g_hum_edit_marks ? L(ST_ON) : L(ST_OFF),
+                                        g_hum_edit_marks ? TFT_GREEN : TFT_RED,
+                                        MENU_VALUE_FONT_BODY,
+                                        L(ST_TURN_PUSH),
+                                        state_changed);
+            last_marks_value = marks_value;
         }
     }
 
@@ -364,11 +405,17 @@ static void draw_humidity_menu_screen(bool screen_changed) {
             drawCenteredMenuBodyLines(lines, colors, 2, MENU_TEXT_FONT_SMALL, LM_SUMMARY2_Y0, LM_SUMMARY2_GAP);
         } else if (g_hum_saved_kind == 1) {
             drawCenteredMenuSavedScreen(L(MENU_SAVED),
+                                        g_hum_edit_marks ? L(ST_ON) : L(ST_OFF),
+                                        g_hum_edit_marks ? TFT_GREEN : TFT_RED,
+                                        MENU_VALUE_FONT_BODY,
+                                        L(ST_PUSH_MENU));
+        } else if (g_hum_saved_kind == 2) {
+            drawCenteredMenuSavedScreen(L(MENU_SAVED),
                                         g_hum_edit_alerts ? L(ST_ON) : L(ST_OFF),
                                         g_hum_edit_alerts ? TFT_GREEN : TFT_RED,
                                         MENU_VALUE_FONT_TIMER,
                                         L(ST_PUSH_MENU));
-        } else if (g_hum_saved_kind == 2) {
+        } else if (g_hum_saved_kind == 3) {
             drawCenteredMenuSavedScreen(L(MENU_SAVED),
                                         L(MENU_DEFAULTS),
                                         TFT_WHITE,

@@ -31,6 +31,7 @@ constexpr int SOIL_THRESH_DEFAULT_DRY = 20;
 constexpr int SOIL_THRESH_DEFAULT_OPTIMAL = 55;
 constexpr int SOIL_THRESH_DEFAULT_MOIST = 80;
 constexpr bool SOIL_ALERTS_DEFAULT_ENABLED = true;
+constexpr bool SOIL_RANGE_MARKS_DEFAULT_VISIBLE = true;
 
 static int g_soil_cal_dry = SOIL_DEFAULT_DRY;
 static int g_soil_cal_wet = SOIL_DEFAULT_WET;
@@ -38,6 +39,7 @@ static int g_soil_thresh_dry = SOIL_THRESH_DEFAULT_DRY;
 static int g_soil_thresh_optimal = SOIL_THRESH_DEFAULT_OPTIMAL;
 static int g_soil_thresh_moist = SOIL_THRESH_DEFAULT_MOIST;
 static bool g_soil_alerts_enabled = SOIL_ALERTS_DEFAULT_ENABLED;
+static bool g_soil_range_marks_visible = SOIL_RANGE_MARKS_DEFAULT_VISIBLE;
 constexpr int SOUND_THRESH_DEFAULT_QUIET_MAX = 20;
 constexpr int SOUND_THRESH_DEFAULT_NORMAL_MAX = 60;
 constexpr int SOUND_THRESH_DEFAULT_LOUD_MAX = 85;
@@ -46,6 +48,7 @@ constexpr bool SOUND_RANGE_MARKS_DEFAULT_VISIBLE = false;
 constexpr int TEMP_THRESH_DEFAULT_LOW = 18;
 constexpr int TEMP_THRESH_DEFAULT_HIGH = 28;
 constexpr bool TEMP_ALERTS_DEFAULT_ENABLED = false;
+constexpr bool TEMP_RANGE_MARKS_DEFAULT_VISIBLE = true;
 constexpr int LIGHT_THRESH_DEFAULT_DIM_MAX = 100;
 constexpr int LIGHT_THRESH_DEFAULT_INDOOR_MAX = 500;
 constexpr int LIGHT_THRESH_DEFAULT_BRIGHT_MAX = 2000;
@@ -66,6 +69,7 @@ static bool g_sound_range_marks_visible = SOUND_RANGE_MARKS_DEFAULT_VISIBLE;
 static int g_temp_thresh_low = TEMP_THRESH_DEFAULT_LOW;
 static int g_temp_thresh_high = TEMP_THRESH_DEFAULT_HIGH;
 static bool g_temp_alerts_enabled = TEMP_ALERTS_DEFAULT_ENABLED;
+static bool g_temp_range_marks_visible = TEMP_RANGE_MARKS_DEFAULT_VISIBLE;
 static int g_light_thresh_dim_max = LIGHT_THRESH_DEFAULT_DIM_MAX;
 static int g_light_thresh_indoor_max = LIGHT_THRESH_DEFAULT_INDOOR_MAX;
 static int g_light_thresh_bright_max = LIGHT_THRESH_DEFAULT_BRIGHT_MAX;
@@ -181,11 +185,13 @@ void load_soil_thresholds() {
         SOIL_THRESH_DEFAULT_DRY,
         SOIL_THRESH_DEFAULT_OPTIMAL,
         SOIL_THRESH_DEFAULT_MOIST,
-        SOIL_ALERTS_DEFAULT_ENABLED);
+        SOIL_ALERTS_DEFAULT_ENABLED,
+        SOIL_RANGE_MARKS_DEFAULT_VISIBLE);
     int dry = stored.dry_pct;
     int optimal = stored.optimal_pct;
     int moist = stored.moist_pct;
     bool alerts_enabled = stored.alerts_enabled;
+    bool range_marks_visible = stored.range_marks_visible;
 
     if (dry >= 0 && moist <= 100 && dry < optimal && optimal < moist) {
         g_soil_thresh_dry = dry;
@@ -197,6 +203,7 @@ void load_soil_thresholds() {
         g_soil_thresh_moist = SOIL_THRESH_DEFAULT_MOIST;
     }
     g_soil_alerts_enabled = alerts_enabled;
+    g_soil_range_marks_visible = range_marks_visible;
 }
 
 bool save_soil_thresholds(int dry_pct, int optimal_pct, int moist_pct) {
@@ -216,6 +223,7 @@ void reset_soil_settings() {
     save_soil_calibration_store(SOIL_DEFAULT_DRY, SOIL_DEFAULT_WET);
     save_soil_threshold_settings(SOIL_THRESH_DEFAULT_DRY, SOIL_THRESH_DEFAULT_OPTIMAL, SOIL_THRESH_DEFAULT_MOIST);
     save_soil_alerts_enabled_store(SOIL_ALERTS_DEFAULT_ENABLED);
+    save_soil_range_marks_visible_store(SOIL_RANGE_MARKS_DEFAULT_VISIBLE);
 
     g_soil_cal_dry = SOIL_DEFAULT_DRY;
     g_soil_cal_wet = SOIL_DEFAULT_WET;
@@ -223,6 +231,7 @@ void reset_soil_settings() {
     g_soil_thresh_optimal = SOIL_THRESH_DEFAULT_OPTIMAL;
     g_soil_thresh_moist = SOIL_THRESH_DEFAULT_MOIST;
     g_soil_alerts_enabled = SOIL_ALERTS_DEFAULT_ENABLED;
+    g_soil_range_marks_visible = SOIL_RANGE_MARKS_DEFAULT_VISIBLE;
 }
 
 int get_soil_threshold_dry() {
@@ -246,26 +255,37 @@ void set_soil_alerts_enabled(bool enabled) {
     g_soil_alerts_enabled = enabled;
 }
 
+bool get_soil_range_marks_visible() { return g_soil_range_marks_visible; }
+
+void set_soil_range_marks_visible(bool visible) {
+    save_soil_range_marks_visible_store(visible);
+    g_soil_range_marks_visible = visible;
+}
+
 // --- Ambient humidity thresholds and alerts ---
 
 // Default thresholds for ambient humidity.
 constexpr int HUM_THRESH_DEFAULT_DRY_MAX = 30;
 constexpr int HUM_THRESH_DEFAULT_COMFORT_MAX = 70;
 constexpr bool HUM_ALERTS_DEFAULT_ENABLED = true;
+constexpr bool HUM_RANGE_MARKS_DEFAULT_VISIBLE = true;
 
 // Cached copies of the persisted values.
 static int g_hum_thresh_dry_max = HUM_THRESH_DEFAULT_DRY_MAX;
 static int g_hum_thresh_comfort_max = HUM_THRESH_DEFAULT_COMFORT_MAX;
 static bool g_hum_alerts_enabled = HUM_ALERTS_DEFAULT_ENABLED;
+static bool g_hum_range_marks_visible = HUM_RANGE_MARKS_DEFAULT_VISIBLE;
 
 void load_humidity_thresholds() {
     HumiditySettings stored = load_humidity_settings_store(
         HUM_THRESH_DEFAULT_DRY_MAX,
         HUM_THRESH_DEFAULT_COMFORT_MAX,
-        HUM_ALERTS_DEFAULT_ENABLED);
+        HUM_ALERTS_DEFAULT_ENABLED,
+        HUM_RANGE_MARKS_DEFAULT_VISIBLE);
     g_hum_thresh_dry_max = stored.dry_max;
     g_hum_thresh_comfort_max = stored.comfort_max;
     g_hum_alerts_enabled = stored.alerts_enabled;
+    g_hum_range_marks_visible = stored.range_marks_visible;
 }
 
 bool save_humidity_thresholds(int dry_max, int comfort_max) {
@@ -284,10 +304,12 @@ bool save_humidity_thresholds(int dry_max, int comfort_max) {
 void reset_humidity_settings() {
     save_humidity_thresholds_store(HUM_THRESH_DEFAULT_DRY_MAX, HUM_THRESH_DEFAULT_COMFORT_MAX);
     save_humidity_alerts_enabled_store(HUM_ALERTS_DEFAULT_ENABLED);
+    save_humidity_range_marks_visible_store(HUM_RANGE_MARKS_DEFAULT_VISIBLE);
 
     g_hum_thresh_dry_max = HUM_THRESH_DEFAULT_DRY_MAX;
     g_hum_thresh_comfort_max = HUM_THRESH_DEFAULT_COMFORT_MAX;
     g_hum_alerts_enabled = HUM_ALERTS_DEFAULT_ENABLED;
+    g_hum_range_marks_visible = HUM_RANGE_MARKS_DEFAULT_VISIBLE;
 }
 
 int get_humidity_threshold_dry() {
@@ -302,69 +324,76 @@ bool get_humidity_alerts_enabled() {
     return g_hum_alerts_enabled;
 }
 
-// --- DS18B20 offset and alarms ---
+bool get_humidity_range_marks_visible() { return g_hum_range_marks_visible; }
 
-constexpr int DS18_DEFAULT_OFFSET_X10 = 0;
+// --- DS18B20 thresholds and alerts ---
+
 constexpr int DS18_DEFAULT_ALARM_LOW = 0;
 constexpr int DS18_DEFAULT_ALARM_HIGH = 40;
 constexpr bool DS18_DEFAULT_ALERTS_EN = false;
+constexpr bool DS18_RANGE_MARKS_DEFAULT_VISIBLE = true;
 
-static int g_ds18_offset_x10 = DS18_DEFAULT_OFFSET_X10;
 static int g_ds18_alarm_low = DS18_DEFAULT_ALARM_LOW;
 static int g_ds18_alarm_high = DS18_DEFAULT_ALARM_HIGH;
 static bool g_ds18_alerts_enabled = DS18_DEFAULT_ALERTS_EN;
+static bool g_ds18_range_marks_visible = DS18_RANGE_MARKS_DEFAULT_VISIBLE;
 
 void load_ds18_settings() {
     Ds18Settings stored = load_ds18_settings_store(
-        DS18_DEFAULT_OFFSET_X10,
         DS18_DEFAULT_ALARM_LOW,
         DS18_DEFAULT_ALARM_HIGH,
-        DS18_DEFAULT_ALERTS_EN);
-    g_ds18_offset_x10 = stored.offset_x10;
+        DS18_DEFAULT_ALERTS_EN,
+        DS18_RANGE_MARKS_DEFAULT_VISIBLE);
     g_ds18_alarm_low = stored.alarm_low;
     g_ds18_alarm_high = stored.alarm_high;
     g_ds18_alerts_enabled = stored.alerts_enabled;
+    g_ds18_range_marks_visible = stored.range_marks_visible;
 }
 
-bool save_ds18_settings(int offset_x10, int alarm_low, int alarm_high) {
+bool save_ds18_settings(int alarm_low, int alarm_high) {
     if (alarm_low >= alarm_high) return false;
-    save_ds18_settings_store(offset_x10, alarm_low, alarm_high);
-    g_ds18_offset_x10 = offset_x10;
+    save_ds18_settings_store(alarm_low, alarm_high);
     g_ds18_alarm_low = alarm_low;
     g_ds18_alarm_high = alarm_high;
     return true;
 }
 
-bool save_ds18_settings(float offset, float alarm_low, float alarm_high) {
-    return save_ds18_settings((int)lroundf(offset * 10.0f), (int)lroundf(alarm_low), (int)lroundf(alarm_high));
-}
-
 void reset_ds18_settings() {
-    save_ds18_settings_store(DS18_DEFAULT_OFFSET_X10, DS18_DEFAULT_ALARM_LOW, DS18_DEFAULT_ALARM_HIGH);
+    save_ds18_settings_store(DS18_DEFAULT_ALARM_LOW, DS18_DEFAULT_ALARM_HIGH);
     save_ds18_alerts_enabled_store(DS18_DEFAULT_ALERTS_EN);
+    save_ds18_range_marks_visible_store(DS18_RANGE_MARKS_DEFAULT_VISIBLE);
 
-    g_ds18_offset_x10 = DS18_DEFAULT_OFFSET_X10;
     g_ds18_alarm_low = DS18_DEFAULT_ALARM_LOW;
     g_ds18_alarm_high = DS18_DEFAULT_ALARM_HIGH;
     g_ds18_alerts_enabled = DS18_DEFAULT_ALERTS_EN;
+    g_ds18_range_marks_visible = DS18_RANGE_MARKS_DEFAULT_VISIBLE;
 }
 
-int get_ds18_offset_x10() { return g_ds18_offset_x10; }
 int get_ds18_alarm_low() { return g_ds18_alarm_low; }
 int get_ds18_alarm_high() { return g_ds18_alarm_high; }
-float get_ds18_offset() { return (float)g_ds18_offset_x10 / 10.0f; }
 float get_ds18_low_alarm() { return (float)g_ds18_alarm_low; }
 float get_ds18_high_alarm() { return (float)g_ds18_alarm_high; }
 bool get_ds18_alerts_enabled() { return g_ds18_alerts_enabled; }
+bool get_ds18_range_marks_visible() { return g_ds18_range_marks_visible; }
 
 void set_humidity_alerts_enabled(bool enabled) {
     save_humidity_alerts_enabled_store(enabled);
     g_hum_alerts_enabled = enabled;
 }
 
+void set_humidity_range_marks_visible(bool visible) {
+    save_humidity_range_marks_visible_store(visible);
+    g_hum_range_marks_visible = visible;
+}
+
 void set_ds18_alerts_enabled(bool enabled) {
     save_ds18_alerts_enabled_store(enabled);
     g_ds18_alerts_enabled = enabled;
+}
+
+void set_ds18_range_marks_visible(bool visible) {
+    save_ds18_range_marks_visible_store(visible);
+    g_ds18_range_marks_visible = visible;
 }
 
 void load_sound_settings() {
@@ -443,10 +472,12 @@ void load_temp_settings() {
     TempSettings stored = load_temp_settings_store(
         TEMP_THRESH_DEFAULT_LOW,
         TEMP_THRESH_DEFAULT_HIGH,
-        TEMP_ALERTS_DEFAULT_ENABLED);
+        TEMP_ALERTS_DEFAULT_ENABLED,
+        TEMP_RANGE_MARKS_DEFAULT_VISIBLE);
     int low_alarm = stored.low_alarm;
     int high_alarm = stored.high_alarm;
     bool alerts_enabled = stored.alerts_enabled;
+    bool range_marks_visible = stored.range_marks_visible;
 
     if (low_alarm < high_alarm) {
         g_temp_thresh_low = low_alarm;
@@ -456,6 +487,7 @@ void load_temp_settings() {
         g_temp_thresh_high = TEMP_THRESH_DEFAULT_HIGH;
     }
     g_temp_alerts_enabled = alerts_enabled;
+    g_temp_range_marks_visible = range_marks_visible;
 }
 
 bool save_temp_settings(int low_alarm, int high_alarm) {
@@ -473,19 +505,27 @@ bool save_temp_settings(int low_alarm, int high_alarm) {
 void reset_temp_settings() {
     save_temp_settings_store(TEMP_THRESH_DEFAULT_LOW, TEMP_THRESH_DEFAULT_HIGH);
     save_temp_alerts_enabled_store(TEMP_ALERTS_DEFAULT_ENABLED);
+    save_temp_range_marks_visible_store(TEMP_RANGE_MARKS_DEFAULT_VISIBLE);
 
     g_temp_thresh_low = TEMP_THRESH_DEFAULT_LOW;
     g_temp_thresh_high = TEMP_THRESH_DEFAULT_HIGH;
     g_temp_alerts_enabled = TEMP_ALERTS_DEFAULT_ENABLED;
+    g_temp_range_marks_visible = TEMP_RANGE_MARKS_DEFAULT_VISIBLE;
 }
 
 int get_temp_alarm_low() { return g_temp_thresh_low; }
 int get_temp_alarm_high() { return g_temp_thresh_high; }
 bool get_temp_alerts_enabled() { return g_temp_alerts_enabled; }
+bool get_temp_range_marks_visible() { return g_temp_range_marks_visible; }
 
 void set_temp_alerts_enabled(bool enabled) {
     save_temp_alerts_enabled_store(enabled);
     g_temp_alerts_enabled = enabled;
+}
+
+void set_temp_range_marks_visible(bool visible) {
+    save_temp_range_marks_visible_store(visible);
+    g_temp_range_marks_visible = visible;
 }
 
 void load_light_settings() {
@@ -635,13 +675,15 @@ void reset_all_settings() {
     g_soil_thresh_optimal = SOIL_THRESH_DEFAULT_OPTIMAL;
     g_soil_thresh_moist = SOIL_THRESH_DEFAULT_MOIST;
     g_soil_alerts_enabled = SOIL_ALERTS_DEFAULT_ENABLED;
+    g_soil_range_marks_visible = SOIL_RANGE_MARKS_DEFAULT_VISIBLE;
     g_hum_thresh_dry_max = HUM_THRESH_DEFAULT_DRY_MAX;
     g_hum_thresh_comfort_max = HUM_THRESH_DEFAULT_COMFORT_MAX;
     g_hum_alerts_enabled = HUM_ALERTS_DEFAULT_ENABLED;
-    g_ds18_offset_x10 = DS18_DEFAULT_OFFSET_X10;
+    g_hum_range_marks_visible = HUM_RANGE_MARKS_DEFAULT_VISIBLE;
     g_ds18_alarm_low = DS18_DEFAULT_ALARM_LOW;
     g_ds18_alarm_high = DS18_DEFAULT_ALARM_HIGH;
     g_ds18_alerts_enabled = DS18_DEFAULT_ALERTS_EN;
+    g_ds18_range_marks_visible = DS18_RANGE_MARKS_DEFAULT_VISIBLE;
     g_sound_thresh_quiet_max = SOUND_THRESH_DEFAULT_QUIET_MAX;
     g_sound_thresh_normal_max = SOUND_THRESH_DEFAULT_NORMAL_MAX;
     g_sound_thresh_loud_max = SOUND_THRESH_DEFAULT_LOUD_MAX;
@@ -650,6 +692,7 @@ void reset_all_settings() {
     g_temp_thresh_low = TEMP_THRESH_DEFAULT_LOW;
     g_temp_thresh_high = TEMP_THRESH_DEFAULT_HIGH;
     g_temp_alerts_enabled = TEMP_ALERTS_DEFAULT_ENABLED;
+    g_temp_range_marks_visible = TEMP_RANGE_MARKS_DEFAULT_VISIBLE;
     g_light_thresh_dim_max = LIGHT_THRESH_DEFAULT_DIM_MAX;
     g_light_thresh_indoor_max = LIGHT_THRESH_DEFAULT_INDOOR_MAX;
     g_light_thresh_bright_max = LIGHT_THRESH_DEFAULT_BRIGHT_MAX;
@@ -821,5 +864,5 @@ float read_ds18b20_temp() {
         return -999.0f;
     }
 
-    return tempC + (g_ds18_offset_x10 / 10.0f);
+    return tempC;
 }

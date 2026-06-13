@@ -193,7 +193,7 @@ Calibración:
 - [x] Menú largo desde sensor SUELO abre menú de calibración.
 - [ ] Calibración seco (sensor al aire) registra valor.
 - [ ] Calibración mojado (sensor en agua) registra valor.
-- [ ] Umbrales `seco / óptimo / húmedo` editables y persistentes.
+- [ ] Límites `seco / óptimo / húmedo` editables y persistentes.
 
 Anomalías observadas: `Ajuste visual solicitado para estado desconectado en Suelo y DS18B20: card superior solo "Sin Sensor", con color más vivo/entonado a la paleta y Y+2; card inferior solo "Revisa IOxx" y Y-4 para centrar mejor. Valores de suelo se ven plausibles y correctos. BUG render/UX bloqueante: pantalla/menú de calibración de Suelo genera mucho flicker cada vez que cambian valores, y cambian constantemente; afecta todo el cuerpo salvo título/línea. Al cargar el menú de configuración/calibración no dibuja fondo propio, queda el fondo de la pantalla del sensor; otros menús sí tienen fondo. No hay salida/cancelación segura sin guardar: para salir hay que seleccionar obligatoriamente el valor a calibrar y luego el siguiente, quedando guardados; Pablo tuvo que resetear para no guardar. Propuesta: pulsación larga vuelve al menú anterior conservando calibración previa para evitar reset si se entra o calibra mal. Pendiente posterior: calibración general con raw al aire y sumergido en agua en ~5 P-Bits para promediar defaults de firmware.`
 

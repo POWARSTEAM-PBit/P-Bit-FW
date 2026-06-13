@@ -166,7 +166,7 @@ int get_sound_encoder_min() {
 
 int get_sound_encoder_max() {
     switch (g_sound_menu_state) {
-        case SOUND_MODE_MENU: return 4; // niveles, alertas, ver limites, reset, salir
+        case SOUND_MODE_MENU: return 4; // limites, marcas, alertas, reset, salir
         case SOUND_MODE_EDIT_QUIET: return g_sound_normal_max - 1;
         case SOUND_MODE_EDIT_NORMAL: return g_sound_loud_max - 1;
         case SOUND_MODE_EDIT_LOUD: return 100;
@@ -249,9 +249,9 @@ uint8_t handle_sound_button() {
             if (g_sound_menu_index == 0) {
                 g_sound_menu_state = SOUND_MODE_EDIT_QUIET;
             } else if (g_sound_menu_index == 1) {
-                g_sound_menu_state = SOUND_MODE_EDIT_ALERTS;
-            } else if (g_sound_menu_index == 2) {
                 g_sound_menu_state = SOUND_MODE_EDIT_MARKS;
+            } else if (g_sound_menu_index == 2) {
+                g_sound_menu_state = SOUND_MODE_EDIT_ALERTS;
             } else if (g_sound_menu_index == 3) {
                 g_sound_reset_choice = 0;
                 g_sound_menu_state = SOUND_MODE_CONFIRM_RESET;
@@ -350,9 +350,9 @@ static void draw_sound_menu_screen(bool screen_changed) {
 
     if (g_sound_menu_state == SOUND_MODE_MENU) {
         const char* items[] = {
-            L(MENU_LEVELS),
-            L(MENU_ALERTS),
-            L(MENU_SHOW_LIMITS)
+            L(MENU_LIMITS),
+            L(MENU_SHOW_LIMITS),
+            L(MENU_ALERTS)
         };
         const uint8_t selected_index = g_sound_menu_index;
         const bool grid_full_redraw = state_changed || last_menu_index < 0;

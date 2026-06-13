@@ -499,13 +499,18 @@ static uint8_t gauge_threshold_values(float* values, uint8_t max_count) {
 
     switch (g_gauge_sensor) {
         case GAUGE_SENSOR_TEMP:
+            if (!get_temp_range_marks_visible()) return 0;
             if (max_count < 2) return 0;
             values[0] = display_temp((float)get_temp_alarm_low());
             values[1] = display_temp((float)get_temp_alarm_high());
             return 2;
         case GAUGE_SENSOR_DS18:
-            return 0;
+            if (!get_ds18_range_marks_visible() || max_count < 2) return 0;
+            values[0] = display_temp((float)get_ds18_alarm_low());
+            values[1] = display_temp((float)get_ds18_alarm_high());
+            return 2;
         case GAUGE_SENSOR_HUM:
+            if (!get_humidity_range_marks_visible()) return 0;
             if (max_count < 2) return 0;
             values[0] = (float)get_humidity_threshold_dry();
             values[1] = (float)get_humidity_threshold_comfort();
@@ -517,6 +522,7 @@ static uint8_t gauge_threshold_values(float* values, uint8_t max_count) {
             values[2] = (float)get_sound_threshold_loud();
             return 3;
         case GAUGE_SENSOR_SOIL:
+            if (!get_soil_range_marks_visible()) return 0;
             if (max_count < 2) return 0;
             values[0] = (float)get_soil_threshold_dry();
             values[1] = (float)get_soil_threshold_moist();
@@ -578,6 +584,7 @@ static void draw_ds18_zero_tick(TFT_eSprite& spr,
                                 float max_value,
                                 bool valid) {
     if (g_gauge_sensor != GAUGE_SENSOR_DS18 || max_value <= min_value) return;
+    if (!get_ds18_range_marks_visible()) return;
 
     constexpr float start_deg = 135.0f;
     constexpr float sweep_deg = 270.0f;

@@ -31,6 +31,7 @@ static int g_soil_cal_live_raw = 0;
 static int g_soil_thr_dry_pct = 20;
 static int g_soil_thr_optimal_pct = 50;
 static int g_soil_thr_moist_pct = 80;
+static bool g_soil_marks_visible = true;
 static bool g_soil_alerts_enabled = true;
 static uint8_t g_soil_reset_choice = 0;
 static uint8_t g_soil_save_choice = 0;
@@ -49,6 +50,9 @@ constexpr unsigned long SOIL_CAL_LIVE_SAMPLE_MS = 250UL;
 constexpr int SOIL_CAL_LIVE_RAW_DEADBAND = 3;
 constexpr int SOIL_CAL_CAPTURE_VALUE_Y = 68;
 constexpr int SOIL_CAL_CAPTURE_BUTTON_H = 23;
+constexpr uint8_t SOIL_MENU_PRIMARY_COUNT = 4;
+constexpr uint8_t SOIL_MENU_RESET_INDEX   = SOIL_MENU_PRIMARY_COUNT;
+constexpr uint8_t SOIL_MENU_EXIT_INDEX    = SOIL_MENU_PRIMARY_COUNT + 1;
 
 static void request_soil_redraw(bool force_full = false) {
     runtime_request_ui_refresh(force_full);
@@ -62,6 +66,7 @@ static void reload_soil_threshold_drafts() {
     g_soil_thr_dry_pct = get_soil_threshold_dry();
     g_soil_thr_moist_pct = get_soil_threshold_moist();
     g_soil_thr_optimal_pct = soil_auto_optimal_threshold(g_soil_thr_dry_pct, g_soil_thr_moist_pct);
+    g_soil_marks_visible = get_soil_range_marks_visible();
 }
 
 static void clear_soil_calibration_drafts() {
@@ -264,6 +269,7 @@ void startSoilCalibration() {
     g_soil_cal_state = SOIL_CAL_MENU;
     g_soil_menu_index = 0;
     clear_soil_calibration_drafts();
+    reload_soil_threshold_drafts();
     g_soil_alerts_enabled = get_soil_alerts_enabled();
     g_soil_reset_choice = 0;
     g_soil_save_choice = 0;
@@ -304,21 +310,28 @@ bool cancelSoilCalibration() {
             g_soil_cal_state = SOIL_CAL_MENU;
             set_rgb(255, 180, 0);
             break;
+        case SOIL_CAL_EDIT_MARKS:
+            g_soil_marks_visible = get_soil_range_marks_visible();
+            g_soil_menu_index = 2;
+            g_soil_cal_state = SOIL_CAL_MENU;
+            set_rgb(255, 180, 0);
+            break;
         case SOIL_CAL_EDIT_ALERTS:
             g_soil_alerts_enabled = get_soil_alerts_enabled();
-            g_soil_menu_index = 2;
+            g_soil_menu_index = 3;
             g_soil_cal_state = SOIL_CAL_MENU;
             set_rgb(255, 180, 0);
             break;
         case SOIL_CAL_RESET_CONFIRM:
             g_soil_reset_choice = 0;
-            g_soil_menu_index = 3;
+            g_soil_menu_index = 4;
             g_soil_cal_state = SOIL_CAL_MENU;
             set_rgb(255, 180, 0);
             break;
         case SOIL_CAL_DONE:
         case SOIL_CAL_RESET_DONE:
         case SOIL_CAL_THRESH_DONE:
+        case SOIL_CAL_MARKS_DONE:
         case SOIL_CAL_ALERTS_DONE:
         case SOIL_CAL_ERROR:
         default:
@@ -340,6 +353,7 @@ int getSoilCalibrationEncoderMin() {
             return 0;
         case SOIL_CAL_THRESH_DRY: return 1;
         case SOIL_CAL_THRESH_MOIST: return g_soil_thr_dry_pct + 2;
+        case SOIL_CAL_EDIT_MARKS: return 0;
         case SOIL_CAL_EDIT_ALERTS: return 0;
         case SOIL_CAL_RESET_CONFIRM: return 0;
         default: return 0;
@@ -348,13 +362,14 @@ int getSoilCalibrationEncoderMin() {
 
 int getSoilCalibrationEncoderMax() {
     switch (g_soil_cal_state) {
-        case SOIL_CAL_MENU: return 4;
+        case SOIL_CAL_MENU: return SOIL_MENU_EXIT_INDEX;
         case SOIL_CAL_REVIEW_SAVE: return 1;
         case SOIL_CAL_WAIT_DRY:
         case SOIL_CAL_WAIT_WET:
             return 1;
         case SOIL_CAL_THRESH_DRY: return g_soil_thr_moist_pct - 2;
         case SOIL_CAL_THRESH_MOIST: return 100;
+        case SOIL_CAL_EDIT_MARKS: return 1;
         case SOIL_CAL_EDIT_ALERTS: return 1;
         case SOIL_CAL_RESET_CONFIRM: return 1;
         default: return 0;
@@ -370,6 +385,7 @@ int getSoilCalibrationEncoderValue() {
             return (int)g_soil_capture_choice;
         case SOIL_CAL_THRESH_DRY: return g_soil_thr_dry_pct;
         case SOIL_CAL_THRESH_MOIST: return g_soil_thr_moist_pct;
+        case SOIL_CAL_EDIT_MARKS: return g_soil_marks_visible ? 1 : 0;
         case SOIL_CAL_EDIT_ALERTS: return g_soil_alerts_enabled ? 1 : 0;
         case SOIL_CAL_RESET_CONFIRM: return (int)g_soil_reset_choice;
         default: return 0;
@@ -380,7 +396,7 @@ void setSoilCalibrationInputValue(int value) {
     int next = value;
     switch (g_soil_cal_state) {
         case SOIL_CAL_MENU:
-            next = constrain(next, 0, 4);
+            next = constrain(next, getSoilCalibrationEncoderMin(), getSoilCalibrationEncoderMax());
             if ((uint8_t)next != g_soil_menu_index) {
                 g_soil_menu_index = (uint8_t)next;
                 request_soil_redraw(false);
@@ -414,6 +430,13 @@ void setSoilCalibrationInputValue(int value) {
             if (next != g_soil_thr_moist_pct) {
                 g_soil_thr_moist_pct = next;
                 g_soil_thr_optimal_pct = soil_auto_optimal_threshold(g_soil_thr_dry_pct, g_soil_thr_moist_pct);
+                request_soil_redraw(false);
+            }
+            break;
+        case SOIL_CAL_EDIT_MARKS:
+            next = constrain(next, 0, 1);
+            if ((next != 0) != g_soil_marks_visible) {
+                g_soil_marks_visible = (next != 0);
                 request_soil_redraw(false);
             }
             break;
@@ -451,11 +474,17 @@ uint8_t handleSoilCalibrationButton() {
                 reload_soil_threshold_drafts();
                 g_soil_cal_state = SOIL_CAL_THRESH_DRY;
             } else if (g_soil_menu_index == 2) {
+                g_soil_marks_visible = get_soil_range_marks_visible();
+                g_soil_cal_state = SOIL_CAL_EDIT_MARKS;
+            } else if (g_soil_menu_index == 3) {
                 g_soil_alerts_enabled = get_soil_alerts_enabled();
                 g_soil_cal_state = SOIL_CAL_EDIT_ALERTS;
-            } else if (g_soil_menu_index == 3) {
+            } else if (g_soil_menu_index == SOIL_MENU_RESET_INDEX) {
                 g_soil_reset_choice = 0;
                 g_soil_cal_state = SOIL_CAL_RESET_CONFIRM;
+            } else if (g_soil_menu_index == SOIL_MENU_EXIT_INDEX) {
+                g_soil_cal_state = SOIL_CAL_IDLE;
+                set_rgb(180, 80, 0);
             } else {
                 g_soil_cal_state = SOIL_CAL_IDLE;
                 set_rgb(180, 80, 0);
@@ -503,6 +532,10 @@ uint8_t handleSoilCalibrationButton() {
                 ? SOIL_CAL_THRESH_DONE
                 : SOIL_CAL_ERROR;
             break;
+        case SOIL_CAL_EDIT_MARKS:
+            set_soil_range_marks_visible(g_soil_marks_visible);
+            g_soil_cal_state = SOIL_CAL_MARKS_DONE;
+            break;
         case SOIL_CAL_EDIT_ALERTS:
             set_soil_alerts_enabled(g_soil_alerts_enabled);
             g_soil_cal_state = SOIL_CAL_ALERTS_DONE;
@@ -513,6 +546,7 @@ uint8_t handleSoilCalibrationButton() {
                 g_soil_thr_dry_pct = get_soil_threshold_dry();
                 g_soil_thr_moist_pct = get_soil_threshold_moist();
                 g_soil_thr_optimal_pct = soil_auto_optimal_threshold(g_soil_thr_dry_pct, g_soil_thr_moist_pct);
+                g_soil_marks_visible = get_soil_range_marks_visible();
                 g_soil_alerts_enabled = get_soil_alerts_enabled();
                 g_soil_cal_state = SOIL_CAL_RESET_DONE;
             } else {
@@ -522,6 +556,7 @@ uint8_t handleSoilCalibrationButton() {
         case SOIL_CAL_DONE:
         case SOIL_CAL_RESET_DONE:
         case SOIL_CAL_THRESH_DONE:
+        case SOIL_CAL_MARKS_DONE:
         case SOIL_CAL_ALERTS_DONE:
         case SOIL_CAL_ERROR:
             g_soil_cal_state = SOIL_CAL_MENU;
@@ -541,6 +576,7 @@ static void draw_soil_calibration_screen(bool screen_changed) {
     static int last_live_raw = -1;
     static int last_dry_raw = -1;
     static int last_wet_raw = -1;
+    static int last_marks_visible = -1;
     static int last_alerts_enabled = -1;
     static int last_reset_choice = -1;
     static int last_save_choice = -1;
@@ -557,6 +593,7 @@ static void draw_soil_calibration_screen(bool screen_changed) {
         last_live_raw = -1;
         last_dry_raw = -1;
         last_wet_raw = -1;
+        last_marks_visible = -1;
         last_alerts_enabled = -1;
         last_reset_choice = -1;
         last_save_choice = -1;
@@ -567,16 +604,17 @@ static void draw_soil_calibration_screen(bool screen_changed) {
     tft.setTextDatum(MC_DATUM);
 
     if (g_soil_cal_state == SOIL_CAL_MENU) {
-        // Root calibration menu: capture, thresholds, alerts, reset, exit.
+        // Root calibration menu: capture, limits, marks, alerts, reset, exit.
         if (state_changed || last_menu_index != (int)g_soil_menu_index) {
-            const char* items[3] = {
+            const char* items[SOIL_MENU_PRIMARY_COUNT] = {
                 L(ST_SOIL_MENU_CAL),
-                L(MENU_RANGES),
+                L(MENU_LIMITS),
+                L(MENU_SHOW_LIMITS),
                 L(MENU_ALERTS)
             };
             const uint8_t selected_index = g_soil_menu_index;
             const bool grid_full_redraw = state_changed || last_menu_index < 0;
-            drawSettingsGridMenu(items, 3, selected_index, L(MENU_RESET), L(MENU_EXIT),
+            drawSettingsGridMenu(items, SOIL_MENU_PRIMARY_COUNT, selected_index, L(MENU_RESET), L(MENU_EXIT),
                                  grid_full_redraw, last_menu_index);
             if (grid_full_redraw) {
                 drawFooterHint(L(INSTR_SEL), cx, LM_MENU_FOOTER_Y);
@@ -600,6 +638,9 @@ static void draw_soil_calibration_screen(bool screen_changed) {
                 break;
             case SOIL_CAL_THRESH_DONE:
                 drawCenteredMenuFrame(L(ST_SOIL_THRESH_SAVED), TFT_MAGENTA, L(ST_PUSH_MENU));
+                break;
+            case SOIL_CAL_MARKS_DONE:
+                drawCenteredMenuFrame(L(MENU_SAVED), TFT_MAGENTA, L(ST_PUSH_MENU));
                 break;
             case SOIL_CAL_ALERTS_DONE:
                 drawCenteredMenuFrame(L(MENU_SAVED), TFT_MAGENTA, L(ST_PUSH_MENU));
@@ -667,6 +708,16 @@ static void draw_soil_calibration_screen(bool screen_changed) {
         }
         updateResetChoiceButtons(L(MENU_NO), L(MENU_YES), g_soil_reset_choice);
         last_reset_choice = (int)g_soil_reset_choice;
+    }
+
+    if (g_soil_cal_state == SOIL_CAL_EDIT_MARKS && (state_changed || last_marks_visible != (int)g_soil_marks_visible)) {
+        drawCenteredMenuValueScreen(L(MENU_SHOW_LIMITS),
+                                    g_soil_marks_visible ? L(ST_ON) : L(ST_OFF),
+                                    g_soil_marks_visible ? TFT_GREEN : TFT_RED,
+                                    MENU_VALUE_FONT_BODY,
+                                    L(ST_TURN_PUSH),
+                                    state_changed);
+        last_marks_visible = (int)g_soil_marks_visible;
     }
 
     if (g_soil_cal_state == SOIL_CAL_EDIT_ALERTS && (state_changed || last_alerts_enabled != (int)g_soil_alerts_enabled)) {
@@ -749,6 +800,15 @@ static void draw_soil_calibration_screen(bool screen_changed) {
         tft.drawString(L(MENU_SOIL_SENSOR_LIMITS), cx, 70);
         tft.drawString(L(MENU_RESTORED), cx, 88);
         tft.setTextFont(0);
+    }
+
+    if (g_soil_cal_state == SOIL_CAL_MARKS_DONE && (state_changed || last_marks_visible != (int)g_soil_marks_visible)) {
+        tft.setFreeFont(FONT_BODY);
+        tft.setTextColor(g_soil_marks_visible ? TFT_GREEN : TFT_RED, TFT_BLACK);
+        tft.drawString(L(MENU_SHOW_LIMITS), cx, 70);
+        tft.drawString(g_soil_marks_visible ? L(ST_ON) : L(ST_OFF), cx, 88);
+        tft.setTextFont(0);
+        last_marks_visible = (int)g_soil_marks_visible;
     }
 
     if (g_soil_cal_state == SOIL_CAL_ALERTS_DONE && (state_changed || last_alerts_enabled != (int)g_soil_alerts_enabled)) {

@@ -26,7 +26,7 @@ Cada sensor tiene cuatro roles de color. Los valores viven en `include/palette.h
 | **TERMÓMETRO** | Naranja vivo | `0xFB80` | Azul láser | `0x045F` | Amatista claro | `0xCC5F` | Cian frío | `0x0659` |
 
 > Los nombres semánticos expresan la intención visual. Los valores exactos en `include/palette.h` son los únicos valores autorizados.
-> Suelo aplica además una rampa semántica runtime en `pbit_soil_visual_color()`: amarillo intenso en sequía extrema, verde entre umbrales `Seco..Húmedo` y azul al superar `Húmedo`.
+> Suelo aplica además una rampa semántica runtime en `pbit_soil_visual_color()`: amarillo intenso en sequía extrema, verde dentro del rango `Seco..Húmedo` y azul al superar `Húmedo`.
 
 ### Uso semántico de los 4 roles
 
@@ -177,7 +177,9 @@ El LED RGB debe seguir el color semántico de la visualización activa mediante 
 Regla de marcas en diales:
 
 - TEMP DHT11, HUMEDAD y SUELO: marcas visibles por defecto porque sus rangos son interpretables con más confianza.
-- LUZ y SONIDO: marcas ocultas por defecto; aparecen solo si `Ver límites` está activo o si el usuario guardó rangos/niveles.
+- Todos los sensores con dial tienen opción `Marcas`.
+- TEMP, HUMEDAD, SUELO y TERMÓMETRO: marcas activas por defecto.
+- LUZ y SONIDO: marcas ocultas por defecto para evitar saturación visual.
 - TERMÓMETRO/DS18B20: marca fija de `0 °C`; no mostrar límites alto/bajo por defecto.
 - Luz usa progresión visual logarítmica en el dial para que los cambios bajos no queden comprimidos al inicio.
 
@@ -197,7 +199,7 @@ Reglas:
 - Si un menú tiene solo 2 o 3 opciones primarias, los slots no usados quedan vacíos.
 - `Reset` usa acento amarillo/naranja; `Salir` usa rojo/magenta.
 - El texto visible debe venir de `L(KEY)`; no usar strings hardcodeados.
-- Solo Suelo usa `Calibrar` como calibración real. Luz y Sonido usan rangos/niveles interpretativos.
+- Solo Suelo usa `Calibrar` como calibración real. Luz y Sonido usan límites interpretativos.
 - El grid 2×3 es también contrato anti-flicker: al entrar se puede dibujar completo, pero durante navegación con encoder solo deben refrescarse el tile anterior y el tile nuevo. Header, línea y footer no cambian por giro.
 
 ### Confirmación de Reset
@@ -292,7 +294,7 @@ Ver `docs/TFT_RENDER_RULES.md` para el protocolo anti-flicker completo (sprites,
 
 **Paleta:**
 - [ ] Aprobar en hardware TEMP / HUM / DS18 como identidades visualmente distinguibles
-- [ ] Validar en ST7735 real la rampa de Suelo amarillo→verde→azul contra los umbrales configurados
+- [ ] Validar en ST7735 real la rampa de Suelo amarillo→verde→azul contra los rangos configurados
 - [ ] Decidir si `HOME` y `CLIMA LAB` migran a paleta canónica o mantienen colores responsivos propios
 
 **Iconos:**

@@ -60,6 +60,8 @@ int get_soil_threshold_optimal();
 int get_soil_threshold_moist();
 bool get_soil_alerts_enabled();
 void set_soil_alerts_enabled(bool enabled);
+bool get_soil_range_marks_visible();
+void set_soil_range_marks_visible(bool visible);
 
 // --- Ambient humidity thresholds and alerts ---
 void load_humidity_thresholds();
@@ -69,20 +71,21 @@ int get_humidity_threshold_dry();
 int get_humidity_threshold_comfort();
 bool get_humidity_alerts_enabled();
 void set_humidity_alerts_enabled(bool enabled);
+bool get_humidity_range_marks_visible();
+void set_humidity_range_marks_visible(bool visible);
 
 // --- DS18B20 thresholds and alerts ---
 void load_ds18_settings();
-bool save_ds18_settings(int offset_x10, int alarm_low, int alarm_high);
-bool save_ds18_settings(float offset, float low_alarm, float high_alarm);
+bool save_ds18_settings(int alarm_low, int alarm_high);
 void reset_ds18_settings();
-int get_ds18_offset_x10();
 int get_ds18_alarm_low();
 int get_ds18_alarm_high();
-float get_ds18_offset();
 float get_ds18_low_alarm();
 float get_ds18_high_alarm();
 bool get_ds18_alerts_enabled();
 void set_ds18_alerts_enabled(bool enabled);
+bool get_ds18_range_marks_visible();
+void set_ds18_range_marks_visible(bool visible);
 
 // --- Sound thresholds and alerts ---
 void load_sound_settings();
@@ -104,6 +107,8 @@ int get_temp_alarm_low();
 int get_temp_alarm_high();
 bool get_temp_alerts_enabled();
 void set_temp_alerts_enabled(bool enabled);
+bool get_temp_range_marks_visible();
+void set_temp_range_marks_visible(bool visible);
 
 // --- Light thresholds and display modes ---
 void load_light_settings();

@@ -1,12 +1,26 @@
 # Changelog
 
+## 2026-06-12
+
+### UX/Firmware — Taxonomía unificada de Límites y Marcas (M4B)
+
+- **Taxonomía visible:** todos los menús de sensores usan `Límites` para editar fronteras/umbrales y `Marcas` para mostrar u ocultar referencias del dial. `Rangos` y `Niveles` quedan solo como conceptos explicativos, no como opciones raíz visibles.
+- **Paridad de Marcas:** Temperatura, Humedad, Suelo y Termómetro incorporan toggle persistente `Marcas`; se suman a Luz y Sonido, que ya tenían control visual equivalente. Defaults: Temperatura/Humedad/Suelo/Termómetro ON; Luz/Sonido OFF.
+- **Menús normalizados:** Temperatura `Unidad/Límites/Marcas/Alertas`, Humedad `Límites/Marcas/Alertas`, Luz `Modo/Límites/Marcas/Alertas`, Sonido `Límites/Marcas/Alertas`, Suelo `Calibrar/Límites/Marcas/Alertas`, Termómetro `Unidad/Límites/Marcas/Alertas`.
+- **Selección corregida:** sincronizados los índices visuales de `Reset`/`Salir` con las acciones reales en Temperatura, Humedad y Suelo; `Salir` vuelve a ser accesible en Suelo y se elimina el clamp heredado `0..4`.
+- **Contrato encoder-grid:** `docs/TFT_RENDER_RULES.md`, `AGENTS.md` y el skill local `pbit-tft-screen` documentan que `drawSettingsGridMenu(primary_count=N)` exige `Reset=N`, `Salir=N+1`, `encoder_max=N+1` y clamps basados en `get_*_encoder_min()/max()`.
+- **Termómetro simplificado:** eliminada `Corrección`/offset DS18B20 de UI, NVS y lectura; la sonda reporta lectura física sin offset configurable.
+- **Persistencia:** añadidas claves NVS `tmp_marks`, `hum_marks`, `soil_marks` y `d18_marks`; eliminada lectura/escritura de `d18_off`.
+- **Docs sincronizados:** `docs/TECHNICAL.md`, `docs/USER_GUIDE.md`, `docs/DESIGN_SYSTEM.md`, `docs/PROJECT.md`, `docs/ROADMAP.md` y `docs/HARDWARE_VALIDATION_2026-06-04.md` reflejan la taxonomía visible real.
+- **Builds:** `esp32dev` SUCCESS — RAM `49124` / Flash `957425`; `esp32dev_debug` SUCCESS — RAM `49180` / Flash `959917`.
+
 ## 2026-06-08
 
-### Fix UX — Ghost tiles y "Ver límites" circular (M4A)
+### Fix UX — Ghost tiles y "Marcas" circular (M4A)
 
 - **Ghost tiles al rotar rápido:** `drawSettingsGridMenu()` limpia el rectángulo completo del tile antes de redibujarlo y, si el encoder salta más de una posición entre frames, redibuja todos los tiles individualmente sin `clearMenuBands()` ni `fillScreen()`.
 - **Snapshot renderizado:** los menús raíz de Temperatura, Humedad, Luz, Sonido, Suelo, Termómetro/DS18B20 y Sistema guardan en `last_menu_index` el índice local que realmente se dibujó, evitando leer un global que pudo cambiar durante el frame.
-- **"Ver límites" circular:** `LIGHT_MODE_EDIT_MARKS` y `SOUND_MODE_EDIT_MARKS` entran en las reglas circulares del encoder, igual que otros toggles binarios.
+- **"Marcas" circular:** `LIGHT_MODE_EDIT_MARKS` y `SOUND_MODE_EDIT_MARKS` entran en las reglas circulares del encoder, igual que otros toggles binarios.
 - **Scope acotado:** terminología `Rangos/Niveles/Límites`, cancelación sin guardar y paridad de marcas visuales quedan para M4B/M4C/M4D.
 - **Builds:** `esp32dev` SUCCESS — RAM `49116` / Flash `955801`; `esp32dev_debug` SUCCESS — RAM `49156` / Flash `958273`.
 

@@ -254,9 +254,10 @@ Rangos canónicos usados por UI, gauges, cards, gráficas y RGB:
 
 Marcas de diales:
 
-- Temperatura DHT11, Humedad aire y Suelo muestran marcas de rangos por defecto.
-- Luz y Sonido guardan `Ver límites` en NVS y solo dibujan marcas si esa opción está activa o si el usuario guarda sus rangos/niveles.
-- Termómetro/DS18B20 no dibuja límites de alarma por defecto; solo muestra una marca fija de referencia en `0 °C`.
+- Todos los sensores con dial tienen opción `Marcas` para mostrar u ocultar referencias visuales.
+- Temperatura DHT11, Humedad aire, Suelo y Termómetro muestran `Marcas` activas por defecto.
+- Luz y Sonido muestran `Marcas` desactivadas por defecto para no saturar diales interpretativos.
+- La opción `Marcas` se guarda en NVS por sensor.
 - En Luz, el dial usa una progresión visual logarítmica para que los primeros `1000 lux` tengan cambios más visibles.
 
 ## 7. Flujo de adquisición de sensores
@@ -475,20 +476,20 @@ Nivel de sonido ambiental en barras apiladas. Solo lectura; no tiene menú.
 - en carrusel actual: slot de `SENSOR_ZONE_SCREEN` con sensor `SZ_TEMP`
 - pulsación corta: alterna modo de visualización
 - la unidad `C/F` es global, persistente y compartida con `Termómetro` (`DS18B20` técnico)
-- menú `Límites / Unidad / Alertas / Reset / Salir`
+- menú `Unidad / Límites / Marcas / Alertas / Reset / Salir`
 
 #### Humedad del aire
 
 - en carrusel actual: slot de `SENSOR_ZONE_SCREEN` con sensor `SZ_HUM`
 - pulsación corta: alterna modo de visualización
-- menú `Rangos / Alertas / Reset / Salir`
+- menú `Límites / Marcas / Alertas / Reset / Salir`
 - usa dos umbrales: `Seco` y `Muy húmedo`
 
 #### Luz
 
 - en carrusel actual: slot de `SENSOR_ZONE_SCREEN` con sensor `SZ_LIGHT`
 - pulsación corta: alterna modo de visualización
-- menú `Rangos / Modo / Alertas / Reset / Salir`
+- menú `Modo / Límites / Marcas / Alertas / Reset / Salir`
 - modos de vista: `Lux`, `FC`, `Raw ADC`
 - propagación implementada: valor/unidad visible siguen el modo activo en pantalla clásica, Sensor Zone, cards, dashboards, dials y gráficas
 
@@ -496,23 +497,23 @@ Nivel de sonido ambiental en barras apiladas. Solo lectura; no tiene menú.
 
 - en carrusel actual: slot de `SENSOR_ZONE_SCREEN` con sensor `SZ_SOUND`
 - pulsación corta: alterna modo de visualización
-- menú `Niveles / Alertas / Reset / Salir`
+- menú `Límites / Marcas / Alertas / Reset / Salir`
 - niveles interpretativos por umbrales, no calibración acústica física
 
 #### Suelo
 
 - en carrusel actual: slot de `SENSOR_ZONE_SCREEN` con sensor `SZ_SOIL`
 - pulsación corta: alterna modo de visualización
-- menú `Calibrar sensor / Rangos / Alertas / Reset / Salir`
+- menú `Calibrar sensor / Límites / Marcas / Alertas / Reset / Salir`
 - dentro de la calibración, pulsación larga cancela el subpaso sin escribir NVS; en el menú raíz sale de configuración
-- clasificación actual derivada desde dos umbrales editables: `Muy seco`, `Seco`, `Óptimo`, `Húmedo`, `Muy húmedo`
+- clasificación actual derivada desde los valores editables de `Límites`: `Seco` y `Húmedo`
 
 #### Termómetro / DS18B20
 
 - en carrusel actual: slot visible `Termómetro` de `SENSOR_ZONE_SCREEN` con sensor técnico `SZ_DS18`
 - pulsación corta: alterna modo de visualización
 - la unidad `C/F` es global, persistente y compartida con `Temperatura DHT`
-- menú `Corrección / Límites / Unidad / Alertas / Reset / Salir`
+- menú `Unidad / Límites / Marcas / Alertas / Reset / Salir`
 
 #### Sistema
 
@@ -570,19 +571,21 @@ Namespace utilizado:
 - `soil_thr_opt`
 - `soil_thr_moi`
 - `soil_aen`
+- `soil_marks`
 
 #### Humedad ambiente
 
 - `hum_dry_max`
 - `hum_comf_max`
 - `hum_alert_en`
+- `hum_marks`
 
 #### DS18B20
 
-- `d18_off`
 - `d18_alow`
 - `d18_ahigh`
 - `d18_aen`
+- `d18_marks`
 
 #### Sonido
 
@@ -597,6 +600,7 @@ Namespace utilizado:
 - `tmp_low`
 - `tmp_high`
 - `tmp_aen`
+- `tmp_marks`
 
 #### Luz
 
@@ -899,56 +903,59 @@ En Modo demo, cualquier giro o pulsación corta/larga posterior al release inici
 
 #### Temperatura DHT
 
-Opciones raíz: `Límites / Unidad / Alertas / Reset / Salir`
+Opciones raíz: `Unidad / Límites / Marcas / Alertas / Reset / Salir`
 
 - **Límites**: edita `Límite bajo` → `Límite alto` → Guardar. Validación: alto > bajo. Rango: 0..50 °C interno (en la unidad visible).
 - **Unidad**: `Celsius` / `Fahrenheit`. Compartida con Termómetro y persistida en `sys_unit_f`.
+- **Marcas**: muestra u oculta las marcas de límites en el dial. Se guarda en NVS; por defecto queda `ON`.
 - **Alertas**: `OFF` / `ON`.
-- **Reset**: `NO` / `SI`. Restaura límites, alertas y unidad a Celsius.
+- **Reset**: `NO` / `SI`. Restaura unidad, límites, marcas y alertas a valores por defecto.
 
 #### Humedad del aire
 
-Opciones raíz: `Rangos / Alertas / Reset / Salir`
+Opciones raíz: `Límites / Marcas / Alertas / Reset / Salir`
 
-- **Rangos**: edita `Seco` → `Muy húmedo` → Guardar. Validación: húmedo > seco.
+- **Límites**: edita `Seco` → `Muy húmedo` → Guardar. Validación: húmedo > seco.
+- **Marcas**: muestra u oculta las marcas de límites en el dial. Se guarda en NVS; por defecto queda `ON`.
 
 #### Luz
 
-Opciones raíz: `Rangos / Modo / Alertas / Ver límites / Reset / Salir`
+Opciones raíz: `Modo / Límites / Marcas / Alertas / Reset / Salir`
 
-- **Rangos**: `Max penumbra` → `Max interior` → `Max brillante` → Guardar. Rango editable: 10..8000. Validación: brillante > interior > penumbra.
 - **Modo**: `Lux` / `FC` / `Raw ADC`.
-- **Ver límites**: muestra u oculta las marcas de rango en el dial. Se guarda en NVS.
+- **Límites**: `Max penumbra` → `Max interior` → `Max brillante` → Guardar. Rango editable: 10..8000. Validación: brillante > interior > penumbra.
+- **Marcas**: muestra u oculta las marcas de límites en el dial. Se guarda en NVS; por defecto queda `OFF`.
 - Esta opción afecta el valor/unidad visible de Luz en pantalla clásica, Sensor Zone (`Card`, `Valor`, `Focus`, `Gráfica`, `Dial`), Home cards, dashboards y gráficas. `FC` convierte el lux mostrado a foot-candle y `Raw ADC` muestra la lectura cruda promediada. Barras, categorías y alertas conservan lux interno cuando representan rangos ambientales.
 
 #### Sonido
 
-Opciones raíz: `Niveles / Alertas / Ver límites / Reset / Salir`
+Opciones raíz: `Límites / Marcas / Alertas / Reset / Salir`
 
-- **Niveles**: `Max silencio` → `Max normal` → `Max alto` → Guardar. Validación: alto > normal > silencio.
-- **Ver límites**: muestra u oculta las marcas de nivel en el dial. Se guarda en NVS.
+- **Límites**: `Max silencio` → `Max normal` → `Max alto` → Guardar. Validación: alto > normal > silencio.
+- **Marcas**: muestra u oculta las marcas de límites en el dial. Se guarda en NVS; por defecto queda `OFF`.
 - Sin alerta sonora propia (no contaminar lectura del micrófono).
 
 #### Suelo
 
-Opciones raíz: `Calibrar sensor / Rangos / Alertas / Reset / Salir`
+Opciones raíz: `Calibrar sensor / Límites / Marcas / Alertas / Reset / Salir`
 
 - **Calibrar sensor**: `Seco al aire` (`Salir` / `Captura`) → `En agua` (`Salir` / `Captura`) → resumen `SECO/MOJADO` → `Salir` o `Guardar`. `Salir` en captura vuelve al menú sin guardar; `Salir` en resumen descarta los valores capturados; `Guardar` valida seco_raw > húmedo_raw y diferencia ≥ 300 antes de escribir NVS.
 - **Sensor ausente**: si `Calibrar sensor` se selecciona con `soil_humidity = NaN`, muestra `Sin sensor` / `Conecta sensor` / `Revisa IO35` y no entra a captura.
-- **Cancelar calibración**: una pulsación larga durante `Seco al aire`, `En agua`, `Rangos`, `Alertas` o confirmación de `Reset` vuelve al menú de Suelo sin escribir NVS. Desde el menú raíz, la pulsación larga sale de la configuración.
+- **Cancelar calibración**: una pulsación larga durante `Seco al aire`, `En agua`, `Límites`, `Marcas`, `Alertas` o confirmación de `Reset` vuelve al menú de Suelo sin escribir NVS. Desde el menú raíz, la pulsación larga sale de la configuración.
 - **RAW live**: durante `Seco al aire` / `En agua`, la pantalla muestrea cada 250 ms con deadband de 3 cuentas ADC y redibuja solo la card del valor después del shell inicial para evitar flicker; los botones `Salir` / `Captura` se redibujan al cambiar la selección aunque el RAW no cambie.
-- **Rangos**: `Seco` → `Húmedo` → Guardar. Validación: seco < húmedo, todos en 0..100.
+- **Límites**: `Seco` → `Húmedo` → Guardar. Validación: seco < húmedo, todos en 0..100.
+- **Marcas**: muestra u oculta las marcas de límites en el dial. Se guarda en NVS; por defecto queda `ON`.
 - Clasificación derivada: `0..Seco/2` = `Muy seco`; `Seco/2..Seco` = `Seco`; `Seco..Húmedo` = `Óptimo`; `Húmedo..(Húmedo+100)/2` = `Húmedo`; tramo final = `Muy húmedo`.
-- Color visual compartido: `pbit_soil_visual_color()` usa los umbrales configurados; `0%` es amarillo intenso, el tramo bajo interpola amarillo→verde hasta `Seco`, `Seco..Húmedo` permanece verde y por encima de `Húmedo` interpola verde→azul.
+- Color visual compartido: `pbit_soil_visual_color()` usa los rangos configurados (`Seco`/`Húmedo`); `0%` es amarillo intenso, el tramo bajo interpola amarillo→verde hasta `Seco`, `Seco..Húmedo` permanece verde y por encima de `Húmedo` interpola verde→azul.
 - Sin sensor: muestra `Sin sensor`, `---` y `Revisa IO35` / `Revisa IO35` / `Check IO35`, con paleta de Suelo atenuada. Al conectar/desconectar durante el uso, muestra splash semafórico `CONECTADO`/`DESCONECTADO` con `Sensor Suelo / IO35`.
 
 #### Termómetro / DS18B20
 
-Opciones raíz: `Corrección / Límites / Unidad / Alertas / Reset / Salir`
+Opciones raíz: `Unidad / Límites / Marcas / Alertas / Reset / Salir`
 
-- **Corrección**: `Offset` (décimas, aprox. −5.0..+5.0) → Guardar.
 - **Límites**: `Límite bajo` → `Límite alto` → Guardar. Valores internos en Celsius.
 - **Unidad**: `Celsius` / `Fahrenheit`. Compartida con Temperatura y persistida en `sys_unit_f`.
+- **Marcas**: muestra u oculta las marcas de límites en el dial. Se guarda en NVS; por defecto queda `ON`.
 - Sin sensor: muestra `Sin sensor`, `---` y `Revisa IO33` / `Revisa IO33` / `Check IO33`, con paleta de Termómetro/DS18 atenuada. Al conectar/desconectar durante el uso, muestra splash semafórico `CONECTADO`/`DESCONECTADO` con `Sensor DS18B20 / IO33`.
 
 #### Sistema
@@ -957,7 +964,7 @@ Opciones raíz en grid 2×3: `Bip / Alarmas / Reposo / Idioma / Reset / Salir`
 
 - **Reposo**: `30 seg / 1 min / 2 min / 5 min / 10 min / Nunca`.
 - **Idioma**: `Español / Catalán / English`. Solicita full redraw con `runtime_request_ui_full_redraw()`.
-- **Reset**: borra todo el namespace `pbit`, muestra overlay de reinicio y llama a `esp_restart()`. Incluye calibraciones, umbrales, idioma, unidad, Bip, Alarmas y `fw_stamp`; el siguiente arranque se comporta como primer boot de firmware limpio y vuelve a mostrar selector de idioma.
+- **Reset**: borra todo el namespace `pbit`, muestra overlay de reinicio y llama a `esp_restart()`. Incluye calibraciones, límites, marcas, idioma, unidad, Bip, Alarmas y `fw_stamp`; el siguiente arranque se comporta como primer boot de firmware limpio y vuelve a mostrar selector de idioma.
 
 #### Timer
 

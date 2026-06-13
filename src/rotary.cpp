@@ -181,6 +181,7 @@ static void configure_soil_ui_rotary_bounds() {
                   || state == SOIL_CAL_REVIEW_SAVE
                   || state == SOIL_CAL_WAIT_DRY
                   || state == SOIL_CAL_WAIT_WET
+                  || state == SOIL_CAL_EDIT_MARKS
                   || state == SOIL_CAL_EDIT_ALERTS
                   || state == SOIL_CAL_RESET_CONFIRM);
     rotaryEncoder.setBoundaries(getSoilCalibrationEncoderMin(), getSoilCalibrationEncoderMax(), circular);
@@ -191,6 +192,7 @@ static void configure_soil_ui_rotary_bounds() {
 static void configure_humidity_ui_rotary_bounds() {
     HumidityMenuState state = get_humidity_menu_state();
     bool circular = (state == HUM_MODE_MENU
+                  || state == HUM_MODE_EDIT_MARKS
                   || state == HUM_MODE_EDIT_ALERTS
                   || state == HUM_MODE_CONFIRM_RESET);
     rotaryEncoder.setBoundaries(get_humidity_encoder_min(), get_humidity_encoder_max(), circular);
@@ -202,6 +204,7 @@ static void configure_temp_ui_rotary_bounds() {
     TempMenuState state = get_temp_menu_state();
     bool circular = (state == TEMP_MODE_MENU
                   || state == TEMP_MODE_EDIT_UNIT
+                  || state == TEMP_MODE_EDIT_MARKS
                   || state == TEMP_MODE_EDIT_ALERTS
                   || state == TEMP_MODE_CONFIRM_RESET);
     rotaryEncoder.setBoundaries(get_temp_encoder_min(), get_temp_encoder_max(), circular);
@@ -213,6 +216,7 @@ static void configure_ds18_ui_rotary_bounds() {
     Ds18MenuState state = get_ds18_menu_state();
     bool circular = (state == DS18_MODE_MENU
                   || state == DS18_MODE_EDIT_UNIT
+                  || state == DS18_MODE_EDIT_MARKS
                   || state == DS18_MODE_EDIT_ALERTS
                   || state == DS18_MODE_CONFIRM_RESET);
     rotaryEncoder.setBoundaries(get_ds18_encoder_min(), get_ds18_encoder_max(), circular);
@@ -585,10 +589,10 @@ void buttonCallback(unsigned long duration) {
         if ((next_state == SOIL_CAL_WAIT_WET || next_state == SOIL_CAL_REVIEW_SAVE) && g_sound_enabled) {
             beep(1350, 45);
         }
-        if ((next_state == SOIL_CAL_THRESH_MOIST || next_state == SOIL_CAL_EDIT_ALERTS) && g_sound_enabled) {
+        if ((next_state == SOIL_CAL_THRESH_MOIST || next_state == SOIL_CAL_EDIT_MARKS || next_state == SOIL_CAL_EDIT_ALERTS) && g_sound_enabled) {
             beep(1450, 35);
         }
-        if (next_state == SOIL_CAL_DONE || next_state == SOIL_CAL_THRESH_DONE || next_state == SOIL_CAL_ALERTS_DONE || next_state == SOIL_CAL_ERROR) {
+        if (next_state == SOIL_CAL_DONE || next_state == SOIL_CAL_THRESH_DONE || next_state == SOIL_CAL_MARKS_DONE || next_state == SOIL_CAL_ALERTS_DONE || next_state == SOIL_CAL_ERROR) {
             play_double_beep(1300, 1700);
         }
         if (next_state == SOIL_CAL_IDLE && previous_state == SOIL_CAL_MENU && g_sound_enabled) {
@@ -621,7 +625,7 @@ void buttonCallback(unsigned long duration) {
     
     if (active_screen == HUMIDITY_SCREEN && humidity_menu_is_active()) {
         uint8_t next_state = handle_humidity_button();
-        if (next_state == HUM_MODE_EDIT_DRY || next_state == HUM_MODE_EDIT_COMFORT) {
+        if (next_state == HUM_MODE_EDIT_DRY || next_state == HUM_MODE_EDIT_COMFORT || next_state == HUM_MODE_EDIT_MARKS) {
             if (g_sound_enabled) play_soil_confirm_beep();
         }
         if (next_state == HUM_MODE_SAVED) {
@@ -638,7 +642,7 @@ void buttonCallback(unsigned long duration) {
     
     if (active_screen == DS18B20_SCREEN && ds18_menu_is_active()) {
         uint8_t next_state = handle_ds18_button();
-        if (next_state >= DS18_MODE_EDIT_OFFSET && next_state <= DS18_MODE_EDIT_ALERTS) {
+        if (next_state >= DS18_MODE_EDIT_LOW && next_state <= DS18_MODE_EDIT_ALERTS) {
             if (g_sound_enabled) play_soil_confirm_beep();
         }
         if (next_state == DS18_MODE_SAVED) {
@@ -655,7 +659,7 @@ void buttonCallback(unsigned long duration) {
 
     if (active_screen == SOUND_SCREEN && sound_menu_is_active()) {
         uint8_t next_state = handle_sound_button();
-        if (next_state >= SOUND_MODE_EDIT_QUIET && next_state <= SOUND_MODE_EDIT_ALERTS) {
+        if (next_state >= SOUND_MODE_EDIT_QUIET && next_state <= SOUND_MODE_EDIT_MARKS) {
             if (g_sound_enabled) play_soil_confirm_beep();
         }
         if (next_state == SOUND_MODE_SAVED) {
@@ -672,7 +676,7 @@ void buttonCallback(unsigned long duration) {
 
     if (active_screen == LIGHT_SCREEN && light_menu_is_active()) {
         uint8_t next_state = handle_light_button();
-        if (next_state >= LIGHT_MODE_EDIT_DIM && next_state <= LIGHT_MODE_EDIT_ALERTS) {
+        if (next_state >= LIGHT_MODE_EDIT_DIM && next_state <= LIGHT_MODE_EDIT_MARKS) {
             if (g_sound_enabled) play_soil_confirm_beep();
         }
         if (next_state == LIGHT_MODE_SAVED) {

@@ -1,6 +1,6 @@
 # P-Bit — Descripción del Proyecto
 
-Actualizado: 2026-06-03
+Actualizado: 2026-06-08
 
 ---
 
@@ -132,7 +132,7 @@ Con `PBIT_ENABLE_GRAPH_LAB=1` (configuración de producción), el carrusel tiene
 | 7 | Luz | Sensor — zona con modos visuales y menú |
 | 8 | Sonido | Sensor — zona con modos visuales y menú |
 | 9 | Suelo | Sensor — zona con modos visuales, calibración y alertas |
-| 10 | Termómetro | Sensor — sonda DS18B20 con offset y alertas |
+| 10 | Termómetro | Sensor — sonda DS18B20 con límites y alertas |
 | 11 | Timer | Cronómetro y cuenta regresiva con editor HH:MM:SS |
 | 12 | Sistema | Ajustes globales del dispositivo |
 

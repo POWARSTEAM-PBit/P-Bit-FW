@@ -152,7 +152,7 @@ int get_light_encoder_min() {
 
 int get_light_encoder_max() {
     switch (g_light_menu_state) {
-        case LIGHT_MODE_MENU: return 5; // rangos, modo display, alertas, ver limites, reset, salir
+        case LIGHT_MODE_MENU: return 5; // modo, limites, marcas, alertas, reset, salir
         case LIGHT_MODE_EDIT_DIM: return g_light_indoor_max - 1;
         case LIGHT_MODE_EDIT_INDOOR: return g_light_bright_max - 1;
         case LIGHT_MODE_EDIT_BRIGHT: return (int)LIGHT_LUX_MAX;
@@ -241,13 +241,13 @@ uint8_t handle_light_button() {
     switch (g_light_menu_state) {
         case LIGHT_MODE_MENU:
             if (g_light_menu_index == 0) {
-                g_light_menu_state = LIGHT_MODE_EDIT_DIM;
-            } else if (g_light_menu_index == 1) {
                 g_light_menu_state = LIGHT_MODE_EDIT_DISPLAY;
+            } else if (g_light_menu_index == 1) {
+                g_light_menu_state = LIGHT_MODE_EDIT_DIM;
             } else if (g_light_menu_index == 2) {
-                g_light_menu_state = LIGHT_MODE_EDIT_ALERTS;
-            } else if (g_light_menu_index == 3) {
                 g_light_menu_state = LIGHT_MODE_EDIT_MARKS;
+            } else if (g_light_menu_index == 3) {
+                g_light_menu_state = LIGHT_MODE_EDIT_ALERTS;
             } else if (g_light_menu_index == 4) {
                 g_light_reset_choice = 0;
                 g_light_menu_state = LIGHT_MODE_CONFIRM_RESET;
@@ -354,10 +354,10 @@ static void draw_light_menu_screen(bool screen_changed) {
 
     if (g_light_menu_state == LIGHT_MODE_MENU) {
         const char* items[] = {
-            L(MENU_RANGES),
             L(MENU_DISPLAY_MODE),
-            L(MENU_ALERTS),
-            L(MENU_SHOW_LIMITS)
+            L(MENU_LIMITS),
+            L(MENU_SHOW_LIMITS),
+            L(MENU_ALERTS)
         };
         const uint8_t selected_index = g_light_menu_index;
         const bool grid_full_redraw = state_changed || last_menu_index < 0;

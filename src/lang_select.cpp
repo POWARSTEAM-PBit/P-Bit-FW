@@ -105,9 +105,9 @@ static const char* const STRINGS[LANG_KEY_COUNT][LANG_COUNT] = {
   /* ST_SOIL_DRY_REF */ { "SECO",                "SEC",                  "DRY"                },
   /* ST_SOIL_WET_REF */ { "MOJADO",              "MULLAT",               "WET"                },
   /* ST_SOIL_MENU_CAL */ { "Calibrar",           "Calibrar",             "Calibrate"          },
-  /* ST_SOIL_MENU_THRESH */ { "Umbrales",        "Llindars",             "Limits"             },
+  /* ST_SOIL_MENU_THRESH */ { "Límites",         "Límits",               "Limits"             },
   /* ST_SOIL_MENU_BACK */ { "Salir",             "Sortir",               "Exit"               },
-  /* ST_SOIL_THRESH_SAVED */ { "Umbrales OK",        "Llindars OK",       "Limits OK"          },
+  /* ST_SOIL_THRESH_SAVED */ { "Límites OK",     "Límits OK",            "Limits OK"          },
   /* ST_SOIL_TURN_ADJUST */ { "Gira+pulsa",      "Gira+prem",            "Turn+press"         },
 
   /* ST_TIMER_RDY */  { "LISTO",                 "LLEST",                "READY"              },
@@ -136,9 +136,9 @@ static const char* const STRINGS[LANG_KEY_COUNT][LANG_COUNT] = {
 /* MENU_DEFAULTS     */  { "Por defecto",           "Per defecte",          "Defaults"           },
 /* MENU_ERROR        */  { "Error",                 "Error",                "Error"              },
 /* MENU_LIMITS       */  { "Límites",               "Límits",               "Limits"             },
-/* MENU_RANGES       */  { "Rangos",                "Rangs",                "Ranges"             },
-/* MENU_LEVELS       */  { "Niveles",               "Nivells",              "Levels"             },
-/* MENU_SHOW_LIMITS  */  { "Ver límites",           "Veure límits",         "Show limits"        },
+/* MENU_RANGES       */  { "Límites",               "Límits",               "Limits"             },
+/* MENU_LEVELS       */  { "Límites",               "Límits",               "Limits"             },
+/* MENU_SHOW_LIMITS  */  { "Marcas",                "Marques",              "Marks"              },
 /* MENU_UNIT         */  { "Unidad",                "Unitat",               "Unit"               },
 /* MENU_RESET_DONE   */  { "Reset aplicado",        "Reset aplicat",        "Reset applied"      },
 /* MENU_LOW          */  { "Bajo",                  "Baix",                 "Low"                },
@@ -183,13 +183,11 @@ static const char* const STRINGS[LANG_KEY_COUNT][LANG_COUNT] = {
 /* MENU_SND_ABR_LOUD     */  { "Fte",               "Fort",                 "Loud"               },
 
 // Soil menu
-/* MENU_SOIL_SENSOR_LIMITS */ { "Sensor+límites",   "Sensor+llindars",     "Sensor+limits"      },
+/* MENU_SOIL_SENSOR_LIMITS */ { "Sensor+límites",   "Sensor+límits",       "Sensor+limits"      },
 /* MENU_RESET_SUB_SOIL   */  { "del suelo",         "del sòl",              "for soil"           },
 /* MENU_RESTORED         */  { "restaurados",       "restaurats",           "restored"           },
 /* MENU_PUSH_CAPTURE     */  { "Pulsa: captura",      "Prem: captura",      "Press: capture"     },
 
-// DS18 / temperature menu
-/* MENU_OFFSET           */  { "Corrección",        "Correcció",            "Offset"             },
 /* MENU_RESET_SUB_TEMP   */  { "de temperatura",    "de temperatura",       "for temperature"    },
 /* MENU_RESET_SUB_PROBE  */  { "del termómetro",    "del termòmetre",       "for thermometer"    },
 /* MENU_RESET_SUB_HUM    */  { "de humedad",        "d'humitat",            "for humidity"       },

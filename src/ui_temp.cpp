@@ -27,6 +27,7 @@ static uint8_t g_temp_menu_index = 0;
 static int g_temp_edit_low = 18;
 static int g_temp_edit_high = 28;
 static uint8_t g_temp_edit_unit = 0;
+static bool g_temp_edit_marks = true;
 static bool g_temp_edit_alerts = false;
 static uint8_t g_temp_saved_kind = 0;
 static bool g_temp_save_ok = true;
@@ -125,6 +126,7 @@ static void sync_edit_values_from_settings() {
     g_temp_edit_low = to_display_int(get_temp_alarm_low());
     g_temp_edit_high = to_display_int(get_temp_alarm_high());
     g_temp_edit_unit = g_is_fahrenheit ? 1 : 0;
+    g_temp_edit_marks = get_temp_range_marks_visible();
     g_temp_edit_alerts = get_temp_alerts_enabled();
 }
 
@@ -176,6 +178,7 @@ int get_temp_encoder_min() {
         case TEMP_MODE_EDIT_LOW: return (int)lroundf(to_display(0.0f));
         case TEMP_MODE_EDIT_HIGH: return g_temp_edit_low + 1;
         case TEMP_MODE_EDIT_UNIT:
+        case TEMP_MODE_EDIT_MARKS:
         case TEMP_MODE_EDIT_ALERTS:
             return 0;
         case TEMP_MODE_CONFIRM_RESET:
@@ -187,10 +190,11 @@ int get_temp_encoder_min() {
 
 int get_temp_encoder_max() {
     switch (g_temp_menu_state) {
-        case TEMP_MODE_MENU: return 4;
+        case TEMP_MODE_MENU: return 5;
         case TEMP_MODE_EDIT_LOW: return g_temp_edit_high - 1;
         case TEMP_MODE_EDIT_HIGH: return (int)lroundf(to_display(50.0f));
         case TEMP_MODE_EDIT_UNIT:
+        case TEMP_MODE_EDIT_MARKS:
         case TEMP_MODE_EDIT_ALERTS:
             return 1;
         case TEMP_MODE_CONFIRM_RESET:
@@ -206,6 +210,7 @@ int get_temp_encoder_value() {
         case TEMP_MODE_EDIT_LOW: return g_temp_edit_low;
         case TEMP_MODE_EDIT_HIGH: return g_temp_edit_high;
         case TEMP_MODE_EDIT_UNIT: return (int)g_temp_edit_unit;
+        case TEMP_MODE_EDIT_MARKS: return g_temp_edit_marks ? 1 : 0;
         case TEMP_MODE_EDIT_ALERTS: return g_temp_edit_alerts ? 1 : 0;
         case TEMP_MODE_CONFIRM_RESET: return (int)g_temp_reset_choice;
         default:
@@ -241,6 +246,12 @@ void set_temp_input_value(int value) {
                 request_temp_redraw();
             }
             break;
+        case TEMP_MODE_EDIT_MARKS:
+            if ((next == 1) != g_temp_edit_marks) {
+                g_temp_edit_marks = (next == 1);
+                request_temp_redraw();
+            }
+            break;
         case TEMP_MODE_EDIT_ALERTS:
             if ((next == 1) != g_temp_edit_alerts) {
                 g_temp_edit_alerts = (next == 1);
@@ -262,12 +273,14 @@ uint8_t handle_temp_button() {
     switch (g_temp_menu_state) {
         case TEMP_MODE_MENU:
             if (g_temp_menu_index == 0) {
-                g_temp_menu_state = TEMP_MODE_EDIT_LOW;
-            } else if (g_temp_menu_index == 1) {
                 g_temp_menu_state = TEMP_MODE_EDIT_UNIT;
+            } else if (g_temp_menu_index == 1) {
+                g_temp_menu_state = TEMP_MODE_EDIT_LOW;
             } else if (g_temp_menu_index == 2) {
-                g_temp_menu_state = TEMP_MODE_EDIT_ALERTS;
+                g_temp_menu_state = TEMP_MODE_EDIT_MARKS;
             } else if (g_temp_menu_index == 3) {
+                g_temp_menu_state = TEMP_MODE_EDIT_ALERTS;
+            } else if (g_temp_menu_index == 4) {
                 g_temp_reset_choice = 0;
                 g_temp_menu_state = TEMP_MODE_CONFIRM_RESET;
             } else {
@@ -290,9 +303,15 @@ uint8_t handle_temp_button() {
             g_temp_save_ok = true;
             g_temp_menu_state = TEMP_MODE_SAVED;
             break;
+        case TEMP_MODE_EDIT_MARKS:
+            set_temp_range_marks_visible(g_temp_edit_marks);
+            g_temp_saved_kind = 2;
+            g_temp_save_ok = true;
+            g_temp_menu_state = TEMP_MODE_SAVED;
+            break;
         case TEMP_MODE_EDIT_ALERTS:
             set_temp_alerts_enabled(g_temp_edit_alerts);
-            g_temp_saved_kind = 2;
+            g_temp_saved_kind = 3;
             g_temp_save_ok = true;
             g_temp_menu_state = TEMP_MODE_SAVED;
             break;
@@ -301,7 +320,7 @@ uint8_t handle_temp_button() {
                 reset_temp_settings();
                 save_temperature_unit(false);
                 sync_edit_values_from_settings();
-                g_temp_saved_kind = 3;
+                g_temp_saved_kind = 4;
                 g_temp_save_ok = true;
                 g_temp_reset_choice = 0;
                 g_temp_menu_state = TEMP_MODE_SAVED;
@@ -326,6 +345,7 @@ static void draw_temp_menu_screen(bool screen_changed) {
     static int last_menu_index = -1;
     static int last_edit_value = INT16_MIN;
     static int last_unit_value = -1;
+    static int last_marks_value = -1;
     static int last_alert_value = -1;
     static int last_reset_choice = -1;
     static int last_saved_kind = -1;
@@ -338,6 +358,8 @@ static void draw_temp_menu_screen(bool screen_changed) {
         needs_redraw = needs_redraw || (last_menu_index != (int)g_temp_menu_index);
     } else if (g_temp_menu_state == TEMP_MODE_EDIT_UNIT) {
         needs_redraw = needs_redraw || (last_unit_value != (int)g_temp_edit_unit);
+    } else if (g_temp_menu_state == TEMP_MODE_EDIT_MARKS) {
+        needs_redraw = needs_redraw || (last_marks_value != (g_temp_edit_marks ? 1 : 0));
     } else if (g_temp_menu_state == TEMP_MODE_EDIT_ALERTS) {
         needs_redraw = needs_redraw || (last_alert_value != (g_temp_edit_alerts ? 1 : 0));
     } else if (g_temp_menu_state == TEMP_MODE_CONFIRM_RESET) {
@@ -356,6 +378,7 @@ static void draw_temp_menu_screen(bool screen_changed) {
         last_menu_index = -1;
         last_edit_value = INT16_MIN;
         last_unit_value = -1;
+        last_marks_value = -1;
         last_alert_value = -1;
         last_reset_choice = -1;
         last_saved_kind = -1;
@@ -364,13 +387,14 @@ static void draw_temp_menu_screen(bool screen_changed) {
 
     if (g_temp_menu_state == TEMP_MODE_MENU) {
         const char* items[] = {
-            L(MENU_LIMITS),
             L(MENU_UNIT),
+            L(MENU_LIMITS),
+            L(MENU_SHOW_LIMITS),
             L(MENU_ALERTS)
         };
         const uint8_t selected_index = g_temp_menu_index;
         const bool grid_full_redraw = state_changed || last_menu_index < 0;
-        drawSettingsGridMenu(items, 3, selected_index, L(MENU_RESET), L(MENU_EXIT),
+        drawSettingsGridMenu(items, 4, selected_index, L(MENU_RESET), L(MENU_EXIT),
                              grid_full_redraw, last_menu_index);
         if (grid_full_redraw) {
             drawFooterHint(L(INSTR_SEL), cx, LM_MENU_FOOTER_Y);
@@ -399,6 +423,14 @@ static void draw_temp_menu_screen(bool screen_changed) {
                                     L(ST_TURN_PUSH),
                                     state_changed);
         last_unit_value = (int)g_temp_edit_unit;
+    } else if (g_temp_menu_state == TEMP_MODE_EDIT_MARKS) {
+        drawCenteredMenuValueScreen(L(MENU_SHOW_LIMITS),
+                                    g_temp_edit_marks ? L(ST_ON) : L(ST_OFF),
+                                    g_temp_edit_marks ? TFT_GREEN : TFT_RED,
+                                    MENU_VALUE_FONT_BODY,
+                                    L(ST_TURN_PUSH),
+                                    state_changed);
+        last_marks_value = g_temp_edit_marks ? 1 : 0;
     } else if (g_temp_menu_state == TEMP_MODE_EDIT_ALERTS) {
         // Alert enable/disable uses the same compact ON/OFF interaction as the
         // rest of the firmware.
@@ -445,11 +477,17 @@ static void draw_temp_menu_screen(bool screen_changed) {
                                         L(ST_PUSH_MENU));
         } else if (g_temp_saved_kind == 2) {
             drawCenteredMenuSavedScreen(saved_title,
+                                        g_temp_edit_marks ? L(ST_ON) : L(ST_OFF),
+                                        g_temp_edit_marks ? TFT_GREEN : TFT_RED,
+                                        MENU_VALUE_FONT_BODY,
+                                        L(ST_PUSH_MENU));
+        } else if (g_temp_saved_kind == 3) {
+            drawCenteredMenuSavedScreen(saved_title,
                                         g_temp_edit_alerts ? L(ST_ON) : L(ST_OFF),
                                         g_temp_edit_alerts ? TFT_GREEN : TFT_RED,
                                         MENU_VALUE_FONT_BODY,
                                         L(ST_PUSH_MENU));
-        } else if (g_temp_saved_kind == 3) {
+        } else if (g_temp_saved_kind == 4) {
             drawCenteredMenuSavedScreen(saved_title,
                                         L(MENU_DEFAULTS),
                                         TFT_WHITE,

@@ -231,6 +231,26 @@ Reglas estrictas:
 - El `last_menu_index` de grids debe guardar el índice local que se acaba de dibujar, no releer el global mutable después de llamar al helper. Si el encoder cambia durante el frame, releer el global puede dejar seleccionado un tile fantasma.
 - Si una función helper común no ofrece modo incremental, no usarla en hot path de encoder; separar `draw_*Shell()` de `update_*Data()` / `update_*Buttons()`.
 
+### Contrato encoder-grid para `drawSettingsGridMenu()`
+
+Cuando un menú raíz usa `drawSettingsGridMenu(primary_items, primary_count, ...)`, los índices son contrato funcional, no solo layout:
+
+```text
+0..primary_count-1  -> opciones primarias
+primary_count       -> Reset
+primary_count + 1   -> Salir
+```
+
+Reglas obligatorias:
+
+- `get_*_encoder_max()` del estado menú devuelve `primary_count + 1`.
+- `handle_*_button()` mapea `Reset` en `primary_count` y `Salir` en `primary_count + 1`.
+- `set_*_input_value()` limita el menú con `get_*_encoder_min()/max()`, no con números mágicos (`0..4`, `0..5`, etc.).
+- Definir constantes locales (`*_PRIMARY_COUNT`, `*_RESET_INDEX`, `*_EXIT_INDEX`) para que render, encoder y acción compartan una sola fuente de verdad.
+- Si el menú raíz se navega con encoder, el estado debe ser circular en `rotary.cpp`, salvo decisión explícita documentada.
+
+Antes de cerrar cualquier cambio que añada, quite o reordene opciones de menú, comprobar: visual seleccionado == índice encoder == acción del botón.
+
 ### Plantilla para confirmaciones Reset
 
 ```cpp

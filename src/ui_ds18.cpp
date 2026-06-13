@@ -26,10 +26,10 @@ extern uint16_t getTempColor(float temp);
 // --- ESTADO DEL MENÚ DS18B20 ---
 static Ds18MenuState g_ds18_menu_state = DS18_MODE_NORMAL;
 static uint8_t g_ds18_menu_index = 0;
-static int g_ds18_edit_off = 0;
 static int g_ds18_edit_low = 0;
 static int g_ds18_edit_high = 40;
 static uint8_t g_ds18_edit_unit = 0;
+static bool g_ds18_edit_marks = true;
 static bool g_ds18_edit_alerts = false;
 static uint8_t g_ds18_saved_kind = 0;
 static bool g_ds18_save_ok = true;
@@ -100,10 +100,10 @@ static void draw_ds18_alert_jewel(uint8_t alert_state, bool alerts_enabled, bool
 }
 
 static void sync_edit_values_from_settings() {
-    g_ds18_edit_off = get_ds18_offset_x10();
     g_ds18_edit_low = to_display_int(get_ds18_alarm_low());
     g_ds18_edit_high = to_display_int(get_ds18_alarm_high());
     g_ds18_edit_unit = g_is_fahrenheit ? 1 : 0;
+    g_ds18_edit_marks = get_ds18_range_marks_visible();
     g_ds18_edit_alerts = get_ds18_alerts_enabled();
 }
 
@@ -130,10 +130,10 @@ void start_ds18_menu() {
 int get_ds18_encoder_min() {
     switch (g_ds18_menu_state) {
         case DS18_MODE_MENU: return 0;
-        case DS18_MODE_EDIT_OFFSET: return -50;
         case DS18_MODE_EDIT_LOW: return (int)lroundf(to_display(-55.0f));
         case DS18_MODE_EDIT_HIGH: return g_ds18_edit_low + 1;
         case DS18_MODE_EDIT_UNIT:
+        case DS18_MODE_EDIT_MARKS:
         case DS18_MODE_EDIT_ALERTS:
             return 0;
         case DS18_MODE_CONFIRM_RESET:
@@ -145,10 +145,10 @@ int get_ds18_encoder_min() {
 int get_ds18_encoder_max() {
     switch (g_ds18_menu_state) {
         case DS18_MODE_MENU: return 5;
-        case DS18_MODE_EDIT_OFFSET: return 50;
         case DS18_MODE_EDIT_LOW: return g_ds18_edit_high - 1;
         case DS18_MODE_EDIT_HIGH: return (int)lroundf(to_display(125.0f));
         case DS18_MODE_EDIT_UNIT:
+        case DS18_MODE_EDIT_MARKS:
         case DS18_MODE_EDIT_ALERTS:
             return 1;
         case DS18_MODE_CONFIRM_RESET:
@@ -160,10 +160,10 @@ int get_ds18_encoder_max() {
 int get_ds18_encoder_value() {
     switch (g_ds18_menu_state) {
         case DS18_MODE_MENU: return (int)g_ds18_menu_index;
-        case DS18_MODE_EDIT_OFFSET: return g_ds18_edit_off;
         case DS18_MODE_EDIT_LOW: return g_ds18_edit_low;
         case DS18_MODE_EDIT_HIGH: return g_ds18_edit_high;
         case DS18_MODE_EDIT_UNIT: return g_ds18_edit_unit;
+        case DS18_MODE_EDIT_MARKS: return g_ds18_edit_marks ? 1 : 0;
         case DS18_MODE_EDIT_ALERTS: return g_ds18_edit_alerts ? 1 : 0;
         case DS18_MODE_CONFIRM_RESET: return g_ds18_reset_choice;
         default: return 0;
@@ -179,9 +179,6 @@ void set_ds18_input_value(int value) {
                 request_ds18_redraw(false);
             }
             break;
-        case DS18_MODE_EDIT_OFFSET:
-            if (next != g_ds18_edit_off) { g_ds18_edit_off = next; request_ds18_redraw(false); }
-            break;
         case DS18_MODE_EDIT_LOW:
             if (next != g_ds18_edit_low) { g_ds18_edit_low = next; request_ds18_redraw(false); }
             break;
@@ -191,6 +188,12 @@ void set_ds18_input_value(int value) {
         case DS18_MODE_EDIT_UNIT:
             if ((uint8_t)next != g_ds18_edit_unit) {
                 g_ds18_edit_unit = (uint8_t)next;
+                request_ds18_redraw(false);
+            }
+            break;
+        case DS18_MODE_EDIT_MARKS:
+            if ((next == 1) != g_ds18_edit_marks) {
+                g_ds18_edit_marks = (next == 1);
                 request_ds18_redraw(false);
             }
             break;
@@ -213,9 +216,9 @@ void set_ds18_input_value(int value) {
 uint8_t handle_ds18_button() {
     switch (g_ds18_menu_state) {
         case DS18_MODE_MENU:
-            if (g_ds18_menu_index == 0)      g_ds18_menu_state = DS18_MODE_EDIT_OFFSET;
+            if (g_ds18_menu_index == 0)      g_ds18_menu_state = DS18_MODE_EDIT_UNIT;
             else if (g_ds18_menu_index == 1) g_ds18_menu_state = DS18_MODE_EDIT_LOW;
-            else if (g_ds18_menu_index == 2) g_ds18_menu_state = DS18_MODE_EDIT_UNIT;
+            else if (g_ds18_menu_index == 2) g_ds18_menu_state = DS18_MODE_EDIT_MARKS;
             else if (g_ds18_menu_index == 3) g_ds18_menu_state = DS18_MODE_EDIT_ALERTS;
             else if (g_ds18_menu_index == 4) {
                 g_ds18_reset_choice = 0;
@@ -223,16 +226,9 @@ uint8_t handle_ds18_button() {
             }
             else                             g_ds18_menu_state = DS18_MODE_NORMAL;
             break;
-        case DS18_MODE_EDIT_OFFSET:
-            g_ds18_save_ok = save_ds18_settings(g_ds18_edit_off,
-                                                to_celsius_int(g_ds18_edit_low),
-                                                to_celsius_int(g_ds18_edit_high));
-            g_ds18_saved_kind = 0;
-            g_ds18_menu_state = DS18_MODE_SAVED;
-            break;
         case DS18_MODE_EDIT_LOW:    g_ds18_menu_state = DS18_MODE_EDIT_HIGH; break;
         case DS18_MODE_EDIT_HIGH:
-            g_ds18_save_ok = save_ds18_settings(g_ds18_edit_off, to_celsius_int(g_ds18_edit_low), to_celsius_int(g_ds18_edit_high));
+            g_ds18_save_ok = save_ds18_settings(to_celsius_int(g_ds18_edit_low), to_celsius_int(g_ds18_edit_high));
             g_ds18_saved_kind = 0;
             g_ds18_menu_state = DS18_MODE_SAVED;
             break;
@@ -243,10 +239,16 @@ uint8_t handle_ds18_button() {
             g_ds18_saved_kind = 1;
             g_ds18_menu_state = DS18_MODE_SAVED;
             break;
+        case DS18_MODE_EDIT_MARKS:
+            set_ds18_range_marks_visible(g_ds18_edit_marks);
+            g_ds18_save_ok = true;
+            g_ds18_saved_kind = 2;
+            g_ds18_menu_state = DS18_MODE_SAVED;
+            break;
         case DS18_MODE_EDIT_ALERTS:
             set_ds18_alerts_enabled(g_ds18_edit_alerts);
             g_ds18_save_ok = true;
-            g_ds18_saved_kind = 2;
+            g_ds18_saved_kind = 3;
             g_ds18_menu_state = DS18_MODE_SAVED;
             break;
         case DS18_MODE_CONFIRM_RESET:
@@ -255,7 +257,7 @@ uint8_t handle_ds18_button() {
                 save_temperature_unit(false);
                 sync_edit_values_from_settings();
                 g_ds18_save_ok = true;
-                g_ds18_saved_kind = 3;
+                g_ds18_saved_kind = 4;
                 g_ds18_reset_choice = 0;
                 g_ds18_menu_state = DS18_MODE_SAVED;
             } else {
@@ -274,6 +276,7 @@ static void draw_ds18_menu_screen(bool screen_changed) {
     static int last_menu_index = -1;
     static int last_edit_value = -9999;
     static int last_unit_value = -1;
+    static int last_marks_value = -1;
     static int last_alert_value = -1;
     static int last_reset_choice = -1;
     static uint8_t last_saved_kind = 255;
@@ -284,12 +287,13 @@ static void draw_ds18_menu_screen(bool screen_changed) {
 
     if (g_ds18_menu_state == DS18_MODE_MENU) {
         needs_redraw = needs_redraw || (last_menu_index != (int)g_ds18_menu_index);
-    } else if (g_ds18_menu_state == DS18_MODE_EDIT_OFFSET
-            || g_ds18_menu_state == DS18_MODE_EDIT_LOW
+    } else if (g_ds18_menu_state == DS18_MODE_EDIT_LOW
             || g_ds18_menu_state == DS18_MODE_EDIT_HIGH) {
         needs_redraw = needs_redraw || (last_edit_value != get_ds18_encoder_value());
     } else if (g_ds18_menu_state == DS18_MODE_EDIT_UNIT) {
         needs_redraw = needs_redraw || (last_unit_value != (int)g_ds18_edit_unit);
+    } else if (g_ds18_menu_state == DS18_MODE_EDIT_MARKS) {
+        needs_redraw = needs_redraw || (last_marks_value != (g_ds18_edit_marks ? 1 : 0));
     } else if (g_ds18_menu_state == DS18_MODE_EDIT_ALERTS) {
         needs_redraw = needs_redraw || (last_alert_value != (g_ds18_edit_alerts ? 1 : 0));
     } else if (g_ds18_menu_state == DS18_MODE_CONFIRM_RESET) {
@@ -307,6 +311,7 @@ static void draw_ds18_menu_screen(bool screen_changed) {
         last_menu_index = -1;
         last_edit_value = -9999;
         last_unit_value = -1;
+        last_marks_value = -1;
         last_alert_value = -1;
         last_reset_choice = -1;
         last_saved_kind = 255;
@@ -315,9 +320,9 @@ static void draw_ds18_menu_screen(bool screen_changed) {
 
     if (g_ds18_menu_state == DS18_MODE_MENU) {
         const char* items[4] = {
-            L(MENU_OFFSET),
-            L(MENU_LIMITS),
             L(MENU_UNIT),
+            L(MENU_LIMITS),
+            L(MENU_SHOW_LIMITS),
             L(MENU_ALERTS)
         };
         const uint8_t selected_index = g_ds18_menu_index;
@@ -328,16 +333,6 @@ static void draw_ds18_menu_screen(bool screen_changed) {
             drawFooterHint(L(INSTR_SEL), cx, LM_MENU_FOOTER_Y);
         }
         last_menu_index = (int)selected_index;
-    } else if (g_ds18_menu_state == DS18_MODE_EDIT_OFFSET) {
-        char value_buf[16];
-        snprintf(value_buf, sizeof(value_buf), "%s%d.%d", g_ds18_edit_off >= 0 ? "+" : "-", abs(g_ds18_edit_off) / 10, abs(g_ds18_edit_off) % 10);
-        drawCenteredMenuValueScreen(L(MENU_OFFSET),
-                                    value_buf,
-                                    TFT_WHITE,
-                                    MENU_VALUE_FONT_TIMER,
-                                    L(ST_TURN_PUSH),
-                                    state_changed);
-        last_edit_value = g_ds18_edit_off;
     } else if (g_ds18_menu_state == DS18_MODE_EDIT_LOW || g_ds18_menu_state == DS18_MODE_EDIT_HIGH) {
         const bool low_mode = (g_ds18_menu_state == DS18_MODE_EDIT_LOW);
         char value_buf[20];
@@ -359,6 +354,14 @@ static void draw_ds18_menu_screen(bool screen_changed) {
                                     L(ST_TURN_PUSH),
                                     state_changed);
         last_unit_value = (int)g_ds18_edit_unit;
+    } else if (g_ds18_menu_state == DS18_MODE_EDIT_MARKS) {
+        drawCenteredMenuValueScreen(L(MENU_SHOW_LIMITS),
+                                    g_ds18_edit_marks ? L(ST_ON) : L(ST_OFF),
+                                    g_ds18_edit_marks ? TFT_GREEN : TFT_RED,
+                                    MENU_VALUE_FONT_BODY,
+                                    L(ST_TURN_PUSH),
+                                    state_changed);
+        last_marks_value = g_ds18_edit_marks ? 1 : 0;
     } else if (g_ds18_menu_state == DS18_MODE_EDIT_ALERTS) {
         drawCenteredMenuValueScreen(L(MENU_ALERTS),
                                     g_ds18_edit_alerts ? L(ST_ON) : L(ST_OFF),
@@ -381,19 +384,16 @@ static void draw_ds18_menu_screen(bool screen_changed) {
                                                  : L(MENU_ERROR);
         const uint16_t saved_title_color = g_ds18_save_ok ? TFT_MAGENTA : TFT_RED;
         if (g_ds18_saved_kind == 0 && g_ds18_save_ok) {
-            char line1[24];
             char line2[24];
             char line3[24];
-            const char* lines[3];
-            const uint16_t colors[3] = { TFT_WHITE, TFT_GREEN, TFT_ORANGE };
-            snprintf(line1, sizeof(line1), "%s %s%d.%d", L(MENU_OFFSET), g_ds18_edit_off >= 0 ? "+" : "-", abs(g_ds18_edit_off) / 10, abs(g_ds18_edit_off) % 10);
+            const char* lines[2];
+            const uint16_t colors[2] = { TFT_GREEN, TFT_ORANGE };
             snprintf(line2, sizeof(line2), "%s %d %s", L(MENU_LOW), g_ds18_edit_low, unit_short());
             snprintf(line3, sizeof(line3), "%s %d %s", L(MENU_HIGH), g_ds18_edit_high, unit_short());
-            lines[0] = line1;
-            lines[1] = line2;
-            lines[2] = line3;
+            lines[0] = line2;
+            lines[1] = line3;
             drawCenteredMenuFrame(saved_title, saved_title_color, L(ST_PUSH_MENU));
-            drawCenteredMenuBodyLines(lines, colors, 3, MENU_TEXT_FONT_SMALL, LM_SUMMARY3_Y0, LM_SUMMARY3_GAP);
+            drawCenteredMenuBodyLines(lines, colors, 2, MENU_TEXT_FONT_SMALL, LM_SUMMARY2_Y0, LM_SUMMARY2_GAP);
         } else if (g_ds18_saved_kind == 1) {
             drawCenteredMenuSavedScreen(saved_title,
                                         g_ds18_edit_unit ? L(MENU_UNIT_F)
@@ -403,11 +403,17 @@ static void draw_ds18_menu_screen(bool screen_changed) {
                                         L(ST_PUSH_MENU));
         } else if (g_ds18_saved_kind == 2) {
             drawCenteredMenuSavedScreen(saved_title,
+                                        g_ds18_edit_marks ? L(ST_ON) : L(ST_OFF),
+                                        g_ds18_edit_marks ? TFT_GREEN : TFT_RED,
+                                        MENU_VALUE_FONT_BODY,
+                                        L(ST_PUSH_MENU));
+        } else if (g_ds18_saved_kind == 3) {
+            drawCenteredMenuSavedScreen(saved_title,
                                         g_ds18_edit_alerts ? L(ST_ON) : L(ST_OFF),
                                         g_ds18_edit_alerts ? TFT_GREEN : TFT_RED,
                                         MENU_VALUE_FONT_BODY,
                                         L(ST_PUSH_MENU));
-        } else if (g_ds18_saved_kind == 3) {
+        } else if (g_ds18_saved_kind == 4) {
             drawCenteredMenuSavedScreen(saved_title,
                                         L(MENU_DEFAULTS),
                                         TFT_WHITE,
