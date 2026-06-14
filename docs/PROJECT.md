@@ -119,24 +119,23 @@ El P-Bit existe para que niños, docentes y educadores puedan:
 
 ### Pantallas y modos
 
-Con `PBIT_ENABLE_GRAPH_LAB=1` (configuración de producción), el carrusel tiene 12 posiciones:
+Con `PBIT_ENABLE_GRAPH_LAB=1` (configuración de producción), el carrusel tiene 11 posiciones:
 
 | Posición | Pantalla | Tipo |
 |---|---|---|
 | 1 | Inicio | Visión global de sensores en fichas |
 | 2 | Clima Lab | Lab — temperatura + humedad combinados |
 | 3 | Termo Lab | Lab — DHT11 + DS18B20 + diferencia térmica |
-| 4 | Sonido VU | Visualización VU de sonido |
-| 5 | Temperatura | Sensor — zona con modos visuales y menú |
-| 6 | Humedad | Sensor — zona con modos visuales y menú |
-| 7 | Luz | Sensor — zona con modos visuales y menú |
-| 8 | Sonido | Sensor — zona con modos visuales y menú |
-| 9 | Suelo | Sensor — zona con modos visuales, calibración y alertas |
-| 10 | Termómetro | Sensor — sonda DS18B20 con límites y alertas |
-| 11 | Timer | Cronómetro y cuenta regresiva con editor HH:MM:SS |
-| 12 | Sistema | Ajustes globales del dispositivo |
+| 4 | Temperatura | Sensor — zona con modos visuales y menú |
+| 5 | Humedad | Sensor — zona con modos visuales y menú |
+| 6 | Luz | Sensor — zona con modos visuales y menú |
+| 7 | Sonido | Sensor — zona con modos visuales, VU/Onda y menú |
+| 8 | Suelo | Sensor — zona con modos visuales, calibración y alertas |
+| 9 | Termómetro | Sensor — sonda DS18B20 con límites y alertas |
+| 10 | Timer | Cronómetro y cuenta regresiva con editor HH:MM:SS |
+| 11 | Sistema | Ajustes globales del dispositivo |
 
-Cada pantalla de sensor soporta cinco modos visuales: Principal, Dato, Curva, Rango y Ficha. Internamente el firmware conserva nombres históricos (`Focus`, `Valor`, `Graph`, `Gauge`, `Card`) para evitar un refactor sin valor de producto.
+Cada pantalla de sensor soporta cinco modos visuales: Principal, Dato, Curva, Rango y Ficha. `Sonido` añade dos modos exclusivos: Sonido VU y Sonido Onda. Internamente el firmware conserva nombres históricos (`Focus`, `Valor`, `Graph`, `Gauge`, `Card`) para evitar un refactor sin valor de producto.
 
 ### Alertas y feedback
 

@@ -18,13 +18,16 @@ enum SzSensorId : uint8_t {
     SZ_SENSOR_COUNT
 };
 
-// Visualization modes available for every sensor, in cycle order.
+// Visualization modes. The first five are common to every sensor and keep
+// their persisted numeric values; sound-only modes are append-only.
 enum SzVizMode : uint8_t {
     SZ_VIZ_FOCUS = 0,   // Principal (ui_lab_focus)
     SZ_VIZ_VALOR,       // Dato      (ui_lab_widget_showcase)
     SZ_VIZ_GRAPH,       // Curva     (ui_graph)
     SZ_VIZ_GAUGE,       // Rango     (ui_lab_widget_showcase)
     SZ_VIZ_CARD,        // Ficha     (ui_lab_sensor_cards)
+    SZ_VIZ_SOUND_VU_STACK, // Sonido VU   (solo SZ_SOUND)
+    SZ_VIZ_SOUND_VU_WAVE,  // Sonido Onda (solo SZ_SOUND)
     SZ_VIZ_COUNT
 };
 

@@ -151,7 +151,7 @@ Prueba a girar lentamente y observa cómo cada pantalla muestra una vista difere
 
 ### Paso 5 — Ver un sensor de cerca
 
-Navega hasta la pantalla de `Temperatura` (posición 5 del carrusel, girando a la derecha desde `Home`).
+Navega hasta la pantalla de `Temperatura` (posición 4 del carrusel, girando a la derecha desde `Home`).
 
 Verás la temperatura ambiente con un número grande y un indicador visual.
 
@@ -164,6 +164,10 @@ Mientras estás en una pantalla de sensor, haz una **pulsación corta** (pulsa y
 El modo de visualización cambia:
 
 `Principal` → `Dato` → `Curva` → `Rango` → `Ficha` → `Principal` …
+
+En `Sonido`, el ciclo añade dos vistas especiales:
+
+`Principal` → `Dato` → `Curva` → `Rango` → `Sonido VU` → `Sonido Onda` → `Ficha` → `Principal` …
 
 Prueba a pulsar varias veces para ver cómo cambia la representación del mismo dato sin cambiar el sensor.
 
@@ -228,26 +232,25 @@ Reglas generales dentro de los menús:
 
 ## 6. Pantallas y carrusel de navegación
 
-Con la configuración de producción estándar, el carrusel tiene 12 posiciones. Se navega girando el encoder.
+Con la configuración de producción estándar, el carrusel tiene 11 posiciones. Se navega girando el encoder.
 
 | Posición | Pantalla | Descripción |
 |---|---|---|
 | 1 | **Inicio** | Visión global de todos los sensores en fichas |
 | 2 | **Clima Lab** | Temperatura y humedad del aire en vista combinada |
 | 3 | **Termo Lab** | Temperatura ambiente, sonda externa y diferencia térmica |
-| 4 | **Sonido VU** | Nivel de sonido en barras tipo VU meter |
-| 5 | **Temperatura** | Temperatura ambiente con menú de configuración |
-| 6 | **Humedad** | Humedad del aire con menú de configuración |
-| 7 | **Luz** | Luz ambiental con menú de límites |
-| 8 | **Sonido** | Nivel de sonido con menú de límites |
-| 9 | **Suelo** | Humedad del suelo con calibración y alertas |
-| 10 | **Termómetro** | Temperatura externa con sonda DS18B20 |
-| 11 | **Timer** | Cronómetro y cuenta regresiva |
-| 12 | **Sistema** | Ajustes globales del dispositivo |
+| 4 | **Temperatura** | Temperatura ambiente con menú de configuración |
+| 5 | **Humedad** | Humedad del aire con menú de configuración |
+| 6 | **Luz** | Luz ambiental con menú de límites |
+| 7 | **Sonido** | Nivel de sonido con menú de límites y modos VU/Onda |
+| 8 | **Suelo** | Humedad del suelo con calibración y alertas |
+| 9 | **Termómetro** | Temperatura externa con sonda DS18B20 |
+| 10 | **Timer** | Cronómetro y cuenta regresiva |
+| 11 | **Sistema** | Ajustes globales del dispositivo |
 
-Las pantallas 1–4 (Inicio, Clima Lab, Termo Lab, Sonido VU) son de solo lectura. No tienen menú de configuración. `Lab` se reserva para pantallas multisensor o experimentales; las vistas de un sensor individual usan los modos de abajo.
+Las pantallas 1–3 (Inicio, Clima Lab, Termo Lab) son de solo lectura. No tienen menú de configuración. `Lab` se reserva para pantallas multisensor o experimentales; las vistas de un sensor individual usan los modos de abajo.
 
-Las pantallas 5–10 son **zonas de sensor**. Dentro de cada una, la pulsación corta cambia el modo de visualización del sensor activo:
+Las pantallas 4–9 son **zonas de sensor**. Dentro de cada una, la pulsación corta cambia el modo de visualización del sensor activo:
 
 | Modo | Descripción |
 |---|---|
@@ -256,6 +259,8 @@ Las pantallas 5–10 son **zonas de sensor**. Dentro de cada una, la pulsación 
 | **Curva** | Histórico reciente en línea de tendencia |
 | **Rango** | Lectura dentro de zonas de color y límites |
 | **Ficha** | Resumen compacto de lectura |
+| **Sonido VU** | Modo exclusivo de Sonido con barras VU |
+| **Sonido Onda** | Modo exclusivo de Sonido con onda animada |
 
 La pulsación larga en cualquier pantalla de sensor abre su menú de configuración.
 
@@ -297,7 +302,7 @@ Durante el Modo demo, el P-Bit recorre pantallas representativas del carrusel co
 
 ### Acción rápida (sin menú)
 
-Pulsación corta: cambia el modo visual del sensor (Principal / Dato / Curva / Rango / Ficha).
+Pulsación corta: cambia el modo visual del sensor (Principal / Dato / Curva / Rango / Ficha). En `Sonido` también pasa por `Sonido VU` y `Sonido Onda`.
 
 ### Menú de configuración (pulsación larga ~1.2 s)
 

@@ -10,7 +10,7 @@ Fecha: 2026-06-03 | Versión consolidada post-Fase B/C/D + auditoría de reglas-
 
 ## Estado actual
 
-Las reglas de este documento ya están aplicadas en las pantallas de mayor riesgo del firmware actual: Rango/gauge, Ficha/cards, `Sonido VU`, Curva/Graph, Dato, Inicio y pantallas de sensor clásicas. La validación puntual en hardware deja ghosting/flicker cerrado por ahora; la deuda activa es mantener checks de regresión cuando se toquen pantallas, Demo Mode, modos LDR o reglas de limpieza.
+Las reglas de este documento ya están aplicadas en las pantallas de mayor riesgo del firmware actual: Rango/gauge, Ficha/cards, `Sonido VU/Onda`, Curva/Graph, Dato, Inicio y pantallas de sensor clásicas. La validación puntual en hardware deja ghosting/flicker cerrado por ahora; la deuda activa es mantener checks de regresión cuando se toquen pantallas, Demo Mode, modos LDR o reglas de limpieza.
 
 Cambios cerrados desde la auditoría original:
 - `Sound VU`: sprite, EWMA asimétrico, scroll continuo e idle pulse.

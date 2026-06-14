@@ -24,7 +24,8 @@ constexpr DemoScene kDemoScenes[] = {
     { LAB_HOME_CARDS_SCREEN,     -1,       0,            8 },
     { LAB_DUAL_TH_SCREEN,        -1,       0,            8 },
     { LAB_WIDGET_MIX_SCREEN,     -1,       0,            9 },
-    { LAB_SOUND_VU_STACK_SCREEN, -1,       0,            7 },
+    { SENSOR_ZONE_SCREEN,        SZ_SOUND, SZ_VIZ_SOUND_VU_STACK, 7 },
+    { SENSOR_ZONE_SCREEN,        SZ_SOUND, SZ_VIZ_SOUND_VU_WAVE,  7 },
     { SENSOR_ZONE_SCREEN,        SZ_TEMP,  SZ_VIZ_GAUGE, 8 },
     { SENSOR_ZONE_SCREEN,        SZ_HUM,   SZ_VIZ_CARD,  7 },
     { SENSOR_ZONE_SCREEN,        SZ_LIGHT, SZ_VIZ_GRAPH, 10 },
@@ -90,7 +91,6 @@ bool current_scene_is_graph_focus(uint8_t graph_sensor) {
     const DemoScene& scene = kDemoScenes[g_scene_index];
 #if PBIT_ENABLE_GRAPH_LAB
     if (scene.screen == SENSOR_ZONE_SCREEN && scene.sensor == (int8_t)graph_sensor) return true;
-    if (graph_sensor == kGraphSensorSound && scene.screen == LAB_SOUND_VU_STACK_SCREEN) return true;
     if (graph_sensor == kGraphSensorTemp && scene.screen == LAB_DUAL_TH_SCREEN) return true;
     if (graph_sensor == kGraphSensorDs18 && scene.screen == LAB_WIDGET_MIX_SCREEN) return true;
 #else

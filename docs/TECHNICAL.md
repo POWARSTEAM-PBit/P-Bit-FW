@@ -363,17 +363,17 @@ Protecciones:
 
 ### Navegación principal
 
-Orden real del carrusel actual con `PBIT_ENABLE_GRAPH_LAB=1` (12 posiciones, circular):
+Orden real del carrusel actual con `PBIT_ENABLE_GRAPH_LAB=1` (11 posiciones, circular):
 
-`INICIO -> CLIMA LAB -> TERMO LAB -> SONIDO VU -> TEMPERATURA -> HUMEDAD -> LUZ -> SONIDO -> SUELO -> TERMÓMETRO -> TIMER -> SISTEMA`
+`INICIO -> CLIMA LAB -> TERMO LAB -> TEMPERATURA -> HUMEDAD -> LUZ -> SONIDO -> SUELO -> TERMÓMETRO -> TIMER -> SISTEMA`
 
 Nota de nomenclatura: `TERMÓMETRO` es el título visible de la sonda externa; `DS18B20`, `DS18B20_SCREEN` y `SZ_DS18` se conservan como identificadores técnicos de firmware/hardware.
 
 Implementación:
 
-- Las primeras 4 posiciones son pantallas de producto de solo lectura: `LAB_HOME_CARDS_SCREEN` (`Inicio`), `LAB_DUAL_TH_SCREEN` (`Clima Lab`), `LAB_WIDGET_MIX_SCREEN` (`Termo Lab`) y `LAB_SOUND_VU_STACK_SCREEN` (`Sonido VU`).
+- Las primeras 3 posiciones son pantallas de producto de solo lectura: `LAB_HOME_CARDS_SCREEN` (`Inicio`), `LAB_DUAL_TH_SCREEN` (`Clima Lab`) y `LAB_WIDGET_MIX_SCREEN` (`Termo Lab`).
 - Las 6 posiciones de sensor reutilizan `SENSOR_ZONE_SCREEN`; al entrar en cada slot, `rotary.cpp` llama a `sz_set_sensor(...)`.
-- `SENSOR_ZONE_SCREEN` conserva un modo visual por sensor. Los nombres visibles son `Principal`, `Dato`, `Curva`, `Rango` y `Ficha`; los enums internos históricos siguen siendo `SZ_VIZ_FOCUS`, `SZ_VIZ_VALOR`, `SZ_VIZ_GRAPH`, `SZ_VIZ_GAUGE` y `SZ_VIZ_CARD`.
+- `SENSOR_ZONE_SCREEN` conserva un modo visual por sensor. Los nombres visibles son `Principal`, `Dato`, `Curva`, `Rango` y `Ficha`; `Sonido` añade `Sonido VU` y `Sonido Onda`. Los enums internos históricos siguen siendo `SZ_VIZ_FOCUS`, `SZ_VIZ_VALOR`, `SZ_VIZ_GRAPH`, `SZ_VIZ_GAUGE` y `SZ_VIZ_CARD`, con modos VU append-only para no reinterpretar NVS antigua.
 - La pulsación corta en una posición de sensor ejecuta `sz_next_viz()`.
 - La pulsación larga abre el menú clásico del sensor activo (`TEMP_SCREEN`, `HUMIDITY_SCREEN`, `LIGHT_SCREEN`, `SOUND_SCREEN`, `SOIL_SCREEN` o `DS18B20_SCREEN`).
 - `GRAPH_SCREEN` existe en el firmware; con el flag actual se usa como renderer del modo visible `Curva` dentro de `SENSOR_ZONE_SCREEN`.
@@ -391,7 +391,7 @@ Si `PBIT_ENABLE_GRAPH_LAB` se compila a `0`, el carrusel cae al rango clásico `
 - Suelo (`SZ_SOIL`)
 - Termómetro / DS18B20 (`SZ_DS18`)
 
-Cada sensor conserva su modo visual persistido (`sz_v0` .. `sz_v5`) y `sz_sync_renderer(...)` sincroniza el sub-renderer activo solo cuando cambia pantalla, sensor o modo. Esta arquitectura evita invalidar caches en cada tick de lectura y reduce flicker en rangos, fichas, curvas y vistas de dato.
+Cada sensor conserva su modo visual persistido (`sz_v0` .. `sz_v5`) y `sz_sync_renderer(...)` sincroniza el sub-renderer activo solo cuando cambia pantalla, sensor o modo. Esta arquitectura evita invalidar caches en cada tick de lectura y reduce flicker en rangos, fichas, curvas, vistas de dato y modos VU/Onda de Sonido.
 
 Los sensores externos conectables por el usuario comparten estado runtime de ausencia en `external_sensor_state.*`: `SZ_DS18` falta si `temp_ds18b20 < -100` y `SZ_SOIL` falta si `soil_humidity` es `NaN`. El helper también centraliza `ST_CHECK_DS18`/`ST_CHECK_SOIL` y colores atenuados basados en la paleta del sensor. No persiste nada en NVS; al reconectar, la siguiente lectura válida restaura colores y datos normales.
 
@@ -413,7 +413,7 @@ Comportamiento:
 
 - `src/demo_mode.cpp` define una banda runtime de escenas con duración variable (`6..10 s`) para dar ritmo visual a la demo.
 - Al activarse, `tft_display.cpp` muestra una señal visual breve `MODO DEMO / Iniciando demo` antes de entrar a la primera escena.
-- Con `PBIT_ENABLE_GRAPH_LAB=1`, recorre Inicio, Clima Lab, Termo Lab, Sonido VU, seis escenas de Sensor Zone y Timer.
+- Con `PBIT_ENABLE_GRAPH_LAB=1`, recorre Inicio, Clima Lab, Termo Lab, escenas de Sensor Zone (incluyendo Sonido VU y Sonido Onda) y Timer.
 - Las escenas de Sensor Zone usan setters runtime, por lo que no modifican el sensor ni el modo visual guardados.
 - Si `kDemoSimulatedReadings == true`, `demo_mode_apply_simulated_readings(...)` modifica solo `g_ui_readings_snapshot` para animar valores visuales; no toca `global_readings`, NVS, BLE ni lecturas físicas.
 - `demo_mode_value_refresh_ms()` fija un refresco demo dedicado de `220 ms`, separado de la cadencia normal de sensores/gráficas.
@@ -457,19 +457,15 @@ Tiempos actuales:
 
 #### Home
 
-Vista global de todos los sensores en cards. Solo lectura; no tiene menú.
+Vista global de todos los sensores en fichas. Solo lectura; no tiene menú.
 
-#### Clima
+#### Clima Lab
 
 Temperatura ambiente y humedad del aire en card combinado. Solo lectura; no tiene menú.
 
-#### Multi
+#### Termo Lab
 
-Múltiples sensores con widgets en una sola pantalla. Solo lectura; no tiene menú.
-
-#### Sonido VU
-
-Nivel de sonido ambiental en barras apiladas. Solo lectura; no tiene menú.
+DHT11 + DS18B20 + diferencia térmica en una sola pantalla. Solo lectura; no tiene menú.
 
 #### Temperatura DHT
 
@@ -497,6 +493,7 @@ Nivel de sonido ambiental en barras apiladas. Solo lectura; no tiene menú.
 
 - en carrusel actual: slot de `SENSOR_ZONE_SCREEN` con sensor `SZ_SOUND`
 - pulsación corta: alterna modo de visualización
+- modos exclusivos adicionales: `Sonido VU` (barras) y `Sonido Onda` (onda animada)
 - menú `Límites / Marcas / Alertas / Reset / Salir`
 - niveles interpretativos por umbrales, no calibración acústica física
 
@@ -876,7 +873,7 @@ La estructura de menús y flujos de encoder está documentada aquí directamente
 
 Con `PBIT_ENABLE_GRAPH_LAB=1`:
 
-`INICIO → CLIMA LAB → TERMO LAB → SONIDO VU → TEMPERATURA → HUMEDAD → LUZ → SONIDO → SUELO → TERMÓMETRO → TIMER → SISTEMA`
+`INICIO → CLIMA LAB → TERMO LAB → TEMPERATURA → HUMEDAD → LUZ → SONIDO → SUELO → TERMÓMETRO → TIMER → SISTEMA`
 
 - `BOOT_SCREEN` existe en la enum pero no forma parte de la navegación con encoder.
 - Las seis posiciones de sensor son slots de `SENSOR_ZONE_SCREEN`.

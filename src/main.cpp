@@ -67,6 +67,8 @@ static bool isHiddenRestoreScreen(Screen screen) {
         case LAB_ICON_SET_A_SCREEN:
         case LAB_ICON_SET_B_SCREEN:
         case LAB_ICON_SET_C_SCREEN:
+        case LAB_SOUND_VU_STACK_SCREEN:
+        case LAB_SOUND_VU_WAVE_SCREEN:
         case LAB_ICON_SIZES_ENV_SCREEN:
         case LAB_ICON_SIZES_EXT_SCREEN:
         case LAB_ICON_TEST_SCREEN:

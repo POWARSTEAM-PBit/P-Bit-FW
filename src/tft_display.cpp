@@ -69,6 +69,11 @@ constexpr float kVisualSoundDeadband = 2.0f;
 
 static bool is_sound_vu_screen(Screen screen) {
 #if PBIT_ENABLE_GRAPH_LAB
+    if (screen == SENSOR_ZONE_SCREEN) {
+        const SzVizMode viz = sz_get_viz();
+        return sz_get_sensor() == SZ_SOUND
+            && (viz == SZ_VIZ_SOUND_VU_STACK || viz == SZ_VIZ_SOUND_VU_WAVE);
+    }
     return screen == LAB_SOUND_VU_STACK_SCREEN || screen == LAB_SOUND_VU_WAVE_SCREEN;
 #else
     (void)screen;
@@ -920,6 +925,12 @@ void switch_screen(void *param) {
                             break;
                         case SZ_VIZ_GAUGE:
                             draw_lab_gauge_temp_screen(screen_changed, sensor_data_changed);
+                            break;
+                        case SZ_VIZ_SOUND_VU_STACK:
+                            draw_lab_sound_vu_stack_screen(screen_changed, sensor_data_changed);
+                            break;
+                        case SZ_VIZ_SOUND_VU_WAVE:
+                            draw_lab_sound_vu_wave_screen(screen_changed, sensor_data_changed);
                             break;
                         default:
                             break;

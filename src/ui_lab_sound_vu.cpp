@@ -5,6 +5,7 @@
 #include "hw.h"
 #include "languages.h"
 #include "layout.h"
+#include "sensor_zone.h"
 #include "tft_display.h"
 #include "ui_icons.h"
 #include "ui_widgets.h"
@@ -260,12 +261,12 @@ static void draw_wave_chrome(const SoundVisual& visual, uint8_t alert_code, bool
 
 static void draw_stack_shell() {
     tft.fillScreen(kBg);
-    drawHeader(L(TIT_LAB_VU_STACK));
+    if (!sz_is_active()) drawHeader(L(TIT_LAB_VU_STACK));
 }
 
 static void draw_wave_shell() {
     tft.fillScreen(kBg);
-    drawHeader(L(TIT_LAB_VU_WAVE));
+    if (!sz_is_active()) drawHeader(L(TIT_LAB_VU_WAVE));
 }
 
 static void commit_stack_cache(bool valid, uint8_t level, uint8_t alert_code, bool alerts_enabled, uint8_t category_id) {

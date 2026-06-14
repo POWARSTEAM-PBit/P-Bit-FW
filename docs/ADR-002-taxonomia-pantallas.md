@@ -72,7 +72,7 @@ Pantallas que dejan de usar `Lab` visible como modo de un solo sensor:
 - `SUELO LAB`
 - `TERMÓMETRO LAB`
 
-`SONIDO VU` se mantiene como nombre de una visualización concreta, no como Lab. En una fase posterior podrá bajar al stack de `Sonido` como modo propio, sin mezclar ese refactor con esta decisión.
+`SONIDO VU` se mantiene como nombre de una visualización concreta, no como Lab. En la implementación posterior del ADR, baja al stack de `Sonido` junto con `SONIDO ONDA`.
 
 ## Razonamiento de nombres
 
@@ -139,7 +139,7 @@ Contrato inicial para español:
 | Temperatura | `TEMP.` |
 | Humedad | `HUM.` |
 | Luz | `LUZ` |
-| Sonido | `SON.` |
+| Sonido | `SONIDO` |
 | Suelo | `SUE.` |
 | Termómetro / DS18B20 | `TERMO` |
 
@@ -180,4 +180,4 @@ La deuda técnica de nombres internos se mantiene diferida. Si en el futuro se r
 2. Hacer un commit separado con los strings visibles y documentación.
 3. Compilar `esp32dev`.
 4. Verificar en hardware real headers en ES/CAT/EN.
-5. Evaluar en una fase posterior si `SONIDO VU` baja al stack de `Sonido`.
+5. Verificar en hardware real que `SONIDO VU` y `SONIDO ONDA` funcionan como modos de `Sonido`.

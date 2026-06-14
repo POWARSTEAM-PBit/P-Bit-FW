@@ -55,6 +55,52 @@ static SzVizMode  g_viz[SZ_SENSOR_COUNT] = {
 };
 static bool g_sz_active = false;
 
+static bool sz_viz_valid_for_sensor(SzSensorId sensor, SzVizMode viz) {
+    if (viz >= SZ_VIZ_COUNT) return false;
+    if (viz == SZ_VIZ_SOUND_VU_STACK || viz == SZ_VIZ_SOUND_VU_WAVE) {
+        return sensor == SZ_SOUND;
+    }
+    return true;
+}
+
+static SzVizMode sz_sanitize_viz_for_sensor(SzSensorId sensor, uint8_t viz_mode) {
+    const SzVizMode viz = (SzVizMode)viz_mode;
+    return sz_viz_valid_for_sensor(sensor, viz) ? viz : SZ_VIZ_FOCUS;
+}
+
+static SzVizMode sz_next_viz_for_sensor(SzSensorId sensor, SzVizMode current) {
+    static const SzVizMode kDefaultCycle[] = {
+        SZ_VIZ_FOCUS,
+        SZ_VIZ_VALOR,
+        SZ_VIZ_GRAPH,
+        SZ_VIZ_GAUGE,
+        SZ_VIZ_CARD,
+    };
+    static const SzVizMode kSoundCycle[] = {
+        SZ_VIZ_FOCUS,
+        SZ_VIZ_VALOR,
+        SZ_VIZ_GRAPH,
+        SZ_VIZ_GAUGE,
+        SZ_VIZ_SOUND_VU_STACK,
+        SZ_VIZ_SOUND_VU_WAVE,
+        SZ_VIZ_CARD,
+    };
+
+    const SzVizMode* cycle = kDefaultCycle;
+    uint8_t count = sizeof(kDefaultCycle) / sizeof(kDefaultCycle[0]);
+    if (sensor == SZ_SOUND) {
+        cycle = kSoundCycle;
+        count = sizeof(kSoundCycle) / sizeof(kSoundCycle[0]);
+    }
+
+    for (uint8_t i = 0; i < count; i++) {
+        if (cycle[i] == current) {
+            return cycle[(i + 1) % count];
+        }
+    }
+    return cycle[0];
+}
+
 // ---------------------------------------------------------------------------
 // Public API
 // ---------------------------------------------------------------------------
@@ -65,7 +111,7 @@ void sz_init() {
 
     for (uint8_t i = 0; i < SZ_SENSOR_COUNT; i++) {
         uint8_t v = load_sz_viz_store(i);
-        g_viz[i] = (v < SZ_VIZ_COUNT) ? (SzVizMode)v : SZ_VIZ_FOCUS;
+        g_viz[i] = sz_sanitize_viz_for_sensor((SzSensorId)i, v);
     }
 }
 
@@ -91,8 +137,9 @@ void sz_set_sensor_runtime(uint8_t sensor_id) {
 }
 
 void sz_set_viz_runtime(uint8_t sensor_id, uint8_t viz_mode) {
-    if (sensor_id >= SZ_SENSOR_COUNT || viz_mode >= SZ_VIZ_COUNT) return;
-    g_viz[sensor_id] = (SzVizMode)viz_mode;
+    if (sensor_id >= SZ_SENSOR_COUNT) return;
+    const SzVizMode viz = sz_sanitize_viz_for_sensor((SzSensorId)sensor_id, viz_mode);
+    g_viz[sensor_id] = viz;
     runtime_request_ui_full_redraw();
 }
 
@@ -113,7 +160,7 @@ void sz_restore_runtime(const SzRuntimeSnapshot& in) {
         g_sensor = in.sensor;
     }
     for (uint8_t i = 0; i < SZ_SENSOR_COUNT; i++) {
-        if (in.viz[i] < SZ_VIZ_COUNT) {
+        if (sz_viz_valid_for_sensor((SzSensorId)i, in.viz[i])) {
             g_viz[i] = in.viz[i];
         }
     }
@@ -141,7 +188,7 @@ void sz_prev_sensor() {
 
 void sz_next_viz() {
     SzVizMode& v = g_viz[g_sensor];
-    v = (SzVizMode)((uint8_t)(v + 1) % SZ_VIZ_COUNT);
+    v = sz_next_viz_for_sensor(g_sensor, v);
     save_sz_viz_store((uint8_t)g_sensor, (uint8_t)v);
     runtime_request_ui_full_redraw();
 }
@@ -172,6 +219,9 @@ void sz_sync_renderer(bool force) {
             break;
         case SZ_VIZ_GAUGE:
             lab_gauge_set_sensor(s);
+            break;
+        case SZ_VIZ_SOUND_VU_STACK:
+        case SZ_VIZ_SOUND_VU_WAVE:
             break;
         default:
             break;
@@ -210,6 +260,8 @@ const char* sz_header_name() {
         case SZ_VIZ_VALOR: { static char buf[32]; snprintf(buf, sizeof(buf), "%s %s", sensor_mode_name(s), L(SZ_SUFFIX_VALUE)); return buf; }
         case SZ_VIZ_GRAPH: { static char buf[32]; snprintf(buf, sizeof(buf), "%s %s", sensor_mode_name(s), L(SZ_SUFFIX_GRAPH)); return buf; }
         case SZ_VIZ_GAUGE: { static char buf[32]; snprintf(buf, sizeof(buf), "%s %s", sensor_mode_name(s), L(SZ_SUFFIX_DIAL));  return buf; }
+        case SZ_VIZ_SOUND_VU_STACK: return L(TIT_LAB_VU_STACK);
+        case SZ_VIZ_SOUND_VU_WAVE:  return L(TIT_LAB_VU_WAVE);
         default:           return sz_sensor_name(g_sensor);
     }
 }

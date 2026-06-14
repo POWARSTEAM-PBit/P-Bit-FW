@@ -1,6 +1,6 @@
 # Checklist de Producción P-Bit
 
-Actualizado: 2026-06-03
+Actualizado: 2026-06-13
 
 Usar esta lista antes de entregar una build o una unidad flasheada.
 
@@ -9,8 +9,8 @@ Estado de esta revisión: build y auditoría estática completados; Demo Mode y 
 ## 1. Configuración de build
 
 - [x] `py -m platformio run -e esp32dev` compila sin errores.
-- [x] Resultado de build registrado: RAM `14.9%` (`48940`/`327680`) y Flash `72.1%` (`945429`/`1310720`).
-- [x] `include/config.h`: `PBIT_ENABLE_GRAPH_LAB=1` para el carrusel actual con `Home/Clima/Multi/Sonido VU` y `SENSOR_ZONE_SCREEN`.
+- [x] Resultado de build registrado: RAM `15.0%` (`49124`/`327680`) y Flash `73.1%` (`957621`/`1310720`).
+- [x] `include/config.h`: `PBIT_ENABLE_GRAPH_LAB=1` para el carrusel actual con `Inicio/Clima Lab/Termo Lab` y `SENSOR_ZONE_SCREEN`.
 - [x] `PBIT_ENABLE_SERIAL_PLOTTER=0` para producción.
 - [x] `FIRMWARE_DEBUG` sigue comentado.
 - [x] `platformio.ini` conserva flags de build silenciosos/optimizados (`-Os`, `CORE_DEBUG_LEVEL=1`, `CONFIG_ARDUHAL_LOG_DEFAULT_LEVEL=1`).
@@ -21,8 +21,8 @@ Estado de esta revisión: build y auditoría estática completados; Demo Mode y 
 - [x] `LANG_COUNT`, `LIn(...)`, `normalizeLanguage(...)` y `L(...)` presentes en la capa de idioma.
 - [x] Cambio de idioma solicita full redraw con `runtime_request_ui_full_redraw()` y el loop de UI lo consume con `runtime_take_ui_full_redraw()`.
 - [x] Textos visibles migrados a `L(...)`/`LIn(...)`; literales directos restantes son símbolos/no lingüísticos (`>`, `---`, separadores, ticks numéricos o `ZZZ`).
-- [x] Carrusel actual con `PBIT_ENABLE_GRAPH_LAB=1`: `Home -> Clima -> Multi -> Sonido VU -> Temperatura -> Humedad -> Luz -> Sonido -> Suelo -> Termómetro -> Timer -> Sistema`.
-- [x] `SENSOR_ZONE_SCREEN` reutiliza Sensor Zone para los seis sensores y persiste modos visibles `Principal -> Dato -> Curva -> Rango -> Ficha`.
+- [x] Carrusel actual con `PBIT_ENABLE_GRAPH_LAB=1`: `Inicio -> Clima Lab -> Termo Lab -> Temperatura -> Humedad -> Luz -> Sonido -> Suelo -> Termómetro -> Timer -> Sistema`.
+- [x] `SENSOR_ZONE_SCREEN` reutiliza Sensor Zone para los seis sensores y persiste modos visibles `Principal -> Dato -> Curva -> Rango -> Ficha`; `Sonido` añade `Sonido VU` y `Sonido Onda`.
 - [x] `Sistema` separa `Bip` y `Alarmas`; la auditoría estática confirma persistencia `sys_sound`, `sys_alarm` y `sys_unit_f` para unidad C/F.
 - [x] Anti-flicker/ghosting revisado por código y validado por ahora en hardware en dials/gauges, cards, menús/footers y `Sound VU`; mantener vigilancia de regresión.
 - [x] Modo demo runtime añadido: arranque con encoder presionado durante logo o pulsación larga desde `Home`, splash breve de entrada, sin persistir sensor/modo en NVS.
@@ -57,7 +57,7 @@ Estado de esta revisión: build y auditoría estática completados; Demo Mode y 
 - [ ] LDR responde a sombra/luz y queda razonablemente cercano al luxómetro tras reflashear; el RGB permanece apagado en la vista de luz.
 - [x] LDR propaga unidad y valor visible de forma coherente según modo (`lux`, `FC`, `raw`) en Luz, Sensor Zone, cards, dashboards, gráficas y dials.
 - [ ] LDR muestra variación visible del icono de luz en el tramo bajo de luz ambiental.
-- [ ] Micrófono responde en `Sonido VU` y `Sonido`.
+- [ ] Micrófono responde en `Sonido`, `Sonido VU` y `Sonido Onda`.
 - [ ] Suelo detecta ausencia de sensor, muestra `Revisa IO35` sin solapes en ES/CAT/EN y permite calibración seco/agua.
 - [ ] Termómetro (`DS18B20`) detecta ausencia/presencia de sonda y muestra `Revisa IO33` sin solapes en ES/CAT/EN.
 - [ ] Conexión/desconexión Suelo: al cambiar de estado después del arranque aparece splash verde/rojo `CONECTADO/DESCONECTADO / Sensor Suelo / IO35` y vuelve a la pantalla anterior.

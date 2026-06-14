@@ -2,6 +2,14 @@
 
 ## 2026-06-13
 
+### UX/Firmware — Sonido VU y Sonido Onda integrados en Sonido
+
+- **Carrusel simplificado:** `Sonido VU` deja de ser una posición global; el carrusel queda en 11 posiciones (`Inicio -> Clima Lab -> Termo Lab -> Temperatura -> Humedad -> Luz -> Sonido -> Suelo -> Termómetro -> Timer -> Sistema`).
+- **Modos exclusivos de Sonido:** `SZ_SOUND` añade `Sonido VU` y `Sonido Onda` dentro de `SENSOR_ZONE_SCREEN`. El resto de sensores conserva el ciclo común `Principal -> Dato -> Curva -> Rango -> Ficha`.
+- **Compatibilidad NVS:** los modos VU/Onda se agregan al final de `SzVizMode`, manteniendo intactos los valores persistidos `0..4`; si un modo exclusivo aparece en otro sensor, se sanea a `Principal`.
+- **Render y Demo Mode:** los renderers VU/Onda respetan `sz_is_active()` para no duplicar header, y Demo Mode recorre ambas vistas como escenas de `Sonido`.
+- **Builds:** `esp32dev` SUCCESS — RAM `49124` / Flash `957621`; `esp32dev_debug` SUCCESS — RAM `49180` / Flash `960057`.
+
 ### UX/Firmware — Aplicación de ADR-002 en nombres visibles
 
 - **Sensor Zone:** los sufijos visibles cambian a `Dato`, `Curva`, `Rango` y `Ficha` (`Dada/Corba/Rang/Fitxa` en catalán; `Data/Curve/Range/Info` en inglés). La vista `Principal` sigue usando solo el nombre del sensor.
