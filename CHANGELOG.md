@@ -1,5 +1,15 @@
 # Changelog
 
+## 2026-06-14
+
+### UX/Firmware — Orden pedagógico de modos en Sensor Zone
+
+- **Ciclo común reordenado:** las pantallas de sensor pasan a `Principal -> Rango -> Ficha -> Dato -> Curva`, priorizando estado/zona visual antes del número exacto y dejando la curva como vista analítica temporal.
+- **Sonido con excepción natural:** `Sonido` pasa a `Principal -> Sonido VU -> Sonido Onda -> Rango -> Ficha -> Dato -> Curva`, colocando las dos vistas de movimiento justo después de la pantalla principal.
+- **Sin cambio NVS:** los valores enum y las claves persistidas se mantienen intactos; solo cambia el orden de navegación usado por `sz_next_viz()`.
+- **Docs sincronizados:** `docs/USER_GUIDE.md`, `docs/PROJECT.md`, `docs/TECHNICAL.md`, `docs/DESIGN_SYSTEM.md`, `docs/PRODUCTION_CHECKLIST.md`, `docs/ADR-002-taxonomia-pantallas.md` y `AGENTS.md` reflejan el nuevo orden.
+- **Builds:** `esp32dev` SUCCESS — RAM `49124` / Flash `957621`; `esp32dev_debug` SUCCESS — RAM `49180` / Flash `960057`.
+
 ## 2026-06-13
 
 ### UX/Firmware — Sonido VU y Sonido Onda integrados en Sonido

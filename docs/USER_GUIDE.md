@@ -163,11 +163,11 @@ Mientras estás en una pantalla de sensor, haz una **pulsación corta** (pulsa y
 
 El modo de visualización cambia:
 
-`Principal` → `Dato` → `Curva` → `Rango` → `Ficha` → `Principal` …
+`Principal` → `Rango` → `Ficha` → `Dato` → `Curva` → `Principal` …
 
 En `Sonido`, el ciclo añade dos vistas especiales:
 
-`Principal` → `Dato` → `Curva` → `Rango` → `Sonido VU` → `Sonido Onda` → `Ficha` → `Principal` …
+`Principal` → `Sonido VU` → `Sonido Onda` → `Rango` → `Ficha` → `Dato` → `Curva` → `Principal` …
 
 Prueba a pulsar varias veces para ver cómo cambia la representación del mismo dato sin cambiar el sensor.
 
@@ -302,7 +302,7 @@ Durante el Modo demo, el P-Bit recorre pantallas representativas del carrusel co
 
 ### Acción rápida (sin menú)
 
-Pulsación corta: cambia el modo visual del sensor (Principal / Dato / Curva / Rango / Ficha). En `Sonido` también pasa por `Sonido VU` y `Sonido Onda`.
+Pulsación corta: cambia el modo visual del sensor (Principal / Rango / Ficha / Dato / Curva). En `Sonido` también pasa por `Sonido VU` y `Sonido Onda` justo después de `Principal`.
 
 ### Menú de configuración (pulsación larga ~1.2 s)
 

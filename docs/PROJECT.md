@@ -135,7 +135,7 @@ Con `PBIT_ENABLE_GRAPH_LAB=1` (configuración de producción), el carrusel tiene
 | 10 | Timer | Cronómetro y cuenta regresiva con editor HH:MM:SS |
 | 11 | Sistema | Ajustes globales del dispositivo |
 
-Cada pantalla de sensor soporta cinco modos visuales: Principal, Dato, Curva, Rango y Ficha. `Sonido` añade dos modos exclusivos: Sonido VU y Sonido Onda. Internamente el firmware conserva nombres históricos (`Focus`, `Valor`, `Graph`, `Gauge`, `Card`) para evitar un refactor sin valor de producto.
+Cada pantalla de sensor soporta cinco modos visuales: Principal, Rango, Ficha, Dato y Curva. `Sonido` añade dos modos exclusivos justo después de Principal: Sonido VU y Sonido Onda. Internamente el firmware conserva nombres históricos (`Focus`, `Valor`, `Graph`, `Gauge`, `Card`) para evitar un refactor sin valor de producto.
 
 ### Alertas y feedback
 

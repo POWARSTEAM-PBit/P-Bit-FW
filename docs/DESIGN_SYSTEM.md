@@ -277,7 +277,7 @@ Ver `docs/TFT_RENDER_RULES.md` para el protocolo anti-flicker completo (sprites,
 ### Implementado y activo en código
 
 - `include/palette.h` con P1/P2/P3/P4 y helpers `pb_primary()`, `pb_secondary()`, `pb_accent_warm()`, `pb_contrast_cool()` por índice de sensor
-- Sensor Zone completa (`FOCUS`, `CARD`, `VALOR`, `GRAPH`, `GAUGE`) consume paleta canónica; sus nombres visibles son `Principal`, `Ficha`, `Dato`, `Curva` y `Rango`
+- Sensor Zone completa (`FOCUS`, `GAUGE`, `CARD`, `VALOR`, `GRAPH`) consume paleta canónica; su ciclo visible prioriza comprensión rápida: `Principal`, `Rango`, `Ficha`, `Dato` y `Curva`
 - Icono `temp` final aplicado a small/XL/XXL: small/XL/fallback son monocromos y solo Rango/XXL con acento conserva detalle multicolor; no mezclar este estado con el icono técnico `probe`/DS18B20
 - Estados externos desconectados para `SZ_DS18` y `SZ_SOIL`: textos `Revisa IO33` / `Revisa IO35`, helper runtime común y paleta del sensor atenuada en clásicas, Sensor Zone y Lab
 - Iconos `humidity` y `plant` rediseñados en `src/ui_icons.cpp`; `probe` se mantiene separado de `temp` y no está aprobado como final

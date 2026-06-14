@@ -320,7 +320,7 @@ En firmware se usa una aproximación equivalente y barata para ESP32:
 
 La aproximación evita `powf` en el lazo rápido, mantiene el error medio de la muestra alrededor de `6%` y deja el máximo práctico cerca del punto más luminoso medido. Si cambia el LDR, el divisor, la carcasa o la geometría de medición, esta tabla debe repetirse y versionarse como una nueva curva.
 
-La UI de luz usa un helper común de presentación (`include/light_display.h` / `src/light_display.cpp`) para tres modos: `Lux`, `FC` y `Raw ADC`. `FC` es foot-candle calculado desde lux (`lux / 10.764`). `Raw ADC` usa la lectura ADC cruda promediada y se muestra como `raw` en campos compactos. La propagación visual está implementada en firmware para `LIGHT_SCREEN`, Sensor Zone (`Ficha`, `Dato`, `Principal`, `Curva`, `Rango`), Home cards, dashboards y gráficas. Categorías, alertas y RGB siguen usando lux interno; en vistas de solo Luz el RGB permanece apagado para no contaminar el LDR. Las gráficas RAW usan `g_graph_light_raw`.
+La UI de luz usa un helper común de presentación (`include/light_display.h` / `src/light_display.cpp`) para tres modos: `Lux`, `FC` y `Raw ADC`. `FC` es foot-candle calculado desde lux (`lux / 10.764`). `Raw ADC` usa la lectura ADC cruda promediada y se muestra como `raw` en campos compactos. La propagación visual está implementada en firmware para `LIGHT_SCREEN`, Sensor Zone (`Principal`, `Rango`, `Ficha`, `Dato`, `Curva`), Home cards, dashboards y gráficas. Categorías, alertas y RGB siguen usando lux interno; en vistas de solo Luz el RGB permanece apagado para no contaminar el LDR. Las gráficas RAW usan `g_graph_light_raw`.
 
 #### Sonido
 
@@ -373,7 +373,7 @@ Implementación:
 
 - Las primeras 3 posiciones son pantallas de producto de solo lectura: `LAB_HOME_CARDS_SCREEN` (`Inicio`), `LAB_DUAL_TH_SCREEN` (`Clima Lab`) y `LAB_WIDGET_MIX_SCREEN` (`Termo Lab`).
 - Las 6 posiciones de sensor reutilizan `SENSOR_ZONE_SCREEN`; al entrar en cada slot, `rotary.cpp` llama a `sz_set_sensor(...)`.
-- `SENSOR_ZONE_SCREEN` conserva un modo visual por sensor. Los nombres visibles son `Principal`, `Dato`, `Curva`, `Rango` y `Ficha`; `Sonido` añade `Sonido VU` y `Sonido Onda`. Los enums internos históricos siguen siendo `SZ_VIZ_FOCUS`, `SZ_VIZ_VALOR`, `SZ_VIZ_GRAPH`, `SZ_VIZ_GAUGE` y `SZ_VIZ_CARD`, con modos VU append-only para no reinterpretar NVS antigua.
+- `SENSOR_ZONE_SCREEN` conserva un modo visual por sensor. El ciclo visible común es `Principal -> Rango -> Ficha -> Dato -> Curva`; `Sonido` usa `Principal -> Sonido VU -> Sonido Onda -> Rango -> Ficha -> Dato -> Curva`. Los enums internos históricos siguen siendo `SZ_VIZ_FOCUS`, `SZ_VIZ_VALOR`, `SZ_VIZ_GRAPH`, `SZ_VIZ_GAUGE` y `SZ_VIZ_CARD`, con modos VU append-only para no reinterpretar NVS antigua.
 - La pulsación corta en una posición de sensor ejecuta `sz_next_viz()`.
 - La pulsación larga abre el menú clásico del sensor activo (`TEMP_SCREEN`, `HUMIDITY_SCREEN`, `LIGHT_SCREEN`, `SOUND_SCREEN`, `SOIL_SCREEN` o `DS18B20_SCREEN`).
 - `GRAPH_SCREEN` existe en el firmware; con el flag actual se usa como renderer del modo visible `Curva` dentro de `SENSOR_ZONE_SCREEN`.
@@ -922,7 +922,7 @@ Opciones raíz: `Modo / Límites / Marcas / Alertas / Reset / Salir`
 - **Modo**: `Lux` / `FC` / `Raw ADC`.
 - **Límites**: `Max penumbra` → `Max interior` → `Max brillante` → Guardar. Rango editable: 10..8000. Validación: brillante > interior > penumbra.
 - **Marcas**: muestra u oculta las marcas de límites en el dial. Se guarda en NVS; por defecto queda `OFF`.
-- Esta opción afecta el valor/unidad visible de Luz en pantalla clásica, Sensor Zone (`Ficha`, `Dato`, `Principal`, `Curva`, `Rango`), Home cards, dashboards y gráficas. `FC` convierte el lux mostrado a foot-candle y `Raw ADC` muestra la lectura cruda promediada. Barras, categorías y alertas conservan lux interno cuando representan rangos ambientales.
+- Esta opción afecta el valor/unidad visible de Luz en pantalla clásica, Sensor Zone (`Principal`, `Rango`, `Ficha`, `Dato`, `Curva`), Home cards, dashboards y gráficas. `FC` convierte el lux mostrado a foot-candle y `Raw ADC` muestra la lectura cruda promediada. Barras, categorías y alertas conservan lux interno cuando representan rangos ambientales.
 
 #### Sonido
 

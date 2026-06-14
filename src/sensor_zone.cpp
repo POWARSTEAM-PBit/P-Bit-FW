@@ -71,19 +71,19 @@ static SzVizMode sz_sanitize_viz_for_sensor(SzSensorId sensor, uint8_t viz_mode)
 static SzVizMode sz_next_viz_for_sensor(SzSensorId sensor, SzVizMode current) {
     static const SzVizMode kDefaultCycle[] = {
         SZ_VIZ_FOCUS,
-        SZ_VIZ_VALOR,
-        SZ_VIZ_GRAPH,
         SZ_VIZ_GAUGE,
         SZ_VIZ_CARD,
+        SZ_VIZ_VALOR,
+        SZ_VIZ_GRAPH,
     };
     static const SzVizMode kSoundCycle[] = {
         SZ_VIZ_FOCUS,
-        SZ_VIZ_VALOR,
-        SZ_VIZ_GRAPH,
-        SZ_VIZ_GAUGE,
         SZ_VIZ_SOUND_VU_STACK,
         SZ_VIZ_SOUND_VU_WAVE,
+        SZ_VIZ_GAUGE,
         SZ_VIZ_CARD,
+        SZ_VIZ_VALOR,
+        SZ_VIZ_GRAPH,
     };
 
     const SzVizMode* cycle = kDefaultCycle;

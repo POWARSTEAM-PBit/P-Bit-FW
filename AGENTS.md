@@ -6,7 +6,7 @@ Guía breve para agentes que trabajen en este repo P-Bit.
 
 - Firmware PlatformIO/Arduino para ESP32 con TFT ST7735 160x128, encoder, LED RGB, buzzer y sensores ambientales.
 - `src/io.cpp` lee sensores y publica `Reading`; `src/tft_display.cpp` enruta pantallas; `src/rotary.cpp` centraliza encoder; `src/settings_store.cpp` encapsula NVS.
-- `SENSOR_ZONE_SCREEN` es la capa común para Temperatura, Humedad, Luz, Sonido, Suelo y Termómetro (`DS18B20` técnico). Sus nombres visibles son `Principal` (sin sufijo), `Dato`, `Curva`, `Rango` y `Ficha`; `Sonido` añade `Sonido VU` y `Sonido Onda`. Los enums internos históricos (`Focus`, `Valor`, `Graph`, `Gauge`, `Card`) pueden seguir existiendo.
+- `SENSOR_ZONE_SCREEN` es la capa común para Temperatura, Humedad, Luz, Sonido, Suelo y Termómetro (`DS18B20` técnico). Su ciclo visible común es `Principal -> Rango -> Ficha -> Dato -> Curva`; `Sonido` añade `Sonido VU` y `Sonido Onda` justo después de `Principal`. Los enums internos históricos (`Focus`, `Valor`, `Graph`, `Gauge`, `Card`) pueden seguir existiendo.
 - `Sistema` separa dos controles audibles:
   - `Bip` -> `g_sound_enabled` / NVS `sys_sound`: beeps de UI, navegación y confirmaciones.
   - `Alarmas` -> `g_alarm_sound_enabled` / NVS `sys_alarm`: alertas audibles y final de cuenta regresiva del `Timer`.

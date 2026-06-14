@@ -181,3 +181,21 @@ La deuda técnica de nombres internos se mantiene diferida. Si en el futuro se r
 3. Compilar `esp32dev`.
 4. Verificar en hardware real headers en ES/CAT/EN.
 5. Verificar en hardware real que `SONIDO VU` y `SONIDO ONDA` funcionan como modos de `Sonido`.
+
+## Implementación posterior — orden de ciclo visible
+
+La familia de nombres no obliga al orden de navegación. Tras validación en hardware,
+el ciclo visible se ordena por impacto educativo y rapidez de lectura:
+
+```text
+Sensores comunes: Principal -> Rango -> Ficha -> Dato -> Curva
+Sonido:           Principal -> Sonido VU -> Sonido Onda -> Rango -> Ficha -> Dato -> Curva
+```
+
+Razonamiento:
+
+- `Rango` aparece antes que `Dato` porque comunica estado/zona antes del número exacto.
+- `Ficha` aparece temprano porque es una vista bonita y densa para reconocer el sensor.
+- `Dato` queda para lectura precisa.
+- `Curva` queda al final porque es más analítica y requiere contexto temporal.
+- `Sonido VU` y `Sonido Onda` son excepciones deliberadas: para sonido, el movimiento es la representación más natural.
