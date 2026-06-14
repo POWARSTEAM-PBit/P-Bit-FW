@@ -89,7 +89,7 @@ Todos los iconos son procedurales (dibujados con primitivas TFT_eSPI en runtime)
 | `humidity` — Gota | HUMEDAD | ✅ Aprobado en código | Silueta sólida sin donut interior. Pendiente validación en hardware |
 | `light` — Sol | LUZ | ✅ Funcional | Rayos diagonales de 1 px pueden ser poco visibles a s=1. Mejorable a 2 px si hardware lo confirma |
 | `sound` — Micrófono | SONIDO | ✅ Funcional | No tocar sin captura de hardware previa. Si base excesiva, reducir solo en hardware |
-| `plant` — Planta | SUELO | ✅ Aprobado en código | Hojas con `fillRoundRect`; base redondeada. Pendiente validación en hardware |
+| `plant` — Planta | SUELO | ✅ Aprobado en código | Hojas con `fillRoundRect`; base redondeada marrón; tallo verde nace directo desde la tierra sin barra horizontal inferior. Pendiente validación en hardware |
 | `probe` — Sonda | TERMÓMETRO | ❌ No final | Identidad visual no aprobada. Pendiente rediseño o validación de metáfora alternativa |
 
 ### Normas de implementación de iconos

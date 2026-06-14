@@ -2,6 +2,12 @@
 
 ## 2026-06-14
 
+### Pulido visual — Icono de planta en Rango
+
+- **Planta XXL:** el icono detallado de Suelo elimina la barra horizontal verde sobre la tierra y extiende el tallo para que nazca directamente desde la base marrón.
+- **Alcance:** afecta al icono `pbit_draw_plant_icon_xxl(cx, cy, color, accent)`, usado por la vista `Rango`; los iconos pequeños/XL conservan su geometría.
+- **Build:** `esp32dev` SUCCESS — RAM `49124` / Flash `957605`.
+
 ### UX/Firmware — Orden pedagógico de modos en Sensor Zone
 
 - **Ciclo común reordenado:** las pantallas de sensor pasan a `Principal -> Rango -> Ficha -> Dato -> Curva`, priorizando estado/zona visual antes del número exacto y dejando la curva como vista analítica temporal.

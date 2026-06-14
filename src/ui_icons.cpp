@@ -218,8 +218,7 @@ static void impl_sound_detail(int cx, int cy, uint16_t c, uint16_t a, int s) {
 
 static void impl_plant_detail(int cx, int cy, uint16_t c, uint16_t a, int s) {
     tft.fillRoundRect(cx - 4*s, cy + 3*s, 8*s, 4*s, s, a);
-    tft.drawFastHLine(cx - 3*s, cy + 3*s, 6*s, c);
-    tft.fillRect(cx - 1, cy - 4*s, 3, 7*s, c);
+    tft.fillRect(cx - 1, cy - 4*s, 3, 7*s + 1, c);
     tft.fillEllipse(cx - 4*s, cy - 1*s, 4*s, 2*s, c);
     tft.fillEllipse(cx + 4*s, cy - 3*s, 4*s, 2*s, c);
     tft.fillEllipse(cx,       cy - 5*s, 2*s, 4*s, c);
