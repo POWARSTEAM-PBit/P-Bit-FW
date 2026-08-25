@@ -1,5 +1,16 @@
 # Changelog
 
+## 2026-06-15
+
+### Firmware/UI — PLANTA LAB V1
+
+- **Nueva pantalla Lab global:** se añade `PLANTA LAB` al carrusel entre `Clima Lab` y `Termo Lab`. La pantalla aparece solo si el sensor de Suelo está conectado y entrega una lectura válida; sin Suelo, el carrusel la omite.
+- **Layout terrario + rangos:** `src/ui_lab_plant.cpp` implementa el layout de `docs/ADR-003-planta-lab.md`: terrario izquierdo con planta sembrada en tierra plana y columna derecha con cuatro filas-card (`Suelo`, `Temp`, `Aire`, `Luz`) con icono, barra de rango y valor blanco.
+- **Diagnóstico de planta:** V1 usa cuatro estados (`BIEN`, `SEDIENTA`, `AHOGADA`, `ESTRÉS`) con prioridad `suelo > temperatura > humedad aire > luz`, borde de fila culpable y card de estado en color semafórico.
+- **Animación acotada:** la planta anima continuamente en todos los estados a `220 ms`; el router refresca solo `LAB_PLANT_SCREEN` y el renderer limpia únicamente el rect del icono por encima de la tierra.
+- **i18n y docs:** añadidos título y estados en ES/CAT/EN; `docs/ADR-003-planta-lab.md` queda como ADR de producto/UX para esta pantalla.
+- **Build:** `esp32dev` SUCCESS — RAM `49140` / Flash `961709`.
+
 ## 2026-06-14
 
 ### Pulido visual — Icono de planta en Rango

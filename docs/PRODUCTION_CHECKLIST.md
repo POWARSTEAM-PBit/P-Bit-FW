@@ -1,6 +1,6 @@
 # Checklist de Producción P-Bit
 
-Actualizado: 2026-06-13
+Actualizado: 2026-06-15
 
 Usar esta lista antes de entregar una build o una unidad flasheada.
 
@@ -9,8 +9,8 @@ Estado de esta revisión: build y auditoría estática completados; Demo Mode y 
 ## 1. Configuración de build
 
 - [x] `py -m platformio run -e esp32dev` compila sin errores.
-- [x] Resultado de build registrado: RAM `15.0%` (`49124`/`327680`) y Flash `73.1%` (`957621`/`1310720`).
-- [x] `include/config.h`: `PBIT_ENABLE_GRAPH_LAB=1` para el carrusel actual con `Inicio/Clima Lab/Termo Lab` y `SENSOR_ZONE_SCREEN`.
+- [x] Resultado de build registrado: RAM `15.0%` (`49140`/`327680`) y Flash `73.4%` (`961709`/`1310720`).
+- [x] `include/config.h`: `PBIT_ENABLE_GRAPH_LAB=1` para el carrusel actual con `Inicio/Clima Lab/Planta Lab/Termo Lab` y `SENSOR_ZONE_SCREEN`.
 - [x] `PBIT_ENABLE_SERIAL_PLOTTER=0` para producción.
 - [x] `FIRMWARE_DEBUG` sigue comentado.
 - [x] `platformio.ini` conserva flags de build silenciosos/optimizados (`-Os`, `CORE_DEBUG_LEVEL=1`, `CONFIG_ARDUHAL_LOG_DEFAULT_LEVEL=1`).
@@ -21,7 +21,7 @@ Estado de esta revisión: build y auditoría estática completados; Demo Mode y 
 - [x] `LANG_COUNT`, `LIn(...)`, `normalizeLanguage(...)` y `L(...)` presentes en la capa de idioma.
 - [x] Cambio de idioma solicita full redraw con `runtime_request_ui_full_redraw()` y el loop de UI lo consume con `runtime_take_ui_full_redraw()`.
 - [x] Textos visibles migrados a `L(...)`/`LIn(...)`; literales directos restantes son símbolos/no lingüísticos (`>`, `---`, separadores, ticks numéricos o `ZZZ`).
-- [x] Carrusel actual con `PBIT_ENABLE_GRAPH_LAB=1`: `Inicio -> Clima Lab -> Termo Lab -> Temperatura -> Humedad -> Luz -> Sonido -> Suelo -> Termómetro -> Timer -> Sistema`.
+- [x] Carrusel actual con `PBIT_ENABLE_GRAPH_LAB=1`: `Inicio -> Clima Lab -> Planta Lab -> Termo Lab -> Temperatura -> Humedad -> Luz -> Sonido -> Suelo -> Termómetro -> Timer -> Sistema`; `Planta Lab` se omite si Suelo no tiene lectura válida.
 - [x] `SENSOR_ZONE_SCREEN` reutiliza Sensor Zone para los seis sensores y persiste modos visibles `Principal -> Rango -> Ficha -> Dato -> Curva`; `Sonido` añade `Sonido VU` y `Sonido Onda` justo después de `Principal`.
 - [x] `Sistema` separa `Bip` y `Alarmas`; la auditoría estática confirma persistencia `sys_sound`, `sys_alarm` y `sys_unit_f` para unidad C/F.
 - [x] Anti-flicker/ghosting revisado por código y validado por ahora en hardware en dials/gauges, cards, menús/footers y `Sound VU`; mantener vigilancia de regresión.
@@ -29,6 +29,8 @@ Estado de esta revisión: build y auditoría estática completados; Demo Mode y 
 - [x] Menús de settings revisados con helpers comunes: valores centrados con fallback de fuente y summaries más separados del footer.
 - [ ] En hardware: arranque frío muestra selector de idioma si la NVS fue limpiada.
 - [ ] En hardware: recorrer carrusel completo y verificar legibilidad de todos los modos.
+- [ ] En hardware: con Suelo conectado, `Planta Lab` aparece entre `Clima Lab` y `Termo Lab`; sin Suelo, se salta sin dejar posición fantasma.
+- [ ] En hardware: `Planta Lab` — barras+valor caben en 96 px, `ASSEDEGADA` cabe en catalán, azul `AHOGADA` contrasta sobre navy y la planta anima sin parpadeo visible.
 - [ ] En hardware: en cada sensor, pulsación corta cambia modo y pulsación larga abre el menú del sensor activo.
 - [ ] En hardware: `Timer` responde a corto/largo según diseño.
 - [ ] En hardware: cambiar C/F, reiniciar y confirmar persistencia de unidad.

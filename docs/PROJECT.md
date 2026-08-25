@@ -119,21 +119,24 @@ El P-Bit existe para que niños, docentes y educadores puedan:
 
 ### Pantallas y modos
 
-Con `PBIT_ENABLE_GRAPH_LAB=1` (configuración de producción), el carrusel tiene 11 posiciones:
+Con `PBIT_ENABLE_GRAPH_LAB=1` (configuración de producción), el carrusel tiene 11 o 12 posiciones según el hardware conectado:
 
 | Posición | Pantalla | Tipo |
 |---|---|---|
 | 1 | Inicio | Visión global de sensores en fichas |
 | 2 | Clima Lab | Lab — temperatura + humedad combinados |
-| 3 | Termo Lab | Lab — DHT11 + DS18B20 + diferencia térmica |
-| 4 | Temperatura | Sensor — zona con modos visuales y menú |
-| 5 | Humedad | Sensor — zona con modos visuales y menú |
-| 6 | Luz | Sensor — zona con modos visuales y menú |
-| 7 | Sonido | Sensor — zona con modos visuales, VU/Onda y menú |
-| 8 | Suelo | Sensor — zona con modos visuales, calibración y alertas |
-| 9 | Termómetro | Sensor — sonda DS18B20 con límites y alertas |
-| 10 | Timer | Cronómetro y cuenta regresiva con editor HH:MM:SS |
-| 11 | Sistema | Ajustes globales del dispositivo |
+| 3 | Planta Lab | Lab — salud de planta con Suelo + ambiente; aparece solo con Suelo conectado |
+| 4 | Termo Lab | Lab — DHT11 + DS18B20 + diferencia térmica |
+| 5 | Temperatura | Sensor — zona con modos visuales y menú |
+| 6 | Humedad | Sensor — zona con modos visuales y menú |
+| 7 | Luz | Sensor — zona con modos visuales y menú |
+| 8 | Sonido | Sensor — zona con modos visuales, VU/Onda y menú |
+| 9 | Suelo | Sensor — zona con modos visuales, calibración y alertas |
+| 10 | Termómetro | Sensor — sonda DS18B20 con límites y alertas |
+| 11 | Timer | Cronómetro y cuenta regresiva con editor HH:MM:SS |
+| 12 | Sistema | Ajustes globales del dispositivo |
+
+`Planta Lab` se omite automáticamente si `soil_humidity` no es válido, manteniendo el carrusel en 11 posiciones para unidades sin sensor de Suelo conectado.
 
 Cada pantalla de sensor soporta cinco modos visuales: Principal, Rango, Ficha, Dato y Curva. `Sonido` añade dos modos exclusivos justo después de Principal: Sonido VU y Sonido Onda. Internamente el firmware conserva nombres históricos (`Focus`, `Valor`, `Graph`, `Gauge`, `Card`) para evitar un refactor sin valor de producto.
 

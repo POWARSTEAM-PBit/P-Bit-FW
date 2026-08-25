@@ -20,6 +20,7 @@
 #include "ui_system.h"
 #include "ui_graph.h"
 #if PBIT_ENABLE_GRAPH_LAB
+#include "external_sensor_state.h"
 #include "sensor_zone.h"
 #include "ui_lab_focus.h"
 #include "ui_lab_sensor_cards.h"
@@ -73,6 +74,7 @@ struct CarouselEntry {
 constexpr CarouselEntry kCarousel[] = {
     { LAB_HOME_CARDS_SCREEN,     -1 },          // INICIO
     { LAB_DUAL_TH_SCREEN,        -1 },          // CLIMA LAB
+    { LAB_PLANT_SCREEN,          -1 },          // PLANTA LAB
     { LAB_WIDGET_MIX_SCREEN,     -1 },          // TERMO LAB
     { SENSOR_ZONE_SCREEN, (int8_t)SZ_TEMP  },   // TEMPERATURA
     { SENSOR_ZONE_SCREEN, (int8_t)SZ_HUM   },   // HUMEDAD
@@ -90,6 +92,26 @@ static bool carousel_is_sensor_slot(int idx) {
     return idx >= 0 && idx < kCarouselCount && kCarousel[idx].sensor >= 0;
 }
 
+static bool carousel_entry_visible(int idx) {
+    if (idx < 0 || idx >= kCarouselCount) return false;
+    if (kCarousel[idx].screen == LAB_PLANT_SCREEN) {
+        return !pbit_external_sensor_missing(SZ_SOIL, g_ui_readings_snapshot);
+    }
+    return true;
+}
+
+static int nearest_visible_carousel_index(int idx, int direction) {
+    if (direction == 0) direction = 1;
+    int candidate = idx;
+    for (int i = 0; i < kCarouselCount; ++i) {
+        if (candidate < 0) candidate = kCarouselCount - 1;
+        if (candidate >= kCarouselCount) candidate = 0;
+        if (carousel_entry_visible(candidate)) return candidate;
+        candidate += (direction > 0) ? 1 : -1;
+    }
+    return 0;
+}
+
 // Returns the carousel index for a screen.
 // For SENSOR_ZONE_SCREEN, matches the slot for the currently active sensor.
 // Returns -1 if not found.
@@ -97,12 +119,12 @@ static int appScreenToCarouselIndex(Screen screen) {
     if (screen == SENSOR_ZONE_SCREEN) {
         int8_t s = (int8_t)sz_get_sensor();
         for (int i = 0; i < kCarouselCount; ++i) {
-            if (kCarousel[i].sensor == s) return i;
+            if (kCarousel[i].sensor == s && carousel_entry_visible(i)) return i;
         }
         return -1;
     }
     for (int i = 0; i < kCarouselCount; ++i) {
-        if (kCarousel[i].screen == screen && kCarousel[i].sensor < 0) return i;
+        if (kCarousel[i].screen == screen && kCarousel[i].sensor < 0 && carousel_entry_visible(i)) return i;
     }
     return -1;
 }
@@ -110,6 +132,7 @@ static int appScreenToCarouselIndex(Screen screen) {
 static Screen carouselIndexToAppScreen(int index) {
     if (index < 0)             return kCarousel[0].screen;
     if (index >= kCarouselCount) return kCarousel[kCarouselCount - 1].screen;
+    index = nearest_visible_carousel_index(index, 1);
     return kCarousel[index].screen;
 }
 #endif
@@ -139,6 +162,9 @@ static void service_deferred_beep(unsigned long now_ms_value) {
 
 #if PBIT_ENABLE_GRAPH_LAB
 static bool isHiddenRestoreScreen(Screen screen) {
+    if (screen == LAB_PLANT_SCREEN) {
+        return pbit_external_sensor_missing(SZ_SOIL, g_ui_readings_snapshot);
+    }
     switch (screen) {
         case BLE_TOGGLE_SCREEN:   // never restore into the secret BLE screen
         case LAB_DASH_OVERVIEW_SCREEN:
@@ -167,6 +193,7 @@ static void configure_app_rotary_bounds() {
         idx = appScreenToCarouselIndex(SENSOR_ZONE_SCREEN);
         if (idx < 0) idx = 0;
     }
+    idx = nearest_visible_carousel_index(idx, 1);
     rotaryEncoder.setEncoderValue(idx);
 #else
     rotaryEncoder.setBoundaries(TEMP_SCREEN, LAST_APP_SCREEN, true);
@@ -431,7 +458,18 @@ void knobCallback(long value) {
 
 #if PBIT_ENABLE_GRAPH_LAB
     if (value < 0 || value >= (long)kCarouselCount) return;
-    const int idx = (int)value;
+    int idx = (int)value;
+    const int current_idx = appScreenToCarouselIndex(active_screen);
+    if (!carousel_entry_visible(idx)) {
+        int direction = 1;
+        if (current_idx >= 0) {
+            const int forward = (idx - current_idx + kCarouselCount) % kCarouselCount;
+            const int backward = (current_idx - idx + kCarouselCount) % kCarouselCount;
+            direction = (forward <= backward) ? 1 : -1;
+        }
+        idx = nearest_visible_carousel_index(idx, direction);
+        rotaryEncoder.setEncoderValue(idx);
+    }
     Screen requested_screen = kCarousel[idx].screen;
 
     // When arriving at a sensor slot, update the active sensor immediately.

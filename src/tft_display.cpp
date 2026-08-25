@@ -37,6 +37,7 @@
 #include "ui_lab_dash.h"
 #include "ui_lab_focus.h"
 #include "ui_lab_dual.h"
+#include "ui_lab_plant.h"
 #include "ui_lab_icon_gallery.h"
 #include "ui_lab_sensor_cards.h"
 #include "ui_lab_sound_vu.h"
@@ -65,6 +66,7 @@ namespace {
 
 constexpr uint32_t kUiSensorRefreshMs = 100;
 constexpr uint32_t kUiGraphRefreshMs = 1000;
+constexpr uint32_t kPlantLabAnimRefreshMs = 220;
 constexpr float kVisualSoundDeadband = 2.0f;
 
 static bool is_sound_vu_screen(Screen screen) {
@@ -408,6 +410,9 @@ static void apply_global_alert_rgb(const GlobalAlertSummary& summary) {
             case LAB_DUAL_TH_SCREEN:
                 set_rgb(0, 140, 180);
                 break;
+            case LAB_PLANT_SCREEN:
+                set_rgb(46, 204, 90);
+                break;
             case LAB_ICON_SET_A_SCREEN:
                 set_rgb(180, 80, 255);
                 break;
@@ -628,12 +633,14 @@ void switch_screen(void *param) {
     unsigned long last_timer_update_ms = 0;
     unsigned long last_system_update_ms = 0;
     unsigned long last_soil_cal_update_ms = 0;
+    unsigned long last_plant_lab_anim_update_ms = 0;
     UiOverlayState last_overlay_state = UI_OVERLAY_NONE;
     
     while (1) {
         bool timer_needs_update = false;
         bool system_needs_update = false;
         bool soil_cal_needs_update = false;
+        bool plant_lab_anim_needs_update = false;
         UiOverlayState overlay_state = runtime_get_ui_overlay();
 
         if (overlay_state != UI_OVERLAY_NONE) {
@@ -717,6 +724,13 @@ void switch_screen(void *param) {
             last_soil_cal_update_ms = now_ms;
         }
 
+#if PBIT_ENABLE_GRAPH_LAB
+        if (active_screen == LAB_PLANT_SCREEN && now_ms - last_plant_lab_anim_update_ms >= kPlantLabAnimRefreshMs) {
+            plant_lab_anim_needs_update = true;
+            last_plant_lab_anim_update_ms = now_ms;
+        }
+#endif
+
         if (last_drawn != active_screen) {
             screen_changed = true;
             if (active_screen != BOOT_SCREEN) sensor_data_changed = true; 
@@ -754,7 +768,11 @@ void switch_screen(void *param) {
             || connection_notice_active
             || (active_screen == SOIL_SCREEN && soil_cal_needs_update)
             || (active_screen == TIMER_SCREEN && (timer_needs_update || g_timer_just_reset))
-            || (active_screen == SYSTEM_SCREEN && system_needs_update)) {
+            || (active_screen == SYSTEM_SCREEN && system_needs_update)
+#if PBIT_ENABLE_GRAPH_LAB
+            || (active_screen == LAB_PLANT_SCREEN && plant_lab_anim_needs_update)
+#endif
+            ) {
             if (demo_splash_active) {
                 if (screen_changed || !last_demo_splash_active) {
                     draw_demo_start_splash();
@@ -841,6 +859,10 @@ void switch_screen(void *param) {
 
                 case LAB_DUAL_TH_SCREEN:
                     draw_lab_dual_th_screen(screen_changed, sensor_data_changed);
+                    break;
+
+                case LAB_PLANT_SCREEN:
+                    draw_lab_plant_screen(screen_changed, sensor_data_changed);
                     break;
 
                 case LAB_ICON_SET_A_SCREEN:

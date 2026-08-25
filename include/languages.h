@@ -216,6 +216,7 @@ enum LangKey : uint8_t {
     TIT_LAB_DASH,
     TIT_LAB_FOCUS,
     TIT_LAB_DUAL_TH,
+    TIT_LAB_PLANT,
     TIT_LAB_ICON_A,
     TIT_LAB_ICON_B,
     TIT_LAB_ICON_C,
@@ -257,6 +258,10 @@ enum LangKey : uint8_t {
     LAB_ICON_TEST_FOOTER,
     TIT_LAB_HOME_CARDS,
     TIT_LAB_LINEAR_DASH,
+    PLANT_STATE_OK_KEY,
+    PLANT_STATE_THIRSTY_KEY,
+    PLANT_STATE_SOGGY_KEY,
+    PLANT_STATE_STRESSED_KEY,
 
     // Soil moisture bar zone labels (3-char max)
     SOIL_ZONE_DRY,

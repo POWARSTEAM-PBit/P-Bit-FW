@@ -363,15 +363,17 @@ Protecciones:
 
 ### Navegación principal
 
-Orden real del carrusel actual con `PBIT_ENABLE_GRAPH_LAB=1` (11 posiciones, circular):
+Orden real del carrusel actual con `PBIT_ENABLE_GRAPH_LAB=1` (11/12 posiciones, circular):
 
-`INICIO -> CLIMA LAB -> TERMO LAB -> TEMPERATURA -> HUMEDAD -> LUZ -> SONIDO -> SUELO -> TERMÓMETRO -> TIMER -> SISTEMA`
+`INICIO -> CLIMA LAB -> PLANTA LAB -> TERMO LAB -> TEMPERATURA -> HUMEDAD -> LUZ -> SONIDO -> SUELO -> TERMÓMETRO -> TIMER -> SISTEMA`
+
+`PLANTA LAB` es condicional: `rotary.cpp` la omite si `SZ_SOIL` no tiene lectura válida (`soil_humidity = NaN`).
 
 Nota de nomenclatura: `TERMÓMETRO` es el título visible de la sonda externa; `DS18B20`, `DS18B20_SCREEN` y `SZ_DS18` se conservan como identificadores técnicos de firmware/hardware.
 
 Implementación:
 
-- Las primeras 3 posiciones son pantallas de producto de solo lectura: `LAB_HOME_CARDS_SCREEN` (`Inicio`), `LAB_DUAL_TH_SCREEN` (`Clima Lab`) y `LAB_WIDGET_MIX_SCREEN` (`Termo Lab`).
+- Las primeras posiciones son pantallas de producto de solo lectura: `LAB_HOME_CARDS_SCREEN` (`Inicio`), `LAB_DUAL_TH_SCREEN` (`Clima Lab`), `LAB_PLANT_SCREEN` (`Planta Lab`, condicional por Suelo) y `LAB_WIDGET_MIX_SCREEN` (`Termo Lab`).
 - Las 6 posiciones de sensor reutilizan `SENSOR_ZONE_SCREEN`; al entrar en cada slot, `rotary.cpp` llama a `sz_set_sensor(...)`.
 - `SENSOR_ZONE_SCREEN` conserva un modo visual por sensor. El ciclo visible común es `Principal -> Rango -> Ficha -> Dato -> Curva`; `Sonido` usa `Principal -> Sonido VU -> Sonido Onda -> Rango -> Ficha -> Dato -> Curva`. Los enums internos históricos siguen siendo `SZ_VIZ_FOCUS`, `SZ_VIZ_VALOR`, `SZ_VIZ_GRAPH`, `SZ_VIZ_GAUGE` y `SZ_VIZ_CARD`, con modos VU append-only para no reinterpretar NVS antigua.
 - La pulsación corta en una posición de sensor ejecuta `sz_next_viz()`.
@@ -413,7 +415,7 @@ Comportamiento:
 
 - `src/demo_mode.cpp` define una banda runtime de escenas con duración variable (`6..10 s`) para dar ritmo visual a la demo.
 - Al activarse, `tft_display.cpp` muestra una señal visual breve `MODO DEMO / Iniciando demo` antes de entrar a la primera escena.
-- Con `PBIT_ENABLE_GRAPH_LAB=1`, recorre Inicio, Clima Lab, Termo Lab, escenas de Sensor Zone (incluyendo Sonido VU y Sonido Onda) y Timer.
+- Con `PBIT_ENABLE_GRAPH_LAB=1`, recorre Inicio, Clima Lab, Planta Lab si Suelo está disponible, Termo Lab, escenas de Sensor Zone (incluyendo Sonido VU y Sonido Onda) y Timer.
 - Las escenas de Sensor Zone usan setters runtime, por lo que no modifican el sensor ni el modo visual guardados.
 - Si `kDemoSimulatedReadings == true`, `demo_mode_apply_simulated_readings(...)` modifica solo `g_ui_readings_snapshot` para animar valores visuales; no toca `global_readings`, NVS, BLE ni lecturas físicas.
 - `demo_mode_value_refresh_ms()` fija un refresco demo dedicado de `220 ms`, separado de la cadencia normal de sensores/gráficas.
@@ -462,6 +464,15 @@ Vista global de todos los sensores en fichas. Solo lectura; no tiene menú.
 #### Clima Lab
 
 Temperatura ambiente y humedad del aire en card combinado. Solo lectura; no tiene menú.
+
+#### Planta Lab
+
+Pantalla multisensor de salud de planta. Combina Suelo, temperatura ambiente, humedad del aire y luz. Solo aparece si Suelo está conectado y da lectura válida.
+
+- layout: terrario izquierdo + cuatro filas de rango + card de estado
+- diagnóstico: `BIEN`, `SEDIENTA`, `AHOGADA` o `ESTRÉS`, con prioridad `suelo > temperatura > humedad aire > luz`
+- animación: planta continua a `220 ms`, con clears localizados al rect del icono; la tierra plana solo cambia si cambia la banda de humedad de suelo
+- ADR: `docs/ADR-003-planta-lab.md`
 
 #### Termo Lab
 
@@ -873,9 +884,10 @@ La estructura de menús y flujos de encoder está documentada aquí directamente
 
 Con `PBIT_ENABLE_GRAPH_LAB=1`:
 
-`INICIO → CLIMA LAB → TERMO LAB → TEMPERATURA → HUMEDAD → LUZ → SONIDO → SUELO → TERMÓMETRO → TIMER → SISTEMA`
+`INICIO → CLIMA LAB → PLANTA LAB → TERMO LAB → TEMPERATURA → HUMEDAD → LUZ → SONIDO → SUELO → TERMÓMETRO → TIMER → SISTEMA`
 
 - `BOOT_SCREEN` existe en la enum pero no forma parte de la navegación con encoder.
+- `PLANTA LAB` es condicional: se salta si `soil_humidity` no es válido.
 - Las seis posiciones de sensor son slots de `SENSOR_ZONE_SCREEN`.
 - `DS18B20_SCREEN` sigue existiendo como menú/configuración técnica de la sonda Termómetro (`SZ_DS18`).
 - Los menús activos bloquean el reposo automático.

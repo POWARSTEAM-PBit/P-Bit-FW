@@ -232,25 +232,26 @@ Reglas generales dentro de los menús:
 
 ## 6. Pantallas y carrusel de navegación
 
-Con la configuración de producción estándar, el carrusel tiene 11 posiciones. Se navega girando el encoder.
+Con la configuración de producción estándar, el carrusel tiene 11 o 12 posiciones. Se navega girando el encoder.
 
 | Posición | Pantalla | Descripción |
 |---|---|---|
 | 1 | **Inicio** | Visión global de todos los sensores en fichas |
 | 2 | **Clima Lab** | Temperatura y humedad del aire en vista combinada |
-| 3 | **Termo Lab** | Temperatura ambiente, sonda externa y diferencia térmica |
-| 4 | **Temperatura** | Temperatura ambiente con menú de configuración |
-| 5 | **Humedad** | Humedad del aire con menú de configuración |
-| 6 | **Luz** | Luz ambiental con menú de límites |
-| 7 | **Sonido** | Nivel de sonido con menú de límites y modos VU/Onda |
-| 8 | **Suelo** | Humedad del suelo con calibración y alertas |
-| 9 | **Termómetro** | Temperatura externa con sonda DS18B20 |
-| 10 | **Timer** | Cronómetro y cuenta regresiva |
-| 11 | **Sistema** | Ajustes globales del dispositivo |
+| 3 | **Planta Lab** | Salud de una planta combinando Suelo, temperatura, humedad del aire y luz; aparece solo si Suelo está conectado |
+| 4 | **Termo Lab** | Temperatura ambiente, sonda externa y diferencia térmica |
+| 5 | **Temperatura** | Temperatura ambiente con menú de configuración |
+| 6 | **Humedad** | Humedad del aire con menú de configuración |
+| 7 | **Luz** | Luz ambiental con menú de límites |
+| 8 | **Sonido** | Nivel de sonido con menú de límites y modos VU/Onda |
+| 9 | **Suelo** | Humedad del suelo con calibración y alertas |
+| 10 | **Termómetro** | Temperatura externa con sonda DS18B20 |
+| 11 | **Timer** | Cronómetro y cuenta regresiva |
+| 12 | **Sistema** | Ajustes globales del dispositivo |
 
-Las pantallas 1–3 (Inicio, Clima Lab, Termo Lab) son de solo lectura. No tienen menú de configuración. `Lab` se reserva para pantallas multisensor o experimentales; las vistas de un sensor individual usan los modos de abajo.
+`Planta Lab` se omite automáticamente si el sensor de Suelo no entrega una lectura válida. Las pantallas Lab (`Inicio`, `Clima Lab`, `Planta Lab`, `Termo Lab`) son de solo lectura. No tienen menú de configuración. `Lab` se reserva para pantallas multisensor o experimentales; las vistas de un sensor individual usan los modos de abajo.
 
-Las pantallas 4–9 son **zonas de sensor**. Dentro de cada una, la pulsación corta cambia el modo de visualización del sensor activo:
+Las pantallas de sensor son **zonas de sensor**. Dentro de cada una, la pulsación corta cambia el modo de visualización del sensor activo:
 
 | Modo | Descripción |
 |---|---|

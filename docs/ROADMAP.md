@@ -1,6 +1,6 @@
 # P-Bit Roadmap
 
-Actualizado: 2026-06-03
+Actualizado: 2026-06-15
 
 Referencia para priorizar el trabajo futuro del firmware P-Bit. Separa deuda técnica de mejoras de producto y ordena iteraciones de menús, sensores y UX.
 
@@ -13,9 +13,9 @@ El historial de lo ya implementado está en `CHANGELOG.md`. Este documento cubre
 | Indicador | Valor |
 |---|---|
 | Build | ✅ `esp32dev` — sin errores |
-| RAM | 14.9 % (`48 940` / `327 680` bytes) |
-| Flash | 72.1 % (`945 429` / `1 310 720` bytes) |
-| Carrusel activo | 12 pantallas con `PBIT_ENABLE_GRAPH_LAB=1` |
+| RAM | 15.0 % (`49 140` / `327 680` bytes) |
+| Flash | 73.4 % (`961 709` / `1 310 720` bytes) |
+| Carrusel activo | 11/12 pantallas con `PBIT_ENABLE_GRAPH_LAB=1` (`PLANTA LAB` aparece solo con Suelo conectado) |
 | Idiomas | ES / CAT / EN — i18n completo |
 | BLE | Factory-off — gesto secreto 30 s en `Sistema` |
 | Validación hardware | **En cierre** — ghosting/flicker resuelto por ahora; LDR modos, Demo smooth y estados externos `IO33/IO35` implementados en firmware, pendientes de validación visual final |
@@ -38,6 +38,7 @@ Estado: resuelto por ahora en hardware real. Usar esta tabla como checklist de r
 | `VALOR` | Sparkline y barra segmentada sin flash negro; contraste suficiente |
 | `Graph` | Etiquetas min/max y línea principal legibles en ES/CAT/EN |
 | `HOME` | Cards sin redibujo completo en cada tick |
+| `PLANTA LAB` | Barras+valores legibles en 96 px; `ASSEDEGADA` cabe; animación sin parpadeo; azul `AHOGADA` contrasta sobre navy |
 
 ### BLE y producción
 
@@ -55,6 +56,7 @@ Estado: resuelto por ahora en hardware real. Usar esta tabla como checklist de r
 - [ ] DS18B20: detección correcta de presencia/ausencia de sonda en hardware y textos `IO33` legibles en ES/CAT/EN
 - [ ] Micrófono: respuesta visible en `Sound VU` y pantalla `Sonido`
 - [ ] Suelo: detección de ausencia de sensor en hardware, textos `IO35` legibles en ES/CAT/EN y calibración seco/agua funciona
+- [ ] Planta Lab: validar aparición condicional con Suelo conectado, barras de rango, texto `ASSEDEGADA`, animación sin parpadeo y contraste del estado `AHOGADA`
 
 ### Navegación e i18n
 
