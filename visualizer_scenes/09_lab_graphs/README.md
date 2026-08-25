@@ -2,10 +2,11 @@
 
 Snippets temporales para revisar en el visualizador las pantallas visuales actuales y los renderers reutilizados por Sensor Zone.
 
-Estado tras producción/i18n:
+Estado de producción:
 
-- Home, Clima, Multi y Sonido VU son paradas visibles.
-- Sensor Zone reutiliza focus, valor, graph, dial y card por sensor.
+- Inicio, Clima Lab, Planta Lab condicional y Termo Lab son paradas visibles.
+- Sensor Zone reutiliza `Principal`, `Rango`, `Ficha`, `Dato` y `Curva` por sensor.
+- `Sonido VU` y `Sonido Onda` son modos de Sonido dentro de Sensor Zone.
 - Graph ya no debe documentarse como parada top-level independiente.
 - Las escenas antiguas de `sensor_lab_*` son útiles como base, pero ahora representan renderers de Sensor Zone.
 
@@ -19,25 +20,26 @@ Objetivo:
 Escenas incluidas actualmente:
 
 - `00_estado_lab_overview.cpp` - legacy/tooling
-- `01_sensor_lab_temp.cpp` - Sensor Zone focus, temp
-- `02_sensor_lab_humidity.cpp` - Sensor Zone focus, humedad
-- `03_sensor_lab_light.cpp` - Sensor Zone focus, luz
-- `04_sensor_lab_sound.cpp` - Sensor Zone focus, sonido
-- `05_sensor_lab_soil_no_sensor.cpp` - Sensor Zone focus, suelo sin sensor
-- `06_graph_temp.cpp` - renderer graph, temp
-- `07_graph_humidity.cpp` - renderer graph, humedad
-- `08_clima_lab.cpp` - Clima
+- `01_sensor_lab_temp.cpp` - Sensor Zone `Principal`, temperatura
+- `02_sensor_lab_humidity.cpp` - Sensor Zone `Principal`, humedad
+- `03_sensor_lab_light.cpp` - Sensor Zone `Principal`, luz
+- `04_sensor_lab_sound.cpp` - Sensor Zone `Principal`, sonido
+- `05_sensor_lab_soil_no_sensor.cpp` - Sensor Zone `Principal`, suelo sin sensor
+- `06_graph_temp.cpp` - renderer `Curva`, temperatura
+- `07_graph_humidity.cpp` - renderer `Curva`, humedad
+- `08_clima_lab.cpp` - Clima Lab
 
 Escenas que faltan para cubrir la UI actual:
 
-- Home 2x2 cards (`LAB_HOME_CARDS_SCREEN`)
-- Multi / Temp Lab (`LAB_WIDGET_MIX_SCREEN`)
-- Sonido VU stack (`LAB_SOUND_VU_STACK_SCREEN`)
-- Sonido VU wave (`LAB_SOUND_VU_WAVE_SCREEN`)
-- Sensor Zone valor (`SZ_VIZ_VALOR`) para al menos Temp/Luz/Sonido
-- Sensor Zone dial (`SZ_VIZ_GAUGE`) para al menos Temp/Luz/Sonido
-- Sensor Zone card (`SZ_VIZ_CARD`) para los seis sensores
-- Graph para Luz con escala `0..8000 lux`
+- Inicio 2x2 cards (`LAB_HOME_CARDS_SCREEN`)
+- Planta Lab (`LAB_PLANT_SCREEN`)
+- Termo Lab (`LAB_WIDGET_MIX_SCREEN`)
+- Sonido VU stack (`LAB_SOUND_VU_STACK_SCREEN`) como modo de Sonido
+- Sonido Onda (`LAB_SOUND_VU_WAVE_SCREEN`) como modo de Sonido
+- Sensor Zone `Dato` (`SZ_VIZ_VALOR`) para al menos Temperatura/Luz/Sonido
+- Sensor Zone `Rango` (`SZ_VIZ_GAUGE`) para al menos Temperatura/Luz/Sonido
+- Sensor Zone `Ficha` (`SZ_VIZ_CARD`) para los seis sensores
+- `Curva` para Luz con escala `0..8000 lux`
 
 Notas:
 

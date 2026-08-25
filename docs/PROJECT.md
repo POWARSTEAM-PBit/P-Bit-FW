@@ -1,6 +1,6 @@
 # P-Bit — Descripción del Proyecto
 
-Actualizado: 2026-06-13
+Actualizado: 2026-08-25
 
 ---
 
@@ -192,7 +192,7 @@ El idioma se selecciona en el primer encendido y puede cambiarse desde `Sistema 
 - Los sensores externos conectables por el usuario usan estado runtime común de ausencia: Suelo muestra `Revisa IO35` y Termómetro/DS18B20 muestra `Revisa IO33`, con la paleta del sensor atenuada en lugar de un gris genérico. Este estado no se guarda en NVS.
 - El micrófono mide intensidad relativa (0..100 %), no decibelios SPL absolutos.
 - El deep sleep automático está desactivado porque en esta revisión de hardware la TFT queda en blanco al dormir. El reposo actual muestra una pantalla `ZZZ`.
-- El Modo demo es runtime: se activa encendiendo con el encoder presionado durante el logo o con pulsación larga desde `Home`, muestra una señal visual breve, rota pantallas del carrusel con dwell variable, anima valores y gráficas con curvas suaves, sale con giro/pulsación y no modifica preferencias guardadas. Queda validación visual final en hardware.
+- El Modo demo es runtime: se activa encendiendo con el encoder presionado durante el logo o con pulsación larga desde `Inicio`, muestra una señal visual breve, rota escenas representativas de la versión de producción con dwell variable, anima valores y gráficas con curvas suaves, sale con giro/pulsación y no modifica preferencias guardadas. Queda validación visual final en hardware.
 - BLE sale apagado de fábrica y no forma parte del flujo normal de aula.
 - El ghosting/flicker de pantallas queda resuelto por ahora en hardware real; mantener vigilancia de regresión visual junto con la calibración RGB y la confirmación BLE off.
 

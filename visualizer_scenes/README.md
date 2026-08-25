@@ -2,21 +2,23 @@
 
 Biblioteca auxiliar de escenas del P-Bit para el visualizador TFT.
 
-Estado de referencia: revisión de producción/i18n de 2026-05-20.
+Estado de referencia: revisión de producción/i18n de 2026-08-25.
 
 Objetivo:
 - guardar snippets de pantalla listos para pegar en la workstation/web visualizer
 - organizar pantallas y subestados por grupos
 - mantener este material fuera de `src/` e `include/` para que no afecte al firmware
 
-UI visible actual:
-1. Home 2x2 (`LAB_HOME_CARDS_SCREEN`)
-2. Clima (`LAB_DUAL_TH_SCREEN`)
-3. Multi / Temp Lab (`LAB_WIDGET_MIX_SCREEN`)
-4. Sonido VU (`LAB_SOUND_VU_STACK_SCREEN`, con wave como sub-vista)
-5. Sensor Zone para Temp, Hum, Luz, Sonido, Suelo y DS18
+UI visible actual de producción:
+1. Inicio 2x2 (`LAB_HOME_CARDS_SCREEN`)
+2. Clima Lab (`LAB_DUAL_TH_SCREEN`)
+3. Planta Lab (`LAB_PLANT_SCREEN`, solo si Suelo tiene lectura válida)
+4. Termo Lab (`LAB_WIDGET_MIX_SCREEN`)
+5. Sensor Zone para Temperatura, Humedad, Luz, Sonido, Suelo y Termómetro
 6. Timer
 7. Sistema
+
+En Sensor Zone, la pulsación corta avanza `Principal -> Rango -> Ficha -> Dato -> Curva`. `Sonido` añade `Sonido VU` y `Sonido Onda` justo después de `Principal`; no son paradas globales independientes.
 
 Reglas:
 - esta carpeta no forma parte del build del P-Bit
@@ -36,7 +38,7 @@ Convención recomendada:
 
 Orden de trabajo propuesto:
 1. `00_global_and_calibration`
-2. `09_lab_graphs` para Home/Clima/Multi/Sonido VU/Sensor Zone
+2. `09_lab_graphs` para Inicio/Clima Lab/Planta Lab/Termo Lab/Sensor Zone
 3. `05_light`
 4. `06_sound`
 5. `02_temp`

@@ -1,6 +1,6 @@
 # P-Bit Roadmap
 
-Actualizado: 2026-06-15
+Actualizado: 2026-08-25
 
 Referencia para priorizar el trabajo futuro del firmware P-Bit. Separa deuda técnica de mejoras de producto y ordena iteraciones de menús, sensores y UX.
 
@@ -32,12 +32,12 @@ Estado: resuelto por ahora en hardware real. Usar esta tabla como checklist de r
 
 | Pantalla | Qué verificar |
 |---|---|
-| `Sound VU` (STACK + WAVE) | Scroll continuo, idle pulse en silencio, sin congelación periódica |
+| `Sonido VU/Onda` | Scroll continuo, idle pulse en silencio, sin congelación periódica |
 | `DIAL / GAUGE` | Ring sprite sin vibración; label de unidad restaurado después de `pushSprite()` |
 | `SENSOR CARD` | Header, valor, viz y footer sin recortes por clears dinámicos |
 | `VALOR` | Sparkline y barra segmentada sin flash negro; contraste suficiente |
 | `Graph` | Etiquetas min/max y línea principal legibles en ES/CAT/EN |
-| `HOME` | Cards sin redibujo completo en cada tick |
+| `Inicio` | Cards sin redibujo completo en cada tick |
 | `PLANTA LAB` | Barras+valores legibles en 96 px; `ASSEDEGADA` cabe; animación sin parpadeo; azul `AHOGADA` contrasta sobre navy |
 
 ### BLE y producción
@@ -54,7 +54,7 @@ Estado: resuelto por ahora en hardware real. Usar esta tabla como checklist de r
 - [ ] DHT11: temperatura y humedad con valores plausibles
 - [x] DS18B20/Suelo: estado runtime común de ausencia implementado con `Revisa IO33` / `Revisa IO35` y paleta atenuada
 - [ ] DS18B20: detección correcta de presencia/ausencia de sonda en hardware y textos `IO33` legibles en ES/CAT/EN
-- [ ] Micrófono: respuesta visible en `Sound VU` y pantalla `Sonido`
+- [ ] Micrófono: respuesta visible en `Sonido VU`, `Sonido Onda` y pantalla `Sonido`
 - [ ] Suelo: detección de ausencia de sensor en hardware, textos `IO35` legibles en ES/CAT/EN y calibración seco/agua funciona
 - [ ] Planta Lab: validar aparición condicional con Suelo conectado, barras de rango, texto `ASSEDEGADA`, animación sin parpadeo y contraste del estado `AHOGADA`
 
@@ -67,7 +67,7 @@ Estado: resuelto por ahora en hardware real. Usar esta tabla como checklist de r
 - [ ] `Timer`: corto/largo responden según diseño; alarma audible al finalizar si `Alarmas` activo
 - [ ] `Sistema > Bip` silencia beeps de UI sin silenciar alertas; `Alarmas` silencia alertas/timer audibles sin ocultar alertas visuales/RGB
 - [ ] Reposo visible con `ZZZ`; despierta con encoder
-- [x] Modo demo: entrada desde logos con encoder presionado, entrada desde `Home` con pulsación larga, señal visual y salida con giro/pulsación
+- [x] Modo demo: entrada desde logos con encoder presionado, entrada desde `Inicio` con pulsación larga, señal visual y salida con giro/pulsación
 - [x] Modo demo: suavizar ritmo, intención y coreografía visual para evitar sensación de cambios bruscos o sin propósito
 - [ ] Modo demo: validación visual final en hardware para confirmar que la nueva cadencia no reintroduce flicker
 
@@ -94,7 +94,7 @@ Listas para implementar una vez que el hardware esté validado.
 
 | Ítem | Descripción | Dependencia |
 |---|---|---|
-| **Paleta HOME/CLIMA** | Decidir si `HOME` y `CLIMA LAB` migran a `include/palette.h` o mantienen colores responsivos propios. | Validación Sensor Zone en HW |
+| **Paleta Inicio/Clima** | Decidir si `Inicio` y `Clima Lab` migran a `include/palette.h` o mantienen colores responsivos propios. | Validación Sensor Zone en HW |
 | **P3/P4 en hardware** | Verificar legibilidad de labels min/max y segmentos apagados sobre ST7735 real. | Validación hardware |
 
 ### Deuda técnica post-auditoría (2026-06-03)

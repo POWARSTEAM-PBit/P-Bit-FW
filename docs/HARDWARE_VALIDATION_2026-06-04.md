@@ -2,6 +2,8 @@
 
 Checklist práctico para validar el firmware tras la auditoría profunda 2026-06-03. Sigue el orden propuesto; cada fase puede ejecutarse en una sesión corta. Marca `[ ]` → `[x]` al completar. Anota valores en los espacios `___`.
 
+> **Nota de vigencia 2026-08-25:** este archivo conserva observaciones históricas de la sesión 2026-06-04. Las instrucciones prescriptivas de navegación se sincronizan con la versión de producción actual; los hallazgos anotados con fecha se mantienen como evidencia de aquella build.
+
 > **Fuente del firmware:** rama `main` en `C:\POWAR-GIT\P-Bit-FW - edit\`.
 > **Build producción:** `py -m platformio run -e esp32dev` — RAM `14.9%` (`48924` bytes), Flash `72.1%` (`945565` bytes).
 > **Build depuración (recomendada para esta sesión):** `py -m platformio run -e esp32dev_debug -t upload` — activa `FIRMWARE_DEBUG` y emite Stack HWM por Serial cada `60 s` o cuando empeora el peor caso. Ver `docs/TECHNICAL.md` § A.5.
@@ -94,34 +96,35 @@ Anomalías observadas: `2026-06-04: el selector de idioma apareció tras flashea
 ### 1.2 Carrusel completo
 
 > Orden esperado con `PBIT_ENABLE_GRAPH_LAB=1`:
-> `HOME → CLIMA → MULTI → SONIDO VU → TEMPERATURA → HUMEDAD → LUZ → SONIDO → SUELO → TERMÓMETRO → TIMER → SISTEMA`
-> 12 posiciones, circular.
+> `INICIO → CLIMA LAB → PLANTA LAB → TERMO LAB → TEMPERATURA → HUMEDAD → LUZ → SONIDO → SUELO → TERMÓMETRO → TIMER → SISTEMA`
+> 12 posiciones si Suelo tiene lectura válida; 11 si `PLANTA LAB` se omite. Circular.
 
-- [ ] HOME se ve correctamente (cards 2×2 con T/H/L/S). **Anomalía:** valor de lux con más de 3 dígitos se monta sobre barra/card y, al volver a menos dígitos, deja fantasmas.
-- [x] CLIMA se ve correctamente (LAB_DUAL_TH, temp + hum).
-- [x] MULTI/TEMP LAB se ve correctamente. Nota visual menor: en card de DS18B20 desconectado, subir `--` y `Revisa IO33` aprox. `Y-3 px`.
-- [x] SONIDO VU se ve correctamente (animación reactiva al micro). Nota: parpadeo leve con valores muy altos, posiblemente propio de la animación VU.
+- [ ] INICIO se ve correctamente (cards 2×2 con T/H/L/S). **Anomalía histórica 2026-06-04:** valor de lux con más de 3 dígitos se montaba sobre barra/card y, al volver a menos dígitos, dejaba fantasmas.
+- [x] CLIMA LAB se ve correctamente (LAB_DUAL_TH, temp + hum).
+- [ ] PLANTA LAB aparece solo con Suelo válido y se omite sin hueco cuando Suelo no entrega lectura.
+- [x] TERMO LAB se ve correctamente. Nota visual histórica: en card de DS18B20 desconectado, subir `--` y `Revisa IO33` aprox. `Y-3 px`.
 - [x] TEMPERATURA visible, datos plausibles. Vista con card superior y gráfica inferior se ve bien.
-- [x] HUMEDAD visible, datos plausibles. Modos por pulsación: `Humedad → Hum Lab → Hum gráfica → Hum dial → Hum tarjeta → Humedad`.
+- [x] HUMEDAD visible, datos plausibles.
 - [x] LUZ visible, datos plausibles. Pantalla dedicada se ve bien.
-- [x] SONIDO visible, datos plausibles.
+- [x] SONIDO visible, datos plausibles; `Sonido VU` y `Sonido Onda` se prueban con pulsación corta dentro de Sonido.
 - [x] SUELO visible sin sensor → `Revisa IO35` con estado atenuado/desaturado.
 - [x] TERMÓMETRO visible sin sonda → `Revisa IO33`; se ve bien, con ajuste visual pendiente ya anotado.
 - [x] TIMER visible.
 - [x] SISTEMA visible. Se observan Idioma, uptime/tiempo corriendo, ID, Bip OFF y Alarmas OFF.
-- [x] El carrusel da la vuelta completa (de SISTEMA → HOME).
+- [x] El carrusel da la vuelta completa (de SISTEMA → INICIO).
 - [ ] Ningún texto se sale del borde de la pantalla en ningún idioma probado.
 
-Anomalías observadas: `HOME/Luz: valor lux de 4+ dígitos invade barra/card y no limpia completamente al reducir dígitos; probable clear dinámico insuficiente o ancho reservado demasiado pequeño.`
+Anomalías observadas: `Inicio/Luz: valor lux de 4+ dígitos invade barra/card y no limpia completamente al reducir dígitos; probable clear dinámico insuficiente o ancho reservado demasiado pequeño.`
 
 ### 1.3 Modos de cada sensor (SENSOR_ZONE_SCREEN)
 
 > Pulsación corta en cualquier sensor cicla:
-> `FOCUS(0) → VALOR(1) → GRAPH(2) → GAUGE/DIAL(3) → CARD(4) → FOCUS(0)`
+> `Principal → Rango → Ficha → Dato → Curva → Principal`
+> En Sonido: `Principal → Sonido VU → Sonido Onda → Rango → Ficha → Dato → Curva → Principal`
 
 Para cada sensor (TEMP, HUM, LUZ, SONIDO, SUELO, DS18):
 
-- [x] Pulsación corta cambia de modo. Modos cubiertos por sensor: `HUMEDAD: Humedad → Hum Lab → Hum gráfica → Hum dial → Hum tarjeta → Humedad`; `LDR/LUZ: rota por todas las pantallas/modos`; `SONIDO: rota por sus pantallas/modos correctamente`; `SONIDO LAB: cambia de pantalla/modo al presionar`
+- [x] Pulsación corta cambia de modo. Modos cubiertos por sensor: ciclo común `Principal/Rango/Ficha/Dato/Curva`; Sonido incluye además `Sonido VU/Onda`.
 - [ ] Pulsación larga abre el menú clásico del sensor.
 - [x] Cada modo redibuja sin flicker visible. Humedad probada con soplido al sensor: valores cambian bien, sin flicker/fantasmas.
 
@@ -209,7 +212,7 @@ Procedimiento: probar con sonda desconectada, después conectarla en caliente.
 - [ ] Splash NO aparece en boot.
 - [x] Lectura plausible (T ambiente o T agua tibia según prueba). Conecta bien y muestra splash verde.
 
-Anomalías observadas: `Mejora visual menor: en estado DS18B20 desconectado dentro de Temp Lab, subir "--" y "Revisa IO33" aprox. 3 px. Con sonda conectada, visual y lectura OK.`
+Anomalías observadas: `Mejora visual menor: en estado DS18B20 desconectado dentro de Termo Lab, subir "--" y "Revisa IO33" aprox. 3 px. Con sonda conectada, visual y lectura OK.`
 
 ### 2.6 Alertas visuales/RGB/Audio
 
@@ -269,7 +272,7 @@ Observaciones Reset: `Parece limpiar también idioma/NVS, pero el selector se ve
 ### 3.6 Demo Mode
 
 - [ ] Encender el P-Bit manteniendo el encoder pulsado **durante el logo de boot**: entra en Demo Mode.
-- [ ] Pulsación larga desde `HOME`: también activa Demo Mode.
+- [ ] Pulsación larga desde `Inicio`: también activa Demo Mode.
 - [ ] Splash breve `Modo Demo` al entrar.
 - [x] Sensores cambian con coreografía smooth.
 - [ ] Gráficas dibujan datos sintéticos.
@@ -296,7 +299,7 @@ App de escaneo usada: `___________`
 
 > Mantener encoder pulsado **30 segundos** estando en SISTEMA activa la pantalla oculta BLE.
 
-- [ ] Mantener 30 s el encoder en SISTEMA hace aparecer la pantalla `BLE Toggle`. Observación: actualmente parece tardar ~60 s; objetivo acordado: 30 s.
+- [ ] Mantener 30 s el encoder en SISTEMA hace aparecer la pantalla `BLE Toggle`; si tarda más, registrar desviación.
 - [x] Activar BLE → la fila `BLE` aparece ahora en SISTEMA. Al seleccionar Bluetooth se reinicia, comportamiento correcto.
 - [x] Escanear: **AHORA SÍ** debe aparecer el dispositivo como `PBIT-XXXX` por nombre (valida el fix de scan response del commit `2a51810`).
 - [x] Conectar desde la app BLE: la conexión se establece o queda disponible para conexión desde el celular.
@@ -321,7 +324,7 @@ Anomalías observadas: `___________`
 | Cuándo | Estado del P-Bit antes del reinicio | Reset reason en Serial (si capturado) |
 |---|---|---|
 | `Pre-vuelo` | `Monitor serial reportó PermissionError(13) y reconectó; no se observó crash firmware asociado` | `No aplica — reconexión del monitor, después boot normal rst:0x1` |
-| `Durante calibración Suelo` | `Usuario reseteó manualmente porque no había cancelación sin guardar; tras reset vuelve a HOME/Inicio` | `Reset manual; sin evidencia de crash` |
+| `Durante calibración Suelo` | `Usuario reseteó manualmente porque no había cancelación sin guardar; tras reset vuelve a Inicio` | `Reset manual; sin evidencia de crash` |
 | `___________` | `___________` | `___________` |
 
 > Reset reasons frecuentes:
@@ -351,12 +354,12 @@ Anomalías observadas: `___________`
 ### Otras observaciones
 
 - Texto recortado / solapado: `___________`
-- Flicker visible: `HOME/Luz deja fantasmas con lux de 4+ dígitos; menú/calibración Suelo genera mucho flicker en todo el cuerpo salvo título/línea al actualizar valores constantes; SONIDO VU tiene parpadeo leve con valores altos.`
+- Flicker visible: `Inicio/Luz deja fantasmas con lux de 4+ dígitos; menú/calibración Suelo genera mucho flicker en todo el cuerpo salvo título/línea al actualizar valores constantes; Sonido VU tiene parpadeo leve con valores altos.`
 - Color/contraste raro: `Estados desconectados de Suelo/DS18: usar "Sin Sensor" más vivo/entonado en card superior.`
 - Comportamientos inesperados: `Selector de idioma no reaparece tras reset sin confirmar en primer boot post-flash; Bip/Alarmas arrancaron OFF.`
 - Pulido visual transversal: `En cards principales de todos los sensores, centrar horizontalmente icono, nombre del sensor (ej. "Aire") y valor+unidad (%/lux/etc.).`
 - Pulido visual LDR: `En LDR dial, aplicar oscurecido más real del ícono: a 0 lux que desaparezca o se vea gris; aumentar brillo progresivamente con la luz, similar al gauge.`
-- Mejora funcional sonido: `Micrófono parece poco sensible a voz normal; evaluar calibración de silencio/ruido o ajuste de thresholds/gain.`
+- Mejora funcional sonido: `Micrófono parece poco sensible a voz normal; evaluar límites suave/fuerte o ajuste de thresholds/gain.`
 - Calibración producción Suelo: `Tomar raw seco/aire y raw mojado/agua en varias unidades (~5 P-Bits), promediar y actualizar defaults de firmware si conviene.`
 - UX calibración Suelo: `Menú debe dibujar fondo propio al entrar y ofrecer cancelación sin guardar, por ejemplo pulsación larga para volver conservando calibración anterior.`
 - Bloqueante producción: `Calibración Suelo no permite salir sin guardar; obliga a capturar pasos de calibración y guardar, o resetear.`

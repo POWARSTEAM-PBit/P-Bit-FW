@@ -21,6 +21,6 @@ Notas de estado:
 
 - `TEMP_SCREEN` ya no es parada directa del carrusel visible.
 - Se abre como menú/configuración desde Sensor Zone con `SZ_TEMP` mediante pulsación larga.
-- Las vistas de detalle visibles para temperatura viven dentro de Sensor Zone: focus, valor, graph, dial y card.
-- Los snippets runtime de este grupo son útiles como `config-menu` o referencia legacy, no como Home actual.
+- Las vistas de detalle visibles para temperatura viven dentro de Sensor Zone: `Principal`, `Rango`, `Ficha`, `Dato` y `Curva` (internamente pueden seguir usando `focus`, `gauge`, `card`, `valor` y `graph`).
+- Los snippets runtime de este grupo son útiles como `config-menu` o referencia legacy, no como `Inicio` actual.
 - Textos traducibles deben mapear a `TIT_TEMP`, `MENU_*`, `ST_UNIT_*` y claves relacionadas.

@@ -1,6 +1,6 @@
 # Manual de Usuario — P-Bit
 
-Actualizado: 2026-06-13
+Actualizado: 2026-08-25
 Versión firmware: ver `CHANGELOG.md`
 Idiomas de interfaz disponibles: Español, Catalán, English
 
@@ -30,6 +30,8 @@ Idiomas de interfaz disponibles: Español, Catalán, English
 El P-Bit es un dispositivo educativo ambiental portátil. Mide temperatura, humedad del aire, luz, sonido, humedad del suelo y temperatura externa, y muestra los resultados en una pantalla TFT a color con menús de configuración y alertas.
 
 El control físico es un único encoder rotatorio con pulsador. Se gira para navegar y se pulsa para confirmar o entrar en menús.
+
+Este manual describe la versión de producción actual: carrusel con `Inicio`, pantallas Lab de solo lectura, zonas de sensor, `Timer` y `Sistema`. No describe pantallas internas antiguas ni herramientas de laboratorio.
 
 ### Especificaciones generales
 
@@ -122,18 +124,18 @@ En el primer arranque (o tras un flash de firmware nuevo) aparece la pantalla de
 1. Gira el encoder para resaltar tu idioma: `Español`, `Catalán` o `English`.
 2. Pulsa para confirmar.
 
-✅ El dispositivo guarda el idioma y pasa directamente a la pantalla `Home`.
+✅ El dispositivo guarda el idioma y pasa directamente a la pantalla `Inicio` (nombre equivalente si la interfaz está en inglés).
 
 > **ℹ️ NOTA**
 > En arranques posteriores sin flash nuevo, el P-Bit carga el idioma guardado y arranca directamente sin mostrar el selector. Si la configuración está limpia o el idioma nunca se confirmó, el selector vuelve a aparecer.
 
 ---
 
-### Paso 3 — La pantalla Home
+### Paso 3 — La pantalla Inicio
 
-La primera pantalla que ves es `Home`. Muestra los valores actuales de todos los sensores en tarjetas pequeñas: temperatura, humedad, luz y sonido.
+La primera pantalla que ves es `Inicio`. Muestra los valores actuales de los sensores internos principales en tarjetas pequeñas: temperatura, humedad, luz y sonido.
 
-Los valores se actualizan en tiempo real. Si el sensor de suelo o la sonda externa no están conectados, sus tarjetas muestran `—` o `Sin sensor` — es el comportamiento esperado.
+Los valores se actualizan en tiempo real. Los sensores externos (`Suelo` y `Termómetro`) tienen sus propias pantallas y avisos de conexión; si no están conectados, las vistas donde aparecen muestran `---`, `Sin sensor` o `Revisa IO35/IO33` según corresponda.
 
 ---
 
@@ -143,7 +145,7 @@ Gira el encoder para pasar de una pantalla a otra.
 
 - Girar a la derecha avanza por el carrusel.
 - Girar a la izquierda retrocede.
-- El carrusel es circular: después de `Sistema` (la última) vuelve a `Home`.
+- El carrusel es circular: después de `Sistema` (la última) vuelve a `Inicio`.
 
 Prueba a girar lentamente y observa cómo cada pantalla muestra una vista diferente del entorno.
 
@@ -151,7 +153,7 @@ Prueba a girar lentamente y observa cómo cada pantalla muestra una vista difere
 
 ### Paso 5 — Ver un sensor de cerca
 
-Navega hasta la pantalla de `Temperatura` (posición 4 del carrusel, girando a la derecha desde `Home`).
+Navega hasta la pantalla de `Temperatura`. Es la primera zona de sensor después de `Termo Lab`: posición 5 si `Planta Lab` está visible, o posición 4 si no hay sensor de Suelo conectado y `Planta Lab` se omite.
 
 Verás la temperatura ambiente con un número grande y un indicador visual.
 
@@ -169,7 +171,7 @@ En `Sonido`, el ciclo añade dos vistas especiales:
 
 `Principal` → `Sonido VU` → `Sonido Onda` → `Rango` → `Ficha` → `Dato` → `Curva` → `Principal` …
 
-Prueba a pulsar varias veces para ver cómo cambia la representación del mismo dato sin cambiar el sensor.
+Prueba a pulsar varias veces para ver cómo cambia la representación del mismo dato sin cambiar el sensor. El giro cambia de pantalla o sensor; la pulsación corta cambia la vista del sensor donde estás.
 
 ---
 
@@ -187,7 +189,7 @@ Para salir sin cambiar nada: gira hasta `Salir` y pulsa.
 
 Al terminar estos pasos deberías poder:
 
-- Ver `Home` con valores reales de temperatura, humedad, luz y sonido.
+- Ver `Inicio` con valores reales de temperatura, humedad, luz y sonido.
 - Navegar entre pantallas girando el encoder.
 - Cambiar el modo visual de un sensor con pulsación corta.
 - Abrir y cerrar un menú con pulsación larga.
@@ -216,7 +218,7 @@ El encoder es el único control físico del dispositivo.
 |---|---|
 | **Girar** | Cambiar de pantalla / moverse por menú / cambiar valor |
 | **Pulsación corta** | Confirmar / avanzar en menú / cambiar modo visual en pantallas de sensor |
-| **Pulsación larga (~1.2 s)** | Abrir menú de configuración de la pantalla activa |
+| **Pulsación larga (~1.2 s)** | Abrir menú de configuración en sensores/Sistema; abrir editor del Timer; activar Modo demo desde `Inicio` |
 
 Reglas generales dentro de los menús:
 
@@ -227,6 +229,8 @@ Reglas generales dentro de los menús:
 - Al guardar una configuración aparece un estado de confirmación `SAVED`.
 - Una pulsación adicional después de `SAVED` vuelve al menú raíz.
 - Mientras hay un menú abierto, el reposo automático se bloquea.
+- Si entras en un menú por error, busca `Salir` en la esquina inferior derecha del grid y pulsa.
+- En una pantalla de confirmación de `Reset`, `NO` es la opción inicial. Gira a `SI` solo si quieres restaurar valores por defecto.
 
 ---
 
@@ -234,9 +238,17 @@ Reglas generales dentro de los menús:
 
 Con la configuración de producción estándar, el carrusel tiene 11 o 12 posiciones. Se navega girando el encoder.
 
+Secuencia completa con sensor de Suelo conectado:
+
+`Inicio` → `Clima Lab` → `Planta Lab` → `Termo Lab` → `Temperatura` → `Humedad` → `Luz` → `Sonido` → `Suelo` → `Termómetro` → `Timer` → `Sistema`
+
+Si el sensor de Suelo no entrega lectura válida, `Planta Lab` se salta automáticamente:
+
+`Inicio` → `Clima Lab` → `Termo Lab` → `Temperatura` → `Humedad` → `Luz` → `Sonido` → `Suelo` → `Termómetro` → `Timer` → `Sistema`
+
 | Posición | Pantalla | Descripción |
 |---|---|---|
-| 1 | **Inicio** | Visión global de todos los sensores en fichas |
+| 1 | **Inicio** | Visión global de temperatura, humedad, luz y sonido en fichas |
 | 2 | **Clima Lab** | Temperatura y humedad del aire en vista combinada |
 | 3 | **Planta Lab** | Salud de una planta combinando Suelo, temperatura, humedad del aire y luz; aparece solo si Suelo está conectado |
 | 4 | **Termo Lab** | Temperatura ambiente, sonda externa y diferencia térmica |
@@ -256,14 +268,14 @@ Las pantallas de sensor son **zonas de sensor**. Dentro de cada una, la pulsaci�
 | Modo | Descripción |
 |---|---|
 | **Principal** | Lectura protagonista del sensor |
-| **Dato** | Dato numérico con contexto visual |
-| **Curva** | Histórico reciente en línea de tendencia |
 | **Rango** | Lectura dentro de zonas de color y límites |
 | **Ficha** | Resumen compacto de lectura |
+| **Dato** | Dato numérico con contexto visual |
+| **Curva** | Histórico reciente en línea de tendencia |
 | **Sonido VU** | Modo exclusivo de Sonido con barras VU |
 | **Sonido Onda** | Modo exclusivo de Sonido con onda animada |
 
-La pulsación larga en cualquier pantalla de sensor abre su menú de configuración.
+La pulsación larga en cualquier pantalla de sensor abre su menú de configuración. Cada sensor recuerda su último modo visual guardado.
 
 ---
 
@@ -293,17 +305,21 @@ Para activarlo:
 1. Mantén presionado el encoder mientras conectas la alimentación USB y durante el logo de arranque.
 2. Suelta el encoder cuando el dispositivo termine de arrancar.
 
-También puedes activarlo desde `Home` con una pulsación larga del encoder.
+También puedes activarlo desde `Inicio` con una pulsación larga del encoder.
 
-Durante el Modo demo, el P-Bit recorre pantallas representativas del carrusel con ritmo variable, anima valores de ejemplo con transiciones suaves y bloquea el reposo automático. Para salir, gira o pulsa el encoder una vez. La entrada desde logos y desde `Home`, la señal visual, la salida y la coreografía smooth están implementadas en firmware; la validación visual final debe hacerse en hardware. El Modo demo no cambia la configuración guardada del usuario.
+Durante el Modo demo, el P-Bit recorre pantallas representativas de la versión de producción: `Inicio`, `Clima Lab`, `Termo Lab`, varias vistas de Sensor Zone, `Sonido VU`, `Sonido Onda` y `Timer`. Anima valores de ejemplo con transiciones suaves y bloquea el reposo automático. Para salir, gira o pulsa el encoder una vez. El Modo demo no cambia la configuración guardada del usuario.
 
 ---
 
 ## 8. Pantalla de Temperatura
 
+### Lo que muestra
+
+La zona `Temperatura` muestra la temperatura ambiente del DHT11. El color cambia según los límites configurados: azul si está por debajo del límite bajo, rojo si supera el límite alto y color normal dentro del rango.
+
 ### Acción rápida (sin menú)
 
-Pulsación corta: cambia el modo visual del sensor (Principal / Rango / Ficha / Dato / Curva). En `Sonido` también pasa por `Sonido VU` y `Sonido Onda` justo después de `Principal`.
+Pulsación corta: cambia el modo visual del sensor (`Principal` / `Rango` / `Ficha` / `Dato` / `Curva`).
 
 ### Menú de configuración (pulsación larga ~1.2 s)
 
@@ -315,6 +331,15 @@ Pulsación corta: cambia el modo visual del sensor (Principal / Rango / Ficha / 
 | **Alertas** | Activa o desactiva el aviso automático |
 | **Reset** | Restaura unidad, límites, marcas y alertas a valores por defecto |
 | **Salir** | Cierra el menú |
+
+### Cómo configurar
+
+1. Mantén pulsado el encoder hasta abrir el menú.
+2. Gira hasta `Unidad`, `Límites`, `Marcas` o `Alertas`.
+3. Pulsa para entrar.
+4. Gira para cambiar el valor.
+5. Pulsa para confirmar cada paso. En `Límites`, primero se ajusta `Límite bajo` y después `Límite alto`.
+6. Cuando aparezca `SAVED`, pulsa una vez para volver al menú.
 
 ### Alertas de temperatura
 
@@ -332,6 +357,14 @@ Pulsación corta: cambia el modo visual del sensor (Principal / Rango / Ficha / 
 
 ## 9. Pantalla de Humedad del aire
 
+### Lo que muestra
+
+La zona `Humedad` muestra la humedad relativa del aire medida por el DHT11. El rango útil se define con dos umbrales: `Seco` y `Muy húmedo`.
+
+### Acción rápida (sin menú)
+
+Pulsación corta: cambia el modo visual del sensor (Principal / Rango / Ficha / Dato / Curva).
+
 ### Menú de configuración (pulsación larga ~1.2 s)
 
 | Opción | Qué hace |
@@ -343,6 +376,14 @@ Pulsación corta: cambia el modo visual del sensor (Principal / Rango / Ficha / 
 | **Salir** | Cierra el menú |
 
 El rango entre `Seco` y `Muy húmedo` se interpreta automáticamente como `Óptimo`.
+
+### Cómo configurar
+
+1. Entra en `Límites`.
+2. Ajusta `Seco`: por debajo de este valor la humedad se considera baja.
+3. Ajusta `Muy húmedo`: por encima de este valor la humedad se considera alta.
+4. Usa `Marcas` para mostrar u ocultar esas referencias en el modo `Rango`.
+5. Usa `Alertas` para activar o desactivar el aviso automático.
 
 ### Alertas de humedad
 
@@ -359,12 +400,20 @@ El rango entre `Seco` y `Muy húmedo` se interpreta automáticamente como `Ópti
 > **ℹ️ NOTA**
 > El LED RGB se apaga automáticamente al entrar en esta pantalla para no interferir con la medición del sensor LDR. Es comportamiento esperado.
 
+### Lo que muestra
+
+La zona `Luz` muestra la luz ambiental. La lectura puede verse como `Lux`, `FC` (foot-candle) o `Raw ADC`. Las categorías y alertas usan siempre el lux interno del firmware.
+
+### Acción rápida (sin menú)
+
+Pulsación corta: cambia el modo visual del sensor (Principal / Rango / Ficha / Dato / Curva).
+
 ### Menú de configuración (pulsación larga ~1.2 s)
 
 | Opción | Qué hace |
 |---|---|
 | **Modo** | Selecciona la unidad visible entre `Lux`, `FC` o `Raw ADC` |
-| **Límites** | Define umbrales `Max penumbra`, `Max interior`, `Max brillante` |
+| **Límites** | Define umbrales `Máx. poca luz`, `Máx. interior`, `Máx. brillante` |
 | **Marcas** | Muestra u oculta las marcas de límites en el dial |
 | **Alertas** | Activa o desactiva el aviso automático |
 | **Reset** | Restaura modo, límites, marcas y alertas a valores por defecto |
@@ -372,7 +421,7 @@ El rango entre `Seco` y `Muy húmedo` se interpreta automáticamente como `Ópti
 
 ### Categorías de luz
 
-`Oscuro` → `Tenue` → `Interior` → `Brillante` → `Luz solar`
+`Oscuro` → `Poca luz` → `Interior` → `Brillante` → `Sol`
 
 > **ℹ️ NOTA**
 > El modo de lectura de Luz se propaga a la pantalla clásica, Sensor Zone, cards, dials, dashboards y gráficas. Las categorías y alertas siguen usando lux interno; `Raw ADC` sirve para calibración y diagnóstico.
@@ -382,9 +431,17 @@ El rango entre `Seco` y `Muy húmedo` se interpreta automáticamente como `Ópti
 
 | Estado | Indicador | Sonido |
 |---|---|---|
-| Por debajo de `Max penumbra` | Cian | Beep corto |
-| Por encima de `Max brillante` | Naranja | Beep corto |
+| Por debajo de `Máx. poca luz` | Cian | Beep corto |
+| Por encima de `Máx. brillante` | Naranja | Beep corto |
 | Entre ambos rangos | Verde | — |
+
+### Cómo configurar
+
+1. Entra en `Modo` para elegir la unidad visible: `Lux`, `FC` o `Raw ADC`.
+2. Entra en `Límites`.
+3. Ajusta `Máx. poca luz`, luego `Máx. interior` y por último `Máx. brillante`.
+4. Usa `Marcas` para mostrar u ocultar referencias en el modo `Rango`.
+5. Usa `Alertas` para activar o desactivar los avisos automáticos de luz baja o luz alta.
 
 ---
 
@@ -393,11 +450,19 @@ El rango entre `Seco` y `Muy húmedo` se interpreta automáticamente como `Ópti
 > **ℹ️ NOTA**
 > La pantalla de Sonido no tiene alerta sonora propia: emitir un beep durante la medición contaminaria la propia lectura del micrófono. Las alertas de sonido son solo visuales y de LED.
 
+### Lo que muestra
+
+La zona `Sonido` muestra un nivel relativo de 0..100 %. No son decibelios calibrados. Además de los modos comunes, incluye `Sonido VU` y `Sonido Onda` como vistas de movimiento.
+
+### Acción rápida (sin menú)
+
+Pulsación corta: `Principal` → `Sonido VU` → `Sonido Onda` → `Rango` → `Ficha` → `Dato` → `Curva`.
+
 ### Menú de configuración (pulsación larga ~1.2 s)
 
 | Opción | Qué hace |
 |---|---|
-| **Límites** | Define umbrales `Max silencio`, `Max normal`, `Max alto` |
+| **Límites** | Define umbrales `Máx. suave`, `Máx. normal`, `Máx. fuerte` |
 | **Marcas** | Muestra u oculta las marcas de límites en el dial |
 | **Alertas** | Activa o desactiva el aviso automático |
 | **Reset** | Restaura límites, marcas y alertas a valores por defecto |
@@ -405,7 +470,14 @@ El rango entre `Seco` y `Muy húmedo` se interpreta automáticamente como `Ópti
 
 ### Categorías de sonido
 
-`Silencio` → `Suave` → `Normal` → `Fuerte` → `Muy fuerte`
+`Suave` → `Normal` → `Ruidoso` → `Muy fuerte`
+
+### Cómo configurar
+
+1. Entra en `Límites`.
+2. Ajusta `Máx. suave`, después `Máx. normal` y después `Máx. fuerte`.
+3. Usa `Marcas` para mostrar u ocultar referencias en el modo `Rango`.
+4. Usa `Alertas` para activar o desactivar alertas visuales y de LED. El buzzer no sonará por alertas de Sonido.
 
 ---
 
@@ -413,6 +485,14 @@ El rango entre `Seco` y `Muy húmedo` se interpreta automáticamente como `Ópti
 
 > **⚠️ PRECAUCIÓN**
 > Antes de usar el sensor de suelo, es necesario calibrarlo con el material específico donde se va a medir. Sin calibración, los porcentajes mostrados no son representativos.
+
+### Lo que muestra
+
+La zona `Suelo` muestra la humedad calibrada del sensor conectado en `IO35`. Si el sensor falta o la lectura no es válida, muestra `Sin sensor` y `Revisa IO35`.
+
+### Acción rápida (sin menú)
+
+Pulsación corta: cambia el modo visual del sensor (Principal / Rango / Ficha / Dato / Curva).
 
 ### Menú de configuración (pulsación larga ~1.2 s)
 
@@ -428,8 +508,8 @@ El rango entre `Seco` y `Muy húmedo` se interpreta automáticamente como `Ópti
 ### Cómo calibrar el sensor de suelo
 
 1. Entra en `Calibrar sensor`.
-2. Con el sensor **al aire** (seco), espera a que el RAW se estabilice y elige `Captura`. `Salir` vuelve al menú sin guardar.
-3. Introduce el sensor en agua (o en suelo muy húmedo), espera unos segundos y elige `Captura`. `Salir` vuelve al menú sin guardar.
+2. En `En aire`, deja el sensor fuera del agua o del sustrato húmedo. Espera a que el RAW se estabilice y elige `Captura`. `Salir` vuelve al menú sin guardar.
+3. En `En agua`, introduce el sensor en agua o en suelo muy húmedo, espera unos segundos y elige `Captura`. `Salir` vuelve al menú sin guardar.
 4. Revisa el resumen de valores `SECO` / `MOJADO`.
 5. Elige `Guardar` para aplicar la calibración o `Salir` para descartarla.
 6. Si aparece `Error`, repite el proceso asegurando que los dos valores estén bien diferenciados (≥ 300 cuentas ADC).
@@ -437,6 +517,13 @@ El rango entre `Seco` y `Muy húmedo` se interpreta automáticamente como `Ópti
 Si el sensor de suelo no está conectado, el P-Bit muestra `Sin sensor`, `Conecta sensor` y `Revisa IO35` en lugar de iniciar la captura.
 
 Durante la calibración, una pulsación larga cancela el paso actual sin guardar cambios y vuelve al menú de Suelo. Desde el menú raíz, la pulsación larga cierra la configuración.
+
+### Cómo ajustar límites sin recalibrar
+
+1. Entra en `Límites`.
+2. Ajusta `Seco`: por debajo de este porcentaje el P-Bit avisa de falta de agua.
+3. Ajusta `Húmedo`: por encima de este porcentaje el P-Bit avisa de exceso de agua.
+4. Pulsa tras `SAVED` para volver al menú.
 
 ### Alertas del sensor de suelo
 
@@ -468,6 +555,14 @@ El Termómetro usa una sonda externa de temperatura que se conecta al puerto vis
 > **⚠️ PRECAUCIÓN**
 > Verificar la orientación correcta del conector de la sonda antes de conectar. Una conexión incorrecta puede dañar la sonda o el dispositivo.
 
+### Lo que muestra
+
+La zona `Termómetro` muestra la temperatura de la sonda externa. Es independiente de la temperatura ambiente del DHT11, pero comparte la unidad `Celsius/Fahrenheit`.
+
+### Acción rápida (sin menú)
+
+Pulsación corta: cambia el modo visual del sensor (Principal / Rango / Ficha / Dato / Curva).
+
 ### Menú de configuración (pulsación larga ~1.2 s)
 
 | Opción | Qué hace |
@@ -478,6 +573,13 @@ El Termómetro usa una sonda externa de temperatura que se conecta al puerto vis
 | **Alertas** | Activa o desactiva el aviso automático |
 | **Reset** | Restaura unidad, límites, marcas y alertas a valores por defecto |
 | **Salir** | Cierra el menú |
+
+### Cómo configurar
+
+1. Entra en `Unidad` para cambiar entre Celsius y Fahrenheit.
+2. Entra en `Límites` para ajustar `Límite bajo` y `Límite alto`.
+3. Usa `Marcas` para mostrar u ocultar referencias en el modo `Rango`.
+4. Usa `Alertas` para activar o desactivar el aviso automático.
 
 Si la sonda no está conectada, la pantalla muestra `Sin sensor`, `---` y la indicación `Revisa IO33` (o su equivalente en el idioma activo).
 Cuando la sonda se desconecta o vuelve a conectarse durante el uso, aparece un aviso breve: `DESCONECTADO / Sensor DS18B20 / IO33` o `CONECTADO / Sensor DS18B20 / IO33`.
@@ -578,7 +680,7 @@ El P-Bit tiene dos canales de audio independientes.
 
 ### Alarmas
 
-- Audio al activarse una alerta de sensor (temperatura, humedad, DS18B20).
+- Audio al activarse una alerta de sensor compatible: Temperatura, Humedad, Luz, Suelo y Termómetro.
 - Melodías del sensor de suelo al cambiar de categoría.
 - Alarma al terminar una cuenta regresiva del Timer.
 - Se controla con `Sistema > Alarmas`.

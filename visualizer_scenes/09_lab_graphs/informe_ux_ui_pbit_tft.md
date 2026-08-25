@@ -1,6 +1,6 @@
 # Informe completo de UX/UI para dashboards ambientales en pantallas TFT 1.8" 160x128 con ESP32 y TFT_eSPI
 
-Nota de vigencia (2026-06-03): este informe es investigación previa de patrones visuales, no la descripción del firmware actual. La UI vigente se documenta en `docs/TFT_RENDER_RULES.md`, `docs/DESIGN_SYSTEM.md` y `visualizer_scenes/README.md`: Home, Clima, Multi, Sonido VU, Sensor Zone, Timer y Sistema; LDR en `0..8000 lux` (curva empírica v1); i18n ES/CAT/EN centralizado; BLE factory-off oculto.
+Nota de vigencia (2026-08-25): este informe es investigación previa de patrones visuales, no la descripción del firmware actual. La UI vigente se documenta en `docs/PROJECT.md`, `docs/USER_GUIDE.md`, `docs/TECHNICAL.md`, `docs/TFT_RENDER_RULES.md`, `docs/DESIGN_SYSTEM.md` y `visualizer_scenes/README.md`: Inicio, Clima Lab, Planta Lab condicional, Termo Lab, Sensor Zone, Timer y Sistema; `Sonido VU/Onda` viven dentro de Sonido; LDR usa `0..8000 lux` (curva empírica v1); i18n ES/CAT/EN centralizado; BLE factory-off oculto.
 
 ## Resumen ejecutivo
 
@@ -44,7 +44,7 @@ Esto significa que la pregunta de diseño principal no es “qué puedo meter”
 
 Las guías de UX para pantallas pequeñas recomiendan un foco dominante por vista: una lectura principal, una interacción principal o una visualización principal.[web:9][web:12] En dispositivos embebidos esto cobra aún más importancia, porque la interfaz se consulta en contextos breves y funcionales.[web:12][web:15]
 
-Por tanto, un patrón muy recomendable para P‑Bit es separar una pantalla Home de visión general y varias pantallas de detalle, una por sensor o grupo de sensores. Esto mantiene claridad visual y reduce carga cognitiva.
+Por tanto, un patrón muy recomendable para P‑Bit es separar una pantalla Inicio de visión general y varias pantallas de detalle, una por sensor o grupo de sensores. Esto mantiene claridad visual y reduce carga cognitiva.
 
 ### Legibilidad extrema
 
@@ -64,15 +64,15 @@ En P‑Bit, esta consistencia es aún más valiosa porque el objetivo es pedagó
 
 La estructura más sólida para tu caso es una arquitectura en tres niveles:
 
-- Pantalla Home o resumen general.
+- Pantalla Inicio o resumen general.
 - Pantallas de detalle por sensor o familia de sensores.
 - Pantallas funcionales específicas, como cronómetro, experimento o modo diagnóstico.
 
 Este patrón es coherente con las recomendaciones de UX en sistemas pequeños, donde conviene separar lectura general, exploración de detalle e interacción específica.[web:9][web:12]
 
-### Pantalla Home
+### Pantalla Inicio
 
-La Home debe responder a una sola pregunta: “¿Cómo está el entorno ahora mismo?”.[web:12][web:15] Por eso debe mostrar pocas variables, bien jerarquizadas y con codificación visual inmediata.
+La pantalla Inicio debe responder a una sola pregunta: “¿Cómo está el entorno ahora mismo?”.[web:12][web:15] Por eso debe mostrar pocas variables, bien jerarquizadas y con codificación visual inmediata.
 
 La mejor solución para 160x128 suele ser una de estas dos:
 
@@ -120,7 +120,7 @@ Ventajas:
 
 - Separan claramente la información.
 - Permiten una jerarquía visual limpia.
-- Funcionan muy bien en la Home.
+- Funcionan muy bien en Inicio.
 
 Limitaciones:
 
@@ -144,7 +144,7 @@ Además, encajan con los widgets de barras de progreso de TFT_eWidget y con el e
 
 Los diales analógicos con aguja son muy atractivos visualmente y funcionan bien para magnitudes físicas como temperatura o ruido.[web:1][web:10] Son muy buenos como pantalla de detalle, especialmente cuando se acompañan de zonas de color y una lectura numérica grande.
 
-No son la mejor opción para mostrar muchos sensores a la vez, porque consumen demasiado espacio. Por eso conviene reservarlos a pantallas dedicadas y no a la Home.
+No son la mejor opción para mostrar muchos sensores a la vez, porque consumen demasiado espacio. Por eso conviene reservarlos a pantallas dedicadas y no a Inicio.
 
 ### Gráficas pequeñas o sparklines
 
@@ -174,7 +174,7 @@ La temperatura es ideal para representarse como valor grande + gauge circular o 
 
 Recomendación concreta:
 
-- Home: valor grande con icono y pequeño indicador de estado.
+- Inicio: valor grande con icono y pequeño indicador de estado.
 - Detalle: gauge de media pantalla y sparkline pequeña debajo.
 - Texto breve de rango si quieres enfoque educativo: “frío”, “ok”, “calor”.
 
@@ -184,7 +184,7 @@ La humedad del suelo se beneficia mucho de metáforas gráficas de llenado o sat
 
 Recomendación concreta:
 
-- Home: porcentaje + gota rellena.
+- Inicio: porcentaje + gota rellena.
 - Detalle: barra horizontal segmentada con etiquetas “seco / óptimo / húmedo”.
 - Si quieres reforzar el aprendizaje, añade un color neutro cuando el valor esté dentro de rango y colores de alerta fuera de rango.
 
@@ -204,7 +204,7 @@ La luz funciona muy bien con iconos de brillo progresivo y barras crecientes.[we
 
 Recomendación concreta:
 
-- Home: icono de bombilla o sol con intensidad visual.
+- Inicio: icono de bombilla o sol con intensidad visual.
 - Detalle: barra o gauge semicircular simple.
 - Si el sensor lo permite, una mini gráfica es muy útil para ver cambios por nubes, sombras o encendido de luces.
 
@@ -214,9 +214,9 @@ El sonido pide una visualización más dinámica, cercana a un VU meter.[web:12]
 
 Recomendación concreta:
 
-- Home: icono de altavoz con 3 barras simples.
+- Inicio: icono de altavoz con 3 barras simples.
 - Detalle: VU bar más grande, actualizada rápido, con un valor medio o pico.
-- Si quieres un enfoque educativo, puedes etiquetar niveles como “silencio”, “actividad”, “ruido alto”.
+- Si quieres un enfoque educativo, puedes etiquetar niveles como “suave”, “actividad”, “muy fuerte”.
 
 ### Cronómetro
 
@@ -293,7 +293,7 @@ Los sprites son una técnica clave para que una interfaz parezca moderna en pant
 
 Estrategias útiles:
 
-- Sprite completo para Home si la RAM lo permite.
+- Sprite completo para Inicio si la RAM lo permite.
 - Sprite parcial para widgets animados.
 - Redibujado solo de zonas cambiantes.
 
@@ -355,7 +355,7 @@ Esto implica que la UI debe favorecer lectura interpretativa y comparativa, no s
 
 ## Propuestas de layouts concretos
 
-### Layout A: Home con 4 cards
+### Layout A: Inicio con 4 cards
 
 Distribución:
 
@@ -451,7 +451,7 @@ Antes de dar por válida una pantalla, conviene revisar:
 
 Las mejores decisiones para una pantalla como la tuya no pasan por copiar dashboards de móvil o de web, sino por adaptar principios modernos a un contexto de muy baja resolución.[web:9][web:12][web:15] En tu caso, la combinación más prometedora es:
 
-- Home con cards o barras lineales.
+- Inicio con cards o barras lineales.
 - Pantallas de detalle con gauge o sparkline.
 - Uso consistente de iconos simples.
 - Código de color semántico.
@@ -465,7 +465,7 @@ El siguiente paso más útil es convertir este informe en un sistema visual conc
 
 - Una paleta cerrada.
 - Una librería de iconos de 1 bit o color plano.
-- Un layout Home.
+- Un layout Inicio.
 - 4 a 6 layouts de detalle por sensor.
 - Un conjunto de reglas para tamaños de texto, márgenes, estados y animaciones.
 

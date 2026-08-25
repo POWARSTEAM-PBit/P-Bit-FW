@@ -10,14 +10,14 @@ Fecha: 2026-06-03 | Versión consolidada post-Fase B/C/D + auditoría de reglas-
 
 ## Estado actual
 
-Las reglas de este documento ya están aplicadas en las pantallas de mayor riesgo del firmware actual: Rango/gauge, Ficha/cards, `Sonido VU/Onda`, Curva/Graph, Dato, Inicio y pantallas de sensor clásicas. La validación puntual en hardware deja ghosting/flicker cerrado por ahora; la deuda activa es mantener checks de regresión cuando se toquen pantallas, Demo Mode, modos LDR o reglas de limpieza.
+Las reglas de este documento ya están aplicadas en las pantallas de mayor riesgo del firmware actual: Rango/gauge, Ficha/cards, `Sonido VU/Onda`, Curva/Graph, Dato, Inicio y menús de sensor. La validación puntual en hardware deja ghosting/flicker cerrado por ahora; la deuda activa es mantener checks de regresión cuando se toquen pantallas, Demo Mode, modos LDR o reglas de limpieza.
 
 Cambios cerrados desde la auditoría original:
-- `Sound VU`: sprite, EWMA asimétrico, scroll continuo e idle pulse.
+- `Sonido VU/Onda`: sprite, EWMA asimétrico, scroll continuo e idle pulse.
 - `RANGO/GAUGE`: ring sprite 64×64 y chrome/data split.
 - `DATO`: sparkline sprite y clears acotados.
 - `SENSOR CARD`: chrome-last rule para evitar recorte por overhang de glyphs.
-- `HOME` y cards lab: `draw_card_chrome` separado de `draw_card_value_and_tank`.
+- `Inicio` y cards Lab: `draw_card_chrome` separado de `draw_card_value_and_tank`.
 - `LDR`: `Lux`, `FC` y `Raw ADC` usan helper común de presentación; Sensor Zone/cards/gráficas/dials deben seguir valor/unidad del modo activo.
 - `Externos`: DS18B20/Termómetro y Suelo usan estado runtime común de ausencia; al desconectar se dibujan con paleta atenuada y textos `Revisa IO33` / `Revisa IO35`, sin persistencia en NVS.
 
@@ -378,7 +378,7 @@ Demo Mode usa un refresco propio de `220 ms` (ver `demo_mode_value_refresh_ms()`
 4. **`sensor_connection_notice.*` no dispara durante demo** — la rama de baseline filtra eventos durante `demo_mode_is_active()`.
 5. **Si una pantalla nueva no tiene path de Demo Mode**, registra una escena en `src/demo_mode.cpp` con `dwell` apropiado (rango actual `6..10 s`) o documenta por qué se omite.
 
-> **Regla de regresión**: tras cualquier cambio en render dinámico, entrar a Demo Mode (encoder presionado en boot, o long-press en `LAB_HOME_CARDS`) y observar 30 segundos. Si el flicker aparece solo en demo, casi siempre es un clear acotado a 1 cifra que no soporta dos cifras, o un sprite que se inicializa cada frame.
+> **Regla de regresión**: tras cualquier cambio en render dinámico, entrar a Demo Mode (encoder presionado en boot, o pulsación larga en `Inicio`/`LAB_HOME_CARDS_SCREEN`) y observar 30 segundos. Si el flicker aparece solo en demo, casi siempre es un clear acotado a 1 cifra que no soporta dos cifras, o un sprite que se inicializa cada frame.
 
 ---
 
@@ -406,7 +406,7 @@ Demo Mode usa un refresco propio de `220 ms` (ver `demo_mode_value_refresh_ms()`
 
 ## Vigilancia de regresión y pendientes visuales
 
-- `LAB_SOUND_VU_STACK_SCREEN` y `LAB_SOUND_VU_WAVE_SCREEN`: vigilar que scroll continuo e idle pulse no recuperen congelación periódica.
+- `LAB_SOUND_VU_STACK_SCREEN` y `LAB_SOUND_VU_WAVE_SCREEN`: vigilar que scroll continuo e idle pulse no recuperen congelación periódica dentro de los modos `Sonido VU/Onda`.
 - `SZ_VIZ_GAUGE`: vigilar ring sprite sin vibración y label de unidad restaurado después del `pushSprite()`.
 - `SZ_VIZ_CARD`: vigilar header, valor, visualización y footer sin recortes por clears dinámicos.
 - `SZ_VIZ_VALOR`: vigilar sparkline y barra segmentada sin flash negro y con contraste suficiente.

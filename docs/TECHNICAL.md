@@ -1,6 +1,6 @@
 # Manual Técnico del P-Bit
 
-Actualizado: 2026-06-13
+Actualizado: 2026-08-25
 
 Este documento describe el estado técnico actual del P-Bit a partir del firmware y la configuración presentes en este repositorio. Está pensado como base de entrenamiento para desarrollo, integración, soporte, mantenimiento y despliegue educativo.
 
@@ -50,7 +50,7 @@ Estado de revisión de producción/i18n:
 - memoria reportada por build: RAM `14.9%` (`48940` bytes de `327680`) y Flash `72.1%` (`945429` bytes de `1310720`)
 - revisión estática de i18n, BLE factory-off, Sensor Zone y fixes anti-flicker completada
 - ghosting/flicker validado como resuelto por ahora; mantener checks de regresión en ST7735 real
-- Modo demo validado en entrada desde logos, entrada desde `Home`, splash y salida con interacción; coreografía smooth implementada en firmware y pendiente de validación visual final en hardware
+- Modo demo validado en entrada desde logos, entrada desde `Inicio`, splash y salida con interacción; coreografía smooth implementada en firmware y pendiente de validación visual final en hardware
 - LDR `Lux` / `FC` / `Raw ADC` propagado en firmware a `LIGHT_SCREEN`, Sensor Zone, cards, dashboards, dials y gráficas mediante helper común de presentación
 
 ## 2. Plataforma base
@@ -320,7 +320,7 @@ En firmware se usa una aproximación equivalente y barata para ESP32:
 
 La aproximación evita `powf` en el lazo rápido, mantiene el error medio de la muestra alrededor de `6%` y deja el máximo práctico cerca del punto más luminoso medido. Si cambia el LDR, el divisor, la carcasa o la geometría de medición, esta tabla debe repetirse y versionarse como una nueva curva.
 
-La UI de luz usa un helper común de presentación (`include/light_display.h` / `src/light_display.cpp`) para tres modos: `Lux`, `FC` y `Raw ADC`. `FC` es foot-candle calculado desde lux (`lux / 10.764`). `Raw ADC` usa la lectura ADC cruda promediada y se muestra como `raw` en campos compactos. La propagación visual está implementada en firmware para `LIGHT_SCREEN`, Sensor Zone (`Principal`, `Rango`, `Ficha`, `Dato`, `Curva`), Home cards, dashboards y gráficas. Categorías, alertas y RGB siguen usando lux interno; en vistas de solo Luz el RGB permanece apagado para no contaminar el LDR. Las gráficas RAW usan `g_graph_light_raw`.
+La UI de luz usa un helper común de presentación (`include/light_display.h` / `src/light_display.cpp`) para tres modos: `Lux`, `FC` y `Raw ADC`. `FC` es foot-candle calculado desde lux (`lux / 10.764`). `Raw ADC` usa la lectura ADC cruda promediada y se muestra como `raw` en campos compactos. La propagación visual está implementada en firmware para `LIGHT_SCREEN`, Sensor Zone (`Principal`, `Rango`, `Ficha`, `Dato`, `Curva`), tarjetas de Inicio, dashboards y gráficas. Categorías, alertas y RGB siguen usando lux interno; en vistas de solo Luz el RGB permanece apagado para no contaminar el LDR. Las gráficas RAW usan `g_graph_light_raw`.
 
 #### Sonido
 
@@ -380,7 +380,7 @@ Implementación:
 - La pulsación larga abre el menú clásico del sensor activo (`TEMP_SCREEN`, `HUMIDITY_SCREEN`, `LIGHT_SCREEN`, `SOUND_SCREEN`, `SOIL_SCREEN` o `DS18B20_SCREEN`).
 - `GRAPH_SCREEN` existe en el firmware; con el flag actual se usa como renderer del modo visible `Curva` dentro de `SENSOR_ZONE_SCREEN`.
 
-Si `PBIT_ENABLE_GRAPH_LAB` se compila a `0`, el carrusel cae al rango clásico `TEMP_SCREEN -> GRAPH_SCREEN`.
+El paquete de producción usa `PBIT_ENABLE_GRAPH_LAB=1`. El carrusel clásico con `TEMP_SCREEN -> GRAPH_SCREEN` queda como referencia técnica de compilaciones experimentales y no debe describirse como flujo de usuario de producción.
 
 ### Sensor Zone
 
@@ -415,7 +415,7 @@ Comportamiento:
 
 - `src/demo_mode.cpp` define una banda runtime de escenas con duración variable (`6..10 s`) para dar ritmo visual a la demo.
 - Al activarse, `tft_display.cpp` muestra una señal visual breve `MODO DEMO / Iniciando demo` antes de entrar a la primera escena.
-- Con `PBIT_ENABLE_GRAPH_LAB=1`, recorre Inicio, Clima Lab, Planta Lab si Suelo está disponible, Termo Lab, escenas de Sensor Zone (incluyendo Sonido VU y Sonido Onda) y Timer.
+- Con `PBIT_ENABLE_GRAPH_LAB=1`, recorre Inicio, Clima Lab, Termo Lab, escenas de Sensor Zone (incluyendo Sonido VU y Sonido Onda) y Timer. `Planta Lab` pertenece al carrusel de producción, pero no está incluida actualmente en `kDemoScenes`.
 - Las escenas de Sensor Zone usan setters runtime, por lo que no modifican el sensor ni el modo visual guardados.
 - Si `kDemoSimulatedReadings == true`, `demo_mode_apply_simulated_readings(...)` modifica solo `g_ui_readings_snapshot` para animar valores visuales; no toca `global_readings`, NVS, BLE ni lecturas físicas.
 - `demo_mode_value_refresh_ms()` fija un refresco demo dedicado de `220 ms`, separado de la cadencia normal de sensores/gráficas.
@@ -426,7 +426,7 @@ Comportamiento:
 
 Estado actual:
 
-- entrada desde logos con encoder presionado, entrada desde `Home` con pulsación larga, señal visual y salida con interacción confirmadas en hardware.
+- entrada desde logos con encoder presionado, entrada desde `Inicio` con pulsación larga, señal visual y salida con interacción confirmadas en hardware.
 - coreografía smooth implementada en firmware; queda validación visual final en hardware para ajustar dwell/refresco si hiciera falta.
 
 ### Fixes anti-flicker
@@ -436,7 +436,7 @@ Ghosting/flicker queda cerrado por ahora tras la revisión y validación prácti
 - dials/gauges: caches por sensor y actualizaciones por `data_dirty`/`chrome_dirty`; los diales dibujan ticks de umbral/rango sobre el arco usando los rangos guardados
 - cards: limpieza dirigida del rectángulo de valor, banda superior ampliada para estados (`Óptimo`, `Seco`, etc.) y cache de estado
 - menús y footers: clears por bandas en vez de `fillScreen` constante
-- `Sound VU`: sprites/cache para medidor y badge, con push de zona dinámica sin redibujar chrome completo
+- `Sonido VU/Onda`: sprites/cache para medidor y badge, con push de zona dinámica sin redibujar chrome completo
 - cambio de pantalla/idioma: `runtime_request_ui_full_redraw()` fuerza un frame limpio cuando corresponde
 
 ### Gestos del encoder
@@ -448,7 +448,7 @@ Ghosting/flicker queda cerrado por ahora tras la revisión y validación prácti
 - pulsación larga:
   - en pantallas de sensor individual: abre el menú de configuración del sensor
   - en `Timer`: abre el editor de duración `HH:MM:SS` si está idle o resetea si ya estaba corriendo/pausado
-  - en `Sistema`: mantener 30 s sin girar activa la pantalla oculta de BLE
+  - en `Sistema`: abre el menú global con una pulsación normal de menú; mantener 30 s sin girar activa la pantalla oculta de BLE de fábrica/debug
 
 Tiempos actuales:
 
@@ -457,7 +457,7 @@ Tiempos actuales:
 
 ### Pantallas y menús disponibles
 
-#### Home
+#### Inicio
 
 Vista global de todos los sensores en fichas. Solo lectura; no tiene menú.
 
@@ -554,7 +554,7 @@ Con `PBIT_ENABLE_GRAPH_LAB=1`, `GRAPH_SCREEN` se usa como sub-renderer del modo 
 
 La infraestructura de buffers circulares está activa para los 6 sensores (160 muestras a 1 muestra/s, `g_graph_mux` para acceso cross-core). `sz_sync_renderer(...)` sincroniza el sensor activo con `graph_set_sensor(...)` antes de dibujar.
 
-Cuando el flag se compila a `0`, `GRAPH_SCREEN` queda disponible como pantalla independiente del carrusel clásico.
+Cuando el flag se compila a `0`, `GRAPH_SCREEN` queda disponible como pantalla independiente del carrusel clásico experimental; no forma parte del flujo de producción.
 
 Archivos clave:
 
@@ -901,12 +901,15 @@ En cold boot: selector visible en `Español` / `Catalán` / `English` cuando `la
 
 | Pantalla | Pulsación corta | Pulsación larga |
 |---|---|---|
-| TEMP / TERMÓMETRO | Alterna unidad global `C/F` | Abre menú (~1.2 s) |
-| HUMEDAD / LUZ / SONIDO / SUELO | Cambia modo visual del sensor | Abre menú (~1.2 s) |
+| Inicio | Sin acción de producto | Activa Modo demo (~1.2 s) |
+| Clima Lab / Planta Lab / Termo Lab | Sin acción de producto | Sin menú |
+| Temperatura / Humedad / Luz / Sonido / Suelo / Termómetro | Cambia modo visual del sensor (`sz_next_viz()`) | Abre menú del sensor activo (~1.2 s) |
 | SISTEMA | Alterna `Bip ON/OFF` | Abre menú (~1.2 s) |
 | TIMER | Inicia o pausa | Abre editor HH:MM:SS si idle; resetea si corriendo/pausado (~1.0 s) |
 
-En Modo demo, cualquier giro o pulsación corta/larga posterior al release inicial sale del demo antes de ejecutar la acción normal. Desde `Home`, una pulsación larga activa el Modo demo.
+Con el carrusel de producción (`PBIT_ENABLE_GRAPH_LAB=1`), `TEMP_SCREEN`, `HUMIDITY_SCREEN`, `LIGHT_SCREEN`, `SOUND_SCREEN`, `SOIL_SCREEN` y `DS18B20_SCREEN` ya no son paradas navegables directas. Se usan como pantallas de menú/configuración abiertas desde el slot correspondiente de `SENSOR_ZONE_SCREEN`. Por eso la pulsación corta en sensores no alterna `C/F`; la unidad se cambia desde `Unidad` en los menús de Temperatura o Termómetro.
+
+En Modo demo, cualquier giro o pulsación corta/larga posterior al release inicial sale del demo antes de ejecutar la acción normal. Desde `Inicio`, una pulsación larga activa el Modo demo.
 
 ### Menús por sensor
 
@@ -932,15 +935,15 @@ Opciones raíz: `Límites / Marcas / Alertas / Reset / Salir`
 Opciones raíz: `Modo / Límites / Marcas / Alertas / Reset / Salir`
 
 - **Modo**: `Lux` / `FC` / `Raw ADC`.
-- **Límites**: `Max penumbra` → `Max interior` → `Max brillante` → Guardar. Rango editable: 10..8000. Validación: brillante > interior > penumbra.
+- **Límites**: `Máx. poca luz` → `Máx. interior` → `Máx. brillante` → Guardar. Rango editable: 10..8000. Validación: brillante > interior > poca luz.
 - **Marcas**: muestra u oculta las marcas de límites en el dial. Se guarda en NVS; por defecto queda `OFF`.
-- Esta opción afecta el valor/unidad visible de Luz en pantalla clásica, Sensor Zone (`Principal`, `Rango`, `Ficha`, `Dato`, `Curva`), Home cards, dashboards y gráficas. `FC` convierte el lux mostrado a foot-candle y `Raw ADC` muestra la lectura cruda promediada. Barras, categorías y alertas conservan lux interno cuando representan rangos ambientales.
+- Esta opción afecta el valor/unidad visible de Luz en pantalla clásica, Sensor Zone (`Principal`, `Rango`, `Ficha`, `Dato`, `Curva`), tarjetas de Inicio, dashboards y gráficas. `FC` convierte el lux mostrado a foot-candle y `Raw ADC` muestra la lectura cruda promediada. Barras, categorías y alertas conservan lux interno cuando representan rangos ambientales.
 
 #### Sonido
 
 Opciones raíz: `Límites / Marcas / Alertas / Reset / Salir`
 
-- **Límites**: `Max silencio` → `Max normal` → `Max alto` → Guardar. Validación: alto > normal > silencio.
+- **Límites**: `Máx. suave` → `Máx. normal` → `Máx. fuerte` → Guardar. Validación: fuerte > normal > suave.
 - **Marcas**: muestra u oculta las marcas de límites en el dial. Se guarda en NVS; por defecto queda `OFF`.
 - Sin alerta sonora propia (no contaminar lectura del micrófono).
 

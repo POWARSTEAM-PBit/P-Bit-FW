@@ -6,6 +6,7 @@ Guía breve para agentes que trabajen en este repo P-Bit.
 
 - Firmware PlatformIO/Arduino para ESP32 con TFT ST7735 160x128, encoder, LED RGB, buzzer y sensores ambientales.
 - `src/io.cpp` lee sensores y publica `Reading`; `src/tft_display.cpp` enruta pantallas; `src/rotary.cpp` centraliza encoder; `src/settings_store.cpp` encapsula NVS.
+- Carrusel de producción: `Inicio -> Clima Lab -> Planta Lab -> Termo Lab -> Temperatura -> Humedad -> Luz -> Sonido -> Suelo -> Termómetro -> Timer -> Sistema`; `Planta Lab` se omite si Suelo no entrega lectura válida.
 - `SENSOR_ZONE_SCREEN` es la capa común para Temperatura, Humedad, Luz, Sonido, Suelo y Termómetro (`DS18B20` técnico). Su ciclo visible común es `Principal -> Rango -> Ficha -> Dato -> Curva`; `Sonido` añade `Sonido VU` y `Sonido Onda` justo después de `Principal`. Los enums internos históricos (`Focus`, `Valor`, `Graph`, `Gauge`, `Card`) pueden seguir existiendo.
 - `Sistema` separa dos controles audibles:
   - `Bip` -> `g_sound_enabled` / NVS `sys_sound`: beeps de UI, navegación y confirmaciones.
@@ -24,6 +25,7 @@ Guía breve para agentes que trabajen en este repo P-Bit.
 
 ## Docs Canónicos
 
+- Escribir guías y documentos desde la versión de producción. No presentar pantallas legacy, pantallas de laboratorio, `GRAPH_SCREEN` clásico, `SOUND_SCREEN` clásico ni `DS18B20_SCREEN` como paradas visibles; si se mencionan, marcarlas como implementación interna, menú/configuración o visualizador.
 - Descripción del producto: `docs/PROJECT.md` — qué es, hardware, capacidades, mapa de docs.
 - Manual de usuario: `docs/USER_GUIDE.md` — uso, menús, seguridad, configuración.
 - Manual técnico: `docs/TECHNICAL.md` — arquitectura, pinout, código, BLE, NVS, menús completos.

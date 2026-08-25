@@ -1,10 +1,10 @@
 # Checklist de Producción P-Bit
 
-Actualizado: 2026-06-15
+Actualizado: 2026-08-25
 
 Usar esta lista antes de entregar una build o una unidad flasheada.
 
-Estado de esta revisión: build y auditoría estática completados; Demo Mode y anti-flicker/ghosting validados puntualmente en hardware; pruebas completas por unidad pendientes.
+Estado de esta revisión: documentación sincronizada con la versión de producción vigente. La última build registrada se conserva como evidencia histórica; Demo Mode y anti-flicker/ghosting estaban validados puntualmente en hardware; pruebas completas por unidad siguen pendientes.
 
 ## 1. Configuración de build
 
@@ -14,7 +14,7 @@ Estado de esta revisión: build y auditoría estática completados; Demo Mode y 
 - [x] `PBIT_ENABLE_SERIAL_PLOTTER=0` para producción.
 - [x] `FIRMWARE_DEBUG` sigue comentado.
 - [x] `platformio.ini` conserva flags de build silenciosos/optimizados (`-Os`, `CORE_DEBUG_LEVEL=1`, `CONFIG_ARDUHAL_LOG_DEFAULT_LEVEL=1`).
-- [ ] Si `PBIT_ENABLE_GRAPH_LAB=0` en una build futura, documentar explícitamente que se entrega el carrusel clásico `TEMP_SCREEN -> GRAPH_SCREEN`.
+- [ ] No entregar como producción una build con `PBIT_ENABLE_GRAPH_LAB=0`; cualquier build experimental debe documentarse fuera del paquete de producción.
 
 ## 2. Auditoría estática de UI/i18n
 
@@ -24,8 +24,8 @@ Estado de esta revisión: build y auditoría estática completados; Demo Mode y 
 - [x] Carrusel actual con `PBIT_ENABLE_GRAPH_LAB=1`: `Inicio -> Clima Lab -> Planta Lab -> Termo Lab -> Temperatura -> Humedad -> Luz -> Sonido -> Suelo -> Termómetro -> Timer -> Sistema`; `Planta Lab` se omite si Suelo no tiene lectura válida.
 - [x] `SENSOR_ZONE_SCREEN` reutiliza Sensor Zone para los seis sensores y persiste modos visibles `Principal -> Rango -> Ficha -> Dato -> Curva`; `Sonido` añade `Sonido VU` y `Sonido Onda` justo después de `Principal`.
 - [x] `Sistema` separa `Bip` y `Alarmas`; la auditoría estática confirma persistencia `sys_sound`, `sys_alarm` y `sys_unit_f` para unidad C/F.
-- [x] Anti-flicker/ghosting revisado por código y validado por ahora en hardware en dials/gauges, cards, menús/footers y `Sound VU`; mantener vigilancia de regresión.
-- [x] Modo demo runtime añadido: arranque con encoder presionado durante logo o pulsación larga desde `Home`, splash breve de entrada, sin persistir sensor/modo en NVS.
+- [x] Anti-flicker/ghosting revisado por código y validado por ahora en dials/gauges, cards, menús/footers y `Sonido VU/Onda`; mantener vigilancia de regresión.
+- [x] Modo demo runtime añadido: arranque con encoder presionado durante logo o pulsación larga desde `Inicio`, splash breve de entrada, sin persistir sensor/modo en NVS.
 - [x] Menús de settings revisados con helpers comunes: valores centrados con fallback de fuente y summaries más separados del footer.
 - [ ] En hardware: arranque frío muestra selector de idioma si la NVS fue limpiada.
 - [ ] En hardware: recorrer carrusel completo y verificar legibilidad de todos los modos.
@@ -36,7 +36,7 @@ Estado de esta revisión: build y auditoría estática completados; Demo Mode y 
 - [ ] En hardware: cambiar C/F, reiniciar y confirmar persistencia de unidad.
 - [ ] En hardware: `Sistema > Bip` silencia beeps de UI sin silenciar `Alarmas`; `Sistema > Alarmas` silencia alertas/timer audibles sin ocultar alertas visuales/RGB.
 - [ ] En hardware: reposo visible con `ZZZ`; despierta con interacción del encoder.
-- [x] En hardware: encender con encoder presionado durante logo activa Modo demo; pulsación larga desde `Home` también lo activa; cualquier interacción posterior sale del demo.
+- [x] En hardware: encender con encoder presionado durante logo activa Modo demo; pulsación larga desde `Inicio` también lo activa; cualquier interacción posterior sale del demo.
 - [x] UX Demo Mode: coreografía/ritmo suavizados en firmware con dwell variable, curvas por sensor y refresco dedicado.
 - [ ] UX Demo Mode: validar en hardware que la coreografía smooth no reintroduce flicker ni cambios demasiado lentos.
 

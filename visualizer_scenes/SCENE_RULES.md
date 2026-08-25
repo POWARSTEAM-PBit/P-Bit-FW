@@ -39,7 +39,7 @@ Cada archivo debe empezar con comentarios breves:
 - Cuando el visualizador no soporte bien un patrón real del firmware, preferir una variante `visualizer-safe` y dejarlo indicado en comentarios.
 - No inventar layouts nuevos.
 - Mantener nombres de escena coherentes con los README de cada carpeta.
-- Para Home, cards, Sensor Zone, dials y VU, reflejar la separación shell/data y los clears acotados aunque el snippet sea estático.
+- Para Inicio, cards, Sensor Zone, dials y VU, reflejar la separación shell/data y los clears acotados aunque el snippet sea estático.
 - Para luz, usar lux `0..8000` como escala de usuario; raw ADC `0..4095` solo en escenas de calibración/debug.
 - Para i18n, usar el texto de `LangKey` ES/CAT/EN o anotar qué idioma simula la escena.
 - BLE debe marcarse como `hidden-debug`; está factory-off y fuera del carrusel.
@@ -54,4 +54,4 @@ Cada archivo debe empezar con comentarios breves:
 
 - Cada carpeta agrupa una familia visual del P-Bit.
 - Revisar primero que existan todos los archivos esperados según el `README.md` de cada carpeta.
-- Antes de promover una escena, comprobar que representa la UI visible actual: Home, Clima, Multi, Sonido VU, Sensor Zone, Timer o Sistema.
+- Antes de promover una escena, comprobar que representa la UI visible actual: Inicio, Clima Lab, Planta Lab condicional, Termo Lab, Sensor Zone, Timer o Sistema. `Sonido VU/Onda` son modos de Sensor Zone, no paradas globales.

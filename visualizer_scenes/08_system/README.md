@@ -25,5 +25,5 @@ Notas de estado:
 - El menú raíz de Sistema usa grid 2x3 para las seis opciones.
 - `Bip` corresponde a `sys_sound` y controla beeps de UI. `Alarmas` corresponde a `sys_alarm` y controla alertas/timer audibles.
 - BLE está factory-off y oculto: si `ble_en == false`, no se dibuja panel BLE ni estado `OFF`. Las escenas `02_system_runtime_ble_*` son `hidden-debug`/legacy, no flujo normal visible.
-- El desbloqueo BLE real ocurre con pulsación mantenida de 60 s en Sistema y entra en `BLE_TOGGLE_SCREEN`.
+- El desbloqueo BLE real ocurre con pulsación mantenida de 30 s en Sistema y entra en `BLE_TOGGLE_SCREEN`.
 - Nuevas escenas de sistema deben priorizar `Bip`, `Alarmas`, sleep, idioma y reset.

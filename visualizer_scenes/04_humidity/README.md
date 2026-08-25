@@ -19,5 +19,5 @@ Notas de estado:
 
 - `HUMIDITY_SCREEN` ya no es parada directa del carrusel visible.
 - Se abre como menú/configuración desde Sensor Zone con `SZ_HUM` mediante pulsación larga.
-- La humedad sí aparece en Home y Clima; esas escenas deben vivir en el grupo de pantallas actuales (`09_lab_graphs` mientras no exista una carpeta de producto).
+- La humedad sí aparece en `Inicio` y `Clima Lab`; esas escenas deben vivir en el grupo de pantallas actuales (`09_lab_graphs` mientras no exista una carpeta de producto).
 - Textos traducibles deben mapear a `TIT_HUM`, `ST_*`, `MENU_*` y claves de humedad.

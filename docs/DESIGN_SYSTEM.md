@@ -1,6 +1,6 @@
 # Design System — P-Bit TFT
 
-**Actualizado:** 2026-06-13
+**Actualizado:** 2026-08-25
 **Estado:** IMPLEMENTADO — Sensor Zone activa; ghosting/flicker resuelto por ahora; LDR modos y Demo smooth implementados en firmware, pendientes de validación visual final
 
 Referencia canónica para cualquier pantalla nueva, modificación de color, icono o layout en el firmware P-Bit. Leer este documento antes de tocar cualquier color, icono o layout en archivos de producción.
@@ -52,8 +52,8 @@ pb_contrast_cool(sensor_id) // P4
 |-------|-------|-----|
 | `PB_PANEL_NAV_BG` | `tft.color565(8, 12, 18)` | Fondo navy principal de todas las pantallas |
 | Fondo de gráfica | `tft.color565(4, 8, 20)` | Área de plot del modo Gráfica |
-| Card interior bg | `0x0841` | Interior de card en HOME y pantallas lab |
-| Card border | `0x2945` | Borde de card en HOME y pantallas lab |
+| Card interior bg | `0x0841` | Interior de card en Inicio y pantallas Lab |
+| Card border | `0x2945` | Borde de card en Inicio y pantallas Lab |
 | Dato numérico principal | `TFT_WHITE` | **Siempre** — sin excepciones |
 | Segmentos vacíos / track | `0x1084` | Segmentos apagados, tracks de gauge |
 
@@ -63,7 +63,7 @@ pb_contrast_cool(sensor_id) // P4
 - Verificar contraste sobre fondo navy `0x1082` antes de aprobar cualquier color.
 - **No usar `TFT_BLACK` como color de detalle interior** — sobre fondo navy crea manchas visibles. Usar `PB_PANEL_NAV_BG` en su lugar.
 - Los valores en `include/palette.h` son la fuente de verdad. No duplicar constantes locales por pantalla.
-- Pendiente de decisión: si `HOME` y `CLIMA LAB` migran a paleta canónica o mantienen colores responsivos propios (ver `docs/ROADMAP.md`).
+- Pendiente de decisión: si `Inicio` y `Clima Lab` migran a paleta canónica o mantienen colores responsivos propios (ver `docs/ROADMAP.md`).
 
 ---
 
@@ -123,7 +123,7 @@ Y=118..126 FOOTER   — hints, alert jewel (atención: solapamiento con CONTENT 
 | `LC_CARD_TOP` | 27 | Top de card principal |
 | `LC_CARD_RADIUS` | 4 | Radio de esquinas de cards |
 
-Cards 2×2 (HOME y familia): `X0=2`, `X1=82`, `Y0=27`, `Y1=79`, `W=76`, `H=48`
+Cards 2×2 (Inicio y familia Lab): `X0=2`, `X1=82`, `Y0=27`, `Y1=79`, `W=76`, `H=48`
 
 ---
 
@@ -298,7 +298,7 @@ Ver `docs/TFT_RENDER_RULES.md` para el protocolo anti-flicker completo (sprites,
 **Paleta:**
 - [ ] Aprobar en hardware TEMP / HUM / DS18 como identidades visualmente distinguibles
 - [ ] Validar en ST7735 real la rampa de Suelo amarillo→verde→azul contra los rangos configurados
-- [ ] Decidir si `HOME` y `CLIMA LAB` migran a paleta canónica o mantienen colores responsivos propios
+- [ ] Decidir si `Inicio` y `Clima Lab` migran a paleta canónica o mantienen colores responsivos propios
 
 **Iconos:**
 - [ ] Rediseño y aprobación final del icono `probe` (DS18B20) en hardware
@@ -325,4 +325,4 @@ Ver `docs/TFT_RENDER_RULES.md` para el protocolo anti-flicker completo (sprites,
 **Orden de migración de paleta (aplicado y en progreso):**
 1. ✅ Pantallas nuevas (`SENSOR CARD`, `VALOR LAB`) — banco de prueba histórico sin tocar producción; nombres visibles actuales: `Ficha` y `Dato`
 2. ✅ Sensor Zone completa — paleta canónica en todos los modos
-3. ⏳ Pantallas madre (`HOME`, `CLIMA`) — solo después de validar Sensor Zone en hardware real
+3. ⏳ Pantallas madre (`Inicio`, `Clima Lab`) — solo después de validar Sensor Zone en hardware real

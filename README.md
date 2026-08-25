@@ -24,7 +24,8 @@ En Windows, si `platformio` no está en PATH:
 ## Estado actual
 
 - Build OK `esp32dev` con `PBIT_ENABLE_GRAPH_LAB=1` y `PBIT_ENABLE_SERIAL_PLOTTER=0`.
-- Carrusel: `Home`, `Clima`, `Multi`, `Sonido VU`, 6 sensores (Sensor Zone), `Timer`, `Sistema`.
+- Carrusel de producción: `Inicio`, `Clima Lab`, `Planta Lab` si Suelo está conectado, `Termo Lab`, 6 sensores en Sensor Zone, `Timer`, `Sistema`.
+- Sensor Zone: `Temperatura`, `Humedad`, `Luz`, `Sonido`, `Suelo` y `Termómetro`; pulsación corta cambia `Principal -> Rango -> Ficha -> Dato -> Curva`. `Sonido` añade `Sonido VU` y `Sonido Onda` tras `Principal`.
 - Idiomas: Español, Catalán, English.
 - BLE desactivado de fábrica.
 

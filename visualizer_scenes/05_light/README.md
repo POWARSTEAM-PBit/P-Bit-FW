@@ -17,7 +17,7 @@ Escenas previstas en este grupo:
 - `12_light_edit_display.cpp`
 - `13_light_edit_alerts.cpp`
 - `14_light_reset_confirm.cpp`
-- `15_light_saved_calibration.cpp`
+- `15_light_saved_calibration.cpp` - nombre legacy; corresponde a límites/modo guardados
 - `16_light_saved_display.cpp`
 - `17_light_saved_alerts.cpp`
 - `18_light_saved_reset.cpp`
@@ -27,5 +27,5 @@ Notas de estado:
 - `LIGHT_SCREEN` ya no es parada directa del carrusel visible.
 - Se abre como menú/configuración desde Sensor Zone con `SZ_LIGHT` mediante pulsación larga.
 - La magnitud de usuario es lux calibrado `0..8000`; el valor raw ADC `0..4095` es solo calibración/debug.
-- Home, Sensor Zone valor, dial, card y gráfica deben usar escala `0..8000 lux`.
+- Inicio, Sensor Zone `Dato`, `Rango`, `Ficha` y `Curva` deben usar escala `0..8000 lux`.
 - Mantener la nota de producto: el RGB se apaga en luz para no contaminar la lectura LDR.

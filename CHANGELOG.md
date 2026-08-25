@@ -1,5 +1,15 @@
 # Changelog
 
+## 2026-08-25
+
+### Documentación — Guías de producción sincronizadas
+
+- **Manual de usuario:** actualizado el flujo real de producción: `Inicio -> Clima Lab -> Planta Lab -> Termo Lab -> Temperatura -> Humedad -> Luz -> Sonido -> Suelo -> Termómetro -> Timer -> Sistema`, con `Planta Lab` condicional y ciclos de Sensor Zone `Principal -> Rango -> Ficha -> Dato -> Curva`; Sonido incorpora `Sonido VU/Onda` como modos internos.
+- **Menús y configuración:** ampliadas instrucciones de uso para navegación con encoder, menús 2x3, reset, límites, marcas, alertas, modo de Luz, unidad global C/F, Timer, Sistema y calibración real de Suelo.
+- **Documentación técnica:** sincronizados carrusel, gestos de pulsación corta/larga, Demo Mode, menús de sensores, nombres visibles de Luz/Sonido y distinción entre pantallas de producción e identificadores internos (`SOUND_SCREEN`, `DS18B20_SCREEN`, `GRAPH_SCREEN`).
+- **Producción y visualizador:** actualizados `README`, `AGENTS.md`, checklist/release de producción, reglas de render, diseño visual, roadmap y README de escenas para no presentar pantallas legacy/lab como paradas visibles actuales.
+- **Build:** no ejecutado; cambio limitado a Markdown/documentación.
+
 ## 2026-06-15
 
 ### Firmware/UI — PLANTA LAB V1
