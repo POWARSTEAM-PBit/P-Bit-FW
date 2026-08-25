@@ -20,6 +20,8 @@ py -m platformio run -e esp32dev
 
 Nota 2026-08-25: esta pasada actualiza documentación de producción; no sustituye la última verificación local registrada ni aporta nuevos tamaños de firmware.
 
+Nota de producto: la alimentación recomendada de entrega/aula es `3 baterías AAA`. USB-C queda para programación, monitor serie y alimentación auxiliar 5 V por PC/powerbank; no presentarlo como alimentación principal.
+
 Artefactos generados en `.pio/build/esp32dev/`:
 
 - `firmware.bin`
@@ -67,6 +69,7 @@ Confirmado por lectura de código:
 - Fixes anti-flicker/ghosting presentes y validados por ahora en dials/gauges, cards, menús/footers, banda de estado en cards y `Sonido VU/Onda`; queda como vigilancia de regresión.
 - Modo demo runtime confirmado en hardware: entra en arranque con encoder presionado durante los logos o con pulsación larga desde `Inicio`, muestra splash breve, simula valores solo en el snapshot visual, no persiste sensor/modo en NVS, bloquea reposo mientras está activo y sale con interacción.
 - Demo Mode tiene coreografía smooth implementada en firmware: dwell variable, refresco dedicado, curvas por sensor y gráficas sintéticas; queda validación visual final en hardware.
+- WiFi/Bluetooth existen como capacidades del ESP32. El firmware inicial no incluye flujo WiFi público; BLE queda reservado a fábrica/debug y apagado en producción.
 
 ## Artefactos De Release
 
@@ -88,6 +91,8 @@ No versionar nuevos `.bin`, `.elf`, `.map`, `.exe`, logs o temporales dentro del
 
 Después de flashear una unidad:
 
+- [ ] Confirmar arranque y navegación básica con `3 baterías AAA` nuevas.
+- [ ] Confirmar USB-C para programación/alimentación auxiliar 5 V, sin presentarlo como alimentación principal.
 - [ ] Confirmar selector de idioma en primer arranque si la build limpió NVS.
 - [ ] Confirmar BLE apagado por defecto y sin publicidad `PBIT-XXXX`.
 - [ ] Recorrer carrusel completo y probar una pulsación corta/larga en un sensor.

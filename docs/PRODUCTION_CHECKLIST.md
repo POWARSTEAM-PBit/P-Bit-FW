@@ -16,7 +16,16 @@ Estado de esta revisión: documentación sincronizada con la versión de producc
 - [x] `platformio.ini` conserva flags de build silenciosos/optimizados (`-Os`, `CORE_DEBUG_LEVEL=1`, `CONFIG_ARDUHAL_LOG_DEFAULT_LEVEL=1`).
 - [ ] No entregar como producción una build con `PBIT_ENABLE_GRAPH_LAB=0`; cualquier build experimental debe documentarse fuera del paquete de producción.
 
-## 2. Auditoría estática de UI/i18n
+## 2. Alimentación y conectividad de producto
+
+- [ ] Validar arranque y navegación básica con `3 baterías AAA` nuevas; esta es la alimentación recomendada para entrega/aula.
+- [ ] Confirmar que el portapilas hace buen contacto y que no hay reinicios al mover suavemente el equipo.
+- [ ] Verificar USB-C para programación, monitor serie y alimentación auxiliar 5 V desde PC/powerbank.
+- [ ] No presentar USB-C/powerbank como alimentación principal recomendada en material de usuario.
+- [ ] Confirmar que la documentación pública describe WiFi/Bluetooth como capacidades del ESP32 sin flujo de configuración en el firmware inicial.
+- [ ] Confirmar que ninguna guía pública describe el gesto interno de activación BLE.
+
+## 3. Auditoría estática de UI/i18n
 
 - [x] `LANG_COUNT`, `LIn(...)`, `normalizeLanguage(...)` y `L(...)` presentes en la capa de idioma.
 - [x] Cambio de idioma solicita full redraw con `runtime_request_ui_full_redraw()` y el loop de UI lo consume con `runtime_take_ui_full_redraw()`.
@@ -40,7 +49,7 @@ Estado de esta revisión: documentación sincronizada con la versión de producc
 - [x] UX Demo Mode: coreografía/ritmo suavizados en firmware con dwell variable, curvas por sensor y refresco dedicado.
 - [ ] UX Demo Mode: validar en hardware que la coreografía smooth no reintroduce flicker ni cambios demasiado lentos.
 
-## 3. BLE
+## 4. BLE
 
 - [x] Estado esperado de fábrica por código: BLE `OFF`.
 - [x] `load_ble_enabled_store()` usa default `false` para `ble_en`.
@@ -52,7 +61,7 @@ Estado de esta revisión: documentación sincronizada con la versión de producc
 - [ ] Si se activó BLE para pruebas, volver a `OFF`, confirmar reinicio y repetir escaneo.
 - [ ] En unidad física reflasheada sobre desarrollo, confirmar primer arranque sin publicidad `PBIT-XXXX`.
 
-## 4. Sensores y feedback
+## 5. Sensores y feedback
 
 - [x] LDR base técnica revisada por código: lux interno limitado a `0..8000`, curva empírica v1 desde RAW promediado, `FC = lux / 10.764` y `Raw ADC` disponible para recalibración.
 - [ ] DHT11 muestra temperatura y humedad plausibles.
@@ -68,7 +77,7 @@ Estado de esta revisión: documentación sincronizada con la versión de producc
 - [ ] Icono técnico `probe`/DS18B20 revisado en hardware; estado actual no final.
 - [ ] Alertas visuales, RGB y audio de `Alarmas` se prueban al menos en un sensor crítico.
 
-## 5. Entrega y repo hygiene
+## 6. Entrega y repo hygiene
 
 - [x] No incluir `.pio/`, logs locales, `.zip`, `.bin`, `.elf`, `.map`, `.exe` ni artefactos temporales nuevos en esta actualización documental.
 - [x] Revisar `git status --short` antes de cerrar la build.

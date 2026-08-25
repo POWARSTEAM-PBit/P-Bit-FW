@@ -12,7 +12,7 @@ Idiomas de interfaz disponibles: Español, Catalán, English
 > No sumergir el dispositivo en agua ni exponer a lluvia. El P-Bit no es resistente al agua.
 
 > **⚠️ PRECAUCIÓN**
-> El P-Bit funciona con alimentación USB (5 V). No conectar a fuentes de tensión superiores. No modificar la alimentación eléctrica sin conocimiento técnico.
+> El P-Bit está pensado para funcionar principalmente con `3 baterías AAA`. El USB-C es el puerto de programación y también puede alimentar el equipo a 5 V desde un PC o powerbank como recurso auxiliar, pero no es el modo recomendado de uso diario. No conectar a fuentes de tensión superiores ni modificar la alimentación eléctrica sin conocimiento técnico.
 
 > **⚠️ PRECAUCIÓN**
 > Algunos sensores externos (sensor de suelo, sonda de temperatura) requieren conexión correcta al conector correspondiente. Conectar o desconectar sensores externos **con el dispositivo apagado** siempre que sea posible.
@@ -33,18 +33,20 @@ El control físico es un único encoder rotatorio con pulsador. Se gira para nav
 
 Este manual describe la versión de producción actual: carrusel con `Inicio`, pantallas Lab de solo lectura, zonas de sensor, `Timer` y `Sistema`. No describe pantallas internas antiguas ni herramientas de laboratorio.
 
+Para información más completa de pinout, defaults, NVS, pantallas, sensores y criterios técnicos, usar como documento base `docs/PBIT_KNOWLEDGE_BASE.md`.
+
 ### Especificaciones generales
 
 | Parámetro | Valor |
 |---|---|
 | Procesador | ESP32 |
-| Alimentación | 5 V USB |
+| Alimentación | 3 baterías AAA recomendado; USB-C 5 V para programación/alimentación auxiliar |
 | Pantalla | TFT ST7735, 160 × 128 px, color |
 | Interfaz de usuario | Encoder rotatorio con pulsador |
 | Indicador de estado | LED RGB |
 | Audio | Buzzer pasivo |
 | Idiomas | Español, Catalán, English |
-| Conectividad inalámbrica | BLE (desactivado de fábrica) |
+| Conectividad inalámbrica | WiFi/Bluetooth disponibles en ESP32; firmware inicial sin WiFi configurado ni Bluetooth público; BLE desactivado de fábrica |
 | Almacenamiento de configuración | NVS (memoria no volátil interna) |
 
 ### Sensores y rangos de medida
@@ -61,6 +63,18 @@ Este manual describe la versión de producción actual: carrusel con `Inicio`, p
 > **ℹ️ NOTA**
 > Los rangos de luz y sonido son aproximaciones de firmware, no valores calibrados por laboratorio. El sensor de suelo requiere calibración en campo (ver sección 12).
 
+### Conexiones principales
+
+| Elemento | Referencia visible / pin | Uso |
+|---|---|---|
+| Portapilas | 3 × AAA | Alimentación recomendada |
+| USB-C | 5 V | Programación y alimentación auxiliar |
+| Sensor de suelo | `IO35` / `GPIO35` | Entrada analógica externa |
+| Termómetro DS18B20 | `IO33` / `GPIO33` | Sonda externa 1-Wire |
+| DHT11 | `GPIO4` | Temperatura y humedad del aire |
+| LDR | `GPIO39` | Luz ambiental |
+| Micrófono | `GPIO36` | Sonido relativo |
+
 ---
 
 ## 2. Partes del equipo
@@ -72,6 +86,8 @@ Este manual describe la versión de producción actual: carrusel con `Inicio`, p
 - Sensor de sonido (integrado en placa)
 - Puerto visible de PCB para sensor de humedad de suelo (`IO35`)
 - Puerto visible de PCB para sonda de temperatura Termómetro, identificador técnico DS18B20 (`IO33`)
+- Portapilas para `3 baterías AAA` como alimentación recomendada
+- Puerto USB-C para programación y alimentación auxiliar 5 V
 - Encoder rotatorio con pulsador (control principal)
 
 ### Salidas
@@ -86,6 +102,8 @@ Este manual describe la versión de producción actual: carrusel con `Inicio`, p
 
 - **No cubrir el sensor de luz** con la mano ni colocar objetos encima del LDR durante la medición.
 - **En la pantalla de Luz**, el LED RGB se apaga automáticamente para no interferir con la medición. Este comportamiento es correcto.
+- **Usar baterías AAA como alimentación normal**. Reservar USB-C para programación, diagnóstico o alimentación auxiliar puntual.
+- **No mezclar baterías nuevas y usadas** y retirarlas si el equipo va a guardarse durante mucho tiempo.
 - **No colocar el sensor de suelo en agua pura** sin referencia de calibración previa.
 - **Evitar condensación** sobre la placa. En entornos muy húmedos, proteger la electrónica expuesta.
 - **En caso de lectura `Sin sensor`**, verificar la conexión del sensor externo al conector correspondiente antes de asumir fallo del dispositivo.
@@ -100,20 +118,22 @@ Esta guía lleva a alguien que nunca ha usado el P-Bit hasta ver su primer dato 
 
 **Necesitas:**
 - El P-Bit con firmware cargado
-- Un cable USB
-- Un ordenador, cargador USB o powerbank (5 V)
+- 3 baterías AAA
+- Sensores externos opcionales: sensor de suelo (`IO35`) y sonda Termómetro/DS18B20 (`IO33`)
+- Cable USB-C solo si vas a programar, diagnosticar o alimentar de forma auxiliar desde un PC/powerbank
 
 > **⚠️ PRECAUCIÓN**
-> Si vas a conectar sensores externos (sonda DS18B20 o sensor de suelo), hazlo con el dispositivo **apagado** antes de enchufar el USB.
+> Si vas a conectar sensores externos (sonda DS18B20 o sensor de suelo), hazlo con el dispositivo **apagado** antes de colocar baterías o alimentar por USB-C.
 
 ---
 
 ### Paso 1 — Conectar y encender
 
-1. Conecta el cable USB al P-Bit y a la fuente de alimentación.
-2. La pantalla se enciende en unos segundos.
+1. Coloca 3 baterías AAA en el portapilas respetando la polaridad.
+2. Alimenta el P-Bit con el portapilas conectado al equipo.
+3. La pantalla se enciende en unos segundos.
 
-Si la pantalla no se enciende, comprueba el cable y la fuente USB.
+Si la pantalla no se enciende, comprueba la orientación de las baterías, su carga y el contacto del portapilas. Para programación o diagnóstico puedes alimentar por USB-C desde un PC/powerbank a 5 V, pero no es la recomendación principal de uso.
 
 ---
 
@@ -277,6 +297,15 @@ Las pantallas de sensor son **zonas de sensor**. Dentro de cada una, la pulsaci�
 
 La pulsación larga en cualquier pantalla de sensor abre su menú de configuración. Cada sensor recuerda su último modo visual guardado.
 
+Cómo leer las vistas:
+
+- `Principal` sirve para consultar rápido el valor actual y su estado.
+- `Rango` sirve para ver si el valor cae por debajo, dentro o por encima de los límites configurados; cuando `Marcas` está activo, aparecen referencias visuales de esos límites.
+- `Ficha` compacta la información para comparar el sensor con otras pantallas del carrusel.
+- `Dato` prioriza el número grande y la unidad.
+- `Curva` muestra el histórico reciente como línea de tendencia; no es un registro permanente, sino una ventana móvil de muestras recientes.
+- `Sonido VU` y `Sonido Onda` ayudan a ver cambios rápidos de intensidad sonora sin interpretar el valor como decibelios certificados.
+
 ---
 
 ## 7. Reposo automático
@@ -302,7 +331,7 @@ El Modo demo permite dejar el P-Bit encendido mostrando una rotación automátic
 
 Para activarlo:
 
-1. Mantén presionado el encoder mientras conectas la alimentación USB y durante el logo de arranque.
+1. Mantén presionado el encoder mientras enciendes o alimentas el P-Bit y durante el logo de arranque.
 2. Suelta el encoder cuando el dispositivo termine de arrancar.
 
 También puedes activarlo desde `Inicio` con una pulsación larga del encoder.
@@ -655,6 +684,12 @@ Pulsación corta: activa o desactiva `Bip` directamente.
 
 Desactivar `Bip` **no** silencia las alertas automáticas. Desactivar `Alarmas` **no** desactiva los beeps de navegación.
 
+### WiFi y Bluetooth
+
+El ESP32 del P-Bit incluye WiFi y Bluetooth a nivel de hardware, pero la versión inicial de producción no tiene menú de WiFi, conexión a redes ni flujo Bluetooth público para consumidor/aula.
+
+BLE queda desactivado de fábrica. Si alguna unidad muestra un indicador BLE activo en `Sistema`, tratarlo como estado de fábrica/soporte y no como función de usuario final.
+
 ### Reset global
 
 > **⚠️ PRECAUCIÓN**
@@ -720,6 +755,10 @@ El LED RGB indica el estado visible del dispositivo. En diales y tarjetas sigue 
 | La pantalla muestra `Sin sensor` en Termómetro | Sonda DS18B20 no conectada o mal conectada | Verificar conexión en `IO33` |
 | La pantalla muestra `Sin sensor` en Suelo | Sensor de suelo no conectado | Verificar conexión en `IO35` |
 | El sensor de Suelo muestra valores incorrectos | Sin calibración o calibración en condiciones diferentes | Recalibrar con `Calibrar sensor` |
+| La pantalla no enciende | Baterías agotadas, mal orientadas o portapilas sin contacto | Revisar polaridad, cambiar las 3 AAA y comprobar conexión del portapilas |
+| El equipo solo funciona conectado por USB-C | Baterías descargadas o problema en el portapilas | Sustituir baterías y revisar contactos; USB-C es auxiliar/programación |
+| No encuentro configuración WiFi | No existe flujo WiFi en el firmware inicial | No es una función disponible en esta versión |
+| No encuentro emparejamiento Bluetooth | Bluetooth/BLE no es función pública de aula en esta versión | Usar solo bajo instrucciones de soporte/fábrica |
 | El LED se apaga al entrar en Luz | Comportamiento esperado | Normal — el LED se apaga para no interferir con la medición |
 | Las alertas no suenan | `Alarmas` está en OFF | Activar desde `Sistema > Alarmas` |
 | El dispositivo no guarda los ajustes tras reiniciar | Se flasheó firmware nuevo | Un flash nuevo borra la configuración. Volver a configurar |
@@ -733,8 +772,9 @@ El LED RGB indica el estado visible del dispositivo. En diales y tarjetas sigue 
 
 - **Limpiar los sensores externos** con un paño seco. No usar líquidos ni solventes sobre la placa.
 - **Recalibrar el sensor de suelo** si se cambia el tipo de sustrato o la fuente de alimentación.
+- **Cambiar las 3 baterías AAA juntas** cuando el equipo muestre inestabilidad, reinicios o menor autonomía.
 - **Verificar la build activa** antes de entregar el dispositivo. Seguir `docs/PRODUCTION_CHECKLIST.md`.
-- **Confirmar BLE desactivado** con escaneo externo antes de entregar unidades. El firmware lo fuerza `OFF` en cada flash nuevo, pero conviene verificarlo.
+- Bluetooth/BLE no debe presentarse como función pública de usuario final en esta versión.
 - No usar la pantalla de Sonido como instrumento de medición acústica. Sus valores son relativos e interpretativos.
 - Los valores de temperatura del DHT11 pueden tardar 1–2 minutos en estabilizarse tras el encendido.
 

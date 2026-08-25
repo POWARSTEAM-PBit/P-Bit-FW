@@ -2,6 +2,14 @@
 
 ## 2026-08-25
 
+### Documentación — Guía base completa P-Bit
+
+- **Nuevo documento maestro:** añadido `docs/PBIT_KNOWLEDGE_BASE.md` como base completa de producto, uso, pantallas, sensores, pinout, energía, conectividad, configuración, calibración, alertas, mantenimiento, troubleshooting y usos educativos.
+- **Alimentación y conectividad:** sincronizados `README.md`, `docs/PROJECT.md`, `docs/USER_GUIDE.md`, `docs/TECHNICAL.md`, `docs/PRODUCTION_CHECKLIST.md`, `docs/PRODUCTION_RELEASE.md`, `docs/ROADMAP.md` y `AGENTS.md` para documentar `3 baterías AAA` como alimentación recomendada, USB-C como programación/auxiliar, WiFi sin configuración en firmware inicial y BLE como factory/debug no público.
+- **Manual público:** ampliada la guía de usuario con arranque por AAA, conexiones principales, lectura de vistas, WiFi/Bluetooth no públicos, troubleshooting de alimentación y mantenimiento sin revelar el gesto interno BLE.
+- **Manual técnico:** corregidos driver DHT local `pbit_dht`, ventana de sonido `20 ms`, energía física y nota explícita de no propagar el gesto BLE a documentación pública.
+- **Build:** no ejecutado; cambio limitado a Markdown/documentación.
+
 ### Documentación — Guías de producción sincronizadas
 
 - **Manual de usuario:** actualizado el flujo real de producción: `Inicio -> Clima Lab -> Planta Lab -> Termo Lab -> Temperatura -> Humedad -> Luz -> Sonido -> Suelo -> Termómetro -> Timer -> Sistema`, con `Planta Lab` condicional y ciclos de Sensor Zone `Principal -> Rango -> Ficha -> Dato -> Curva`; Sonido incorpora `Sonido VU/Onda` como modos internos.

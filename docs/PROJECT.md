@@ -6,7 +6,9 @@ Actualizado: 2026-08-25
 
 ## 1. Qué es el P-Bit
 
-El P-Bit es una placa educativa ambiental basada en ESP32. Mide variables del entorno, las muestra en una pantalla TFT y permite configurar alertas, explorar datos históricos y gestionar un temporizador, todo con un encoder rotatorio como único control físico.
+El P-Bit es una placa educativa ambiental portátil basada en ESP32. Mide variables del entorno, las muestra en una pantalla TFT y permite configurar alertas, explorar datos históricos y gestionar un temporizador, todo con un encoder rotatorio como único control físico.
+
+El uso recomendado de producto es con `3 baterías AAA`. El puerto USB-C queda principalmente para programación del firmware y también puede alimentar el equipo desde un ordenador o powerbank como recurso auxiliar, pero no es la alimentación principal recomendada para aula/campo.
 
 Está diseñado para actividades de observación, experimentación y aprendizaje en contextos STEAM: educación primaria y secundaria, laboratorio escolar, terrarios, plantas, aulas y espacios exteriores.
 
@@ -34,6 +36,8 @@ El P-Bit existe para que niños, docentes y educadores puedan:
 |---|---|
 | MCU | ESP32 (módulo Dev) |
 | Framework | Arduino via PlatformIO |
+| Alimentación recomendada | 3 baterías AAA |
+| USB-C | Programación y alimentación auxiliar 5 V por PC/powerbank |
 | RAM usada | ~14.9 % (48940 bytes de 327680) |
 | Flash usada | 72.1 % (945429 bytes de 1310720) |
 
@@ -65,7 +69,8 @@ El P-Bit existe para que niños, docentes y educadores puedan:
 | LED RGB | Indicador visual de estado y alertas |
 | Buzzer pasivo | Beeps de UI y audio de alertas |
 | Pantalla TFT | Interfaz visual principal |
-| BLE (opcional) | Transmisión de datos inalámbrica; desactivado de fábrica |
+| WiFi | Capacidad del ESP32; sin flujo de configuración en el firmware inicial |
+| Bluetooth/BLE | Capacidad del ESP32; BLE queda reservado para fábrica/debug y desactivado de fábrica |
 
 ### Pinout completo
 
@@ -194,6 +199,8 @@ El idioma se selecciona en el primer encendido y puede cambiarse desde `Sistema 
 - El deep sleep automático está desactivado porque en esta revisión de hardware la TFT queda en blanco al dormir. El reposo actual muestra una pantalla `ZZZ`.
 - El Modo demo es runtime: se activa encendiendo con el encoder presionado durante el logo o con pulsación larga desde `Inicio`, muestra una señal visual breve, rota escenas representativas de la versión de producción con dwell variable, anima valores y gráficas con curvas suaves, sale con giro/pulsación y no modifica preferencias guardadas. Queda validación visual final en hardware.
 - BLE sale apagado de fábrica y no forma parte del flujo normal de aula.
+- WiFi existe como capacidad del ESP32, pero el firmware inicial no incluye configuración de red ni funciones de usuario basadas en WiFi.
+- USB-C no debe presentarse como alimentación principal de uso diario; la recomendación de producto es `3 baterías AAA`.
 - El ghosting/flicker de pantallas queda resuelto por ahora en hardware real; mantener vigilancia de regresión visual junto con la calibración RGB y la confirmación BLE off.
 
 ---
@@ -219,6 +226,7 @@ La comunicación entre tareas usa secciones críticas (`portMUX`) y flags de run
 | Documento | Qué contiene | Para quién |
 |---|---|---|
 | `README.md` | Build y flash rápido | Cualquiera |
+| `docs/PBIT_KNOWLEDGE_BASE.md` | Guía base completa de producto, uso, pantallas, sensores, pinout, energía y soporte | Usuario avanzado / aula / soporte / equipo técnico |
 | `docs/PROJECT.md` | Este documento — descripción completa | Cualquiera |
 | `docs/TECHNICAL.md` | Arquitectura, pinout detallado, código, BLE, NVS | Desarrollador / ingeniero / agente IA |
 | `docs/USER_GUIDE.md` | Manual de producto: uso, menús, seguridad, configuración | Educador / usuario final |

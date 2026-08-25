@@ -38,7 +38,9 @@ El P-Bit es un dispositivo educativo ambiental basado en ESP32 que integra senso
 - navegación con encoder rotatorio
 - alertas visuales, sonoras y RGB
 - persistencia de configuración en NVS
-- conectividad BLE opcional, oculta y desactivada por defecto
+- alimentación de producto recomendada con `3 baterías AAA`; USB-C para programación/alimentación auxiliar 5 V
+- WiFi/Bluetooth disponibles por hardware ESP32, sin WiFi configurado en firmware inicial
+- conectividad BLE opcional de fábrica/debug, oculta y desactivada por defecto
 - modos de ahorro de energía con reposo visible con `ZZZ`
 - control global separado de `Bip` y `Alarmas`
 - Modo demo runtime activable al arrancar con el encoder presionado
@@ -66,7 +68,7 @@ Estado de revisión de producción/i18n:
 
 - `TFT_eSPI`
 - `NimBLE-Arduino`
-- `DHT sensor library`
+- driver local `pbit_dht` basado en captura RMT para DHT11
 - `DallasTemperature`
 - `OneWire`
 - `ESP32RotaryEncoder`
@@ -94,6 +96,8 @@ Nota importante:
 - micrófono analógico con acondicionamiento por `LM358` y cápsula tipo `GM19767P`
 - sensor capacitivo de humedad de suelo externo
 - sonda `DS18B20` externa
+- portapilas para `3 baterías AAA` como alimentación recomendada de producto
+- USB-C para programación, monitor serie, flasheo y alimentación auxiliar 5 V
 
 ### Interfaz y salidas
 
@@ -101,7 +105,8 @@ Nota importante:
 - LED RGB
 - buzzer pasivo
 - pantalla TFT ST7735
-- BLE opcional para visualización/lectura remota, oculto y `OFF` por defecto
+- WiFi disponible en el ESP32, sin inicialización ni configuración de red en el firmware inicial
+- BLE opcional para visualización/lectura remota de fábrica/debug, oculto y `OFF` por defecto
 
 ## 4. Pinout actual del firmware y buses confirmados por hardware
 
@@ -326,7 +331,7 @@ La UI de luz usa un helper común de presentación (`include/light_display.h` / 
 
 Lógica actual:
 
-- ventana de captura de `50 ms`
+- ventana de captura de `20 ms`
 - medición de amplitud pico a pico
 - mapeo a `0..100`
 - suavizado con EMA
@@ -668,6 +673,8 @@ Nota de producción: si se flashea sobre una unidad de desarrollo que tenía BLE
 
 La pantalla `BLE_TOGGLE_SCREEN` es una función de fábrica. No aparece en el carrusel de navegación normal.
 
+Esta sección es documentación interna. No copiar el gesto, tiempos ni ruta de activación a `docs/USER_GUIDE.md`, guías de aula, materiales comerciales o documentación pública para consumidor.
+
 #### Cómo activarla
 
 Desde la pantalla `Sistema`, mantener el encoder presionado durante **30 segundos** sin girarlo.
@@ -759,6 +766,13 @@ También se genera un JSON compacto con claves:
 - `ds18`
 
 ## 11. Gestión de energía
+
+### Alimentación física
+
+- Alimentación recomendada de producto: `3 baterías AAA` en portapilas.
+- USB-C: puerto de programación, flash y monitor serie; también puede entregar 5 V desde PC o powerbank como alimentación auxiliar.
+- Para documentación pública y aula, no presentar USB-C/powerbank como alimentación principal recomendada.
+- El firmware actual no documenta medición de nivel de batería ni selector de fuente; cualquier validación de autonomía debe hacerse en hardware.
 
 ### Modos
 
@@ -1003,6 +1017,7 @@ Sin submenú raíz de lista.
 
 ## 18. Documentos relacionados
 
+- `docs/PBIT_KNOWLEDGE_BASE.md` — guía base completa de producto, uso, sensores, pinout, energía y soporte
 - `docs/PROJECT.md` — descripción completa del producto
 - `docs/USER_GUIDE.md` — manual de usuario
 - `docs/ROADMAP.md` — pendientes y mejoras futuras

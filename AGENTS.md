@@ -26,6 +26,7 @@ Guía breve para agentes que trabajen en este repo P-Bit.
 ## Docs Canónicos
 
 - Escribir guías y documentos desde la versión de producción. No presentar pantallas legacy, pantallas de laboratorio, `GRAPH_SCREEN` clásico, `SOUND_SCREEN` clásico ni `DS18B20_SCREEN` como paradas visibles; si se mencionan, marcarlas como implementación interna, menú/configuración o visualizador.
+- Guía base completa: `docs/PBIT_KNOWLEDGE_BASE.md` — fuente principal para producto, uso, energía, pantallas, sensores, pinout, conectividad y soporte.
 - Descripción del producto: `docs/PROJECT.md` — qué es, hardware, capacidades, mapa de docs.
 - Manual de usuario: `docs/USER_GUIDE.md` — uso, menús, seguridad, configuración.
 - Manual técnico: `docs/TECHNICAL.md` — arquitectura, pinout, código, BLE, NVS, menús completos.

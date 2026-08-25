@@ -15,9 +15,10 @@ El historial de lo ya implementado está en `CHANGELOG.md`. Este documento cubre
 | Build | ✅ `esp32dev` — sin errores |
 | RAM | 15.0 % (`49 140` / `327 680` bytes) |
 | Flash | 73.4 % (`961 709` / `1 310 720` bytes) |
+| Alimentación | Producto recomendado con `3 baterías AAA`; USB-C para programación/alimentación auxiliar |
 | Carrusel activo | 11/12 pantallas con `PBIT_ENABLE_GRAPH_LAB=1` (`PLANTA LAB` aparece solo con Suelo conectado) |
 | Idiomas | ES / CAT / EN — i18n completo |
-| BLE | Factory-off — gesto secreto 30 s en `Sistema` |
+| WiFi/BLE | WiFi sin configuración en firmware inicial; BLE factory-off interno, no público |
 | Validación hardware | **En cierre** — ghosting/flicker resuelto por ahora; LDR modos, Demo smooth y estados externos `IO33/IO35` implementados en firmware, pendientes de validación visual final |
 
 ---
@@ -45,6 +46,12 @@ Estado: resuelto por ahora en hardware real. Usar esta tabla como checklist de r
 - [ ] Escaneo BLE externo no ve advertising `PBIT-XXXX` en estado de producción
 - [ ] En unidad reflasheada sobre build de desarrollo: primer arranque sin advertising
 - [ ] Fila BLE solo visible en `Sistema` cuando `ble_en == true`
+- [ ] Confirmar que guías públicas no documentan el flujo interno de activación BLE
+
+### Alimentación
+
+- [ ] Validar arranque, navegación y reposo con `3 baterías AAA` nuevas
+- [ ] Confirmar USB-C como programación/auxiliar 5 V, no alimentación principal de producto
 
 ### Sensores
 
