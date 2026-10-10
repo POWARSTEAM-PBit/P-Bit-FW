@@ -4,6 +4,16 @@ Fecha: 2026-06-15
 
 Estado: Aceptado
 
+Revisión de implementación y pendientes: 2026-10-10, código `27e5207`.
+
+## Estado de implementación y trabajo actual
+
+V1 está implementada en `src/ui_lab_plant.cpp`, integrada en el carrusel y compilada en `esp32dev`. La planta anima continuamente con refresco del router a `220 ms`; hay terrario, cuatro filas de datos/rango y diagnóstico localizado. No hay nueva aprobación visual en hardware en esta revisión.
+
+La prioridad acordada es retomar la revisión/mejora visual de esta pantalla: barras/valores legibles en 96 px, texto ES/CAT/EN (`ASSEDEGADA`), contraste de `AHOGADA`, cuatro posturas reconocibles y ausencia de parpadeo. Las secciones V2/V3 son propuestas futuras, no trabajo ya autorizado. Prueba final de 24 h y validación física completa quedan aplazadas; ver `docs/ROADMAP.md`.
+
+Dos diferencias del diseño inicial quedan explícitas: el diagnóstico implementado usa los rangos óptimos, mientras el color de tierra usa otros límites; la escala de Luz llega a `30000 lux`, por encima del techo real de `8000`. La tabla siguiente documenta el comportamiento actual. Decidir su coherencia antes de cambiar el firmware.
+
 ## Contexto
 
 El P-Bit ya tiene pantallas Lab para clima múltiple (`CLIMA LAB`) y temperatura de sonda (`TERMO LAB`). Una de las capacidades más potentes del dispositivo para el aula es la combinación del sensor de suelo con los sensores ambientales (temperatura, humedad del aire, luz), que juntos permiten evaluar las condiciones de vida de una planta real.
@@ -66,8 +76,8 @@ Cuatro estados en V1:
 | Estado | Condición dominante | Color | Forma (postura) |
 |---|---|---|---|
 | `BIEN` | Todos los sensores en rango óptimo | Verde | erguida, hojas arriba, yema visible |
-| `SEDIENTA` | Suelo por debajo del umbral bajo | Amarillo | hojas caídas, tierra seca/agrietada |
-| `AHOGADA` | Suelo por encima del umbral alto | Azul | hojas pesadas + gotas, tierra encharcada |
+| `SEDIENTA` | Suelo válido < 30 % | Amarillo | hojas caídas; tierra agrietada solo si suelo < 25 % |
+| `AHOGADA` | Suelo válido > 70 % | Azul | hojas pesadas + gotas; banda encharcada solo si suelo > 80 % |
 | `ESTRÉS` | Temperatura, luz o humedad de aire fuera de rango | Naranja | hojas muy caídas, una hoja caída al suelo |
 
 La **forma** comunica el estado aunque no se distinga el color (regla de accesibilidad
@@ -86,16 +96,20 @@ suelo > temperatura > humedad aire > luz
 
 Razón: suelo y temperatura afectan la planta en minutos; la luz y la humedad del aire tienen un impacto más lento.
 
-### Thresholds V1 (perfil "interior genérico" hardcodeado)
+### Rangos V1 implementados (perfil "interior genérico" fijo)
 
-| Sensor | Bajo (alerta) | Óptimo | Alto (alerta) |
-|---|---|---|---|
-| Suelo (%) | < 25 | 30 – 70 | > 80 |
-| Temperatura (°C) | < 12 | 18 – 26 | > 30 |
-| Humedad aire (%) | < 30 | 40 – 70 | > 85 |
-| Luz (lx) | < 100 | 200 – 10000 | > 30000 |
+| Sensor | Rango usado por el diagnóstico | Resultado fuera del rango, si es el primer sensor por prioridad |
+|---|---|---|
+| Suelo (%) | 30 – 70, inclusivo | `SEDIENTA` por debajo; `AHOGADA` por encima |
+| Temperatura (°C) | 18 – 26, inclusivo | `ESTRÉS` |
+| Humedad aire (%) | 40 – 70, inclusivo | `ESTRÉS` |
+| Luz (lux) | 200 – 10000, inclusivo | `ESTRÉS` |
 
-Estos valores corresponden a una planta de interior genérica. No se exponen al usuario en V1. Se ajustarán antes del commit si hay datos empíricos de aula disponibles.
+Fuente: `build_next_cache()` en `src/ui_lab_plant.cpp`. Los rangos son fijos e independientes de los límites editables de los menús de sensores. Un valor inválido también incumple el rango; el diagnóstico prioriza el primer sensor que lo incumple. La ausencia de Suelo impide seleccionar esta parada en el carrusel.
+
+La banda de tierra es independiente: seco `<25 %`, banda central `25..80 %`, encharcado `>80 %`. Por ello `SEDIENTA` con `25 ≤ Suelo < 30 %` y `AHOGADA` con `70 < Suelo ≤ 80 %` pueden coexistir con tierra de aspecto central. El diseño inicial proponía además extremos Temp `<12/>30`, Aire `<30/>85` y Luz `<100/>30000`; no son los disparadores del diagnóstico actual.
+
+**Pendiente de decisión:** la barra de Luz usa escala logarítmica `0..30000` y zona óptima `200..10000`, pero la adquisición LDR está limitada a `0..8000`. El extremo alto queda fuera de las lecturas alcanzables. Revisar si se ajustan escala/perfil y la coherencia tierra/diagnóstico durante la mejora de Planta Lab; esta actualización documental no modifica esos valores.
 
 ### Animación V1
 
@@ -235,12 +249,12 @@ Tres zonas horizontales. `Y` = top de la fila.
   rango total (clamp 0..1).
 - **Valor:** fuente 1, alineado a la derecha en `x=156`, baseline `Y+12`, **BLANCO**.
 
-| Fila | icono | color icono (token) | rango total → zonas bajo/ópt/alto |
+| Fila | icono | color icono (token) | rango total → zona óptima de la barra |
 |---|---|---|---|
-| Suelo | gota | `PB_SOIL_P1` (0x47E8) | 0–100% → <25 / 30–70 / >80 |
-| Temp | termómetro | `PB_TEMP_P1` (0xF817) | 0–40 °C → <12 / 18–26 / >30 |
-| Aire | nube | `PB_HUM_P1` (0x075F) | 0–100% → <30 / 40–70 / >85 |
-| Luz | sol | `PB_LUZ_P1` (0xFFE0) | log 0–30000 lx → <100 / 200–10000 / >30000 |
+| Suelo | planta (icono de Suelo) | `PB_SOIL_P1` (0x47E8) | 0–100% → 30–70% |
+| Temp | termómetro | `PB_TEMP_P1` (0xF817) | 0–40 °C → 18–26 °C |
+| Aire | nube | `PB_HUM_P1` (0x075F) | 0–100% → 40–70% |
+| Luz | sol | `PB_LUZ_P1` (0xFFE0) | log 0–30000 lux → 200–10000 lux (revisión pendiente frente al techo LDR 8000) |
 
 El icono mantiene su color de identidad; el "culpable" se marca solo con el **borde** de
 su fila en color de estado. Temp **sin decimal**. Si el valor de Luz tiene ≥5 dígitos y se
@@ -290,7 +304,7 @@ Relleno de la banda + línea superior (2 px) + grietas; color por banda de humed
 | Banda suelo | Relleno | Línea superior | Grietas |
 |---|---|---|---|
 | Seco (<25%) | `color565(110,74,36)` | `color565(134,96,46)` | 2× `drawLine` `color565(74,48,22)` |
-| Óptimo (30–70%) | `color565(74,48,22)` | `color565(110,74,36)` | — |
+| Banda central (25–80%) | `color565(74,48,22)` | `color565(110,74,36)` | — |
 | Encharcado (>80%) | `color565(46,36,24)` | brillo = color AHOGADA | — |
 
 La tierra es una **banda plana**: rect + línea fina superior + grietas (`drawLine`).
@@ -359,22 +373,19 @@ en HW el parpadeo del icono animado fuese visible, envolver SOLO el rect del ico
 
 Prioridad `suelo > temperatura > humedad aire > luz`. El estado es el del primer sensor
 fuera de rango por prioridad; si todos están en óptimo → `BIEN`. `culprit` = índice de
-ese sensor (Suelo=0, Temp=1, Aire=2, Luz=3); en `BIEN`, `culprit = 0xFF`. Thresholds en
-la sección "Thresholds V1".
+ese sensor (Suelo=0, Temp=1, Aire=2, Luz=3); en `BIEN`, `culprit = 0xFF`. Rangos actuales en
+la sección "Rangos V1 implementados".
 
-### Integración en el firmware
+### Integración aplicada en el firmware
 
-- **Enum:** añadir `LAB_PLANT_SCREEN` en `include/tft_display.h` (junto a los `LAB_*_SCREEN`).
-- **Render dispatch:** añadir el caso en el switch principal de render que enruta pantallas,
-  llamando al render de `ui_lab_plant`.
-- **Carrusel** (`src/rotary.cpp`, `kCarousel[]`): insertar `{ LAB_PLANT_SCREEN, -1 }` entre
+- **Enum:** `LAB_PLANT_SCREEN` está en `include/tft_display.h` junto a los identificadores internos `LAB_*_SCREEN`.
+- **Render dispatch:** `src/tft_display.cpp` enruta a `draw_lab_plant_screen()` y refresca la animación a `220 ms`.
+- **Carrusel** (`src/rotary.cpp`, `kCarousel[]`): `{ LAB_PLANT_SCREEN, -1 }` está entre
   `{ LAB_DUAL_TH_SCREEN, -1 }` (CLIMA LAB) y `{ LAB_WIDGET_MIX_SCREEN, -1 }` (TERMO LAB).
-- **Visibilidad condicional:** omitir del ciclo si el sensor de suelo no da lectura válida
+- **Visibilidad condicional:** se omite del ciclo si el sensor de suelo no da lectura válida
   (`isnan(soil_humidity)`); ver `include/external_sensor_state.h`.
-- **i18n:** añadir título y strings de estado (ES/CAT/EN) al sistema de strings del proyecto.
-- **Alert jewel:** `L_ALERT_JEWEL` (14,118) cae dentro del terrario. En esta pantalla NO se
-  dibuja el alert jewel (la planta comunica el estado). Si el runtime lo fuerza, suprimirlo
-  en esta pantalla.
+- **i18n:** título y strings de estado (ES/CAT/EN) integrados en el sistema de strings.
+- **Alert jewel:** `L_ALERT_JEWEL` (14,118) cae dentro del terrario. El renderer actual no lo dibuja; la planta comunica el estado. Si se recupera una capa global de badge, preservar esa exclusión.
 
 ## Alcance de V1
 
@@ -432,11 +443,11 @@ La decisión de crear un icono héroe nuevo separa la metáfora de cuidado de pl
 
 El mecanismo de visibilidad condicional (solo aparece si hay sonda de suelo) mantiene la coherencia del carrusel para usuarios sin ese sensor.
 
-## Plan de aplicación
+## Seguimiento de aplicación
 
-1. Mantener este ADR como fuente de decisión para `PLANTA LAB`.
-2. Diseñar el layout con coordenadas exactas sobre 160×128 px.
-3. Implementar la pantalla en un archivo nuevo (`ui_lab_plant.cpp` o equivalente).
-4. Strings i18n, posición en carrusel, lógica de visibilidad condicional.
-5. Verificar en hardware: colores de estado, texto de diagnóstico en las tres lenguas, animación continua, filas de rango y aparición condicional por sensor de Suelo.
-6. Actualizar CHANGELOG y ROADMAP del firmware.
+- [x] Layout de 160×128 px e implementación `src/ui_lab_plant.cpp`.
+- [x] Strings i18n, posición en carrusel y visibilidad condicional por lectura de Suelo.
+- [x] Build `esp32dev` comprobada; seguimiento documental en CHANGELOG/ROADMAP.
+- [ ] Revisar visualmente los cuatro estados, textos ES/CAT/EN, animación, barras/valores y aparición condicional.
+- [ ] Decidir coherencia de rangos Luz y de banda de tierra frente al diagnóstico antes de modificar código.
+- [ ] Concretar con el usuario la siguiente mejora de Planta Lab; perfiles/crecimiento siguen como propuestas futuras.

@@ -1,6 +1,6 @@
 # Manual Técnico del P-Bit
 
-Actualizado: 2026-08-25
+Actualizado: 2026-10-10
 
 Este documento describe el estado técnico actual del P-Bit a partir del firmware y la configuración presentes en este repositorio. Está pensado como base de entrenamiento para desarrollo, integración, soporte, mantenimiento y despliegue educativo.
 
@@ -47,13 +47,16 @@ El P-Bit es un dispositivo educativo ambiental basado en ESP32 que integra senso
 
 Estado de revisión de producción/i18n:
 
-- build local verificado con `py -m platformio run -e esp32dev`
+- build local verificado el `2026-10-10` sobre código `27e5207` con `py -m platformio run -e esp32dev`
 - resultado PlatformIO: `SUCCESS`
-- memoria reportada por build: RAM `14.9%` (`48940` bytes de `327680`) y Flash `72.1%` (`945429` bytes de `1310720`)
+- memoria reportada por build: RAM estática `15.0%` (`49140` bytes de `327680`) y Flash `73.4%` (`961709` bytes de `1310720`); no mide todo el consumo runtime
+- advertencias de OneWire y entorno PlatformIO registradas en `docs/PRODUCTION_RELEASE.md`; sin errores de build
 - revisión estática de i18n, BLE factory-off, Sensor Zone y fixes anti-flicker completada
 - ghosting/flicker validado como resuelto por ahora; mantener checks de regresión en ST7735 real
 - Modo demo validado en entrada desde logos, entrada desde `Inicio`, splash y salida con interacción; coreografía smooth implementada en firmware y pendiente de validación visual final en hardware
 - LDR `Lux` / `FC` / `Raw ADC` propagado en firmware a `LIGHT_SCREEN`, Sensor Zone, cards, dashboards, dials y gráficas mediante helper común de presentación
+
+La revisión 2026-10-10 comprueba código/build, sin nueva validación HW. Prioridad acordada: documentación y después revisión visual/UX de Planta Lab; alcance de Demo/flicker en `docs/ROADMAP.md`. La prueba final de 24 h y la validación física completa por unidad siguen pendientes y aplazadas. Las anomalías de junio se interpretan mediante el seguimiento de `docs/HARDWARE_VALIDATION_2026-06-04.md`, no como bugs activos por defecto.
 
 ## 2. Plataforma base
 
@@ -422,9 +425,11 @@ Comportamiento:
 - Al activarse, `tft_display.cpp` muestra una señal visual breve `MODO DEMO / Iniciando demo` antes de entrar a la primera escena.
 - Con `PBIT_ENABLE_GRAPH_LAB=1`, recorre Inicio, Clima Lab, Termo Lab, escenas de Sensor Zone (incluyendo Sonido VU y Sonido Onda) y Timer. `Planta Lab` pertenece al carrusel de producción, pero no está incluida actualmente en `kDemoScenes`.
 - Las escenas de Sensor Zone usan setters runtime, por lo que no modifican el sensor ni el modo visual guardados.
+- `demo_mode_start()` captura la pantalla y un `SzRuntimeSnapshot`; `demo_mode_stop()` restaura pantalla, sensor, modos y selecciones de sub-renderers. La salida no deja seleccionadas las vistas temporales del demo.
 - Si `kDemoSimulatedReadings == true`, `demo_mode_apply_simulated_readings(...)` modifica solo `g_ui_readings_snapshot` para animar valores visuales; no toca `global_readings`, NVS, BLE ni lecturas físicas.
 - `demo_mode_value_refresh_ms()` fija un refresco demo dedicado de `220 ms`, separado de la cadencia normal de sensores/gráficas.
 - `demo_mode_graph_values(...)` genera histórico sintético para `Graph` durante demo, de modo que las gráficas muestren intención visual sin depender de buffers físicos previos.
+- Las sparklines de Termo Lab/DS18 también consumen datos sintéticos; `timer.cpp` muestra tiempo simulado durante Demo sin modificar el temporizador real del usuario.
 - Las curvas simuladas usan suavizado por sensor; el RAW del LDR se calcula con la inversa de la curva empírica v1 para que `Raw ADC` sea coherente con el lux simulado en calibración/demostración.
 - Cualquier giro o pulsación posterior del encoder ejecuta `demo_mode_stop()`, reconfigura límites del encoder y devuelve control al usuario.
 - Mientras `demo_mode_is_active()` es `true`, el reposo automático queda bloqueado.
@@ -433,6 +438,7 @@ Estado actual:
 
 - entrada desde logos con encoder presionado, entrada desde `Inicio` con pulsación larga, señal visual y salida con interacción confirmadas en hardware.
 - coreografía smooth implementada en firmware; queda validación visual final en hardware para ajustar dwell/refresco si hiciera falta.
+- alcance de esa revisión: ritmo/transiciones, Timer simulado, curva de Termo Lab/DS18 y restauración de vistas al salir. Planta Lab no forma parte del recorrido automático actual.
 
 ### Fixes anti-flicker
 
@@ -476,6 +482,8 @@ Pantalla multisensor de salud de planta. Combina Suelo, temperatura ambiente, hu
 
 - layout: terrario izquierdo + cuatro filas de rango + card de estado
 - diagnóstico: `BIEN`, `SEDIENTA`, `AHOGADA` o `ESTRÉS`, con prioridad `suelo > temperatura > humedad aire > luz`
+- perfil fijo de diagnóstico: Suelo `30..70 %`, temperatura `18..26 °C`, aire `40..70 %`, Luz `200..10000 lux`; independiente de los límites editables de cada sensor. La tierra usa bandas `<25` / `25..80` / `>80 %`.
+- pendiente de revisión: barra de Luz `0..30000 lux` frente al techo real LDR `8000`; diferencias de banda de tierra/diagnóstico documentadas en ADR-003. Esta revisión no modifica rangos.
 - animación: planta continua a `220 ms`, con clears localizados al rect del icono; la tierra plana solo cambia si cambia la banda de humedad de suelo
 - ADR: `docs/ADR-003-planta-lab.md`
 

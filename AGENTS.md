@@ -2,6 +2,14 @@
 
 Guía breve para agentes que trabajen en este repo P-Bit.
 
+## Estado y prioridad de trabajo — 2026-10-10
+
+- Última build comprobada: `esp32dev`, commit `27e5207`, `SUCCESS`; RAM estática `49140/327680` (15.0 %), Flash `961709/1310720` (73.4 %). Evidencia y advertencias en `docs/PRODUCTION_RELEASE.md`.
+- Documentación de estado actualizada en esta revisión; siguiente prioridad acordada: revisión visual/UX de `Planta Lab`. Demo y anti-flicker se revisan como comprobaciones visuales existentes, no como funciones nuevas por implementar.
+- La prueba final de 24 h y la validación física completa por unidad siguen pendientes, aplazadas por decisión del usuario. No iniciarlas ni activar debug por inferencia de un checklist histórico.
+- `docs/HARDWARE_VALIDATION_2026-06-04.md` es evidencia histórica. Antes de tratar una anomalía como bug vigente, consultar su tabla de seguimiento, `CHANGELOG.md` y el código actual.
+- El cierre visual vigente y sus preguntas están en `docs/ROADMAP.md`; diseño/implementación de Planta Lab en `docs/ADR-003-planta-lab.md`. No marcar validaciones HW como completadas basándose solo en lectura de código o build.
+
 ## Arquitectura Rápida
 
 - Firmware PlatformIO/Arduino para ESP32 con TFT ST7735 160x128, encoder, LED RGB, buzzer y sensores ambientales.

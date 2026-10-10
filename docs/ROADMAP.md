@@ -1,10 +1,10 @@
 # P-Bit Roadmap
 
-Actualizado: 2026-08-25
+Actualizado: 2026-10-10
 
 Referencia para priorizar el trabajo futuro del firmware P-Bit. Separa deuda técnica de mejoras de producto y ordena iteraciones de menús, sensores y UX.
 
-El historial de lo ya implementado está en `CHANGELOG.md`. Este documento cubre solo lo que queda por hacer.
+El historial de lo ya implementado está en `CHANGELOG.md`. Este documento prioriza lo que queda por hacer y mantiene el contexto mínimo para distinguir implementaciones, evidencia histórica y validaciones abiertas.
 
 ---
 
@@ -12,22 +12,36 @@ El historial de lo ya implementado está en `CHANGELOG.md`. Este documento cubre
 
 | Indicador | Valor |
 |---|---|
-| Build | ✅ `esp32dev` — sin errores |
-| RAM | 15.0 % (`49 140` / `327 680` bytes) |
+| Build | ✅ `esp32dev` SUCCESS el 2026-10-10, código `27e5207`; advertencias registradas en `PRODUCTION_RELEASE.md` |
+| RAM estática | 15.0 % (`49 140` / `327 680` bytes); no mide todo el consumo runtime |
 | Flash | 73.4 % (`961 709` / `1 310 720` bytes) |
 | Alimentación | Producto recomendado con `3 baterías AAA`; USB-C para programación/alimentación auxiliar |
 | Carrusel activo | 11/12 pantallas con `PBIT_ENABLE_GRAPH_LAB=1` (`PLANTA LAB` aparece solo con Suelo conectado) |
 | Idiomas | ES / CAT / EN — i18n completo |
 | WiFi/BLE | WiFi sin configuración en firmware inicial; BLE factory-off interno, no público |
-| Validación hardware | **En cierre** — ghosting/flicker resuelto por ahora; LDR modos, Demo smooth y estados externos `IO33/IO35` implementados en firmware, pendientes de validación visual final |
+| Validación hardware | **Abierta** — evidencia histórica puntual; sin nueva prueba física en la revisión 2026-10-10 |
+| Prioridad acordada | Documentación de estado actualizada; siguiente paso: revisión visual/UX de Planta Lab |
+| Pendientes aplazados | Prueba final de 24 h y validación física completa por unidad |
 
 ---
 
-## Ahora — Cierre en hardware real
+## Ahora — Revisión visual/UX, empezando por Planta Lab
 
-Todo el trabajo activo converge aquí. El ghosting/flicker de pantallas queda aprobado por ahora; mantener vigilancia de regresión mientras se validan en hardware los modos LDR, Demo Mode y producción.
+Orden acordado el 2026-10-10: aclarar documentación y retomar la mejora de Planta Lab. Antes de implementar ajustes, revisar el diseño existente y concretar qué se quiere mejorar. No hay aprobación visual nueva ni cambios de firmware en esta actualización.
 
-### Anti-flicker visual
+| Área | Ya implementado | Qué falta revisar |
+|---|---|---|
+| **Planta Lab (prioridad)** | Terrario con planta, cuatro filas Suelo/Temp/Aire/Luz, card de diagnóstico, prioridad Suelo > Temp > Aire > Luz, postura/color y animación continua a refresco de 220 ms; aparece solo con lectura válida de Suelo | Legibilidad de barras/valores en 96 px, textos ES/CAT/EN (`ASSEDEGADA`), contraste azul de `AHOGADA`, animación sin parpadeo y reconocimiento de los cuatro estados. Revisar diagnóstico y rangos reales frente a ADR-003 antes de decidir mejoras. |
+| **Demo** | Escenas de 6–10 s, valores suaves, gráficas sintéticas, Timer simulado, entrada/salida y restauración de pantalla/vistas sin guardar NVS | Comprobación visual de ritmo y transiciones en TFT, Timer activo, curva de Termo Lab/DS18 visible y retorno a las vistas previas. No hay una función Demo pendiente de construir. Planta Lab no está en `kDemoScenes`; decidir su inclusión si se amplía el demo. |
+| **Flicker/ghosting** | Fixes de dials, cards, menús, Inicio y Sonido VU/Onda; aprobación puntual histórica | Vigilancia de regresión al tocar render, especialmente la planta animada. No se ha identificado en esta revisión un nuevo fallo físico vigente. |
+
+Preguntas concretas de Planta Lab (`docs/ADR-003-planta-lab.md`):
+
+- El diagnóstico usa rangos óptimos: Suelo `30..70 %`, temperatura `18..26 °C`, aire `40..70 %` y Luz `200..10000 lux`. Los umbrales extremos del diseño inicial no son los disparadores actuales del diagnóstico; la banda visual de tierra usa `<25` / `>80 %`.
+- La barra de Luz conserva techo `30000 lux` y zona óptima hasta `10000`, mientras el sensor entrega como máximo `8000`. Decidir si se ajusta la escala/perfil o se conserva como referencia conceptual; no se cambian umbrales sin cerrar esa decisión.
+- V2 (perfiles) y V3 (crecimiento, transiciones, misiones) son propuestas futuras del ADR, no funciones comprometidas en el trabajo actual.
+
+### Anti-flicker — checklist visual de regresión
 
 Estado: resuelto por ahora en hardware real. Usar esta tabla como checklist de regresión si se modifican pantallas, demo o reglas de limpieza.
 
@@ -40,6 +54,10 @@ Estado: resuelto por ahora en hardware real. Usar esta tabla como checklist de r
 | `Graph` | Etiquetas min/max y línea principal legibles en ES/CAT/EN |
 | `Inicio` | Cards sin redibujo completo en cada tick |
 | `PLANTA LAB` | Barras+valores legibles en 96 px; `ASSEDEGADA` cabe; animación sin parpadeo; azul `AHOGADA` contrasta sobre navy |
+
+## Pendientes aplazados — Validación completa de producción
+
+Por decisión del usuario el 2026-10-10, mantener abiertos la prueba final de 24 h y el conjunto de pruebas físicas por unidad que sigue. No iniciarlos como parte de la actualización documental o de la explicación de la revisión visual. Los checks de Planta Lab/Demo se retomarán según el alcance visual anterior; los demás pertenecen al cierre completo posterior.
 
 ### BLE y producción
 
@@ -80,7 +98,11 @@ Estado: resuelto por ahora en hardware real. Usar esta tabla como checklist de r
 
 ### Checklist formal
 
-Firmar `docs/PRODUCTION_CHECKLIST.md` completo antes de entregar build o unidad.
+Firmar `docs/PRODUCTION_CHECKLIST.md` completo antes de entregar build o unidad, cuando se retome el cierre de producción.
+
+- [ ] Prueba final de 24 h sobre el candidato actual, con registro de resets y mínimos Stack HWM; comprobar BLE apagado y la variante interna BLE activa para lote piloto según `PRODUCTION_RELEASE.md`.
+
+Antecedente, no cierre: `CHANGELOG.md` registra `16 h 09 min` sin Guru/IWDT/reinicios con DHT RMT y BLE activo en junio. Mínimos de stack libres: DisplayTask `2108` bytes, SensorTask `1944` bytes. El registro de la sesión 2026-06-04 conserva fallos anteriores que deben contrastarse con las correcciones posteriores.
 
 ---
 
@@ -94,7 +116,7 @@ Listas para implementar una vez que el hardware esté validado.
 |---|---|---|
 | **TWDT** | Task Watchdog Timer para `sensor_reading_task` y `switch_screen`. Timeout sugerido: 10 s. Requiere test de 24 h continuas en hardware. Usar el Modo demo runtime como base del ciclo continuo. | Alta |
 | **LDR calibración HW** | Validar `Lux / FC / Raw ADC` contra luz/sombra reales y ajustar la curva empírica v1 si el rango `0..8000 lux` no se siente plausible. | Alta |
-| **Demo validación HW** | Probar la coreografía smooth en ST7735 real y ajustar dwell/refresco si aparece flicker o cambios demasiado lentos. | Alta |
+| **Demo ajustes derivados** | Solo si la revisión visual anterior encuentra problemas: ajustar cadencia o render. La comprobación inicial de Demo ya está incluida en el trabajo visual actual. | Según hallazgos |
 | **Renombrar flag** | `PBIT_ENABLE_GRAPH_LAB` → `PBIT_ENABLE_FULL_NAV` (u otro nombre representativo). Limpiar referencias `LAB_` en enums y constantes de `tft_display.h` y `rotary.cpp`. | Media |
 
 ### Design System
@@ -116,7 +138,7 @@ Hallazgos de la revisión profunda de junio 2026 (Fases 0–5). Ninguno es bug n
 | ~~**`struct Cache` canónico**~~ | ✅ **Resuelto 2026-06-03.** `src/ui_lab_focus.cpp` usa `struct FocusCache g_cache`. `src/ui_graph.cpp` usa `struct GraphCache cache` (locale a la función). Las pantallas clásicas siguen con `meta_dirty` aceptado por la regla Nivel 0. | — | — |
 | **RGB mapping extraíble** | `src/tft_display.cpp` contiene ~289 líneas de mapping LED RGB (`set_rgb565`, `apply_*_visual_rgb`, `apply_global_alert_rgb`, `update_rgb_led_state`). **NO mover a `led_control.cpp`** — invertiría capas (driver dependiendo de UI/sensor_zone/alert_engine). Si en el futuro se extrae, hacerlo a un módulo nuevo `ui_led_feedback.cpp/.h` con interfaz pública única `update_rgb_led_state()`. Decisión documentada en ADR-001 (2026-06-03): se evaluó mover ahora, se descartó porque (a) el trigger no ha saltado, (b) es pre-flash y hardware-visible, (c) `g_is_fahrenheit` sin header propio convierte el move en diseño no trivial. | Baja | Si `tft_display.cpp` crece más allá de ~1100 líneas |
 | ~~**NVS fuera de `settings_store.cpp`**~~ | ✅ **Resuelto 2026-06-03.** `src/lang_select.cpp` delega en `load_language_store()` / `save_language_store()`. NVS 100% encapsulado. | — | — |
-| **Stack HWM validación HW** | `switch_screen` y `sensor_reading_task` usan stack de `4096` bytes. Suficiente para el código actual. **Infraestructura lista (2026-06-04):** env `esp32dev_debug` definido en `platformio.ini` con `-DFIRMWARE_DEBUG`, instrumentación periódica añadida en `src/tft_display.cpp` y `src/io.cpp` (muestreo cada `1000 ms`, log cuando el worst empeora o cada `60 s`, valores en bytes). Procedimiento documentado en `docs/TECHNICAL.md` § A.5. **Pendiente:** flashear con `pio run -e esp32dev_debug -t upload`, correr en uso real prolongado, registrar el peor HWM observado en `docs/PRODUCTION_RELEASE.md`. El ítem queda abierto hasta tener esa medida real en hardware. | Media (validación) | Ejecutar `esp32dev_debug` y registrar HWM tras sesión de uso prolongado |
+| **Stack HWM validación HW** | `switch_screen` y `sensor_reading_task` usan stack de `4096` bytes. Infraestructura debug disponible y mediciones históricas registradas en `PRODUCTION_RELEASE.md`; no prueban el margen del candidato actual. Pendiente repetir medida durante la prueba final prolongada y registrar mínimos. Procedimiento en `docs/TECHNICAL.md` § A.5; ejecución aplazada, sin activar debug en esta revisión. | Media (validación) | Retomar la prueba final de 24 h autorizando su build/debug correspondiente |
 
 > **Política**: estos ítems NO se abordan en commits aislados. Cada uno se resuelve cuando se edite el archivo por otra razón (feature, fix, refactor planeado), siempre dentro del mismo PR para mantener trazabilidad. La excepción es el stack HWM, que requiere build dedicado con flag de debug.
 

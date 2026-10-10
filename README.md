@@ -25,12 +25,14 @@ En Windows, si `platformio` no está en PATH:
 
 ## Estado actual
 
-- Build OK `esp32dev` con `PBIT_ENABLE_GRAPH_LAB=1` y `PBIT_ENABLE_SERIAL_PLOTTER=0`.
+- Build verificada el `2026-10-10` sobre `27e5207`: `esp32dev` SUCCESS, RAM estática `49140` (15.0 %), Flash `961709` (73.4 %), con `PBIT_ENABLE_GRAPH_LAB=1` y `PBIT_ENABLE_SERIAL_PLOTTER=0`.
 - Carrusel de producción: `Inicio`, `Clima Lab`, `Planta Lab` si Suelo está conectado, `Termo Lab`, 6 sensores en Sensor Zone, `Timer`, `Sistema`.
 - Sensor Zone: `Temperatura`, `Humedad`, `Luz`, `Sonido`, `Suelo` y `Termómetro`; pulsación corta cambia `Principal -> Rango -> Ficha -> Dato -> Curva`. `Sonido` añade `Sonido VU` y `Sonido Onda` tras `Principal`.
 - Alimentación de producto: `3 baterías AAA`; USB-C para programación/alimentación auxiliar.
 - Idiomas: Español, Catalán, English.
 - WiFi y Bluetooth forman parte del ESP32, pero el firmware inicial no ofrece configuración WiFi ni flujo público de Bluetooth. BLE queda desactivado de fábrica.
+
+La validación final de producción sigue abierta. La prioridad actual es revisar visualmente `Planta Lab`; Demo ya está implementado y anti-flicker queda como vigilancia de regresión. La prueba final de 24 h y la validación física completa por unidad se mantienen pendientes y aplazadas. Ver `docs/ROADMAP.md` y `docs/PRODUCTION_RELEASE.md` para distinguir estado actual de evidencia histórica.
 
 ## Documentación
 
@@ -44,6 +46,8 @@ En Windows, si `platformio` no está en PATH:
 | `docs/TFT_RENDER_RULES.md` | Protocolo anti-flicker, sprites, chrome/data |
 | `docs/ROADMAP.md` | Pendientes y mejoras futuras |
 | `docs/PRODUCTION_CHECKLIST.md` | Checklist antes de entregar build o unidad |
+| `docs/PRODUCTION_RELEASE.md` | Última build comprobada, evidencia histórica y límites de validación |
+| `docs/ADR-003-planta-lab.md` | Diseño de Planta Lab, comportamiento implementado y preguntas abiertas |
 | `CHANGELOG.md` | Historial de cambios |
 | `AGENTS.md` | Guía de entrada para agentes IA |
 

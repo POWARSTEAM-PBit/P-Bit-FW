@@ -1,16 +1,36 @@
 # Validación HW P-Bit — sesión 2026-06-04
 
-Checklist práctico para validar el firmware tras la auditoría profunda 2026-06-03. Sigue el orden propuesto; cada fase puede ejecutarse en una sesión corta. Marca `[ ]` → `[x]` al completar. Anota valores en los espacios `___`.
+Registro histórico de pruebas y observaciones del firmware tras la auditoría profunda 2026-06-03. Se conservan anotaciones y casillas de aquella sesión; no constituyen el estado de validación del candidato actual. Para nuevas pruebas usar `docs/PRODUCTION_CHECKLIST.md` y registrar fecha, commit y unidad aparte.
 
-> **Nota de vigencia 2026-08-25:** este archivo conserva observaciones históricas de la sesión 2026-06-04. Las instrucciones prescriptivas de navegación se sincronizan con la versión de producción actual; los hallazgos anotados con fecha se mantienen como evidencia de aquella build.
+> **Vigencia revisada 2026-10-10:** las referencias de navegación se sincronizaron posteriormente con producción. Las anomalías originales se mantienen como evidencia histórica; contrastarlas con el seguimiento siguiente antes de abrir un bug. La prueba final de 24 h y la validación física completa siguen pendientes y aplazadas por el usuario.
+
+## Seguimiento de hallazgos históricos — 2026-10-10
+
+Estado contrastado con código y `CHANGELOG.md`, sin nueva prueba HW en esta revisión:
+
+| Hallazgo de la sesión | Estado posterior comprobado |
+|---|---|
+| Calibración Suelo obligaba a guardar/resetear y parpadeaba | Corregido en código el 2026-06-07/08: `cancelSoilCalibration()`, botones Salir/Captura, resumen Salir/Guardar con Salir por defecto, RAW a 250 ms con deadband y redraw localizado. Revalidación física completa pendiente. |
+| Selector de idioma no reaparecía si se reiniciaba sin confirmar | Corregido en código el 2026-06-07: `has_language_store()` obliga a seleccionar hasta guardar `lang`. El arranque Demo omite el selector deliberadamente. |
+| Reset general no mostraba inmediatamente el estado inicial | Corregido en código el 2026-06-07: limpia NVS y reinicia mediante `esp_restart()`. |
+| Demo dejaba otras vistas seleccionadas; Timer parado y curva DS18 vacía | Corregido en código el 2026-06-06: snapshot/restauración de vistas, Timer simulado y sparklines sintéticas. Queda comprobar visualmente el conjunto actual. |
+| Lux de 4+ dígitos invadía la card de Inicio | Fix registrado el 2026-06-05: formato compacto `1.2k` desde 1000 lux y limpieza acotada. Flicker/ghosting general aprobado puntualmente después; vigilancia de regresión. |
+| Estados desconectados Suelo/DS18 y posición de textos | Pulidos registrados el 2026-06-04/05; no tratar las posiciones solicitadas aquí como ajustes todavía no implementados. |
+| Bip/Alarmas aparecían OFF | Default intencional de firmware/build-reset, no bug; persistencia observada en la sesión. |
+| Defaults Suelo requerían mediciones en varias unidades | Muestreo de 5 P-Bits registrado el 2026-06-05; defaults actuales `dry=3550`, `wet=1855`. La validación completa por unidad sigue pendiente. |
+| Panics DHT/IWDT y prueba prolongada | Fix DHT RMT registrado el 2026-06-05. Soak provisional posterior de 16 h 09 min sin Guru/IWDT/reinicios; no sustituye la prueba final de 24 h del candidato actual. |
+| Sensibilidad del micrófono y calibración acústica | Interpretación relativa vigente; calibración real de sonido es propuesta futura del roadmap. No se ha confirmado un bug físico nuevo en esta revisión. |
+| Planta Lab | Añadida después de la sesión original. Las menciones al carrusel con Planta Lab son actualización documental, no evidencia de prueba en junio 4. Prioridad visual actual en `docs/ROADMAP.md` y ADR-003. |
+
+Build vigente y mediciones históricas de estabilidad: `docs/PRODUCTION_RELEASE.md`. No marcar checks nuevos ni cerrar hallazgos HW solo por esta tabla.
 
 > **Fuente del firmware:** rama `main` en `C:\POWAR-GIT\P-Bit-FW - edit\`.
-> **Build producción:** `py -m platformio run -e esp32dev` — RAM `14.9%` (`48924` bytes), Flash `72.1%` (`945565` bytes).
-> **Build depuración (recomendada para esta sesión):** `py -m platformio run -e esp32dev_debug -t upload` — activa `FIRMWARE_DEBUG` y emite Stack HWM por Serial cada `60 s` o cuando empeora el peor caso. Ver `docs/TECHNICAL.md` § A.5.
+> **Build producción histórica de la sesión:** RAM `14.9%` (`48924` bytes), Flash `72.1%` (`945565` bytes). Build vigente del 2026-10-10: RAM `49140`, Flash `961709`; ver `docs/PRODUCTION_RELEASE.md`.
+> **Build depuración usada en el procedimiento histórico:** `py -m platformio run -e esp32dev_debug -t upload` — activa `FIRMWARE_DEBUG` y emite Stack HWM por Serial cada `60 s` o cuando empeora el peor caso. Ver `docs/TECHNICAL.md` § A.5. No es una instrucción para activar debug ahora.
 
-### Recomendación para esta sesión
+### Procedimiento recomendado en la sesión histórica
 
-Usa **`esp32dev_debug`** para flashear. Mientras pruebas funcionalmente con el encoder, el firmware va emitiendo HWM por Serial automáticamente. Al final tienes:
+En aquella sesión se recomendó **`esp32dev_debug`** para flashear. Durante las pruebas funcionales con el encoder, el firmware emite HWM por Serial automáticamente. El procedimiento permite obtener:
 - Validación funcional cubierta (este checklist).
 - Mediciones de Stack HWM capturadas en el `.log` del monitor.
 - Reset reasons capturadas si hay reinicios.
@@ -319,7 +339,7 @@ Anomalías observadas: `___________`
 
 ---
 
-## Anomalías globales observadas
+## Anomalías globales observadas — evidencia histórica
 
 ### Reinicios inesperados durante la sesión
 
@@ -372,7 +392,7 @@ Anomalías observadas: `___________`
 
 ---
 
-## Veredicto final
+## Veredicto de la sesión histórica — sin firma final
 
 - Fase 1 (Boot + navegación): ✅ OK / ⚠️ Con notas / ❌ Bloquea — `___________`
 - Fase 2 (Sensores físicos): ✅ OK / ⚠️ Con notas / ❌ Bloquea — `___________`

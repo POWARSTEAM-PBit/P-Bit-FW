@@ -1,5 +1,16 @@
 # Changelog
 
+## 2026-10-10
+
+### Documentación — Estado vigente y preparación de revisión visual
+
+- **Build comprobada:** `py -m platformio run -e esp32dev` SUCCESS sobre `27e5207`; RAM estática `49140/327680` (15.0 %), Flash `961709/1310720` (73.4 %). Release y manual técnico sustituyen las cifras históricas de junio. Registradas advertencias OneWire `2.3.8` y aviso de instalaciones PlatformIO, sin cambiar dependencias ni flags.
+- **Entrada para agentes:** `AGENTS.md`, README, roadmap y checklist distinguen código implementado, build comprobada, evidencia HW histórica y validaciones pendientes. La sesión de junio conserva observaciones originales con una tabla de seguimiento que identifica correcciones posteriores.
+- **Estabilidad histórica:** registrado en release/roadmap el soak provisional de 16 h 09 min tras DHT RMT, con mínimos de stack; no equivale a validación del candidato actual ni a la prueba final.
+- **Prioridad acordada:** retomar revisión visual/UX de Planta Lab; Demo ya implementado requiere comprobar ritmo/transiciones, Timer, curva DS18 y restauración de vistas; anti-flicker queda como vigilancia de regresión. Prueba final de 24 h y validación física completa por unidad se conservan pendientes y aplazadas por el usuario.
+- **ADR-003 contrastado con código:** documentados rangos óptimos reales del diagnóstico, bandas independientes de tierra y barra Luz `0..30000` frente al techo LDR `8000`. Integración V1 marcada como aplicada; coherencia de rangos y mejora visual quedan abiertas; V2/V3 siguen siendo propuestas futuras.
+- **Validación de esta edición:** solo Markdown; revisión de diff, términos y tablas. No se recompiló después de editar documentación; se conserva la build verificada antes de esta pasada. Sin flasheo ni nuevas pruebas HW.
+
 ## 2026-08-25
 
 ### Documentación — Auditoría de coherencia firmware/docs

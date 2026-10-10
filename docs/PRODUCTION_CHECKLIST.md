@@ -1,10 +1,12 @@
 # Checklist de Producción P-Bit
 
-Actualizado: 2026-08-25
+Actualizado: 2026-10-10
 
 Usar esta lista antes de entregar una build o una unidad flasheada.
 
-Estado de esta revisión: documentación sincronizada con la versión de producción vigente. La última build registrada se conserva como evidencia histórica; Demo Mode y anti-flicker/ghosting estaban validados puntualmente en hardware; pruebas completas por unidad siguen pendientes.
+Estado de esta revisión: build `esp32dev` comprobada el `2026-10-10` sobre `27e5207`, con RAM estática `49140` y Flash `961709`. No se ejecutaron pruebas de hardware en esta revisión. Los checks HW marcados conservan evidencia histórica puntual y no certifican el candidato actual; ver `docs/PRODUCTION_RELEASE.md`.
+
+Prioridad acordada: documentación y después revisión visual/UX de Planta Lab, aclarando las comprobaciones de Demo y regresión de flicker. La prueba final de 24 h y la validación física completa por unidad quedan pendientes y aplazadas por el usuario. Este checklist sigue abierto y no constituye aprobación de producción.
 
 ## 1. Configuración de build
 

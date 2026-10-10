@@ -1,6 +1,6 @@
 # Production Release P-Bit
 
-Actualizado: 2026-08-25
+Actualizado: 2026-10-10
 
 ## Build Local
 
@@ -12,13 +12,24 @@ py -m platformio run -e esp32dev
 
 Última verificación local registrada para esta release:
 
-- Fecha: 2026-06-03
+- Fecha: 2026-10-10
+- Commit del código compilado: `27e5207ef93cc37a46d59c1b3e811b026991e838` (`main`, antes de esta actualización documental)
 - Comando: `py -m platformio run -e esp32dev`
 - Resultado: `SUCCESS`
-- RAM: `14.9%` (`48940` bytes de `327680`)
-- Flash: `72.1%` (`945429` bytes de `1310720`)
+- RAM estática: `15.0%` (`49140` bytes de `327680`); no equivale al consumo total en ejecución de stacks, sprites o BLE
+- Flash: `73.4%` (`961709` bytes de `1310720`)
+- Entorno comprobado: PlatformIO Core `6.1.19`, `espressif32@6.12.0`, Arduino ESP32 `2.0.17`, librerías fijadas en `platformio.ini`
+- Advertencias: dos directivas `#undef` con tokens sobrantes en OneWire `2.3.8` (líneas 599–600); aviso de PlatformIO sobre varias instalaciones Core (`6.1.19` frente a `6.2.0`). No impidieron el build; no se cambiaron dependencias ni flags.
 
-Nota 2026-08-25: esta pasada actualiza documentación de producción; no sustituye la última verificación local registrada ni aporta nuevos tamaños de firmware.
+La build del `2026-06-03` (RAM `48940`, Flash `945429`) queda como evidencia histórica y ya no representa el tamaño actual. La actualización documental posterior a la build de hoy no modifica firmware ni necesita recompilación.
+
+## Estado de validación y prioridad actual
+
+- **Verificado en esta revisión:** build de producción y contraste estático de navegación, configuración y correcciones documentadas. No se flasheó ni probó hardware el `2026-10-10`.
+- **Evidencia histórica:** entrada/salida de Demo y fixes anti-flicker aprobados puntualmente; `CHANGELOG.md` registra un soak provisional de `16 h 09 min` con BLE activo tras el fix DHT RMT, sin Guru/IWDT/reinicios. Stack mínimo observado en esa prueba: DisplayTask `2108` bytes libres, SensorTask `1944` bytes libres. No valida el candidato actual ni reemplaza el soak final.
+- **Trabajo siguiente acordado:** revisión visual/UX de Planta Lab y explicación de las comprobaciones pendientes de Demo y flicker. Ver `docs/ROADMAP.md` y `docs/ADR-003-planta-lab.md`.
+- **Pendientes aplazados por el usuario:** prueba final de 24 h y validación física completa por unidad. Se conservan los checks abiertos; no se ha aprobado la entrega de producción.
+- **Incidencias de junio:** calibración cancelable, Reset con reinicio, selector hasta confirmar idioma y restauración de vistas al salir de Demo están corregidos en código. Ver seguimiento en `docs/HARDWARE_VALIDATION_2026-06-04.md`; las notas originales no son una lista de bugs activos.
 
 Nota de producto: la alimentación recomendada de entrega/aula es `3 baterías AAA`. USB-C queda para programación, monitor serie y alimentación auxiliar 5 V por PC/powerbank; no presentarlo como alimentación principal.
 
@@ -48,7 +59,7 @@ py -m platformio run -e esp32dev
 
 Registrar tamaño de firmware, hash de commit, fecha, operador, placa y resultado de flasheo.
 
-En esta revisión quedan verificados el build local, la auditoría estática y una validación puntual en hardware de Demo Mode y anti-flicker/ghosting. El registro completo de flasheo y pruebas debe repetirse aparte por unidad.
+Esta revisión comprueba build y código. Las validaciones puntuales de hardware de Demo Mode y anti-flicker/ghosting proceden de sesiones anteriores. El registro completo de flasheo y pruebas debe repetirse aparte por unidad cuando se retome esa validación.
 
 ## Auditoría Estática De Producción
 
@@ -69,6 +80,7 @@ Confirmado por lectura de código:
 - Fixes anti-flicker/ghosting presentes y validados por ahora en dials/gauges, cards, menús/footers, banda de estado en cards y `Sonido VU/Onda`; queda como vigilancia de regresión.
 - Modo demo runtime confirmado en hardware: entra en arranque con encoder presionado durante los logos o con pulsación larga desde `Inicio`, muestra splash breve, simula valores solo en el snapshot visual, no persiste sensor/modo en NVS, bloquea reposo mientras está activo y sale con interacción.
 - Demo Mode tiene coreografía smooth implementada en firmware: dwell variable, refresco dedicado, curvas por sensor y gráficas sintéticas; queda validación visual final en hardware.
+- Demo restaura pantalla/vistas previas al salir y simula Timer y sparklines de Termo Lab/DS18. `kDemoScenes` aún no incluye Planta Lab; incorporarla requiere decidir el alcance de una futura mejora.
 - WiFi/Bluetooth existen como capacidades del ESP32. El firmware inicial no incluye flujo WiFi público; BLE queda reservado a fábrica/debug y apagado en producción.
 
 ## Artefactos De Release
@@ -89,13 +101,14 @@ No versionar nuevos `.bin`, `.elf`, `.map`, `.exe`, logs o temporales dentro del
 
 ## Validación De Unidad
 
-Después de flashear una unidad:
+Después de flashear una unidad, cuando se retome la validación física completa (actualmente aplazada):
 
 - [ ] Confirmar arranque y navegación básica con `3 baterías AAA` nuevas.
 - [ ] Confirmar USB-C para programación/alimentación auxiliar 5 V, sin presentarlo como alimentación principal.
 - [ ] Confirmar selector de idioma en primer arranque si la build limpió NVS.
 - [ ] Confirmar BLE apagado por defecto y sin publicidad `PBIT-XXXX`.
 - [ ] Recorrer carrusel completo y probar una pulsación corta/larga en un sensor.
+- [ ] Revisar Planta Lab según el alcance visual de `docs/ROADMAP.md`: aparición condicional, barras/valores, textos ES/CAT/EN, cuatro estados y animación. La coherencia de rangos de Luz está pendiente de decisión en ADR-003.
 - [ ] Verificar lecturas plausibles de DHT11, LDR, micrófono, suelo y Termómetro (`DS18B20`).
 - [ ] Verificar sensores externos desconectados: Suelo muestra `Revisa IO35`, Termómetro muestra `Revisa IO33`, con pantalla atenuada y retorno a paleta normal al reconectar sin reiniciar.
 - [ ] Verificar splash de conexión/desconexión: `CONECTADO/DESCONECTADO / Sensor Suelo / IO35` y `CONECTADO/DESCONECTADO / Sensor DS18B20 / IO33`, fondo verde/rojo correcto y sin aviso inicial al arrancar con sensores ya conectados o ya desconectados.
