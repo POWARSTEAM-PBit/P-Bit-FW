@@ -482,8 +482,8 @@ Pantalla multisensor de salud de planta. Combina Suelo, temperatura ambiente, hu
 
 - layout: terrario izquierdo + cuatro filas de rango + card de estado
 - diagnóstico: `BIEN`, `SEDIENTA`, `AHOGADA` o `ESTRÉS`, con prioridad `suelo > temperatura > humedad aire > luz`
-- perfil fijo de diagnóstico: Suelo `30..70 %`, temperatura `18..26 °C`, aire `40..70 %`, Luz `200..10000 lux`; independiente de los límites editables de cada sensor. La tierra usa bandas `<25` / `25..80` / `>80 %`.
-- pendiente de revisión: barra de Luz `0..30000 lux` frente al techo real LDR `8000`; diferencias de banda de tierra/diagnóstico documentadas en ADR-003. Esta revisión no modifica rangos.
+- perfil fijo de diagnóstico: Suelo `30..70 %`, temperatura `18..26 °C`, aire `40..70 %`, Luz `200..8000 lux`; independiente de los límites editables de cada sensor. La tierra comparte el rango de Suelo de la barra: `<30` seca, `30..70` central (inclusivo), `>70 %` encharcada; el diagnóstico usa esa misma banda.
+- barra de Luz logarítmica `0..LIGHT_LUX_MAX` (`8000 lux`), con rango óptimo `200..LIGHT_LUX_MAX` usado también por el diagnóstico; sin zona alta inalcanzable. Primer ajuste aplicado el 2026-10-10, pendiente de validación visual en TFT. Ver ADR-003.
 - animación: planta continua a `220 ms`, con clears localizados al rect del icono; la tierra plana solo cambia si cambia la banda de humedad de suelo
 - ADR: `docs/ADR-003-planta-lab.md`
 

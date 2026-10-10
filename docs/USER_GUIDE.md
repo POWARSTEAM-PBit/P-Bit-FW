@@ -1,6 +1,6 @@
 # Manual de Usuario — P-Bit
 
-Actualizado: 2026-08-25
+Actualizado: 2026-10-10
 Versión firmware: ver `CHANGELOG.md`
 Idiomas de interfaz disponibles: Español, Catalán, English
 
@@ -282,6 +282,8 @@ Si el sensor de Suelo no entrega lectura válida, `Planta Lab` se salta automát
 | 12 | **Sistema** | Ajustes globales del dispositivo |
 
 `Planta Lab` se omite automáticamente si el sensor de Suelo no entrega una lectura válida. Las pantallas Lab (`Inicio`, `Clima Lab`, `Planta Lab`, `Termo Lab`) son de solo lectura. No tienen menú de configuración. `Lab` se reserva para pantallas multisensor o experimentales; las vistas de un sensor individual usan los modos de abajo.
+
+En `Planta Lab`, la tierra seca y el estado `SEDIENTA` aparecen con Suelo por debajo del 30 %; por encima del 70 %, la tierra encharcada acompaña a `AHOGADA`. Entre 30 y 70 %, incluidos ambos extremos, el Suelo está en la zona central; otras condiciones ambientales pueden producir `ESTRÉS`. La barra de Luz llega hasta 8000 lux. Este perfil de Planta Lab es fijo e independiente de los límites editables de cada sensor.
 
 Las pantallas de sensor son **zonas de sensor**. Dentro de cada una, la pulsación corta cambia el modo de visualización del sensor activo:
 

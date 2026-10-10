@@ -4,7 +4,7 @@ Fecha: 2026-06-15
 
 Estado: Aceptado
 
-Revisión de implementación y pendientes: 2026-10-10, código `27e5207`.
+Revisión de implementación y pendientes: 2026-10-10. Primer ajuste de rangos aplicado sobre base `0eb3c46`; ver CHANGELOG.
 
 ## Estado de implementación y trabajo actual
 
@@ -12,7 +12,7 @@ V1 está implementada en `src/ui_lab_plant.cpp`, integrada en el carrusel y comp
 
 La prioridad acordada es retomar la revisión/mejora visual de esta pantalla: barras/valores legibles en 96 px, texto ES/CAT/EN (`ASSEDEGADA`), contraste de `AHOGADA`, cuatro posturas reconocibles y ausencia de parpadeo. Las secciones V2/V3 son propuestas futuras, no trabajo ya autorizado. Prueba final de 24 h y validación física completa quedan aplazadas; ver `docs/ROADMAP.md`.
 
-Dos diferencias del diseño inicial quedan explícitas: el diagnóstico implementado usa los rangos óptimos, mientras el color de tierra usa otros límites; la escala de Luz llega a `30000 lux`, por encima del techo real de `8000`. La tabla siguiente documenta el comportamiento actual. Decidir su coherencia antes de cambiar el firmware.
+Primer ajuste autorizado el 2026-10-10: Luz usa escala `0..8000 lux` y rango de diagnóstico `200..8000`; tierra, barra y diagnóstico de Suelo comparten `30..70 %`. La tabla siguiente documenta el comportamiento actual. Queda comprobar su presentación en TFT; la coherencia de estos límites ya está corregida en código.
 
 ## Contexto
 
@@ -76,8 +76,8 @@ Cuatro estados en V1:
 | Estado | Condición dominante | Color | Forma (postura) |
 |---|---|---|---|
 | `BIEN` | Todos los sensores en rango óptimo | Verde | erguida, hojas arriba, yema visible |
-| `SEDIENTA` | Suelo válido < 30 % | Amarillo | hojas caídas; tierra agrietada solo si suelo < 25 % |
-| `AHOGADA` | Suelo válido > 70 % | Azul | hojas pesadas + gotas; banda encharcada solo si suelo > 80 % |
+| `SEDIENTA` | Suelo válido < 30 % | Amarillo | hojas caídas y tierra seca/agrietada |
+| `AHOGADA` | Suelo válido > 70 % | Azul | hojas pesadas, gotas y banda encharcada |
 | `ESTRÉS` | Temperatura, luz o humedad de aire fuera de rango | Naranja | hojas muy caídas, una hoja caída al suelo |
 
 La **forma** comunica el estado aunque no se distinga el color (regla de accesibilidad
@@ -103,13 +103,15 @@ Razón: suelo y temperatura afectan la planta en minutos; la luz y la humedad de
 | Suelo (%) | 30 – 70, inclusivo | `SEDIENTA` por debajo; `AHOGADA` por encima |
 | Temperatura (°C) | 18 – 26, inclusivo | `ESTRÉS` |
 | Humedad aire (%) | 40 – 70, inclusivo | `ESTRÉS` |
-| Luz (lux) | 200 – 10000, inclusivo | `ESTRÉS` |
+| Luz (lux) | 200 – 8000, inclusivo | `ESTRÉS` |
 
 Fuente: `build_next_cache()` en `src/ui_lab_plant.cpp`. Los rangos son fijos e independientes de los límites editables de los menús de sensores. Un valor inválido también incumple el rango; el diagnóstico prioriza el primer sensor que lo incumple. La ausencia de Suelo impide seleccionar esta parada en el carrusel.
 
-La banda de tierra es independiente: seco `<25 %`, banda central `25..80 %`, encharcado `>80 %`. Por ello `SEDIENTA` con `25 ≤ Suelo < 30 %` y `AHOGADA` con `70 < Suelo ≤ 80 %` pueden coexistir con tierra de aspecto central. El diseño inicial proponía además extremos Temp `<12/>30`, Aire `<30/>85` y Luz `<100/>30000`; no son los disparadores del diagnóstico actual.
+La banda de tierra comparte el rango de Suelo de `range_spec()`: seco `<30 %`, central `30..70 %` inclusivo, encharcado `>70 %`. `build_next_cache()` usa esa misma banda para el diagnóstico de Suelo, evitando duplicar límites. Exactamente 30 y 70 % pertenecen a la banda central; puede aparecer `ESTRÉS` si otra variable ambiental incumple su rango.
 
-**Pendiente de decisión:** la barra de Luz usa escala logarítmica `0..30000` y zona óptima `200..10000`, pero la adquisición LDR está limitada a `0..8000`. El extremo alto queda fuera de las lecturas alcanzables. Revisar si se ajustan escala/perfil y la coherencia tierra/diagnóstico durante la mejora de Planta Lab; esta actualización documental no modifica esos valores.
+La barra de Luz usa escala logarítmica `0..LIGHT_LUX_MAX` y zona óptima `200..LIGHT_LUX_MAX`, actualmente `8000 lux`. El diagnóstico consulta ese mismo rango. En el techo del sensor el marcador llega al extremo derecho; no hay zona alta adicional por encima de la capacidad de lectura. No se introduce un nuevo umbral biológico de exceso de luz.
+
+Antecedente corregido: la revisión anterior detectó barra de Luz `0..30000`, rango óptimo hasta `10000` y tierra `<25` / `>80 %`. El diseño inicial también proponía extremos Temp `<12/>30`, Aire `<30/>85` y Luz `<100/>30000`; no son los disparadores actuales. Ver CHANGELOG para el historial.
 
 ### Animación V1
 
@@ -254,7 +256,7 @@ Tres zonas horizontales. `Y` = top de la fila.
 | Suelo | planta (icono de Suelo) | `PB_SOIL_P1` (0x47E8) | 0–100% → 30–70% |
 | Temp | termómetro | `PB_TEMP_P1` (0xF817) | 0–40 °C → 18–26 °C |
 | Aire | nube | `PB_HUM_P1` (0x075F) | 0–100% → 40–70% |
-| Luz | sol | `PB_LUZ_P1` (0xFFE0) | log 0–30000 lux → 200–10000 lux (revisión pendiente frente al techo LDR 8000) |
+| Luz | sol | `PB_LUZ_P1` (0xFFE0) | log 0–8000 lux → 200–8000 lux |
 
 El icono mantiene su color de identidad; el "culpable" se marca solo con el **borde** de
 su fila en color de estado. Temp **sin decimal**. Si el valor de Luz tiene ≥5 dígitos y se
@@ -303,9 +305,9 @@ Relleno de la banda + línea superior (2 px) + grietas; color por banda de humed
 
 | Banda suelo | Relleno | Línea superior | Grietas |
 |---|---|---|---|
-| Seco (<25%) | `color565(110,74,36)` | `color565(134,96,46)` | 2× `drawLine` `color565(74,48,22)` |
-| Banda central (25–80%) | `color565(74,48,22)` | `color565(110,74,36)` | — |
-| Encharcado (>80%) | `color565(46,36,24)` | brillo = color AHOGADA | — |
+| Seco (<30%) | `color565(110,74,36)` | `color565(134,96,46)` | 2× `drawLine` `color565(74,48,22)` |
+| Banda central (30–70%, inclusivo) | `color565(74,48,22)` | `color565(110,74,36)` | — |
+| Encharcado (>70%) | `color565(46,36,24)` | brillo = color AHOGADA | — |
 
 La tierra es una **banda plana**: rect + línea fina superior + grietas (`drawLine`).
 **NUNCA dibujar elipses sobre la tierra** — causaban un bulto marrón con mala lectura.
@@ -449,5 +451,5 @@ El mecanismo de visibilidad condicional (solo aparece si hay sonda de suelo) man
 - [x] Strings i18n, posición en carrusel y visibilidad condicional por lectura de Suelo.
 - [x] Build `esp32dev` comprobada; seguimiento documental en CHANGELOG/ROADMAP.
 - [ ] Revisar visualmente los cuatro estados, textos ES/CAT/EN, animación, barras/valores y aparición condicional.
-- [ ] Decidir coherencia de rangos Luz y de banda de tierra frente al diagnóstico antes de modificar código.
+- [x] Alinear escala/rango de Luz con `LIGHT_LUX_MAX` y banda de tierra con el diagnóstico de Suelo (primer ajuste 2026-10-10); validación visual física pendiente.
 - [ ] Concretar con el usuario la siguiente mejora de Planta Lab; perfiles/crecimiento siguen como propuestas futuras.

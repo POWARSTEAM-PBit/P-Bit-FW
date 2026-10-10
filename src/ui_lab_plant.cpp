@@ -162,7 +162,7 @@ static const RangeSpec& range_spec(uint8_t card) {
         { 0.0f, 100.0f, 30.0f, 70.0f, false },
         { 0.0f,  40.0f, 18.0f, 26.0f, false },
         { 0.0f, 100.0f, 40.0f, 70.0f, false },
-        { 0.0f, 30000.0f, 200.0f, 10000.0f, true },
+        { 0.0f, LIGHT_LUX_MAX, 200.0f, LIGHT_LUX_MAX, true },
     };
     return specs[(card < 4) ? card : 0];
 }
@@ -307,8 +307,9 @@ static void draw_row_data(uint8_t card, const PlantLabCache& next) {
 
 static uint8_t soil_band_from_value(float soil) {
     if (!valid_number(soil)) return SOIL_BAND_DRY;
-    if (soil < 25.0f) return SOIL_BAND_DRY;
-    if (soil > 80.0f) return SOIL_BAND_WET;
+    const RangeSpec& spec = range_spec(PLANT_CARD_SOIL);
+    if (soil < spec.opt_low) return SOIL_BAND_DRY;
+    if (soil > spec.opt_high) return SOIL_BAND_WET;
     return SOIL_BAND_OPTIMAL;
 }
 
@@ -471,13 +472,14 @@ static PlantLabCache build_next_cache() {
     next.lux = lux_valid ? (uint32_t)lroundf(r.ldr) : kInvalidLux;
     next.soil_band = soil_band_from_value(r.soil_humidity);
 
-    const bool soil_ok = soil_valid && r.soil_humidity >= 30.0f && r.soil_humidity <= 70.0f;
+    const bool soil_ok = soil_valid && next.soil_band == SOIL_BAND_OPTIMAL;
     const bool temp_ok = temp_valid && r.temperature >= 18.0f && r.temperature <= 26.0f;
     const bool hum_ok = hum_valid && r.humidity >= 40.0f && r.humidity <= 70.0f;
-    const bool light_ok = lux_valid && r.ldr >= 200.0f && r.ldr <= 10000.0f;
+    const RangeSpec& light_range = range_spec(PLANT_CARD_LIGHT);
+    const bool light_ok = lux_valid && r.ldr >= light_range.opt_low && r.ldr <= light_range.opt_high;
 
     if (!soil_ok) {
-        next.state = (soil_valid && r.soil_humidity > 70.0f) ? PLANT_STATE_SOGGY : PLANT_STATE_THIRSTY;
+        next.state = (soil_valid && next.soil_band == SOIL_BAND_WET) ? PLANT_STATE_SOGGY : PLANT_STATE_THIRSTY;
         next.culprit = PLANT_CARD_SOIL;
     } else if (!temp_ok) {
         next.state = PLANT_STATE_STRESSED;

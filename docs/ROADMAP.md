@@ -35,10 +35,11 @@ Orden acordado el 2026-10-10: aclarar documentación y retomar la mejora de Plan
 | **Demo** | Escenas de 6–10 s, valores suaves, gráficas sintéticas, Timer simulado, entrada/salida y restauración de pantalla/vistas sin guardar NVS | Comprobación visual de ritmo y transiciones en TFT, Timer activo, curva de Termo Lab/DS18 visible y retorno a las vistas previas. No hay una función Demo pendiente de construir. Planta Lab no está en `kDemoScenes`; decidir su inclusión si se amplía el demo. |
 | **Flicker/ghosting** | Fixes de dials, cards, menús, Inicio y Sonido VU/Onda; aprobación puntual histórica | Vigilancia de regresión al tocar render, especialmente la planta animada. No se ha identificado en esta revisión un nuevo fallo físico vigente. |
 
-Preguntas concretas de Planta Lab (`docs/ADR-003-planta-lab.md`):
+Primer ajuste de Planta Lab aplicado el 2026-10-10 (`docs/ADR-003-planta-lab.md`):
 
-- El diagnóstico usa rangos óptimos: Suelo `30..70 %`, temperatura `18..26 °C`, aire `40..70 %` y Luz `200..10000 lux`. Los umbrales extremos del diseño inicial no son los disparadores actuales del diagnóstico; la banda visual de tierra usa `<25` / `>80 %`.
-- La barra de Luz conserva techo `30000 lux` y zona óptima hasta `10000`, mientras el sensor entrega como máximo `8000`. Decidir si se ajusta la escala/perfil o se conserva como referencia conceptual; no se cambian umbrales sin cerrar esa decisión.
+- [x] Barra de Luz `0..8000 lux` y zona óptima/diagnóstico `200..8000`, usando el máximo común `LIGHT_LUX_MAX`.
+- [x] Tierra, barra y diagnóstico de Suelo comparten `30..70 %`: por debajo seca/`SEDIENTA`, por encima encharcada/`AHOGADA`; extremos 30 y 70 inclusivos en la zona central.
+- [ ] Comprobar visualmente el ajuste en TFT: Luz 8000 en el extremo derecho, tierra/postura/diagnóstico coherentes a ambos lados de 30 y 70 %, sin regresión de animación. No hay nueva prueba HW en esta edición.
 - V2 (perfiles) y V3 (crecimiento, transiciones, misiones) son propuestas futuras del ADR, no funciones comprometidas en el trabajo actual.
 
 ### Anti-flicker — checklist visual de regresión

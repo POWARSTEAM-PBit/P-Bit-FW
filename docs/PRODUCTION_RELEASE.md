@@ -108,7 +108,7 @@ Después de flashear una unidad, cuando se retome la validación física complet
 - [ ] Confirmar selector de idioma en primer arranque si la build limpió NVS.
 - [ ] Confirmar BLE apagado por defecto y sin publicidad `PBIT-XXXX`.
 - [ ] Recorrer carrusel completo y probar una pulsación corta/larga en un sensor.
-- [ ] Revisar Planta Lab según el alcance visual de `docs/ROADMAP.md`: aparición condicional, barras/valores, textos ES/CAT/EN, cuatro estados y animación. La coherencia de rangos de Luz está pendiente de decisión en ADR-003.
+- [ ] Revisar Planta Lab según el alcance visual de `docs/ROADMAP.md`: aparición condicional, barras/valores, textos ES/CAT/EN, cuatro estados y animación. Verificar el primer ajuste de rangos de ADR-003: Luz alcanza el extremo de barra a 8000 lux y tierra/diagnóstico de Suelo cambian juntos en 30/70 %.
 - [ ] Verificar lecturas plausibles de DHT11, LDR, micrófono, suelo y Termómetro (`DS18B20`).
 - [ ] Verificar sensores externos desconectados: Suelo muestra `Revisa IO35`, Termómetro muestra `Revisa IO33`, con pantalla atenuada y retorno a paleta normal al reconectar sin reiniciar.
 - [ ] Verificar splash de conexión/desconexión: `CONECTADO/DESCONECTADO / Sensor Suelo / IO35` y `CONECTADO/DESCONECTADO / Sensor DS18B20 / IO33`, fondo verde/rojo correcto y sin aviso inicial al arrancar con sensores ya conectados o ya desconectados.

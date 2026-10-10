@@ -1,6 +1,6 @@
 # P-Bit — Guía Base Completa
 
-Actualizado: 2026-08-25
+Actualizado: 2026-10-10
 Versión firmware: ver `CHANGELOG.md`
 Estado: documento maestro de producto, uso y referencia técnica
 
@@ -302,6 +302,8 @@ Combina:
 - luz.
 
 Su objetivo es explicar que una planta depende de varias condiciones al mismo tiempo. El diagnóstico prioriza Suelo y luego variables ambientales. Los estados visibles son `BIEN`, `SEDIENTA`, `AHOGADA` y `ESTRÉS`.
+
+El perfil es fijo e independiente de los límites editables de cada sensor. Suelo `<30 %` muestra tierra seca y `SEDIENTA`; `30..70 %` (inclusivo) mantiene la banda central; `>70 %` muestra tierra encharcada y `AHOGADA`. Si Suelo está en rango, las otras variables pueden generar `ESTRÉS`: temperatura fuera de `18..26 °C`, humedad del aire fuera de `40..70 %` o Luz fuera de `200..8000 lux`. La barra de Luz usa escala logarítmica `0..8000 lux`, alineada con el techo de lectura del LDR.
 
 ### Termo Lab
 
