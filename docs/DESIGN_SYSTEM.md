@@ -281,7 +281,7 @@ Ver `docs/TFT_RENDER_RULES.md` para el protocolo anti-flicker completo (sprites,
 - Icono `temp` final aplicado a small/XL/XXL: small/XL/fallback son monocromos y solo Rango/XXL con acento conserva detalle multicolor; no mezclar este estado con el icono técnico `probe`/DS18B20
 - Estados externos desconectados para `SZ_DS18` y `SZ_SOIL`: textos `Revisa IO33` / `Revisa IO35`, helper runtime común y paleta del sensor atenuada en clásicas, Sensor Zone y Lab
 - Iconos `humidity` y `plant` rediseñados en `src/ui_icons.cpp`; `probe` se mantiene separado de `temp` y no está aprobado como final
-- Icono Bluetooth añadido en `src/ui_icons.cpp` para pantalla `BLE_TOGGLE_SCREEN`
+- Icono Bluetooth añadido en `src/ui_icons.cpp` para pantalla interna de fábrica/debug `BLE_TOGGLE_SCREEN`
 
 ### Pendiente visual / vigilancia en hardware (ST7735 real)
 

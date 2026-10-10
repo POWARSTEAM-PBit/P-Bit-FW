@@ -16,7 +16,7 @@ enum Screen {
     SYSTEM_SCREEN,
     TIMER_SCREEN,
     GRAPH_SCREEN,
-    BLE_TOGGLE_SCREEN  // hidden — only reachable via secret 60s hold on SYSTEM_SCREEN
+    BLE_TOGGLE_SCREEN  // hidden — only reachable via internal 30s factory/debug hold on SYSTEM_SCREEN
 #if PBIT_ENABLE_GRAPH_LAB
     ,
     LAB_DASH_OVERVIEW_SCREEN,

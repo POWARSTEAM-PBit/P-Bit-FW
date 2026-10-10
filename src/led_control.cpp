@@ -89,7 +89,7 @@ void init_leds_and_buzzer() {
  * Set the RGB LED color.
  */
 void set_rgb(uint8_t r, uint8_t g, uint8_t b) {
-    ledcWrite(RGB_R_CHANNEL, 255 - r); // Common-cathode assumption.
+    ledcWrite(RGB_R_CHANNEL, 255 - r); // Active-low RGB wiring.
     ledcWrite(RGB_G_CHANNEL, 255 - g);
     ledcWrite(RGB_B_CHANNEL, 255 - b);
 }

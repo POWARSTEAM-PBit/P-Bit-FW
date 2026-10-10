@@ -132,9 +132,9 @@ Nota importante:
 
 | Función | Pin ESP32 | Observación |
 |---|---:|---|
-| RGB Rojo | `GPIO5` | PWM, LED común cátodo |
-| RGB Verde | `GPIO17` | PWM |
-| RGB Azul | `GPIO16` | PWM |
+| RGB Rojo | `GPIO5` | PWM activo en bajo; el firmware escribe `255 - r` |
+| RGB Verde | `GPIO17` | PWM activo en bajo; el firmware escribe `255 - g` |
+| RGB Azul | `GPIO16` | PWM activo en bajo; el firmware escribe `255 - b` |
 | Buzzer pasivo | `GPIO18` | PWM |
 
 ### TFT SPI

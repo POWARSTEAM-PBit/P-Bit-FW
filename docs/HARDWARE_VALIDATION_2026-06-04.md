@@ -196,7 +196,7 @@ Calibración:
 - [x] Menú largo desde sensor SUELO abre menú de calibración.
 - [ ] Calibración seco (sensor al aire) registra valor.
 - [ ] Calibración mojado (sensor en agua) registra valor.
-- [ ] Límites `seco / óptimo / húmedo` editables y persistentes.
+- [ ] Límites `seco / húmedo` editables y persistentes; `óptimo` derivado automáticamente entre ambos.
 
 Anomalías observadas: `Ajuste visual solicitado para estado desconectado en Suelo y DS18B20: card superior solo "Sin Sensor", con color más vivo/entonado a la paleta y Y+2; card inferior solo "Revisa IOxx" y Y-4 para centrar mejor. Valores de suelo se ven plausibles y correctos. BUG render/UX bloqueante: pantalla/menú de calibración de Suelo genera mucho flicker cada vez que cambian valores, y cambian constantemente; afecta todo el cuerpo salvo título/línea. Al cargar el menú de configuración/calibración no dibuja fondo propio, queda el fondo de la pantalla del sensor; otros menús sí tienen fondo. No hay salida/cancelación segura sin guardar: para salir hay que seleccionar obligatoriamente el valor a calibrar y luego el siguiente, quedando guardados; Pablo tuvo que resetear para no guardar. Propuesta: pulsación larga vuelve al menú anterior conservando calibración previa para evitar reset si se entra o calibra mal. Pendiente posterior: calibración general con raw al aire y sumergido en agua en ~5 P-Bits para promediar defaults de firmware.`
 
@@ -285,6 +285,8 @@ Anomalías observadas en Demo Mode: `Demo Mode visualmente está muy bien. Halla
 ---
 
 ## Fase 4 — BLE (~15 min)
+
+> **Interno fábrica/debug:** esta sección valida una función oculta. No extraer el flujo de activación BLE hacia guías públicas, web de consumidor ni materiales de aula.
 
 ### 4.1 Estado de fábrica — BLE OFF
 

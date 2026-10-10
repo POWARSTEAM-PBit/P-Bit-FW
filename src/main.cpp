@@ -213,8 +213,8 @@ void setup() {
     bool demo_boot_requested = (digitalRead((uint8_t)DI_ENCODER_SW) == LOW);
 
     // BLE is factory-disabled. The firmware-stamp reset above clears ble_en on every
-    // new flash, so the device always ships with BLE off until unlocked via the
-    // secret 30 s hold gesture on SYSTEM_SCREEN.
+    // new flash, so the device always ships with BLE off unless enabled through the
+    // internal factory/debug hold flow on SYSTEM_SCREEN.
     if (load_ble_enabled_store()) {
         init_ble();
     }

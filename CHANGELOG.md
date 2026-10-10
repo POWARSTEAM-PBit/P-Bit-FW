@@ -2,6 +2,12 @@
 
 ## 2026-08-25
 
+### Documentación — Auditoría de coherencia firmware/docs
+
+- **Suelo:** corregida la guía base y la validación de hardware para reflejar el flujo real: el usuario edita `Seco` y `Húmedo`; `Óptimo` se deriva automáticamente entre ambos.
+- **BLE interno:** reforzadas notas de documentación interna para evitar copiar la ruta de activación de `BLE_TOGGLE_SCREEN` a materiales públicos o web de consumidor.
+- **RGB/BLE en código/documentación:** documentado el LED RGB como PWM activo en bajo según `set_rgb()` y corregidos comentarios técnicos legacy de BLE para describir el flujo como interno/fábrica/debug.
+
 ### Documentación — Guía base completa P-Bit
 
 - **Nuevo documento maestro:** añadido `docs/PBIT_KNOWLEDGE_BASE.md` como base completa de producto, uso, pantallas, sensores, pinout, energía, conectividad, configuración, calibración, alertas, mantenimiento, troubleshooting y usos educativos.

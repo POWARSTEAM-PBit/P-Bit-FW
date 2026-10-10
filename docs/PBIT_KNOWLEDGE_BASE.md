@@ -173,9 +173,9 @@ La pantalla de Sonido no usa alarma sonora propia, porque el beep contaminaria l
 
 | Funcion | Pin ESP32 | Observacion |
 |---|---:|---|
-| LED RGB rojo | `GPIO5` | PWM |
-| LED RGB verde | `GPIO17` | PWM |
-| LED RGB azul | `GPIO16` | PWM |
+| LED RGB rojo | `GPIO5` | PWM activo en bajo |
+| LED RGB verde | `GPIO17` | PWM activo en bajo |
+| LED RGB azul | `GPIO16` | PWM activo en bajo |
 | Buzzer pasivo | `GPIO18` | PWM |
 
 ### TFT SPI
@@ -686,7 +686,7 @@ Sonido tiene siete modos:
 | Lectura física | ADC 0..4095 |
 | Rango usuario | 0..100 % calibrado |
 | Defaults calibración | seco raw 3550, mojado raw 1855 |
-| Defaults límites | seco 20 %, óptimo 55 %, húmedo 80 %, alertas ON, marcas ON |
+| Defaults límites | seco 20 %, húmedo 80 %, óptimo derivado 55 %, alertas ON, marcas ON |
 
 ### Qué muestra
 
@@ -694,14 +694,14 @@ La pantalla `Suelo` muestra la humedad calibrada del sustrato. Si el sensor falt
 
 El sensor necesita calibración cuando cambia el tipo de suelo, humedad de referencia o unidad física del sensor.
 
-### Categorias
+### Categorías
 
-La clasificacion deriva de los límites `Seco` y `Humedo`:
+La clasificación deriva de los límites editables `Seco` y `Húmedo`. El punto `Óptimo` no se edita directamente: el firmware lo calcula automáticamente entre ambos límites.
 
 - `Muy seco`
 - `Seco`
 - `Óptimo`
-- `Humedo`
+- `Húmedo`
 - `Muy húmedo`
 
 ### Modos visuales
@@ -717,7 +717,7 @@ La clasificacion deriva de los límites `Seco` y `Humedo`:
 | Opción | Función |
 |---|---|
 | `Calibrar sensor` | Captura seco y mojado reales |
-| `Límites` | Edita seco, óptimo y húmedo |
+| `Límites` | Edita `Seco` y `Húmedo`; `Óptimo` se recalcula automáticamente |
 | `Marcas` | Muestra/oculta marcas en Rango |
 | `Alertas` | Activa/desactiva alerta |
 | `Reset` | Restaura calibración, límites, marcas y alertas |
@@ -731,12 +731,12 @@ Flujo recomendado:
 2. Entrar en `Suelo`.
 3. Pulsación larga para abrir menú.
 4. Elegir `Calibrar sensor`.
-5. En `Seco al aire`, dejar el sensor seco o en condicion seca de referencia; esperar estabilidad; elegir `Captura`.
-6. En `En agua` o condicion muy humeda, introducir el sensor; esperar estabilidad; elegir `Captura`.
+5. En `Seco al aire`, dejar el sensor seco o en condición seca de referencia; esperar estabilidad; elegir `Captura`.
+6. En `En agua` o condición muy húmeda, introducir el sensor; esperar estabilidad; elegir `Captura`.
 7. Revisar resumen `SECO/MOJADO`.
 8. Elegir `Guardar` para escribir NVS o `Salir` para descartar.
 
-La válidación exige que el raw seco sea mayor que el raw mojado y que la diferencia sea al menos 300 cuentas ADC. Si no se cumple, la calibración se rechaza.
+La validación exige que el raw seco sea mayor que el raw mojado y que la diferencia sea al menos 300 cuentas ADC. Si no se cumple, la calibración se rechaza.
 
 Durante la calibración, una pulsación larga cancela el paso actual sin escribir NVS y vuelve al menú de Suelo.
 
@@ -744,7 +744,7 @@ Durante la calibración, una pulsación larga cancela el paso actual sin escribi
 
 - Muy seco/Seco: alerta baja.
 - Óptimo: estado OK.
-- Humedo: alerta de humedad.
+- Húmedo: alerta de humedad.
 - Muy húmedo: alerta critica.
 - Si `Alarmas` está ON, Suelo puede reproducir melodías cortas distintas por estado.
 
