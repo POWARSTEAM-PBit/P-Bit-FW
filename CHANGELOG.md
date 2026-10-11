@@ -1,6 +1,118 @@
 # Changelog
 
+## 2026-10-12
+
+### Documentación — Diseño conservado y siguiente fase propuesta
+
+- 2026-10-12: el usuario comunica que la versión cargada funciona muy bien y pide conservar el diseño actual. Se da por cerrado provisionalmente el ajuste visual de producto; esta observación general no verifica individualmente todas las poses, idiomas, recuperación, flicker ni Demo, ni cierra la validación completa por unidad/24 h.
+- Próximo paso recomendado, aún no ejecutado ni aprobado como implementación: revisión acotada de comportamiento y contrato de perfiles antes de diseñar el setup. Alcance: `plant_pet.cpp`, interfaz `plant_pet.h`, integración de snapshot/modelo en Planta Lab y ADR-003/investigación; revisar el renderer solo si aparece un defecto funcional concreto. Definir reposo con poca luz, observaciones frente a diagnóstico, respuesta de Suelo/aire, datos inválidos/techo LDR, duración válida de sesión y prioridades. Salida esperada: hallazgos priorizados y contrato de configuración mínimo; no auditoría global, rediseño ni implementación de historial/presets por inferencia.
+- AGENTS, roadmap, ADR-003 y estado de producción sincronizados. Solo Markdown; sin nueva build, cambios de firmware ni flasheo. Última build/carga siguen siendo las registradas el 2026-10-11.
+
+## 2026-10-11
+
+### Carga en dispositivo — Planta Lab actualizado
+
+- Carga autorizada por el usuario el 2026-10-11: `py -m platformio run -e esp32dev -t upload --upload-port COM8` SUCCESS (29.848 s), USB-SERIAL CH340, ESP32-D0WD-V3 revisión 3.1. Esptool verificó los hashes de los datos escritos y envió reinicio por RTS. Candidato base `3744f04` + cambios locales de mascota/efectos, RAM 59580 y Flash 971189. Log ignorado: `.pio/plant_pet_review/ambient_integrated/upload.log`. Confirma carga y reinicio solicitado, no observación de pantalla ni cierre de pruebas visuales/funcionales. No se activó debug ni se cambiaron flags/dependencias. La causa del fallo de carga en Visual Studio Code no se reprodujo en esta operación.
+- Producción, ADR-003, roadmap y guía de agentes registran la carga sin cerrar proofs visuales ni la validación por unidad; 24 h siguen aplazadas. Sin cambios de firmware en esta operación.
+
+
+### Firmware/UI — Copos y aire distribuidos integrados
+
+- Integrado el preview autorizado en `src/plant_pet_art.cpp`: copos cyan 1..3 según intensidad fría suavizada, posiciones alternadas, descenso corto y deriva lateral; niebla cyan/trazos violetas en 1..2 grupos con deriva y pausas. Máximo cuatro grupos ambientales conjuntos y espacio reservado para aire al coexistir con temperatura. Variación determinista, buffer fijo y sin heap/RNG adicional.
+- Paleta, suelo, expresiones, rangos, navegación, i18n y NVS conservados. Documentación de diseño, render, comportamiento, manuales, roadmap y producción sincronizada; menús (§ 17) sin cambios.
+- Host C++11 `-Wall -Wextra -Werror` limpio: 528 comparaciones incremental/completo PASS y los 528 frames integrados idénticos al preview mostrado (nueve intensidades +dos combinaciones, 48 frames cada una). Raster 1215 casos +101 niveles de suelo y 4 ausentes/no finitos PASS. Artefactos ignorados en `.pio/plant_pet_review/ambient_integrated/`.
+- `py -m platformio run -e esp32dev` SUCCESS inicial (20.103 s), seguido de regeneración completa final SUCCESS (78.772 s) con los mismos tamaños al encontrar vacío el directorio de salida; binario nuevamente disponible en `.pio/build/esp32dev/firmware.bin`. Base `3744f04` + cambios locales sin commit. RAM 59580/327680 (18.2 %), Flash 971189/1310720 (74.1 %): +184 bytes Flash y RAM sin aumento frente a ondas distribuidas previas. Aviso histórico de múltiples Core; flags/dependencias sin cambios.
+- Listo para que el usuario lo pruebe en TFT; sin flasheo ni nueva validación física por el agente. Proofs 9/10 abiertos; 24 h y validación completa por unidad siguen aplazadas.
+
+
+### Preview/documentación — Frío y aire distribuidos, sin integración
+
+- Preview preparado desde una copia aislada de `plant_pet_art.cpp` en `.pio/plant_pet_review/ambient_proposal/`: nueve escenas de intensidad y dos combinaciones, con 48 frames por escena. Galerías PNG y tres GIF desde el layout/fuentes reales 160×128. Host C++11 `-Wall -Wextra -Werror` limpio; 528 comparaciones incremental/completo PASS. Prototipo pendiente de aprobación; `src/` e `include/` sin cambios en esta revisión. Sin nueva build ESP32 ni flasheo.
+- ADR-003 y roadmap registran la evidencia del preview y conservan el estado de propuesta; validación física no completada. Solo documentación versionable; artefactos y fuente experimental quedan ignorados en `.pio/`.
+
+
+### Diseño/documentación — Propuesta de frío y aire distribuidos
+
+- Usuario acepta el preview general de sol/luna y calor distribuido; solicita extender efectos alternados al frío y valorar humedad/sequedad del aire. No equivale a validación física.
+- ADR-003 propone 1..3 copos con descenso corto, aire húmedo cyan con deriva suave y aire seco con trazos violetas espaciados; máximo cuatro grupos ambientales conjuntos, posiciones seguras y variación determinista entre apariciones. Paleta, rangos y suelo conservados. Propuesta sin implementar; preview de intensidades/combinaciones antes de integración.
+- Estado sincronizado en AGENTS, roadmap, diseño y producción; corregidos dos tamaños Flash con espacios que aún reflejaban la build térmica anterior: última build continúa 971005 bytes Flash / 59580 RAM.
+- Solo Markdown: sin nueva build, flasheo ni cambios de firmware. Validación TFT y pruebas de 24 h/unidad siguen pendientes/aplazadas según su alcance.
+
+### Firmware/UI — Calor distribuido y previews completos
+
+- Ondas de calor repartidas a distintas alturas y a ambos lados del terrario; ascenso corto, pausas escalonadas y variación pseudoaleatoria determinista entre apariciones. Se evita el grupo fijo de ondas y se conserva el espacio de lecturas. Sin RNG, heap adicional ni cambios de paleta, modelo, rangos, navegación o NVS. Fuente: `src/plant_pet_art.cpp`.
+- Galerías desde C++ real: pantalla completa con seis niveles de luz/sol/luna, seis temperaturas, nueve estados, progresión de suelo y seis momentos de calor; GIF de calor con 48 frames. Artefactos ignorados en `.pio/plant_pet_review/effects/`; pendientes de aprobación visual del usuario. Colores y suelo conservan su aprobación previa.
+- Raster 1215 combinaciones +101 niveles de suelo y 4 ausentes/no finitos PASS; host `-Wall -Wextra -Werror` limpio y 138 comparaciones incremental/completo PASS, incluidas 48 nuevas de calor. Modelo sin cambios; evidencia de sus pruebas en la revisión anterior.
+- `py -m platformio run -e esp32dev` SUCCESS (21.420 s), base `3744f04` + cambios locales sin commit. RAM 59580/327680 (18.2 %), Flash 971005/1310720 (74.1 %): +124 bytes Flash, RAM sin aumento frente al ajuste térmico anterior. Aviso histórico de múltiples Core; dependencias/flags sin cambios. Documentación canónica sincronizada; no cambian menús (§ 17).
+- Sin flasheo ni nueva validación física. Aprobación de efectos y prueba TFT pendientes; 24 h/validación completa por unidad siguen aplazadas.
+
+### Firmware/UI — Temperatura flexible y respuesta progresiva
+
+- Temperatura cambia de la franja heredada 18..26 a 15..30 °C como regla provisional de mascota, no óptimo universal. Histéresis ±0.5 °C después del arranque y confirmación 1200 ms evitan oscilación repetida por un grado. Suelo/Aire/Luz conservan sus criterios, y pueden seguir determinando el gesto.
+- `thermal_intensity` objetivo 0..255 entre 30..36 °C para calor / 15..8 °C para frío; se suaviza durante 1500 ms y conserva `previous_thermal_intensity` al cambiar mood. Postura interpola desde Content y cara pasa por sonrisa/neutral/reacción térmica. Rampa no se reinicia con objetivo repetido; inválidas anulan intensidad actual; rollover comprobado.
+- Ondas magenta 1/2/3/4 desde 27/30/33/36 °C independientemente del mood; una sonrisa puede acompañar calor moderado. Sol amarillo con radios 1/2/3/4 desde 20/200/800/3000 lux y brillo creciente; luna como disco pálido solo <20 lux, sin afirmar noche. Paleta aprobada y tierra progresiva conservadas.
+- Fuentes: `include/plant_pet.h`, `src/plant_pet.cpp`, `src/plant_pet_art.cpp`; ampliadas pruebas de modelo y adaptados snapshots manuales del raster. Navegación, lecturas, alertas de sensor y NVS sin cambios. Modelo térmico/rangos, manuales, diseño, render, investigación y estado de producción sincronizados.
+- Tiempo sin RTC: documentado que `millis()` permite medir duración dentro de sesión, pero no hay historial diario/persistente, cobertura de apagados, avisos fisiológicos por combinaciones ni compensación de posible calor propio del P-Bit. Esas propuestas siguen fuera de este ajuste.
+- Pruebas nativas de modelo PASS, incluidos nuevos casos térmicos, histéresis, rampas/recuperación, desconocidos y rollover. Raster 1215 combinaciones +101 niveles de Suelo y 4 ausentes/no finitos PASS; host `-Wall -Wextra -Werror` limpio. 90 comparaciones incremental/completo PASS: quince temperaturas, diez niveles/límites solares y regresiones previas. PNG/GIF desde código real en `.pio/plant_pet_review/warmth/`, ignorados; galerías de temperatura y sol/luna revisadas.
+- Build completa inicial SUCCESS (114.490 s), seguida de final incremental SUCCESS (22.405 s) tras ajustar el disco. `py -m platformio run -e esp32dev`; base `3744f04` + cambios locales sin commit. Candidato final: RAM 59580/327680 (18.2 %), Flash 970881/1310720 (74.1 %), +16 bytes RAM y +592 Flash frente al diseño natural previo. Advertencias históricas Core/OneWire; flags y dependencias del proyecto sin cambios.
+- Aprobación anterior del usuario limita alcance a colores y efecto del suelo; esta revisión térmica/símbolos todavía no se flasheó ni probó por el agente. Proofs 9/10 abiertos; 24 h y validación completa por unidad siguen aplazadas.
+
+### Documentación/análisis — Aprobación de paleta y expresividad más flexible
+
+- Registrada la aprobación del usuario en P-Bit de colores de planta/medidores y la valoración favorable del suelo progresivo. Aceptación puntual, sin dar por completadas todas las poses, idiomas, recuperación, flicker ni Demo.
+- Revisado el bloqueo de `BIEN`: el modelo exige cuatro bandas normales conocidas simultáneas; 27 °C, 39 % de aire o luz momentáneamente baja bastan para otra pose. Sin lecturas concretas de la unidad no se atribuye su caso a un sensor.
+- Ampliada `docs/PLANTA_LAB_RESEARCH.md` con fuentes UGA/CSU/OSU: orientación para plantas de interior, diferencias entre confort, tolerancia y daño; ningún óptimo universal de lux o porcentaje relativo de Suelo. Propuesta explícitamente provisional de separar efectos ambientales, expresión y avisos sostenidos.
+- Propuestos sol creciente, luna como disco solo en oscuridad marcada y más ondas progresivas, preservando paleta aprobada. Valores flexibles y escalones ilustrativos documentados como propuesta de producto, sin implementación ni validación biológica.
+- ADR-003, ROADMAP, PRODUCTION_RELEASE y AGENTS sincronizan aprobación limitada y próximo trabajo. Solo Markdown; sin cambios de firmware, nueva build, flasheo ni pruebas físicas por el agente. Build anterior 970289 bytes Flash sigue vigente; prueba final de 24 h y validación completa por unidad continúan aplazadas.
+
+### Firmware/UI — Verde persistente y entorno progresivo de Planta Lab
+
+- **Elección aplicada:** barras B por sensor con extremos oscurecidos y centro luminoso; planta verde A en todas las poses, incluidos desconocidos. Tierra café y sol amarillo recuperan su identidad natural. Hojas sin acentos amarillos/naranjas; badge/bordes violeta, cyan, azul y magenta según necesidad.
+- **Suelo:** café claro → medio → oscuro según lectura relativa. Banda confirmada baja habilita grietas que crecen hacia el extremo seco; alta habilita pequeñas manchas de agua que se amplían/unifican hacia 100 %. Lecturas ausentes/no finitas producen tierra neutra sin grietas/agua. Ilustración, sin simular secado temporal ni medir agua acumulada/drenaje.
+- **Entorno:** sol amarillo de intensidad variable, luna pálida en baja iluminación (sin confirmar noche); copos/ondas de calor y trazos/niebla ambiental con detalle progresivo. Aire húmedo suspendido, separado del agua de Suelo. Movimiento, parpadeo, poses y recuperación conservados. Modelo, umbrales y navegación sin cambios; `POCA LUZ` bajo 200 lux permanece hasta revisar la semántica biológica.
+- **Render:** lecturas opcionales en `plant_pet_render()` y caché de valores de entorno en UI para responder dentro de la misma banda, tick o dígito visible. Buffer fijo 54×95, un envío por frame y sin heap adicional. Fuentes: `include/plant_pet_art.h`, `src/plant_pet_art.cpp`, `src/ui_lab_plant.cpp`; pruebas de raster ampliadas.
+- **Documentación:** diseño, ADR-003, reglas de render, manuales, base de conocimiento, roadmap y estado de producción sincronizados; comparativa A/B/C preservada como antecedente con adaptación aprobada. Configuración/presets siguen posteriores al cierre visual.
+- **Validación:** 81 checks de modelo, 1215 casos de pose/fase/transición, 101 niveles de Suelo y 4 ausentes/no finitos PASS; host `-Wall -Wextra -Werror` limpio. 50 comparaciones framebuffer parcial/completo PASS (incluidos progresión y cambios dentro del mismo tick/dígito). Nueve estados, once niveles de suelo y GIF de 64 frames desde el código real revisados; artefactos en `.pio/plant_pet_review/natural/`, sin versionar.
+- **Build completa:** `py -m platformio run -e esp32dev` SUCCESS (113.586 s), base `3744f04` + mascota/diseño local, sin commit. RAM estática `59564/327680` (18.2 %), Flash `970289/1310720` (74.0 %), +992 bytes Flash frente al refinamiento anterior, RAM sin aumento. Advertencias históricas OneWire/múltiples Core; flags y dependencias del proyecto sin cambios.
+- **Hardware:** adaptación sin flasheo ni prueba física por el agente; proofs 9/10 abiertos. Prueba final de 24 h y validación completa por unidad siguen aplazadas por el usuario.
+
+### Diseño/documentación — Comparativa de colores de Planta Lab
+
+- Registrada la preferencia del usuario por una mascota amigable: hojas verdes persistentes y colores cyan, violeta, azul y magenta, sustituyendo la propuesta de acentos amarillos/naranjas y bandas ámbar/coral.
+- Nueva `docs/PLANTA_LAB_COLOR_REVIEW.md` con alternativas A (verde/cyan), B (identidad por sensor, recomendada) y C (verde/magenta). ADR-003, DESIGN_SYSTEM y ROADMAP distinguen propuesta pendiente de paleta implementada.
+- Previews locales: nueve estados actuales y nueve por alternativa; 100 comparaciones framebuffer parcial/completo PASS, contraste RGB565 calculado y nueve frames actuales idénticos al preview anterior. Artefactos en `.pio/`, sin versionar.
+- Sin cambios de fuentes de firmware, nueva build ESP32 ni flasheo. La elección y prueba de color en TFT siguen pendientes; configuración/presets quedan posteriores al cierre visual.
+
+### Documentación — Investigación para comportamiento y perfiles de aula
+
+- Nueva `docs/PLANTA_LAB_RESEARCH.md` con fuentes institucionales sobre luz/oscuridad y exposición acumulada, interacción calor/aire/agua y límites de interpretación del LDR, DHT11 y porcentaje relativo de Suelo.
+- Propuestas separadas del firmware vigente: reposo neutral, historial con cobertura explícita, avisos por condiciones sostenidas y perfiles por especie/etapa. Judía enana, rábano y albahaca son candidatas iniciales de validación, no presets implementados; personajes por especie y catálogo web quedan futuros.
+- ADR-003, roadmap y entrada para agentes enlazan la investigación y mantienen explícita la penalización actual por Luz <200 lux. El flujo de cuatro mínimos/máximos queda provisional hasta acordar la nueva semántica.
+- Solo Markdown; sin cambios de firmware, nueva build, flasheo ni pruebas físicas. La prueba final de 24 h y la validación completa por unidad siguen aplazadas.
+
+### Firmware/UI — Refinamiento visual de Planta Lab
+
+- **Mascota:** verde más luminoso, luces lima y acentos por necesidad en corona/hojas; amarillo seco, cian mojado, azul frío, naranja calor, aqua aire húmedo y lavanda poca luz. Paleta interpolada con la transición existente; Unknown neutro. Geometría, buffer, modelo, rangos y navegación se mantienen.
+- **Lecturas:** iconos locales de aproximadamente 9×10 px, sin cambiar el set global; barras de 36 a 48 px (33 % más largas), con bajo ámbar, normal verde vivo, alto coral y marcador blanco. Campo numérico de 30 px alineado a la derecha; Luz mantiene lux y usa `1K` / `1.2K` desde 1000, redondeando a décimas de mil lux.
+- **Texto:** grado propio de 3×3 px sobre una celda ASCII de font 1, evitando el falso glifo CP437; C/F sigue la unidad global. Diagnóstico Roboto con tildes y fallback de fuente para etiquetas de más de 88 px. Limpieza completa de cifras y badge para evitar residuos al cambiar de longitud.
+- **Umbrales/documentación:** explicado el perfil educativo heredado de la UI anterior, sin especie ni fuente agronómica documentada; Suelo es relativo a la calibración y 8000 lux es techo instrumental. Setup/presets registrados como propuesta posterior al cierre visual, sin implementación.
+- **Validación:** 81 checks nativos de modelo y 1215 casos del raster PASS; host con `-Wall -Wextra -Werror`; 25 comparaciones framebuffer parcial/completo PASS, incluidos K, C/F, ausencias y nueve estados. Nueve pantallas completas revisadas en software y 33 etiquetas ES/CAT/EN medidas con fuentes reales.
+- **Build final:** `py -m platformio run -e esp32dev` SUCCESS (23.785 s), base `3744f04` + cambios locales de mascota y refinamiento, sin commit. RAM estática `59564/327680` (18.2 %), Flash `969297/1310720` (74.0 %); +996 bytes Flash y sin aumento de RAM frente a la mascota del 10-Oct. Advertencias históricas OneWire y múltiples Core PlatformIO en release; sin cambiar flags/dependencias del proyecto.
+- **Hardware:** usuario probó la primera mascota en P-Bit y comunicó impresión favorable; este refinamiento todavía no se flasheó ni se verificó físicamente por el agente. Proofs 9/10, prueba final de 24 h y validación completa por unidad siguen pendientes, las dos últimas aplazadas.
+
 ## 2026-10-10
+
+### Firmware/UI — Mascota de Planta Lab
+
+- **Personaje:** planta verde con rostro discreto, tallo/hojas expresivos y gestos distintos para sed, exceso de agua, frío, calor, aire seco/húmedo y poca luz. El color mantiene la identidad del personaje; postura y entorno comunican la necesidad.
+- **Comportamiento:** modelo puro separado del dibujo, actualizado también fuera de esta vista, con instancias reales y Demo independientes. Confirmación de bandas 1200 ms y al menos dos lecturas nuevas; causa por gravedad relativa con retención 3 s. Transición 1.5 s y recuperación 3 s, sin crecimiento ni NVS.
+- **Lecturas:** todas las necesidades conocidas quedan señaladas; la causa dominante tiene doble borde. Una lectura inválida es desconocida y no castiga a la mascota; fila atenuada con `--` y diagnóstico `FALTAN DATOS` cuando no hay necesidad conocida.
+- **Rangos:** conserva el primer ajuste de Luz `0..8000 lux` / normal `200..8000` y Suelo normal inclusivo `30..70 %`. La clasificación estabilizada de Suelo alimenta tierra, diagnóstico y fila.
+- **Render:** interior de terrario `54×95` compuesto en buffer RGB565 fijo (10 260 bytes estáticos), un `pushImage()` por frame sin borrado previo ni heap. Layout y navegación se mantienen; nuevas etiquetas localizadas en ES/CAT/EN.
+- **Documentación:** ADR-003 sustituye el contrato visual V1 y separa alcance actual de crecimiento futuro. Diseño, render, manuales, base de conocimiento y roadmap se sincronizan.
+- **Pruebas software:** 81 checks nativos del modelo PASS, compilación host limpia con `-Wall -Wextra -Werror`; 1215 combinaciones de pose/fase/transición del raster dentro del buffer, PASS. PNG de nueve poses y GIF de recuperación generados desde el renderer real; revisión visual del PNG en software.
+- **Build final:** `esp32dev` SUCCESS (22.803 s), árbol basado en `3744f04` + mascota local, sin commit. RAM estática `59564/327680` (18.2 %), Flash `968301/1310720` (73.9 %): +10 424 bytes RAM y +6596 bytes Flash frente al primer ajuste verificado de rangos (`49140` / `961705`). PlatformIO `6.1.19`, espressif32 `6.12.0`, Arduino `2.0.17`; aviso de instalaciones PlatformIO y warnings históricos OneWire documentados en release, sin cambiar dependencias ni flags.
+- **Hardware:** sin flasheo ni nueva prueba física; proofs 9 (Demo ≥30 s) y 10 (TFT real) pendientes. La prueba final de 24 h y validación física completa por unidad siguen aplazadas.
 
 ### Documentación — Estado vigente y preparación de revisión visual
 

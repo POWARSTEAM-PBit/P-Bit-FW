@@ -1,12 +1,12 @@
 # Design System — P-Bit TFT
 
-**Actualizado:** 2026-08-25
-**Estado:** IMPLEMENTADO — Sensor Zone activa; ghosting/flicker resuelto por ahora; LDR modos y Demo smooth implementados en firmware, pendientes de validación visual final
+**Actualizado:** 2026-10-11
+**Estado:** IMPLEMENTADO — Sensor Zone activa y fixes previos anti-flicker; LDR modos, Demo smooth y nueva mascota Planta Lab requieren sus comprobaciones visuales finales
 
 Referencia canónica para cualquier pantalla nueva, modificación de color, icono o layout en el firmware P-Bit. Leer este documento antes de tocar cualquier color, icono o layout en archivos de producción.
 
 **Hardware objetivo:** ST7735 160 × 128 px, landscape, RGB565, via TFT_eSPI
-**Fuentes de verdad en código:** `include/palette.h` (tokens) · `src/sensor_visuals.cpp` (rampas semánticas/RGB) · `include/layout.h` (constantes de posición) · `src/ui_icons.cpp` (iconos)
+**Fuentes de verdad en código:** `include/palette.h` (tokens) · `src/sensor_visuals.cpp` (rampas semánticas/RGB) · `include/layout.h` (constantes de posición) · `src/ui_icons.cpp` (iconos) · `src/plant_pet_art.cpp` (ilustración de mascota)
 
 ---
 
@@ -56,6 +56,39 @@ pb_contrast_cool(sensor_id) // P4
 | Card border | `0x2945` | Borde de card en Inicio y pantallas Lab |
 | Dato numérico principal | `TFT_WHITE` | **Siempre** — sin excepciones |
 | Segmentos vacíos / track | `0x1084` | Segmentos apagados, tracks de gauge |
+
+### Paleta ilustrada de Planta Lab
+
+**Diseño implementado (2026-10-11):** barras B por sensor y verde A persistente; tierra café progresiva aprobada puntualmente en P-Bit. Último ajuste: respuesta térmica gradual, sol amarillo de cuatro tamaños y luna circular <20 lux. La [comparativa A/B/C](PLANTA_LAB_COLOR_REVIEW.md) es antecedente. Nuevos gestos/símbolos comprobados por software, pendientes en TFT.
+
+La paleta de personaje/entorno vive en `src/plant_pet_art.cpp`; `PLANT_PET_GREEN` se comparte con el badge desde `include/plant_pet_art.h`. Las hojas conservan sombra verde, base viva y luces menta en todas las poses, incluidos datos desconocidos. Las necesidades se expresan mediante postura, rostro, entorno y filas. No se sustituyen los tokens P1/P2/P3/P4 ni las rampas de otras vistas.
+
+| Rol | RGB565 |
+|---|---|
+| Contorno / sombra / base verde | `0x09C5` / `0x03C9` / `0x374B` |
+| Luz / brillo / cara | `0x77F4` / `0xCFFB` / `0x0903` |
+| Tierra seca / media / mojada | `0x9B46` / `0x6A25` / `0x3103` |
+| Borde / grieta oscura / tierra desconocida | `0x82E5` / `0x20A2` / `0x5A06` |
+| Agua / brillo | `0x2D5C` / `0xA79F` |
+| Aire húmedo / aire seco | `0x075F` / `0xB3DF` |
+| Calor / frío | `0xF817` / `0x76DF` |
+| Sol / luna | `0xFF06` / `0xD71F` |
+| Fondo interior | `0x0841` |
+
+| Fila | Tramo normal luminoso | Extremos oscurecidos |
+|---|---|---|
+| Suelo | `PB_SOIL_P1` (`0x47E8`) | `0x1306` |
+| Temperatura | `PB_TEMP_P1` (`0xF817`) | `0x608A` |
+| Aire | `PB_HUM_P1` (`0x075F`) | `0x028C` |
+| Luz | `0xB3DF` | `0x410E` |
+
+Marcador y cifras blancos. El pequeño icono de Luz conserva el amarillo canónico. Badge/borde: bienestar verde de planta; sed/aire seco/poca luz violeta, humedad alta cyan, frío azul y calor magenta. Unknown tiene filas/texto neutros, sin atenuar el verde de la planta.
+
+La tierra interpola por canales RGB565 entre café claro, medio y oscuro según la lectura relativa de Suelo. La banda confirmada baja habilita grietas que crecen hacia el extremo seco; la alta habilita pequeñas manchas azules que se amplían y unen hacia 100 %. Sin lectura válida/finita, tierra neutra sin grietas/charcos. No representa volumen real de agua ni simula secado autónomo por tiempo.
+
+El sol es un disco amarillo con rayos: radios nativos 1/2/3/4 desde 20/200/800/3000 lux; color de amarillo apagado a vivo hasta el techo 8000. Luna como disco pálido de radio 3 solo <20 lux, sin confirmar noche. El modelo aún conserva `POCA LUZ` bajo 200; reposo neutral sigue pendiente. Ondas magenta 1/2/3/4 desde 27/30/33/36 °C, incluso con mood Content. Se distribuyen por ambos lados y distintas alturas del terrario; aparecen escalonadamente, ascienden un poco y cambian de posición entre apariciones. Paleta conservada; usuario acepta el preview general de sol/luna y calor distribuido; comprobación TFT pendiente. Distribución de copos y movimiento de aire integrados según preview autorizado: 1..3 copos azul claro con descenso/deriva y 1..2 grupos de aire cyan o violeta con deriva lateral/pausas. Límite conjunto de cuatro grupos; al coexistir temperatura y aire, se reserva al menos un grupo para aire. Postura térmica continua: intensidad 0..255 entre 30..36 °C para calor y 15..8 °C para frío, suavizada 1500 ms. Sonrisa / cara tranquila / gesto térmico según intensidad; límites ilustrativos, no daño medido. Rostro, paleta y suelo conservados; humedad ambiental suspendida, separada del agua de Suelo.
+
+No hay suavizado ni escalado fraccional. El sombreado conserva su dirección durante balanceos, parpadeos y transiciones. La legibilidad final y la progresión siguen pendientes en ST7735 real.
 
 ### Reglas de color
 
@@ -128,6 +161,18 @@ Cards 2×2 (Inicio y familia Lab): `X0=2`, `X1=82`, `Y0=27`, `Y1=79`, `W=76`, `H
 ---
 
 ## 4. Patrones de componentes
+
+### Planta Lab: personaje y datos separados
+
+Se conserva terrario `(2,27,56,99)`, cuatro filas `96×17` en x62, y27/46/65/84 y card de diagnóstico `(62,104,96,22)`. La composición del personaje ocupa el interior `54×95` en `(3,28)`, sin invadir las filas ni el header. Coordenadas completas y ficha de implementación en `docs/ADR-003-planta-lab.md`.
+
+El shell se dibuja al entrar; la mascota, tierra y entorno se componen en RAM y se envían juntos. Las filas usan iconos locales ≈9×10 px centrados en x68 dentro de un carril de 11 px, barra x77 de 48×7 px y dato blanco alineado en x156 en carril de 30 px. Cada sensor conserva su color: Suelo verde, temperatura magenta, aire cyan y Luz violeta; el tramo normal es luminoso y los extremos son versiones oscurecidas del mismo color, con marcador blanco. ausencia neutra. Luz completa hasta `999lx`, compacta `1K/1.2K/8K` desde 1000 lux (mil lux, redondeo a décima). La planta mantiene su silueta verde: corona en forma de hoja con ojos y boca, dos hojas grandes y dos pequeñas conectadas a un tallo curvo, con poses diferenciadas por sensor. El gesto dominante no oculta las demás necesidades: borde de alerta en cada fila afectada y doble borde en la dominante. Lecturas desconocidas usan identidad atenuada y `--`, sin gestos negativos inventados.
+
+El diagnóstico usa `FONT_BODY` (Roboto Regular 7), con fallback a `FONT_SMALL` cuando `textWidth()` supera 88 px (ambas Roboto con tildes) con `C_BASELINE` y baseline y120 para textos con acentos ES/CAT; solo se limpia su interior cuando cambia el estado. Los números permanecen en Font 1; el grado térmico es un glifo propio 3×3 dentro de su celda, evitando CP437.
+
+La animación usa reloj de 220 ms, pausas propias por gesto, hojas con fases distintas y parpadeo ocasional. Las transiciones interpolan la geometría durante 1.5 s y la recuperación durante 3 s; la expresión cambia a mitad de transición. El rostro permanece legible a tamaño nativo y los movimientos no cambian toda la planta a azul, amarillo o naranja.
+
+
 
 ### SENSOR CARD (patrón moderno canónico)
 
@@ -281,6 +326,7 @@ Ver `docs/TFT_RENDER_RULES.md` para el protocolo anti-flicker completo (sprites,
 - Icono `temp` final aplicado a small/XL/XXL: small/XL/fallback son monocromos y solo Rango/XXL con acento conserva detalle multicolor; no mezclar este estado con el icono técnico `probe`/DS18B20
 - Estados externos desconectados para `SZ_DS18` y `SZ_SOIL`: textos `Revisa IO33` / `Revisa IO35`, helper runtime común y paleta del sensor atenuada en clásicas, Sensor Zone y Lab
 - Iconos `humidity` y `plant` rediseñados en `src/ui_icons.cpp`; `probe` se mantiene separado de `temp` y no está aprobado como final
+- Mascota de Planta Lab con paleta ilustrada verde, rostro discreto, poses por sensor y composición RGB565 fija; separada del icono técnico Suelo y sin crecimiento persistente.
 - Icono Bluetooth añadido en `src/ui_icons.cpp` para pantalla interna de fábrica/debug `BLE_TOGGLE_SCREEN`
 
 ### Pendiente visual / vigilancia en hardware (ST7735 real)
@@ -291,6 +337,7 @@ Ver `docs/TFT_RENDER_RULES.md` para el protocolo anti-flicker completo (sprites,
 - DS18/Suelo desconectados: validar en hardware real que `Sin sensor` + `Revisa IO33/IO35` caben en ES/CAT/EN y que la paleta atenuada comunica ausencia sin parecer alarma roja
 - Icono `light`: rayos diagonales de 1 px en s=1 — confirmar si son visibles o requieren 2 px
 - Icono `sound`: proporciones de base horizontal en s=1, s=2, s=3
+- Planta Lab: primera prueba favorable del usuario en P-Bit comunicada el 2026-10-11. Comprobar el ajuste de color, barras/iconos, grado y fuente de diagnóstico, todas las poses y ES/CAT/EN; esa impresión y el preview/build no cierran hardware ni flicker.
 - Demo Mode: coreografía smooth implementada; validar que no reintroduzca flicker por cambios de datos demasiado rápidos
 
 ### Decisiones de diseño abiertas

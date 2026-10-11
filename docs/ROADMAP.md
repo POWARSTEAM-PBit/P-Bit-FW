@@ -1,6 +1,6 @@
 # P-Bit Roadmap
 
-Actualizado: 2026-10-10
+Actualizado: 2026-10-11
 
 Referencia para priorizar el trabajo futuro del firmware P-Bit. Separa deuda técnica de mejoras de producto y ordena iteraciones de menús, sensores y UX.
 
@@ -12,39 +12,67 @@ El historial de lo ya implementado está en `CHANGELOG.md`. Este documento prior
 
 | Indicador | Valor |
 |---|---|
-| Build | ✅ `esp32dev` SUCCESS el 2026-10-10, código `27e5207`; advertencias registradas en `PRODUCTION_RELEASE.md` |
-| RAM estática | 15.0 % (`49 140` / `327 680` bytes); no mide todo el consumo runtime |
-| Flash | 73.4 % (`961 709` / `1 310 720` bytes) |
+| Build | ✅ `esp32dev` SUCCESS el 2026-10-11: base `3744f04` + mascota y refinamiento visual locales, sin commit; advertencias en `PRODUCTION_RELEASE.md` |
+| RAM estática | 18.2 % (`59 580` / `327 680` bytes); no mide todo el consumo runtime |
+| Flash | 74.1 % (`971 189` / `1 310 720` bytes) |
 | Alimentación | Producto recomendado con `3 baterías AAA`; USB-C para programación/alimentación auxiliar |
 | Carrusel activo | 11/12 pantallas con `PBIT_ENABLE_GRAPH_LAB=1` (`PLANTA LAB` aparece solo con Suelo conectado) |
 | Idiomas | ES / CAT / EN — i18n completo |
 | WiFi/BLE | WiFi sin configuración en firmware inicial; BLE factory-off interno, no público |
-| Validación hardware | **Abierta** — evidencia histórica puntual; sin nueva prueba física en la revisión 2026-10-10 |
-| Prioridad acordada | Documentación de estado actualizada; siguiente paso: revisión visual/UX de Planta Lab |
+| Validación hardware | **Abierta** — usuario aprueba colores de planta/medidores y valora favorablemente suelo progresivo en P-Bit; sin cierre completo de las comprobaciones visuales |
+| Prioridad acordada | Conservar el diseño actual (2026-10-12); revisión acotada de comportamiento/perfiles recomendada antes del setup |
 | Pendientes aplazados | Prueba final de 24 h y validación física completa por unidad |
 
 ---
 
-## Ahora — Revisión visual/UX, empezando por Planta Lab
+## Ahora — Diseño conservado y siguiente revisión de Planta Lab
 
-Orden acordado el 2026-10-10: aclarar documentación y retomar la mejora de Planta Lab. Antes de implementar ajustes, revisar el diseño existente y concretar qué se quiere mejorar. No hay aprobación visual nueva ni cambios de firmware en esta actualización.
+El usuario aprobó una mascota verde con rostro discreto, reacciones diferenciadas a Suelo/temperatura/aire/luz y recuperación gradual. El crecimiento guardado, perfiles configurables y misiones quedan fuera de esta versión. La navegación y distribución terrario + cuatro filas se conservan. El usuario probó la mascota en P-Bit y comunicó el 2026-10-11 que le gusta la primera idea; después aprobó los colores actuales de planta/medidores y valoró favorablemente el suelo progresivo. Primero se cierran los ajustes visuales; configuración/presets se discutirán después. Esa impresión favorable no cierra las pruebas completas de poses, idiomas, transiciones ni flicker.
 
-| Área | Ya implementado | Qué falta revisar |
+2026-10-12: el usuario comunica que la versión cargada funciona muy bien y pide conservar el diseño actual. Se da por cerrado provisionalmente el ajuste visual de producto; esta observación general no verifica individualmente todas las poses, idiomas, recuperación, flicker ni Demo, ni cierra la validación completa por unidad/24 h.
+
+Próximo paso recomendado, aún no ejecutado ni aprobado como implementación: revisión acotada de comportamiento y contrato de perfiles antes de diseñar el setup. Alcance: `plant_pet.cpp`, interfaz `plant_pet.h`, integración de snapshot/modelo en Planta Lab y ADR-003/investigación; revisar el renderer solo si aparece un defecto funcional concreto. Definir reposo con poca luz, observaciones frente a diagnóstico, respuesta de Suelo/aire, datos inválidos/techo LDR, duración válida de sesión y prioridades. Salida esperada: hallazgos priorizados y contrato de configuración mínimo; no auditoría global, rediseño ni implementación de historial/presets por inferencia.
+
+| Área | Implementación de esta revisión | Qué queda validar |
 |---|---|---|
-| **Planta Lab (prioridad)** | Terrario con planta, cuatro filas Suelo/Temp/Aire/Luz, card de diagnóstico, prioridad Suelo > Temp > Aire > Luz, postura/color y animación continua a refresco de 220 ms; aparece solo con lectura válida de Suelo | Legibilidad de barras/valores en 96 px, textos ES/CAT/EN (`ASSEDEGADA`), contraste azul de `AHOGADA`, animación sin parpadeo y reconocimiento de los cuatro estados. Revisar diagnóstico y rangos reales frente a ADR-003 antes de decidir mejoras. |
-| **Demo** | Escenas de 6–10 s, valores suaves, gráficas sintéticas, Timer simulado, entrada/salida y restauración de pantalla/vistas sin guardar NVS | Comprobación visual de ritmo y transiciones en TFT, Timer activo, curva de Termo Lab/DS18 visible y retorno a las vistas previas. No hay una función Demo pendiente de construir. Planta Lab no está en `kDemoScenes`; decidir su inclusión si se amplía el demo. |
-| **Flicker/ghosting** | Fixes de dials, cards, menús, Inicio y Sonido VU/Onda; aprobación puntual histórica | Vigilancia de regresión al tocar render, especialmente la planta animada. No se ha identificado en esta revisión un nuevo fallo físico vigente. |
+| **Planta Lab (prioridad)** | Modelo temporal separado, necesidades simultáneas y causa dominante por gravedad estabilizada; pose/rostro/entorno por sensor, desconocidos neutrales y recuperación gradual. Interior en buffer fijo RGB565 54×95, un envío sin borrado previo. Verde A persistente, barras B por sensor con extremos oscuros, tierra café progresiva y sol amarillo creciente/luna circular <20 lux. Temperatura 15..30 °C con histéresis y pose/rostro graduales; calor suave puede coexistir con sonrisa. Iconos compactos, barras de 48 px, lux K y grado corregido. Solo aparece con Suelo válido. | Reconocimiento de cada gesto, transición/recuperación, legibilidad de filas, bordes de necesidades y textos ES/CAT/EN; comprobación de flicker en TFT real (proof 10). |
+| **Demo** | Escenas de 6–10 s, valores suaves, gráficas sintéticas, Timer simulado y restauración de vistas sin guardar NVS. El modelo de mascota tiene instancia Demo separada, sin modificar la real. | Observar ritmo/transiciones en TFT ≥30 s (proof 9). Planta Lab sigue fuera de `kDemoScenes`; incluirla requiere ampliar el guion. |
+| **Flicker/ghosting** | Fixes existentes de dials, cards, menús, Inicio y Sonido VU/Onda; Planta Lab sustituye borrado+dibujo por composición en RAM. | Vigilancia de regresión en dispositivo. La estrategia de buffer y un preview no demuestran ausencia de parpadeo en ST7735. |
 
-Primer ajuste de Planta Lab aplicado el 2026-10-10 (`docs/ADR-003-planta-lab.md`):
+Seguimiento de Planta Lab (`docs/ADR-003-planta-lab.md`):
 
-- [x] Barra de Luz `0..8000 lux` y zona óptima/diagnóstico `200..8000`, usando el máximo común `LIGHT_LUX_MAX`.
-- [x] Tierra, barra y diagnóstico de Suelo comparten `30..70 %`: por debajo seca/`SEDIENTA`, por encima encharcada/`AHOGADA`; extremos 30 y 70 inclusivos en la zona central.
-- [ ] Comprobar visualmente el ajuste en TFT: Luz 8000 en el extremo derecho, tierra/postura/diagnóstico coherentes a ambos lados de 30 y 70 %, sin regresión de animación. No hay nueva prueba HW en esta edición.
-- V2 (perfiles) y V3 (crecimiento, transiciones, misiones) son propuestas futuras del ADR, no funciones comprometidas en el trabajo actual.
+- [x] Barra de Luz `0..8000 lux` y zona normal `200..8000`, alineadas con `LIGHT_LUX_MAX`.
+- [x] Clasificación única de Suelo `30..70 %` (inclusivo) para tierra, diagnóstico y resaltado; confirmación temporal antes de cambiar estado.
+- [x] Alcance de mascota aprobado: rostro discreto, verde persistente como identidad, poses por sensor y recuperación sin NVS.
+- [x] Modelo fuera del renderer, con todas las necesidades y desconocidos diferenciados; datos reales y Demo separados.
+- [x] Pruebas nativas de modelo PASS, incluidos margen térmico/histéresis, rampas, invalidez, recuperación y rollover; raster 1215 combinaciones +101 niveles de Suelo/4 ausentes-no finitos PASS. Host `-Wall -Wextra -Werror` limpio.
+- [x] Nueve estados, once niveles de suelo, quince temperaturas, diez valores/límites de símbolos solares y GIF de 64 frames desde código real; 138 comparaciones parcial/completo PASS. Etiquetas ES/CAT/EN medidas en el refinamiento previo, fuentes/textos conservados. Incluye 48 frames adicionales de calor, GIF de ondas distribuidas y galería solar de pantalla completa. Revisadas por el agente; usuario acepta el preview general de sol/luna y calor distribuido, sin cerrar validación TFT.
+- [x] Compilación final `esp32dev` SUCCESS: RAM 59 580 / Flash 971 189 bytes. Base `3744f04` + cambios locales de mascota y refinamiento visual, sin commit.
+- [ ] Comprobar en TFT los extremos de Luz/Suelo, varias necesidades simultáneas, datos incompletos, recuperación entre vistas y textos `ASSEDEGADA` / `FALTEN DADES`.
+- [x] Adaptación de las [propuestas A/B/C](PLANTA_LAB_COLOR_REVIEW.md) elegida e implementada: barras B por sensor y verde A; tierra café con grietas/agua progresivas y sol amarillo. Luna para baja iluminación, sin confirmar noche. Movimiento, parpadeo y recuperación se conservan.
+- [x] Usuario aprueba en P-Bit colores de planta/medidores y valora favorablemente el efecto del suelo (2026-10-11); aceptación visual puntual.
+- [x] Sol de cuatro tamaños/brillo, luna circular <20 lux y ondas térmicas 1..4 implementados; temperatura flexible 15..30 °C con histéresis ±0.5 °C y expresión/postura graduales. Producto provisional, no diagnóstico agronómico. Ondas repartidas a distintas alturas/lados y apariciones escalonadas. Preview general aceptado por el usuario; validación TFT pendiente.
+- [x] Frío/aire distribuido implementado según ADR-003: copos 1..3 alternados y grupos suaves de humedad/sequedad 1..2; límite conjunto de cuatro grupos, movimientos diferenciados y preview de intensidades/combinaciones antes de integración. Preview de nueve intensidades, dos combinaciones y tres GIF autorizado e integrado: 528 comparaciones host PASS y 528 frames idénticos al preview. Carga del candidato en COM8 completada (hashes verificados y reinicio RTS enviado); validación visual/funcional TFT pendiente.
+- [ ] Completar comprobación física de sol/luna, gestos ambientales, transición/recuperación, idiomas y flicker; no equivale a revisar el modelo biológico.
+- [ ] Observar Demo ≥30 s y la nueva mascota en hardware; proofs 9/10 pendientes.
+- Rangos educativos heredados sin especie ni fuente agronómica documentada: Suelo relativo/calibrado, y 8000 lux como techo instrumental. No tratar ese perfil como óptimo universal.
+- Crecimiento persistente, perfiles y misiones siguen siendo propuestas futuras. Las transiciones de postura y los canales visuales por sensor sí entran en la mascota actual.
+
+### Siguiente fase propuesta — comportamiento, setup y presets de Planta Lab
+
+Propuesta pendiente de discutir y diseñar, sin implementación actual:
+
+1. Usar la [investigación preliminar para perfiles de aula](PLANTA_LAB_RESEARCH.md), realizada el 2026-10-11, para acordar reposo con poca luz, observaciones y avisos sostenidos. El firmware todavía produce `POCA LUZ` por debajo de 200 lux; no hay historial diario ni combinaciones fisiológicas validadas.
+2. Preparar perfiles de judía enana, rábano y albahaca en sustrato como candidatas iniciales; documentar especie/etapa, contexto, fuentes y validación. El flujo de cuatro mínimos/máximos es provisional: estudiar duración, cobertura de datos y combinación calor/aire/agua. Mantener los ajustes diferenciados de alertas y calibración RAW.
+3. Usar un menú raíz grid 2×3 coherente (`Preset`/`Personalizar`; `Reset` abajo izquierda y `Salir` abajo derecha) y un selector de cuatro sensores en personalización.
+4. Diseñar después NVS del perfil, significado de Reset y fuentes por especie. Acordar el método de calibración de Suelo y respetar el techo LDR; no convertir humedad volumétrica a porcentajes relativos sin una validación específica.
+5. Explorar personajes por especie y fichas/presets versionados en la web tras validar el formato y los perfiles. Publicación e importación no están implementadas.
+
+No añade crecimiento guardado ni altera el modelo en la revisión visual actual.
 
 ### Anti-flicker — checklist visual de regresión
 
-Estado: resuelto por ahora en hardware real. Usar esta tabla como checklist de regresión si se modifican pantallas, demo o reglas de limpieza.
+Estado de fixes previos: resuelto por ahora según evidencia histórica en hardware. La nueva mascota no tiene aprobación física; usar esta tabla para su validación y para regresiones al cambiar pantallas, Demo o limpieza.
 
 | Pantalla | Qué verificar |
 |---|---|
@@ -54,7 +82,7 @@ Estado: resuelto por ahora en hardware real. Usar esta tabla como checklist de r
 | `VALOR` | Sparkline y barra segmentada sin flash negro; contraste suficiente |
 | `Graph` | Etiquetas min/max y línea principal legibles en ES/CAT/EN |
 | `Inicio` | Cards sin redibujo completo en cada tick |
-| `PLANTA LAB` | Barras+valores legibles en 96 px; `ASSEDEGADA` cabe; animación sin parpadeo; azul `AHOGADA` contrasta sobre navy |
+| `PLANTA LAB` | Gesto reconocible por sensor; recuperación legible; valores/bordes en 96 px; `ASSEDEGADA` y `FALTEN DADES` caben; buffer sin parpadeo en TFT real |
 
 ## Pendientes aplazados — Validación completa de producción
 
@@ -82,7 +110,7 @@ Por decisión del usuario el 2026-10-10, mantener abiertos la prueba final de 24
 - [ ] DS18B20: detección correcta de presencia/ausencia de sonda en hardware y textos `IO33` legibles en ES/CAT/EN
 - [ ] Micrófono: respuesta visible en `Sonido VU`, `Sonido Onda` y pantalla `Sonido`
 - [ ] Suelo: detección de ausencia de sensor en hardware, textos `IO35` legibles en ES/CAT/EN y calibración seco/agua funciona
-- [ ] Planta Lab: validar aparición condicional con Suelo conectado, barras de rango, texto `ASSEDEGADA`, animación sin parpadeo y contraste del estado `AHOGADA`
+- [ ] Planta Lab: validar aparición condicional, rangos compartidos, poses por sensor, recuperación, desconocidos, textos ES/CAT/EN y buffer sin parpadeo
 
 ### Navegación e i18n
 

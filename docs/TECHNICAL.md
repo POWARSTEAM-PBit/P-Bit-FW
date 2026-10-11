@@ -1,6 +1,6 @@
 # Manual Técnico del P-Bit
 
-Actualizado: 2026-10-10
+Actualizado: 2026-10-11
 
 Este documento describe el estado técnico actual del P-Bit a partir del firmware y la configuración presentes en este repositorio. Está pensado como base de entrenamiento para desarrollo, integración, soporte, mantenimiento y despliegue educativo.
 
@@ -47,16 +47,16 @@ El P-Bit es un dispositivo educativo ambiental basado en ESP32 que integra senso
 
 Estado de revisión de producción/i18n:
 
-- build local verificado el `2026-10-10` sobre código `27e5207` con `py -m platformio run -e esp32dev`
-- resultado PlatformIO: `SUCCESS`
-- memoria reportada por build: RAM estática `15.0%` (`49140` bytes de `327680`) y Flash `73.4%` (`961709` bytes de `1310720`); no mide todo el consumo runtime
+- build local verificado el `2026-10-11` con `py -m platformio run -e esp32dev`: árbol basado en `3744f04` más cambios locales de mascota y refinamiento visual, todavía sin commit
+- resultado PlatformIO: `SUCCESS` (build final incremental: 23.785 s)
+- memoria reportada por build: RAM estática `18.2%` (`59580` bytes de `327680`) y Flash `74.1%` (`971189` bytes de `1310720`); no mide todo el consumo runtime
 - advertencias de OneWire y entorno PlatformIO registradas en `docs/PRODUCTION_RELEASE.md`; sin errores de build
 - revisión estática de i18n, BLE factory-off, Sensor Zone y fixes anti-flicker completada
-- ghosting/flicker validado como resuelto por ahora; mantener checks de regresión en ST7735 real
+- fixes previos de ghosting/flicker con validación histórica; la nueva mascota de Planta Lab requiere comprobación en ST7735 real (proofs 9/10)
 - Modo demo validado en entrada desde logos, entrada desde `Inicio`, splash y salida con interacción; coreografía smooth implementada en firmware y pendiente de validación visual final en hardware
 - LDR `Lux` / `FC` / `Raw ADC` propagado en firmware a `LIGHT_SCREEN`, Sensor Zone, cards, dashboards, dials y gráficas mediante helper común de presentación
 
-La revisión 2026-10-10 comprueba código/build, sin nueva validación HW. Prioridad acordada: documentación y después revisión visual/UX de Planta Lab; alcance de Demo/flicker en `docs/ROADMAP.md`. La prueba final de 24 h y la validación física completa por unidad siguen pendientes y aplazadas. Las anomalías de junio se interpretan mediante el seguimiento de `docs/HARDWARE_VALIDATION_2026-06-04.md`, no como bugs activos por defecto.
+La revisión 2026-10-11 comprueba build/software del refinamiento visual de Planta Lab. El usuario comunicó una impresión favorable en P-Bit sobre la versión previa; este ajuste y las validaciones visuales completas siguen pendientes. Prioridad acordada: cerrar diseño antes de configuración/presets; alcance de Demo/flicker en `docs/ROADMAP.md`. La prueba final de 24 h y la validación física completa por unidad siguen pendientes y aplazadas. Las anomalías de junio se interpretan mediante el seguimiento de `docs/HARDWARE_VALIDATION_2026-06-04.md`, no como bugs activos por defecto.
 
 ## 2. Plataforma base
 
@@ -478,14 +478,20 @@ Temperatura ambiente y humedad del aire en card combinado. Solo lectura; no tien
 
 #### Planta Lab
 
-Pantalla multisensor de salud de planta. Combina Suelo, temperatura ambiente, humedad del aire y luz. Solo aparece si Suelo está conectado y da lectura válida.
+Pantalla multisensor con una mascota verde, rostro discreto y poses diferenciadas. Combina Suelo, temperatura ambiente, humedad del aire y luz; solo aparece en el carrusel si Suelo entrega lectura válida. No añade menú, submodos ni gestos del encoder.
 
-- layout: terrario izquierdo + cuatro filas de rango + card de estado
-- diagnóstico: `BIEN`, `SEDIENTA`, `AHOGADA` o `ESTRÉS`, con prioridad `suelo > temperatura > humedad aire > luz`
-- perfil fijo de diagnóstico: Suelo `30..70 %`, temperatura `18..26 °C`, aire `40..70 %`, Luz `200..8000 lux`; independiente de los límites editables de cada sensor. La tierra comparte el rango de Suelo de la barra: `<30` seca, `30..70` central (inclusivo), `>70 %` encharcada; el diagnóstico usa esa misma banda.
-- barra de Luz logarítmica `0..LIGHT_LUX_MAX` (`8000 lux`), con rango óptimo `200..LIGHT_LUX_MAX` usado también por el diagnóstico; sin zona alta inalcanzable. Primer ajuste aplicado el 2026-10-10, pendiente de validación visual en TFT. Ver ADR-003.
-- animación: planta continua a `220 ms`, con clears localizados al rect del icono; la tierra plana solo cambia si cambia la banda de humedad de suelo
-- ADR: `docs/ADR-003-planta-lab.md`
+- **Layout:** terrario `(2,27,56,99)`, cuatro filas de rango y card de diagnóstico. Interior compuesto en RGB565 `54×95` en `(3,28)`: buffer fijo de 10 260 bytes de RAM estática, un `pushImage()` por frame, sin borrado previo ni reserva de heap. El renderer guarda/restaura el intercambio de bytes y repone la máscara de seis píxeles de las esquinas superiores antes del envío. Iconos locales ≈9×10 px centrados en x68 dentro de un carril de 11 px; barras x77 de 48×7 px; dato blanco x156 en carril de 30 px. Cada sensor conserva su color: Suelo verde, temperatura magenta, aire cyan y Luz violeta; el tramo normal es luminoso y los extremos son versiones oscurecidas del mismo color, con marcador blanco. Grado propio 3×3 en celda Font 1 evita CP437; dato térmico C/F, modelo/barra en °C. Luz <1000 completa en lx y ≥1000 compacta `1K/1.2K/8K` (mil lux), redondeada a décima.
+- **Modelo:** `plant_pet.h/.cpp` separa comportamiento de dibujo. `PlantPetModel::update(inputs, now)` se alimenta al copiar el snapshot UI, incluso en otras vistas; `snapshot(now)` interpola sin acumular evidencia. Instancias reales y Demo separadas; no modifica NVS ni lecturas físicas.
+- **Perfil fijo:** Suelo `30..70 %`, temperatura `15..30 °C`, aire `40..70 %`, Luz `200..8000 lux`, todos inclusivos e independientes de los límites de menús. La barra de Luz usa escala logarítmica `0..LIGHT_LUX_MAX` (`8000`), sin zona alta inalcanzable.
+- **Origen del perfil:** Suelo/Aire/Luz heredados de la UI base `3744f04`, sin especie. Temperatura 15..30 °C y rampas son decisiones provisionales de mascota para evitar malestar por un grado, no óptimos ni límites de daño. Suelo es porcentaje relativo, no humedad volumétrica; 8000 lux es techo LDR, no máximo biológico. Investigación y fuentes en `docs/PLANTA_LAB_RESEARCH.md`.
+- **Clasificación:** `Unknown/Normal/Low/High` por canal; la banda de Suelo estabilizada se comparte con diagnóstico, resaltado y habilitación de grietas/agua. Barras/valores representan la lectura actual; el color del suelo y la intensidad de efectos varían continuamente con la lectura dentro de la banda confirmada. Arranque adopta bandas actuales; después un cambio requiere 1200 ms y al menos dos lecturas nuevas. Gap mayor de 3000 ms reinicia evidencia pendiente. Inválidas pasan inmediatamente a desconocidas.
+- **Necesidades simultáneas:** `affected_mask` conserva todas las desviaciones conocidas; borde de alerta para cada fila y doble borde para la causa dominante. Dominante por gravedad relativa acotada 0..1, con Luz logarítmica. Retención de causa 3 s mientras siga adversa; luego cambia si otra supera su gravedad en más de 0.12. Los empates conservan causa; no hay prioridad fija de Suelo.
+- **Respuesta térmica:** histéresis ±0.5 °C después del arranque: desde Normal entra a Low <14.5 o High >30.5; sale de Low ≥15.5 y de High ≤29.5, más la confirmación de banda. `thermal_intensity` objetivo 0..255 de 30..36 °C / 15..8 °C, interpolado 1500 ms sin contar frames como evidencia. `previous_thermal_intensity` conserva la intensidad previa al cambiar mood para recuperación gradual. La cara pasa de sonrisa a neutral y gesto térmico, y la postura interpola desde Content. Datos inválidos anulan intensidad actual. Ondas magenta 1/2/3/4 desde 27/30/33/36 °C independientemente del mood; no significan daño. Ondas en ocho posiciones laterales del terrario, con pausas/escalonamiento y elección determinista por ciclo; sin RNG ni heap adicional.
+- **Animación:** transición de pose 1.5 s; recuperación a bienestar 3 s. Tallo/hojas, expresión y entorno cambian por sensor; verde A persistente, movimientos y parpadeos conservados. Tierra café progresiva: se aclara y agrieta hacia el extremo seco, se oscurece y amplía manchas de agua hacia el húmedo; desconocidos sin esas señales. Sol amarillo con radios 1/2/3/4 desde 20/200/800/3000 lux y brillo creciente; luna circular <20 lux, sin confirmar noche. Copos 1..3 alternados con descenso/deriva; aire húmedo cyan o seco violeta en 1..2 grupos con deriva/pausas. Máximo cuatro grupos ambientales conjuntos, reservando espacio para aire al coexistir con temperatura. `plant_pet_render(..., readings)` acepta valores opcionales; la UI invalida el terrario por `soil_x10/temp_x10/hum_x10/lux`, aunque no cambie el texto, banda o tick. No acumula crecimiento ni progreso persistente.
+- **Fuente de diagnóstico:** `FONT_BODY` (Roboto Regular 7), con fallback a `FONT_SMALL` cuando `textWidth()` supera 88 px (ambas Roboto con tildes), `C_BASELINE`, baseline y120; acentos ES/CAT fuera de CP437. Limpieza del interior de la card solo al cambiar estado.
+- **Diagnóstico localizado:** `BIEN`, `SEDIENTA`, `AHOGADA`, `FRÍO`, `CALOR`, `AIRE SECO`, `AIRE HÚMEDO`, `POCA LUZ`, `FALTAN DATOS` y `MEJORANDO`. Una fila desconocida queda atenuada con `--`; desconocidos sin necesidades conocidas impiden mostrar `BIEN`. Una necesidad conocida sigue visible aunque otro canal sea desconocido.
+- **Validación:** usuario aprueba en P-Bit colores actuales de planta/medidores y valora favorablemente suelo progresivo. Último ajuste de sol/luna, ondas y respuesta térmica ya implementado; modelo/raster/138 comparaciones host PASS y build SUCCESS. Usuario acepta el preview general de sol/luna y calor distribuido; copos/aire alternados autorizados e integrados (ADR-003), con 528 comparaciones host PASS y 528 frames idénticos al preview. Validar esta revisión en TFT; la aceptación puntual anterior no cierra poses, idiomas, transiciones, flicker ni Demo ≥30 s (proofs 9/10). Planta Lab sigue fuera de `kDemoScenes`. Historial/combinaciones y compensación de posible calor propio no implementados.
+- **Contrato de diseño y detalle:** `docs/ADR-003-planta-lab.md`; render canónico en `docs/TFT_RENDER_RULES.md`.
 
 #### Termo Lab
 

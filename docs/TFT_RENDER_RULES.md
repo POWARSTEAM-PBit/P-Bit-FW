@@ -2,7 +2,7 @@
 
 **Protocolo anti-flicker para ST7735 160×128 px via SPI (TFT_eSPI)**
 
-Fecha: 2026-06-03 | Versión consolidada post-Fase B/C/D + auditoría de reglas-fuente.
+Fecha: 2026-06-03 | Revisión 2026-10-11: buffer fijo, columnas compactas de Planta Lab y pruebas pendientes.
 
 > Este documento es **la fuente única** de patterns de render del P-Bit. Cualquier otro skill, doc o memoria que describa patterns anti-flicker debe limitarse a apuntar aquí, no a duplicar las reglas — duplicación garantiza desincronización.
 
@@ -20,6 +20,8 @@ Cambios cerrados desde la auditoría original:
 - `Inicio` y cards Lab: `draw_card_chrome` separado de `draw_card_value_and_tank`.
 - `LDR`: `Lux`, `FC` y `Raw ADC` usan helper común de presentación; Sensor Zone/cards/gráficas/dials deben seguir valor/unidad del modo activo.
 - `Externos`: DS18B20/Termómetro y Suelo usan estado runtime común de ausencia; al desconectar se dibujan con paleta atenuada y textos `Revisa IO33` / `Revisa IO35`, sin persistencia en NVS.
+
+La mascota de Planta Lab usa composición en buffer fijo. El usuario comunicó una primera prueba favorable en P-Bit el 2026-10-11; no cierra las comprobaciones específicas de poses, idiomas, transiciones y flicker. Sus pruebas nativas y previews siguen siendo evidencia software. Proofs 9/10 siguen pendientes.
 
 ## Por qué importa
 
@@ -199,6 +201,16 @@ En pantallas `Lab` con cards compuestos, los bordes, títulos, iconos y shells d
 
 Evitar `fillRoundRect()` de la card completa para actualizar un número. Si el dato dinámico necesita un fondo, usar un clear rect pequeño dentro del interior del card, dejando intacto el borde.
 
+### Planta Lab: columnas e información compacta
+
+Las filas usan iconos locales de aproximadamente 9×10 px centrados en x68 dentro de un carril de 11 px, barra `(77, Y+5, 48, 7)` y dato blanco alineado en x156 dentro de un carril de 30 px. Cada sensor conserva su color: Suelo verde, temperatura magenta, aire cyan y Luz violeta; el tramo normal es luminoso y los extremos son versiones oscurecidas del mismo color, con marcador blanco. La ausencia se representa con un estado neutro. Zonas y marcador comparten cuantización e incluyen los extremos normales.
+
+Luz menor de 1000 se muestra completa en lux (`999lx`); desde 1000 usa `1K`/`1.2K`/`8K`, redondeado a décima. El formato compacto pertenece a Planta Lab y no cambia la unidad interna ni las otras vistas. En temperatura, el símbolo de grado se dibuja como glifo propio 3×3 dentro de una celda de Font 1, evitando la interpretación CP437; el dato lleva C/F y modelo/barra siguen en °C.
+
+El diagnóstico de Planta Lab usa `FONT_BODY` (Roboto Regular 7), con fallback a `FONT_SMALL` cuando `textWidth()` supera 88 px (ambas Roboto con tildes), `C_BASELINE` y baseline y120. La limpieza se limita al interior de la card cuando cambia su estado; los acentos localizados no usan CP437.
+
+El dirty-key de la fila considera el texto visible y la posición entera del marcador. Limpiar solo sus zonas, incluido todo el alto del marcador, para evitar residuos; refrescar el icono local si cambia la validez. El ajuste no autoriza redibujar la fila completa por cada tick.
+
 ### Estado externo desconectado
 
 Para `SZ_DS18` y `SZ_SOIL`, la ausencia del sensor es un cambio de validez y por tanto ensucia chrome y datos. Usar `external_sensor_state.*` como fuente común:
@@ -322,9 +334,9 @@ if (!sz_is_active()) drawHeader(L(TIT_LAB_FOCUS));
 
 ### Política
 
-Si una zona de >40×40 px requiere más de 20 SPI calls por frame → usar `TFT_eSprite`.
+Si una zona de >40×40 px requiere más de 20 SPI calls por frame → componer en RAM con `TFT_eSprite` o buffer RGB565 fijo.
 
-El sprite renderiza en RAM y se transfiere al panel como un único burst DMA, eliminando el scan-line visible.
+La composición se realiza en RAM y se transfiere como una imagen completa, evitando el borrado visible previo. No asumir DMA ni ausencia de parpadeo sin comprobar el driver y la TFT real.
 
 ### Zonas identificadas con sprite
 
@@ -351,6 +363,14 @@ void draw_gauge_ring_sprite(...) {
     g_ring_spr.pushSprite(cx - kRingSprSize / 2, cy - kRingSprSize / 2);
 }
 ```
+
+### Buffer RGB565 fijo como alternativa a TFT_eSprite
+
+Una zona puede componerse en un buffer RGB565 de tamaño fijo y enviarse con `pushImage()`, sin crear un `TFT_eSprite`. El storage se declara fuera del loop, se reutiliza y no reserva heap por frame. Se rellena y compone completo en RAM, con un solo envío por frame y sin `fillRect` previo en el panel. El estado `swapBytes` se guarda y restaura.
+
+Planta Lab aplica este contrato al interior `54×95` del terrario, enviado a `(3,28)`: 10 260 bytes de RAM estática. Header, borde exterior y filas derechas quedan fuera. Mascota, tierra y efectos forman una composición única; la tierra ajusta su tono café a la lectura actual, con grietas/agua habilitadas por la banda estabilizada e intensidad progresiva. Lecturas ausentes/no finitas producen tierra neutra sin esas señales. Todo se compone sin borrado separado. El renderer de UI repone los seis píxeles de máscara de las esquinas superiores antes del push, conservando el borde r4. El buffer no invade chrome vecino. Las ondas térmicas se componen en ocho posiciones laterales del mismo buffer: ascenso de hasta 3 px, pausa escalonada y selección determinista entre apariciones (12 ticks, 2.64 s). No se usa RNG por frame ni se dibuja sobre las filas de datos; el mismo snapshot/tiempo reproduce el mismo raster. Copos: hasta tres, ciclo de 18 ticks con 14 activos, descenso de hasta 3 px y deriva lateral de 1 px. Aire: hasta dos grupos, ciclos de 19..22 ticks según intensidad, pausa de cinco ticks y deriva de hasta 2 px. Máximo cuatro grupos de temperatura/aire conjuntos; prioridad de espacio para al menos un grupo de aire cuando ambos están activos. Todo en el buffer fijo, sin estado RNG ni heap adicional.
+
+El modelo temporal se actualiza fuera del renderer. La caché de dibujo incluye clave de animación, estado visible y valores de entorno (`soil_x10/temp_x10/hum_x10/lux`): el early-return permite tanto una fase pendiente sin lectura nueva como detalle continuo aunque una lectura cambie dentro del mismo tick, banda o dígito visible. El modelo no debe contar ticks de animación como evidencia nueva de sensores. Temperatura añade `thermal_intensity` suavizada y `previous_thermal_intensity` congelada al cambiar mood; la geometría interpola Content↔Hot/Cold sin forzar reacción completa en un límite. El tick de 220 ms sigue habilitando frames de esa rampa aunque cifras/bandas no cambien.
 
 ### Trampa: sprite que pisa chrome adyacente
 
@@ -382,7 +402,7 @@ Demo Mode usa un refresco propio de `220 ms` (ver `demo_mode_value_refresh_ms()`
 
 ---
 
-## Tabla de estado — todas las pantallas (mayo 2026)
+## Tabla de estado — patrones aplicados (revisión 2026-10-10)
 
 | Archivo | Nivel aplicado | Notas |
 |---|---|---|
@@ -400,6 +420,7 @@ Demo Mode usa un refresco propio de `220 ms` (ver `demo_mode_value_refresh_ms()`
 | `ui_lab_widget_showcase.cpp` | L1+L2+L3+L4 | Rango: ring sprite; Dato: sparkline sprite + `chrome_drawn` |
 | `ui_lab_dash.cpp` | L1 | per-row dirty flags |
 | `ui_lab_dual.cpp` | L1 | shell/content separation |
+| `ui_lab_plant.cpp` | L0+L1+L2+L4 | caché de campos/valores de entorno + buffer RGB565 fijo 54×95; modelo temporal separado; proof HW pendiente |
 | `ui_lab_linear_dash.cpp` | L1 | RowCache por fila |
 
 **Nota de aceptación:** "Nivel aplicado" significa que el patrón existe en código. Ghosting/flicker está cerrado por ahora; repetir checks de regresión si se cambia render, Demo Mode o cadencia de datos.
@@ -412,6 +433,7 @@ Demo Mode usa un refresco propio de `220 ms` (ver `demo_mode_value_refresh_ms()`
 - `SZ_VIZ_VALOR`: vigilar sparkline y barra segmentada sin flash negro y con contraste suficiente.
 - `SZ_VIZ_GRAPH`: validar etiquetas min/max y línea principal legibles en ES/CAT/EN.
 - `LIGHT`: verificar regresión de coherencia visible `Lux / FC / Raw ADC`; mantener RGB apagado en cualquier vista de solo Luz para no contaminar el LDR.
+- `PLANTA LAB`: comprobar un único push del interior sin borrado previo, transiciones legibles y texto localizado; la mejora software no equivale a aprobación en TFT.
 - `DEMO`: validar que el refresco smooth de 220 ms y las gráficas sintéticas no reintroducen flicker por frecuencia excesiva.
 
 ---
@@ -442,8 +464,10 @@ Esta sección existe porque siempre caemos en los mismos errores TFT pese a tene
 □ proof 6 — Si la pantalla vive dentro de SENSOR_ZONE_SCREEN, su `drawHeader(...)`
             está guardado por `if (!sz_is_active())`.
 
-□ proof 7 — Si se añade sprite: lazy-init con flag `*_ready`, fillSprite UNA vez por
-            frame, pushSprite UNA vez, y restore de labels pisados después del push.
+□ proof 7 — Si se añade composición en RAM: buffer reutilizado, fill UNA vez por
+            frame y push UNA vez, sin borrado previo del panel. TFT_eSprite usa lazy-init
+            con flag *_ready; un buffer fijo usa storage estático, sin heap por frame.
+            Restaurar labels pisados y guardar/restaurar swapBytes si aplica.
 
 □ proof 8 — Compilación local pasa: `py -m platformio run -e esp32dev` con SUCCESS.
             Reportar RAM/Flash y diff vs baseline si cambian > ±200 bytes.

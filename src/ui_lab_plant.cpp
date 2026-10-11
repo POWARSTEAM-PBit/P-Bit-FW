@@ -1,560 +1,328 @@
-// PLANTA LAB
-// Multisensor plant-health screen: soil + air temperature + air humidity + light.
-
+// PLANTA LAB — sensor-driven pixel pet; model and raster are independent of UI.
 #include "ui_lab_plant.h"
-
+#include "demo_mode.h"
 #include "external_sensor_state.h"
 #include "fonts.h"
-#include "io.h"
 #include "languages.h"
 #include "light_display.h"
 #include "palette.h"
+#include "plant_pet.h"
+#include "plant_pet_art.h"
 #include "tft_display.h"
-#include "ui_icons.h"
 #include "ui_widgets.h"
-
 #include <Arduino.h>
 #include <TFT_eSPI.h>
 #include <limits.h>
 #include <math.h>
 #include <stdio.h>
+#include <string.h>
+
+extern bool g_is_fahrenheit;
 
 namespace {
-
-enum PlantState : uint8_t {
-    PLANT_STATE_OK = 0,
-    PLANT_STATE_THIRSTY,
-    PLANT_STATE_SOGGY,
-    PLANT_STATE_STRESSED,
-};
-
-enum SoilBand : uint8_t {
-    SOIL_BAND_DRY = 0,
-    SOIL_BAND_OPTIMAL,
-    SOIL_BAND_WET,
-};
-
-enum PlantCard : uint8_t {
-    PLANT_CARD_SOIL = 0,
-    PLANT_CARD_TEMP,
-    PLANT_CARD_AIR,
-    PLANT_CARD_LIGHT,
-    PLANT_CARD_NONE = 0xFF,
-};
-
-struct PlantLabCache {
-    uint8_t  state;
-    uint8_t  soil_band;
-    uint8_t  culprit;
-    int16_t  soil_x10;
-    int16_t  temp_x10;
-    int16_t  hum_x10;
-    uint32_t lux;
-    uint8_t  anim_phase;
-    bool     chrome_done;
-};
-static PlantLabCache g_plant_cache = { 0xFF, 0xFF, 0xFF, 0, 0, 0, 0, 0, false };
-
-struct PlantLeaf {
-    int8_t dx;
-    int8_t cy;
-    int8_t rx;
-    int8_t ry;
-};
-
-struct RangeSpec {
-    float min_value;
-    float max_value;
-    float opt_low;
-    float opt_high;
-    bool logarithmic;
-};
-
 constexpr uint16_t kCardBg = 0x0841;
 constexpr uint16_t kIdleBorder = 0x2945;
-
-constexpr int kTerrariumX = 2;
-constexpr int kTerrariumY = 27;
-constexpr int kTerrariumW = 56;
-constexpr int kTerrariumH = 99;
-constexpr int kDirtX = 4;
-constexpr int kDirtY = 110;
-constexpr int kDirtW = 52;
-constexpr int kDirtH = 14;
-constexpr int kPlantCx = 30;
-
-constexpr int kRowX = 62;
-constexpr int kRowW = 96;
-constexpr int kRowH = 17;
-constexpr int kRowRadius = 3;
-constexpr int kIconX = 70;
-constexpr int kBarX = 80;
-constexpr int kBarW = 42;
-constexpr int kBarH = 7;
-constexpr int kValueX = 156;
-constexpr int kStateX = 62;
-constexpr int kStateY = 104;
-constexpr int kStateW = 96;
-constexpr int kStateH = 22;
-
-constexpr int kPlantClearX = kTerrariumX + 3;
-constexpr int kPlantClearY = kTerrariumY + 3;
-constexpr int kPlantClearW = kTerrariumW - 6;
-constexpr int kPlantClearH = kDirtY - kTerrariumY - 5;
-
+constexpr int kTerrariumX = 2, kTerrariumY = 27, kTerrariumW = 56, kTerrariumH = 99;
+constexpr int kRowX = 62, kRowW = 96, kRowH = 17;
+constexpr int kIconX = 68, kBarX = 77, kBarW = 48, kBarH = 7, kValueX = 156;
+constexpr int kValueW = 30;
+constexpr int kStateX = 62, kStateY = 104, kStateW = 96, kStateH = 22;
 constexpr uint32_t kInvalidLux = 0xFFFFFFFFUL;
+constexpr uint32_t kAnimationStepMs = 220;
+const int kRowY[4] = {27, 46, 65, 84};
+static_assert(PLANT_PET_LIGHT_MAX == LIGHT_LUX_MAX, "Plant profile must match the LDR range");
+static_assert(PLANT_PET_ART_W <= kTerrariumW - 2 && PLANT_PET_ART_H <= kTerrariumH - 2,
+              "Plant raster must stay inside the terrarium chrome");
 
-static const int kRowY[4] = { 27, 46, 65, 84 };
-static const PlantLeaf kBaseLeaves[5] = {
-    { -12, 88, 8, 3 },
-    {  11, 80, 7, 3 },
-    {  -9, 72, 6, 2 },
-    {  10, 64, 6, 2 },
-    {  -6, 58, 5, 2 },
+PlantPetModel g_real_pet;
+PlantPetModel g_demo_pet;
+bool g_using_demo = false;
+// Fixed buffer: no frame-time allocation and one opaque burst per changed pose.
+uint16_t g_plant_pixels[PLANT_PET_ART_W * PLANT_PET_ART_H];
+struct PlantLabCache {
+    PlantPetSnapshot pet;
+    int16_t soil_x10 = INT16_MIN, temp_x10 = INT16_MIN, hum_x10 = INT16_MIN;
+    uint32_t lux = kInvalidLux, animation_tick = 0;
+    bool fahrenheit = false, chrome_done = false;
 };
+PlantLabCache g_plant_cache;
 
-static bool valid_number(float value) {
-    return !isnan(value) && isfinite(value);
-}
-
-static uint16_t rgb(uint8_t r, uint8_t g, uint8_t b) {
-    return tft.color565(r, g, b);
-}
-
-static uint16_t screen_bg() { return rgb(8, 12, 18); }
-static uint16_t bar_track_color() { return rgb(22, 36, 46); }
-static uint16_t bar_low_color() { return rgb(122, 64, 48); }
-static uint16_t bar_opt_color() { return rgb(46, 125, 74); }
-static uint16_t bar_high_color() { return rgb(42, 90, 122); }
-
-static uint16_t state_color(uint8_t state) {
-    switch (state) {
-        case PLANT_STATE_THIRSTY:  return rgb(232, 162, 42);
-        case PLANT_STATE_SOGGY:    return rgb(63, 163, 224);
-        case PLANT_STATE_STRESSED: return rgb(232, 84, 42);
-        case PLANT_STATE_OK:
-        default:                   return rgb(46, 204, 90);
+bool valid_number(float v) { return isfinite(v); }
+uint16_t rgb(uint8_t r, uint8_t g, uint8_t b) { return tft.color565(r, g, b); }
+uint16_t screen_bg() { return rgb(8, 12, 18); }
+uint16_t unknown_color() { return rgb(118, 137, 139); }
+uint16_t mood_color(PlantMood mood) {
+    switch (mood) {
+        case PlantMood::Thirsty: case PlantMood::AirDry: case PlantMood::Dim:
+            return rgb(176, 120, 255);
+        case PlantMood::Soggy: case PlantMood::AirHumid:
+            return PB_HUM_P1;
+        case PlantMood::Cold: return rgb(80, 160, 255);
+        case PlantMood::Hot: return PB_TEMP_P1;
+        case PlantMood::Unknown: return unknown_color();
+        default: return PLANT_PET_GREEN;
     }
 }
-
-static uint16_t state_highlight(uint8_t state) {
-    switch (state) {
-        case PLANT_STATE_SOGGY:    return rgb(140, 218, 255);
-        case PLANT_STATE_THIRSTY:  return rgb(255, 220, 90);
-        case PLANT_STATE_STRESSED: return rgb(255, 128, 70);
-        case PLANT_STATE_OK:
-        default:                   return rgb(168, 255, 176);
+LangKey state_key(const PlantPetSnapshot& pet) {
+    if (pet.recovering) return PLANT_STATE_RECOVERING_KEY;
+    switch (pet.mood) {
+        case PlantMood::Thirsty: return PLANT_STATE_THIRSTY_KEY;
+        case PlantMood::Soggy: return PLANT_STATE_SOGGY_KEY;
+        case PlantMood::Cold: return PLANT_STATE_COLD_KEY;
+        case PlantMood::Hot: return PLANT_STATE_HOT_KEY;
+        case PlantMood::AirDry: return PLANT_STATE_AIR_DRY_KEY;
+        case PlantMood::AirHumid: return PLANT_STATE_AIR_HUMID_KEY;
+        case PlantMood::Dim: return PLANT_STATE_DIM_KEY;
+        case PlantMood::Unknown: return PLANT_STATE_UNKNOWN_KEY;
+        default: return pet.unknown_mask ? PLANT_STATE_UNKNOWN_KEY : PLANT_STATE_OK_KEY;
     }
 }
-
-static LangKey state_key(uint8_t state) {
-    switch (state) {
-        case PLANT_STATE_THIRSTY:  return PLANT_STATE_THIRSTY_KEY;
-        case PLANT_STATE_SOGGY:    return PLANT_STATE_SOGGY_KEY;
-        case PLANT_STATE_STRESSED: return PLANT_STATE_STRESSED_KEY;
-        case PLANT_STATE_OK:
-        default:                   return PLANT_STATE_OK_KEY;
-    }
+const PlantPetRange& range_spec(uint8_t card) {
+    return plant_pet_range(static_cast<PlantChannel>(card));
 }
-
-static const RangeSpec& range_spec(uint8_t card) {
-    static const RangeSpec specs[4] = {
-        { 0.0f, 100.0f, 30.0f, 70.0f, false },
-        { 0.0f,  40.0f, 18.0f, 26.0f, false },
-        { 0.0f, 100.0f, 40.0f, 70.0f, false },
-        { 0.0f, LIGHT_LUX_MAX, 200.0f, LIGHT_LUX_MAX, true },
-    };
-    return specs[(card < 4) ? card : 0];
-}
-
-static float range_fraction(uint8_t card, float value) {
-    const RangeSpec& spec = range_spec(card);
+float range_fraction(uint8_t card, float value) {
+    const PlantPetRange& spec = range_spec(card);
     value = constrain(value, spec.min_value, spec.max_value);
-    if (spec.logarithmic) {
-        return log1pf(value) / log1pf(spec.max_value);
-    }
+    if (spec.logarithmic) return log1pf(value) / log1pf(spec.max_value);
     return (value - spec.min_value) / (spec.max_value - spec.min_value);
 }
-
-static int row_y(uint8_t card) {
-    return kRowY[(card < 4) ? card : 0];
+int row_y(uint8_t card) { return kRowY[card]; }
+uint16_t row_accent(uint8_t card, PlantBand band) {
+    if (band == PlantBand::Unknown) return unknown_color();
+    if (band == PlantBand::Normal) return kIdleBorder;
+    if (card == 1) return mood_color(band == PlantBand::Low ? PlantMood::Cold : PlantMood::Hot);
+    return mood_color(band == PlantBand::Low ? PlantMood::Thirsty : PlantMood::Soggy);
 }
-
-static void draw_sensor_icon(uint8_t card, int cx, int cy) {
+void draw_sensor_icon(uint8_t card, bool valid) {
+    const int x = kIconX, y = row_y(card) + 8;
+    // Compact variants belong to this 17px row; shared sensor icons stay intact.
+    tft.fillRect(x - 4, row_y(card) + 2, 11, 13, kCardBg);
+    const uint16_t color = valid ? pb_primary(card == 0 ? 4 : card == 1 ? 0 : card == 2 ? 1 : 2)
+                                 : unknown_color();
     switch (card) {
-        case PLANT_CARD_SOIL:
-            pbit_draw_plant_icon(cx, cy, PB_SOIL_P1);
+        case 0:
+            tft.drawFastVLine(x, y - 4, 7, color);
+            tft.fillTriangle(x - 1, y, x - 4, y - 3, x - 1, y - 3, color);
+            tft.fillTriangle(x + 1, y - 2, x + 4, y - 4, x + 4, y - 1, color);
+            tft.drawFastHLine(x - 3, y + 3, 7, color);
+            tft.drawFastHLine(x - 2, y + 4, 5, color);
             break;
-        case PLANT_CARD_TEMP:
-            pbit_draw_temp_icon(cx, cy - 1, PB_TEMP_P1);
+        case 1:
+            tft.fillRoundRect(x - 1, y - 5, 3, 8, 1, color);
+            tft.drawFastVLine(x, y - 4, 3, kCardBg);
+            tft.fillCircle(x, y + 3, 2, color);
+            tft.drawPixel(x + 3, y - 3, color);
+            tft.drawPixel(x + 3, y, color);
             break;
-        case PLANT_CARD_AIR:
-            pbit_draw_humidity_icon(cx, cy - 1, PB_HUM_P1);
+        case 2:
+            tft.fillCircle(x, y + 1, 3, color);
+            tft.fillTriangle(x, y - 5, x - 2, y - 1, x + 2, y - 1, color);
+            tft.drawPixel(x - 1, y, kCardBg);
             break;
-        case PLANT_CARD_LIGHT:
-            pbit_draw_light_icon(cx, cy, PB_LUZ_P1);
-            break;
-        default:
+        case 3:
+            tft.fillCircle(x, y, 2, color);
+            tft.drawPixel(x - 4, y, color); tft.drawPixel(x + 4, y, color);
+            tft.drawPixel(x, y - 4, color); tft.drawPixel(x, y + 4, color);
+            tft.drawPixel(x - 3, y - 3, color); tft.drawPixel(x + 3, y - 3, color);
+            tft.drawPixel(x - 3, y + 3, color); tft.drawPixel(x + 3, y + 3, color);
             break;
     }
 }
-
-static void draw_row_border(uint8_t card, uint8_t culprit, uint8_t state) {
+void draw_row_border(uint8_t card, const PlantPetSnapshot& pet) {
     const int y = row_y(card);
-    const uint16_t color = (card == culprit) ? state_color(state) : kIdleBorder;
-    tft.drawRoundRect(kRowX, y, kRowW, kRowH, kRowRadius, color);
-    if (card == culprit) {
-        tft.drawRoundRect(kRowX + 1, y + 1, kRowW - 2, kRowH - 2, 2, color);
+    const bool dominant = static_cast<uint8_t>(pet.culprit) == card;
+    const uint16_t color = row_accent(card, pet.bands[card]);
+    tft.drawRoundRect(kRowX, y, kRowW, kRowH, 3, color);
+    tft.drawRoundRect(kRowX + 1, y + 1, kRowW - 2, kRowH - 2, 2,
+                      dominant ? color : kCardBg);
+}
+void draw_row_shell(uint8_t card) {
+    tft.fillRoundRect(kRowX, row_y(card), kRowW, kRowH, 3, kCardBg);
+    tft.drawRoundRect(kRowX, row_y(card), kRowW, kRowH, 3, kIdleBorder);
+}
+void draw_bar_zones(uint8_t card) {
+    const PlantPetRange& spec = range_spec(card);
+    const int y = row_y(card) + 5;
+    const int opt_start = static_cast<int>(lroundf(range_fraction(card, spec.opt_low) * (kBarW - 1)));
+    const int opt_end = static_cast<int>(lroundf(range_fraction(card, spec.opt_high) * (kBarW - 1))) + 1;
+    // Sensor identity throughout: the profile interval is brighter, both outer
+    // intervals keep a darker version of that hue. White marks the measurement.
+    const uint16_t primary[4] = {PB_SOIL_P1, PB_TEMP_P1, PB_HUM_P1, rgb(176, 120, 255)};
+    const uint16_t track[4] = {rgb(16, 96, 48), rgb(96, 16, 80), rgb(0, 80, 96), rgb(64, 32, 112)};
+    tft.fillRect(kBarX, y, kBarW, kBarH, track[card]);
+    tft.fillRect(kBarX + opt_start, y, opt_end - opt_start, kBarH, primary[card]);
+}
+bool row_value_valid(uint8_t card, const PlantLabCache& next) {
+    switch (card) {
+        case 0: return next.soil_x10 != INT16_MIN;
+        case 1: return next.temp_x10 != INT16_MIN;
+        case 2: return next.hum_x10 != INT16_MIN;
+        default: return next.lux != kInvalidLux;
+    }
+}
+float row_value_float(uint8_t card, const PlantLabCache& next) {
+    switch (card) {
+        case 0: return next.soil_x10 / 10.0f;
+        case 1: return next.temp_x10 / 10.0f;
+        case 2: return next.hum_x10 / 10.0f;
+        default: return static_cast<float>(next.lux);
+    }
+}
+void format_row_value(char* out, size_t size, uint8_t card, const PlantLabCache& next) {
+    if (!row_value_valid(card, next)) { snprintf(out, size, "--"); return; }
+    const float value = row_value_float(card, next);
+    if (card == 1) {
+        const float shown = next.fahrenheit ? value * 1.8f + 32.0f : value;
+        // Font 1 is CP437, not Latin-1. Reserve one ASCII cell for our degree glyph.
+        snprintf(out, size, "%.0f %c", shown, next.fahrenheit ? 'F' : 'C');
+    } else if (card == 3) {
+        if (next.lux < 1000) {
+            snprintf(out, size, "%lulx", static_cast<unsigned long>(next.lux));
+        } else {
+            const unsigned long tenths_k = (next.lux + 50UL) / 100UL;
+            if (tenths_k % 10UL == 0) snprintf(out, size, "%luK", tenths_k / 10UL);
+            else snprintf(out, size, "%lu.%luK", tenths_k / 10UL, tenths_k % 10UL);
+        }
     } else {
-        tft.drawRoundRect(kRowX + 1, y + 1, kRowW - 2, kRowH - 2, 2, kCardBg);
+        snprintf(out, size, "%.0f%%", value);
     }
 }
-
-static void draw_row_shell(uint8_t card) {
+int marker_offset(uint8_t card, const PlantLabCache& next) {
+    if (!row_value_valid(card, next)) return -1;
+    return constrain(static_cast<int>(lroundf(range_fraction(card, row_value_float(card, next)) * (kBarW - 1))),
+                     0, kBarW - 1);
+}
+bool row_data_dirty(uint8_t card, const PlantLabCache& next) {
+    char old_text[16], new_text[16];
+    format_row_value(old_text, sizeof(old_text), card, g_plant_cache);
+    format_row_value(new_text, sizeof(new_text), card, next);
+    return strcmp(old_text, new_text) != 0
+        || marker_offset(card, next) != marker_offset(card, g_plant_cache)
+        || ((next.pet.unknown_mask ^ g_plant_cache.pet.unknown_mask) & (1U << card));
+}
+void draw_row_data(uint8_t card, const PlantLabCache& next) {
     const int y = row_y(card);
-    tft.fillRoundRect(kRowX, y, kRowW, kRowH, kRowRadius, kCardBg);
-    tft.drawRoundRect(kRowX, y, kRowW, kRowH, kRowRadius, kIdleBorder);
-    draw_sensor_icon(card, kIconX, y + 8);
-}
+    const bool known = !(next.pet.unknown_mask & (1U << card));
+    // Marker is taller than the track: clear its entire lane to avoid ghosting.
+    tft.fillRect(kBarX, y + 4, kBarW, 9, kCardBg);
+    if (known) draw_bar_zones(card);
+    else tft.fillRect(kBarX, y + 5, kBarW, kBarH, rgb(22, 36, 46));
+    const int marker = marker_offset(card, next);
+    if (known && marker >= 0) tft.drawFastVLine(kBarX + marker, y + 4, 9, TFT_WHITE);
 
-static void draw_bar_zones(uint8_t card, int y, int bar_w) {
-    const RangeSpec& spec = range_spec(card);
-    const int bar_y = y + 5;
-    const int opt_start = kBarX + (int)lroundf(range_fraction(card, spec.opt_low) * (float)bar_w);
-    const int opt_end = kBarX + (int)lroundf(range_fraction(card, spec.opt_high) * (float)bar_w);
-    const int x_end = kBarX + bar_w;
-
-    tft.fillRect(kBarX, bar_y, bar_w, kBarH, bar_track_color());
-    tft.fillRect(kBarX, bar_y, max(0, opt_start - kBarX), kBarH, bar_low_color());
-    tft.fillRect(opt_start, bar_y, max(0, opt_end - opt_start), kBarH, bar_opt_color());
-    tft.fillRect(opt_end, bar_y, max(0, x_end - opt_end), kBarH, bar_high_color());
-}
-
-static void format_row_value(char* out, size_t out_size, uint8_t card,
-                             int16_t soil_x10, int16_t temp_x10,
-                             int16_t hum_x10, uint32_t lux) {
-    if (!out || out_size == 0) return;
-    switch (card) {
-        case PLANT_CARD_SOIL:
-            if (soil_x10 == INT16_MIN) snprintf(out, out_size, "--");
-            else snprintf(out, out_size, "%.0f%%", (float)soil_x10 / 10.0f);
-            break;
-        case PLANT_CARD_TEMP:
-            if (temp_x10 == INT16_MIN) snprintf(out, out_size, "--");
-            else snprintf(out, out_size, "%.0f°", (float)temp_x10 / 10.0f);
-            break;
-        case PLANT_CARD_AIR:
-            if (hum_x10 == INT16_MIN) snprintf(out, out_size, "--");
-            else snprintf(out, out_size, "%.0f%%", (float)hum_x10 / 10.0f);
-            break;
-        case PLANT_CARD_LIGHT:
-            if (lux == kInvalidLux) {
-                snprintf(out, out_size, "--");
-            } else if (lux >= 10000UL) {
-                snprintf(out, out_size, "%luk", (unsigned long)lroundf((float)lux / 1000.0f));
-            } else {
-                snprintf(out, out_size, "%lulx", (unsigned long)lux);
-            }
-            break;
-        default:
-            snprintf(out, out_size, "--");
-            break;
-    }
-}
-
-static bool row_value_valid(uint8_t card, const PlantLabCache& next) {
-    switch (card) {
-        case PLANT_CARD_SOIL:  return next.soil_x10 != INT16_MIN;
-        case PLANT_CARD_TEMP:  return next.temp_x10 != INT16_MIN;
-        case PLANT_CARD_AIR:   return next.hum_x10 != INT16_MIN;
-        case PLANT_CARD_LIGHT: return next.lux != kInvalidLux;
-        default:               return false;
-    }
-}
-
-static float row_value_float(uint8_t card, const PlantLabCache& next) {
-    switch (card) {
-        case PLANT_CARD_SOIL:  return (float)next.soil_x10 / 10.0f;
-        case PLANT_CARD_TEMP:  return (float)next.temp_x10 / 10.0f;
-        case PLANT_CARD_AIR:   return (float)next.hum_x10 / 10.0f;
-        case PLANT_CARD_LIGHT: return (float)next.lux;
-        default:               return 0.0f;
-    }
-}
-
-static void draw_row_data(uint8_t card, const PlantLabCache& next) {
-    const int y = row_y(card);
-    char buf[16];
-    format_row_value(buf, sizeof(buf), card, next.soil_x10, next.temp_x10, next.hum_x10, next.lux);
-    const int bar_w = (card == PLANT_CARD_LIGHT && next.lux != kInvalidLux && next.lux >= 10000UL) ? 38 : kBarW;
-    draw_bar_zones(card, y, bar_w);
-
-    if (row_value_valid(card, next)) {
-        const int marker_x = kBarX + (int)lroundf(range_fraction(card, row_value_float(card, next)) * (float)bar_w);
-        tft.drawFastVLine(constrain(marker_x, kBarX, kBarX + bar_w), y + 3, 11, TFT_WHITE);
-    }
-
-    tft.fillRect(kBarX + bar_w + 2, y + 3, kValueX - (kBarX + bar_w + 2), 12, kCardBg);
-    tft.setTextDatum(TR_DATUM);
+    char text[16];
+    format_row_value(text, sizeof(text), card, next);
+    // Font 1: 6px cells; 999lx and -40 F fit the 30px lane. K means 1000 lux.
+    tft.fillRect(kValueX - kValueW, y + 3, kValueW, 12, kCardBg);
     tft.setTextFont(1);
-    tft.setTextColor(TFT_WHITE, kCardBg);
-    if (tft.textWidth(buf) > (kValueX - (kBarX + bar_w + 3))) {
-        tft.setTextFont(0);
+    tft.setTextDatum(TR_DATUM);
+    tft.setTextColor(known ? TFT_WHITE : unknown_color(), kCardBg);
+    tft.drawString(text, kValueX, y + 4);
+    if (card == 1 && row_value_valid(card, next)) {
+        const uint16_t color = known ? TFT_WHITE : unknown_color();
+        const int dx = kValueX - 12 + 2, dy = y + 5;
+        tft.drawPixel(dx, dy - 1, color); tft.drawPixel(dx - 1, dy, color);
+        tft.drawPixel(dx + 1, dy, color); tft.drawPixel(dx, dy + 1, color);
     }
-    tft.drawString(buf, kValueX, y + 4);
     tft.setTextFont(0);
+    draw_sensor_icon(card, known);
 }
-
-static uint8_t soil_band_from_value(float soil) {
-    if (!valid_number(soil)) return SOIL_BAND_DRY;
-    const RangeSpec& spec = range_spec(PLANT_CARD_SOIL);
-    if (soil < spec.opt_low) return SOIL_BAND_DRY;
-    if (soil > spec.opt_high) return SOIL_BAND_WET;
-    return SOIL_BAND_OPTIMAL;
-}
-
-static void draw_dirt_band(uint8_t band) {
-    uint16_t fill = rgb(74, 48, 22);
-    uint16_t top = rgb(110, 74, 36);
-
-    if (band == SOIL_BAND_DRY) {
-        fill = rgb(110, 74, 36);
-        top = rgb(134, 96, 46);
-    } else if (band == SOIL_BAND_WET) {
-        fill = rgb(46, 36, 24);
-        top = state_color(PLANT_STATE_SOGGY);
-    }
-
-    tft.fillRect(kDirtX, kDirtY, kDirtW, kDirtH, fill);
-    tft.fillRect(kDirtX, kDirtY, kDirtW, 2, top);
-
-    if (band == SOIL_BAND_DRY) {
-        const uint16_t crack = rgb(74, 48, 22);
-        tft.drawLine(kDirtX + 11, kDirtY + 4, kDirtX + 16, kDirtY + 10, crack);
-        tft.drawLine(kDirtX + 37, kDirtY + 3, kDirtX + 32, kDirtY + 11, crack);
-    }
-}
-
-static int state_tallo_top(uint8_t state) {
-    return (state == PLANT_STATE_OK) ? 44 : 46;
-}
-
-static int state_leaf_dy(uint8_t state) {
-    switch (state) {
-        case PLANT_STATE_OK:       return -4;
-        case PLANT_STATE_THIRSTY:  return 4;
-        case PLANT_STATE_SOGGY:    return 6;
-        case PLANT_STATE_STRESSED: return 7;
-        default:                   return 0;
-    }
-}
-
-static float state_leaf_scale(uint8_t state) {
-    switch (state) {
-        case PLANT_STATE_OK:       return 1.0f;
-        case PLANT_STATE_THIRSTY:  return 0.85f;
-        case PLANT_STATE_SOGGY:    return 0.9f;
-        case PLANT_STATE_STRESSED: return 0.7f;
-        default:                   return 1.0f;
-    }
-}
-
-static uint8_t state_leaf_count(uint8_t state) {
-    return (state == PLANT_STATE_STRESSED) ? 3 : 5;
-}
-
-static void draw_hero_plant(uint8_t state, uint8_t anim_phase) {
-    static const int8_t kSwayX[4][5] = {
-        {  0,  1, -1,  0,  1 },
-        {  1,  0,  1, -1,  0 },
-        {  0, -1,  0,  1, -1 },
-        { -1,  0, -1,  0,  1 },
-    };
-    static const int8_t kRxPulse[4][5] = {
-        { 0, 1, 0, 0, 1 },
-        { 1, 0, 0, 1, 0 },
-        { 0, 0, 1, 0, 0 },
-        { 0, 1, 0, 1, 0 },
-    };
-
-    const uint16_t color = state_color(state);
-    const int top = state_tallo_top(state);
-    const int group_x = (state == PLANT_STATE_STRESSED && (anim_phase & 0x01)) ? 1 : 0;
-    const int phase = anim_phase & 0x03;
-    const int leaf_dy = state_leaf_dy(state);
-    const float scale = state_leaf_scale(state);
-    const uint8_t leaf_count = state_leaf_count(state);
-
-    tft.fillRect(kPlantCx + group_x - 1, top, 3, kDirtY - top, color);
-    tft.fillEllipse(kPlantCx + group_x, top - 1, 4, 6, color);
-    if (state == PLANT_STATE_OK) {
-        const int pulse = (anim_phase & 0x02) ? 2 : 1;
-        tft.fillCircle(kPlantCx + group_x, top - 4, pulse, state_highlight(state));
-    }
-
-    for (uint8_t i = 0; i < leaf_count; ++i) {
-        const PlantLeaf& leaf = kBaseLeaves[i];
-        const int rx = max(2, (int)lroundf((float)leaf.rx * scale) + kRxPulse[phase][i]);
-        const int ry = max(1, (int)lroundf((float)leaf.ry * scale));
-        tft.fillEllipse(kPlantCx + group_x + leaf.dx + kSwayX[(phase + i) & 0x03][i],
-                        leaf.cy + leaf_dy,
-                        rx,
-                        ry,
-                        color);
-    }
-
-    if (state == PLANT_STATE_SOGGY) {
-        const uint16_t drop = state_highlight(state);
-        const int dy1 = (int)((anim_phase % 6) * 5);
-        const int dy2 = (int)(((anim_phase + 3) % 6) * 4);
-        tft.fillEllipse(18, 66 + dy1, 2, 3, drop);
-        tft.fillEllipse(43, 78 + dy2, 2, 3, drop);
-    }
-}
-
-static void clear_plant_icon_area() {
-    tft.fillRect(kPlantClearX, kPlantClearY, kPlantClearW, kPlantClearH, kCardBg);
-}
-
-static void clear_full_terrarium() {
-    tft.fillRect(kTerrariumX + 1, kTerrariumY + 1, kTerrariumW - 2, kTerrariumH - 2, kCardBg);
-}
-
-static void draw_plant_area(uint8_t state, uint8_t band, uint8_t anim_phase, bool full_terrarium) {
-    if (full_terrarium) {
-        clear_full_terrarium();
-        draw_dirt_band(band);
-    } else {
-        clear_plant_icon_area();
-    }
-    draw_hero_plant(state, anim_phase);
-}
-
-static void draw_state_card(const PlantLabCache& next) {
-    const uint16_t color = state_color(next.state);
-    tft.fillRect(kStateX + 3, kStateY + 5, kStateW - 6, kStateH - 10, kCardBg);
+void draw_state_card(const PlantLabCache& next) {
+    const uint16_t color = mood_color(next.pet.mood);
+    tft.fillRoundRect(kStateX + 2, kStateY + 2, kStateW - 4, kStateH - 4, 2, kCardBg);
     tft.drawRoundRect(kStateX, kStateY, kStateW, kStateH, 4, color);
     tft.drawRoundRect(kStateX + 1, kStateY + 1, kStateW - 2, kStateH - 2, 3, color);
-
-    tft.setTextDatum(MC_DATUM);
-    tft.setTextFont(1);
+    tft.setTextDatum(C_BASELINE);
+    // The existing body font includes accented ES/CAT glyphs, unlike GLCD font 1.
+    tft.setFreeFont(FONT_BODY);
+    const char* label = L(state_key(next.pet));
+    if (tft.textWidth(label) > kStateW - 8) tft.setFreeFont(FONT_SMALL);
     tft.setTextColor(color, kCardBg);
-    tft.drawString(L(state_key(next.state)), kStateX + (kStateW / 2), kStateY + (kStateH / 2) + 1);
+    tft.drawString(label, kStateX + kStateW / 2, kStateY + kStateH / 2 + 5);
     tft.setTextFont(0);
 }
-
-static uint8_t animation_phase_for_state(uint8_t state) {
-    uint16_t divisor_ms = 320;
-    if (state == PLANT_STATE_OK) {
-        divisor_ms = 180;
-    } else if (state == PLANT_STATE_STRESSED) {
-        divisor_ms = 120;
-    } else if (state == PLANT_STATE_THIRSTY) {
-        divisor_ms = 480;
-    } else if (state == PLANT_STATE_SOGGY) {
-        divisor_ms = 420;
-    }
-    return (uint8_t)((millis() / divisor_ms) & 0x0F);
+int16_t number_key(float value, bool valid) {
+    return valid ? static_cast<int16_t>(lroundf(constrain(value, -3000.0f, 3000.0f) * 10.0f)) : INT16_MIN;
 }
-
-static PlantLabCache build_next_cache() {
+PlantLabCache build_next_cache(uint32_t now) {
     const Reading& r = g_ui_readings_snapshot;
-    PlantLabCache next = g_plant_cache;
-
-    const bool soil_valid = !pbit_external_sensor_missing(SZ_SOIL, r);
-    const bool temp_valid = valid_number(r.temperature);
-    const bool hum_valid = valid_number(r.humidity);
-    const bool lux_valid = light_lux_valid(r.ldr);
-
-    next.soil_x10 = soil_valid ? (int16_t)lroundf(r.soil_humidity * 10.0f) : INT16_MIN;
-    next.temp_x10 = temp_valid ? (int16_t)lroundf(r.temperature * 10.0f) : INT16_MIN;
-    next.hum_x10 = hum_valid ? (int16_t)lroundf(r.humidity * 10.0f) : INT16_MIN;
-    next.lux = lux_valid ? (uint32_t)lroundf(r.ldr) : kInvalidLux;
-    next.soil_band = soil_band_from_value(r.soil_humidity);
-
-    const bool soil_ok = soil_valid && next.soil_band == SOIL_BAND_OPTIMAL;
-    const bool temp_ok = temp_valid && r.temperature >= 18.0f && r.temperature <= 26.0f;
-    const bool hum_ok = hum_valid && r.humidity >= 40.0f && r.humidity <= 70.0f;
-    const RangeSpec& light_range = range_spec(PLANT_CARD_LIGHT);
-    const bool light_ok = lux_valid && r.ldr >= light_range.opt_low && r.ldr <= light_range.opt_high;
-
-    if (!soil_ok) {
-        next.state = (soil_valid && next.soil_band == SOIL_BAND_WET) ? PLANT_STATE_SOGGY : PLANT_STATE_THIRSTY;
-        next.culprit = PLANT_CARD_SOIL;
-    } else if (!temp_ok) {
-        next.state = PLANT_STATE_STRESSED;
-        next.culprit = PLANT_CARD_TEMP;
-    } else if (!hum_ok) {
-        next.state = PLANT_STATE_STRESSED;
-        next.culprit = PLANT_CARD_AIR;
-    } else if (!light_ok) {
-        next.state = PLANT_STATE_STRESSED;
-        next.culprit = PLANT_CARD_LIGHT;
-    } else {
-        next.state = PLANT_STATE_OK;
-        next.culprit = PLANT_CARD_NONE;
-    }
-
-    next.anim_phase = animation_phase_for_state(next.state);
+    PlantLabCache next;
+    next.pet = (g_using_demo ? g_demo_pet : g_real_pet).snapshot(now);
+    next.soil_x10 = number_key(r.soil_humidity, !pbit_external_sensor_missing(SZ_SOIL, r));
+    next.temp_x10 = number_key(r.temperature, valid_number(r.temperature));
+    next.hum_x10 = number_key(r.humidity, valid_number(r.humidity));
+    next.lux = light_lux_valid(r.ldr) ? static_cast<uint32_t>(lroundf(r.ldr)) : kInvalidLux;
+    next.animation_tick = now / kAnimationStepMs;
+    next.fahrenheit = g_is_fahrenheit;
     next.chrome_done = true;
     return next;
 }
-
-static void draw_chrome() {
+void draw_plant_area(const PlantLabCache& next, uint32_t now) {
+    PlantPetInputs visual = {};
+    for (uint8_t card = 0; card < 4; ++card) {
+        visual.values[card] = row_value_float(card, next);
+        visual.valid[card] = row_value_valid(card, next);
+    }
+    plant_pet_render(g_plant_pixels, next.pet, now, &visual);
+    // Preserve the six top-corner pixels of the static radius-4 border.
+    g_plant_pixels[0] = g_plant_pixels[1] = g_plant_pixels[PLANT_PET_ART_W] = kIdleBorder;
+    g_plant_pixels[PLANT_PET_ART_W - 1] = g_plant_pixels[PLANT_PET_ART_W - 2]
+        = g_plant_pixels[2 * PLANT_PET_ART_W - 1] = kIdleBorder;
+    // Buffer holds native RGB565 words. Preserve swap state used by other screens.
+    const bool previous_swap = tft.getSwapBytes();
+    tft.setSwapBytes(true);
+    tft.pushImage(kTerrariumX + 1, kTerrariumY + 1,
+                  PLANT_PET_ART_W, PLANT_PET_ART_H, g_plant_pixels);
+    tft.setSwapBytes(previous_swap);
+}
+void draw_chrome() {
     tft.fillScreen(screen_bg());
     drawHeader(L(TIT_LAB_PLANT));
-
     tft.fillRoundRect(kTerrariumX, kTerrariumY, kTerrariumW, kTerrariumH, 4, kCardBg);
     tft.drawRoundRect(kTerrariumX, kTerrariumY, kTerrariumW, kTerrariumH, 4, kIdleBorder);
-
-    for (uint8_t card = 0; card < 4; ++card) {
-        draw_row_shell(card);
-    }
-
+    for (uint8_t card = 0; card < 4; ++card) draw_row_shell(card);
     tft.fillRoundRect(kStateX, kStateY, kStateW, kStateH, 4, kCardBg);
     tft.drawRoundRect(kStateX, kStateY, kStateW, kStateH, 4, kIdleBorder);
 }
-
 } // namespace
 
+void update_lab_plant_readings(const Reading& r, uint32_t now_ms, bool demo) {
+    PlantPetInputs input = {{r.soil_humidity, r.temperature, r.humidity, r.ldr},
+        {!pbit_external_sensor_missing(SZ_SOIL, r), valid_number(r.temperature),
+         valid_number(r.humidity), light_lux_valid(r.ldr)}};
+    g_using_demo = demo;
+    (demo ? g_demo_pet : g_real_pet).update(input, now_ms);
+}
+
 void draw_lab_plant_screen(bool screen_changed, bool sensor_data_changed) {
-    const PlantLabCache next = build_next_cache();
+    const uint32_t now = millis();
+    const PlantLabCache next = build_next_cache(now);
     const bool first = screen_changed || !g_plant_cache.chrome_done;
-    const bool values_dirty = first
-        || next.soil_x10 != g_plant_cache.soil_x10
-        || next.temp_x10 != g_plant_cache.temp_x10
-        || next.hum_x10 != g_plant_cache.hum_x10
+    const bool state_dirty = first || next.pet.mood != g_plant_cache.pet.mood
+        || next.pet.culprit != g_plant_cache.pet.culprit
+        || next.pet.affected_mask != g_plant_cache.pet.affected_mask
+        || next.pet.unknown_mask != g_plant_cache.pet.unknown_mask
+        || next.pet.recovering != g_plant_cache.pet.recovering;
+    bool bands_dirty = first;
+    bool rows_dirty[4];
+    bool any_row_dirty = false;
+    for (uint8_t card = 0; card < 4; ++card) {
+        bands_dirty |= next.pet.bands[card] != g_plant_cache.pet.bands[card];
+        rows_dirty[card] = first || row_data_dirty(card, next);
+        any_row_dirty |= rows_dirty[card];
+    }
+    const bool anim_dirty = first || next.animation_tick != g_plant_cache.animation_tick;
+    const bool environment_dirty = first || next.soil_x10 != g_plant_cache.soil_x10
+        || next.temp_x10 != g_plant_cache.temp_x10 || next.hum_x10 != g_plant_cache.hum_x10
         || next.lux != g_plant_cache.lux;
-    const bool state_dirty = first
-        || next.state != g_plant_cache.state
-        || next.culprit != g_plant_cache.culprit;
-    const bool band_dirty = first || next.soil_band != g_plant_cache.soil_band;
-    const bool anim_dirty = first || next.anim_phase != g_plant_cache.anim_phase;
-
-    if (first) {
-        draw_chrome();
+    (void)sensor_data_changed; // Quantized fields and animation own their dirty keys.
+    if (!first && !state_dirty && !bands_dirty && !anim_dirty && !environment_dirty && !any_row_dirty) return;
+    if (first) draw_chrome();
+    if (anim_dirty || state_dirty || bands_dirty || environment_dirty) draw_plant_area(next, now);
+    for (uint8_t card = 0; card < 4; ++card) {
+        if (rows_dirty[card]) draw_row_data(card, next);
+        if (state_dirty || bands_dirty) draw_row_border(card, next.pet);
     }
-
-    if (!first && !sensor_data_changed && !anim_dirty) {
-        return;
-    }
-
-    if (state_dirty || anim_dirty || band_dirty) {
-        draw_plant_area(next.state, next.soil_band, next.anim_phase, state_dirty || first || band_dirty);
-    }
-
-    if (values_dirty) {
-        for (uint8_t card = 0; card < 4; ++card) {
-            draw_row_data(card, next);
-        }
-    }
-
-    if (state_dirty) {
-        for (uint8_t card = 0; card < 4; ++card) {
-            draw_row_border(card, next.culprit, next.state);
-        }
-        draw_state_card(next);
-    }
-
+    if (state_dirty) draw_state_card(next);
     g_plant_cache = next;
 }

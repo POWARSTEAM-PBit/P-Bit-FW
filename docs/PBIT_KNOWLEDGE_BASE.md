@@ -1,6 +1,6 @@
 # P-Bit — Guía Base Completa
 
-Actualizado: 2026-10-10
+Actualizado: 2026-10-11
 Versión firmware: ver `CHANGELOG.md`
 Estado: documento maestro de producto, uso y referencia técnica
 
@@ -301,9 +301,17 @@ Combina:
 - humedad del aire;
 - luz.
 
-Su objetivo es explicar que una planta depende de varias condiciones al mismo tiempo. El diagnóstico prioriza Suelo y luego variables ambientales. Los estados visibles son `BIEN`, `SEDIENTA`, `AHOGADA` y `ESTRÉS`.
+Su objetivo es explicar que una planta depende de varias condiciones al mismo tiempo.
 
-El perfil es fijo e independiente de los límites editables de cada sensor. Suelo `<30 %` muestra tierra seca y `SEDIENTA`; `30..70 %` (inclusivo) mantiene la banda central; `>70 %` muestra tierra encharcada y `AHOGADA`. Si Suelo está en rango, las otras variables pueden generar `ESTRÉS`: temperatura fuera de `18..26 °C`, humedad del aire fuera de `40..70 %` o Luz fuera de `200..8000 lux`. La barra de Luz usa escala logarítmica `0..8000 lux`, alineada con el techo de lectura del LDR.
+En `Planta Lab`, la mascota mantiene hojas verdes, rostro expresivo, pequeños movimientos y parpadeos. La tierra café se aclara y desarrolla grietas al bajar la lectura de Suelo; se oscurece y muestra pequeñas manchas de agua que se amplían al subir. Grietas/agua acompañan las bandas confirmadas de `SEDIENTA`/`AHOGADA`: son una ilustración del porcentaje relativo, no una medición de agua acumulada. Frío añade temblor y hasta tres copos que aparecen en distintos lugares, descienden suavemente y se alternan; calor, una hoja que abanica y ondas magenta que aparecen a distintas alturas y lados de la planta, suben un poco y se alternan. Aire seco usa pequeños trazos violetas y aire húmedo niebla cyan suspendida; ambos se alternan a los lados de la planta con desplazamiento lateral suave. Los efectos combinados de temperatura y aire se limitan a cuatro grupos para mantener legible la mascota. El sol amarillo crece y gana brillo con la lectura; una luna circular aparece solo por debajo de 20 lux, sin confirmar noche. Las ondas de calor aumentan desde 27 °C y pueden acompañar una sonrisa: la postura térmica se modifica gradualmente, sin interpretar un grado de cambio como daño real. Todas las necesidades conocidas se señalan en sus filas; el doble borde identifica la dominante.
+
+El perfil fijo usa Suelo `30..70 %`, temperatura `15..30 °C`, humedad del aire `40..70 %` y Luz `200..8000 lux`, incluyendo los extremos. La barra de Luz llega hasta 8000 lux. Cada fila tiene su color (Suelo verde, temperatura magenta, aire cyan, Luz violeta); el tramo normal es luminoso y los extremos son más oscuros, con marcador blanco. Estos rangos son independientes de los límites editables de cada sensor. Las cifras se actualizan con las lecturas; los cambios de postura esperan confirmación breve. Temperatura añade un margen de 0.5 °C para evitar cambios repetidos cerca de los límites y una intensidad gradual de la pose; una condición cálida puede indicarse sin quitarle de inmediato la sonrisa. Los otros sensores todavía pueden determinar el gesto.
+
+Suelo, Aire y Luz conservan rangos educativos heredados; temperatura 15..30 °C es una franja provisional para flexibilizar la expresión del personaje, no un óptimo para todas las plantas. El porcentaje de Suelo es relativo a la calibración del sensor, no una medida del porcentaje de agua del sustrato. Los 8000 lux son el techo de lectura del P-Bit y no un nivel ideal para todas las plantas.
+
+En esta pantalla, Luz se expresa en lux: hasta `999lx` aparece el valor completo; a partir de 1000 se compacta como `1K`, `1.2K` o `8K` (`K` significa mil lux), redondeado a una décima. La lectura interna y el diagnóstico conservan sus valores en lux.
+
+Cuando las condiciones mejoran, la mascota recupera su postura gradualmente y puede mostrar `MEJORANDO`. Una lectura desconocida se muestra como `--`, sin interpretarla como una necesidad negativa; si faltan datos y no hay otra necesidad conocida, aparece `FALTAN DATOS`. La mascota sigue reaccionando al cambiar a otra pantalla, pero no acumula crecimiento ni conserva una etapa entre reinicios. Es una interpretación educativa de las condiciones, no una medida de la salud o crecimiento real de la planta.
 
 ### Termo Lab
 

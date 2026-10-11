@@ -25,14 +25,15 @@ En Windows, si `platformio` no está en PATH:
 
 ## Estado actual
 
-- Build verificada el `2026-10-10` sobre `27e5207`: `esp32dev` SUCCESS, RAM estática `49140` (15.0 %), Flash `961709` (73.4 %), con `PBIT_ENABLE_GRAPH_LAB=1` y `PBIT_ENABLE_SERIAL_PLOTTER=0`.
+- Build verificada el `2026-10-11` sobre base `3744f04` + cambios locales de mascota y ajuste visual de Planta Lab: `esp32dev` SUCCESS, RAM estática `59580` (18.2 %), Flash `971189` (74.1 %), con flags de producción sin cambios.
+- Planta Lab: mascota verde persistente, barras por sensor y tierra café progresiva, aprobados puntualmente por el usuario. Último ajuste: expresión térmica flexible 15..30 °C con histéresis y postura gradual; ondas magenta repartidas y escalonadas desde 27 °C, sol creciente y luna circular <20 lux. Copos 1..3 con descenso y efectos de aire 1..2 con deriva/pausas ya integrados, limitados a cuatro grupos ambientales conjuntos. Pruebas nativas/preview comprobados; esta revisión todavía requiere TFT real. Historial, combinaciones y presets siguen pendientes.
 - Carrusel de producción: `Inicio`, `Clima Lab`, `Planta Lab` si Suelo está conectado, `Termo Lab`, 6 sensores en Sensor Zone, `Timer`, `Sistema`.
 - Sensor Zone: `Temperatura`, `Humedad`, `Luz`, `Sonido`, `Suelo` y `Termómetro`; pulsación corta cambia `Principal -> Rango -> Ficha -> Dato -> Curva`. `Sonido` añade `Sonido VU` y `Sonido Onda` tras `Principal`.
 - Alimentación de producto: `3 baterías AAA`; USB-C para programación/alimentación auxiliar.
 - Idiomas: Español, Catalán, English.
 - WiFi y Bluetooth forman parte del ESP32, pero el firmware inicial no ofrece configuración WiFi ni flujo público de Bluetooth. BLE queda desactivado de fábrica.
 
-La validación final de producción sigue abierta. La prioridad actual es revisar visualmente `Planta Lab`; Demo ya está implementado y anti-flicker queda como vigilancia de regresión. La prueba final de 24 h y la validación física completa por unidad se mantienen pendientes y aplazadas. Ver `docs/ROADMAP.md` y `docs/PRODUCTION_RELEASE.md` para distinguir estado actual de evidencia histórica.
+La validación final de producción sigue abierta. La prioridad actual es cerrar el refinamiento visual de `Planta Lab` en TFT real; configuración/presets después; Demo ya está implementado y anti-flicker requiere regresión visual tras este cambio. La prueba final de 24 h y la validación física completa por unidad se mantienen pendientes y aplazadas. Ver `docs/ROADMAP.md` y `docs/PRODUCTION_RELEASE.md` para distinguir estado actual de evidencia histórica.
 
 ## Documentación
 

@@ -1,455 +1,206 @@
-# ADR-003 - Planta Lab: pantalla multisensor de salud de planta
+# ADR-003 — Planta Lab: mascota multisensor
 
-Fecha: 2026-06-15
+Fecha original: 2026-06-15
+Revisión vigente: 2026-10-11
+Estado: Aceptado; mascota implementada, ajuste visual en revisión y validación física completa pendiente.
 
-Estado: Aceptado
+## Decisión vigente y alcance
 
-Revisión de implementación y pendientes: 2026-10-10. Primer ajuste de rangos aplicado sobre base `0eb3c46`; ver CHANGELOG.
+Planta Lab representa una planta educativa animada con rostro discreto, tallo y hojas expresivos. Suelo, temperatura, humedad del aire y luz producen reacciones distinguibles. La planta conserva su identidad verde; postura, expresión y movimiento comunican la necesidad, reforzados por acentos de color.
 
-## Estado de implementación y trabajo actual
+El usuario aprobó esta primera versión con reacciones a sensores y recuperación gradual, sin crecimiento acumulado ni progreso guardado entre reinicios. No hay nueva configuración ni gestos del encoder. El perfil sigue siendo fijo e independiente de los límites editables de cada sensor.
 
-V1 está implementada en `src/ui_lab_plant.cpp`, integrada en el carrusel y compilada en `esp32dev`. La planta anima continuamente con refresco del router a `220 ms`; hay terrario, cuatro filas de datos/rango y diagnóstico localizado. No hay nueva aprobación visual en hardware en esta revisión.
+La mascota interpreta condiciones ambientales; no mide el crecimiento ni diagnostica la salud biológica de una planta real. Sus gestos son una metáfora educativa.
 
-La prioridad acordada es retomar la revisión/mejora visual de esta pantalla: barras/valores legibles en 96 px, texto ES/CAT/EN (`ASSEDEGADA`), contraste de `AHOGADA`, cuatro posturas reconocibles y ausencia de parpadeo. Las secciones V2/V3 son propuestas futuras, no trabajo ya autorizado. Prueba final de 24 h y validación física completa quedan aplazadas; ver `docs/ROADMAP.md`.
+## Contexto e historial
 
-Primer ajuste autorizado el 2026-10-10: Luz usa escala `0..8000 lux` y rango de diagnóstico `200..8000`; tierra, barra y diagnóstico de Suelo comparten `30..70 %`. La tabla siguiente documenta el comportamiento actual. Queda comprobar su presentación en TFT; la coherencia de estos límites ya está corregida en código.
+La V1 de junio integró terrario, cuatro filas de rango y los estados `BIEN`, `SEDIENTA`, `AHOGADA` y `ESTRÉS`. El dibujo usaba un tallo recto, hojas elípticas, cambios completos de color y un balanceo similar entre condiciones. Su diagnóstico elegía el primer sensor fuera de rango por prioridad fija y trataba lecturas inválidas como necesidades negativas.
 
-## Contexto
+El primer ajuste del 2026-10-10 alineó Luz con el techo de lectura de 8000 lux y Suelo con la zona central inclusiva 30..70 %. Esta revisión conserva esos rangos y sustituye el contrato de dibujo, diagnóstico y animación de V1. Las coordenadas y navegación se mantienen; las antiguas reglas «tallo siempre recto», «todo en color de estado» y «sin transición ni buffer» son antecedentes, no instrucciones vigentes.
 
-El P-Bit ya tiene pantallas Lab para clima múltiple (`CLIMA LAB`) y temperatura de sonda (`TERMO LAB`). Una de las capacidades más potentes del dispositivo para el aula es la combinación del sensor de suelo con los sensores ambientales (temperatura, humedad del aire, luz), que juntos permiten evaluar las condiciones de vida de una planta real.
+## Perfil y clasificación compartida
 
-Sin embargo, no existía una pantalla que integrara esos cuatro sensores en un lenguaje de cuidado de planta: el niño tenía que saltar entre pantallas individuales sin contexto. Esto pierde la oportunidad pedagógica central: que una planta depende de un sistema de variables, no de una sola.
-
-La taxonomía ya cierra la regla: `Lab = pantalla multisensor, experimento o actividad educativa`. `PLANTA LAB` cumple esta definición.
-
-## Decisión
-
-Se crea `PLANTA LAB` como pantalla Lab global en el carrusel principal, independiente del stack de `Suelo`.
-
-La pantalla integra cuatro sensores:
-- Humedad de suelo (%)
-- Temperatura del aire (°C)
-- Humedad del aire (%)
-- Luz (lx)
-
-La planta es el protagonista visual. No es un panel de datos: es un diagnóstico en tiempo real del estado de la planta mediante un icono que cambia de color según la condición dominante.
-
-## Diseño de V1
-
-### Estructura visual
-
-Layout de "terrario + filas de rango". Panel vertical a la izquierda (terrario) donde
-la planta crece sembrada en tierra; a la derecha, cuatro filas-card (una por sensor), cada
-una con icono + barra de rango + valor, y debajo una card de estado ancha.
-
-```
-┌──────────────────────────────────────────┐
-│              PLANTA  LAB                  │  título grande (fuente header)
-├───────────┬──────────────────────────────┤
-│  terrario │ 💧 ▓▓│███│░  25%  ← Suelo (!) │
-│   bulbo   │ 🌡 ▓│████│░  22°   ← Temp     │
-│   hojas   │ 💨 ▓▓│███│░  55%  ← Aire      │
-│   tallo   │ ☀ ▓▓▓│██│░ 180lx ← Luz       │
-│  ▓tierra▓ │ ┌──────────────────┐          │
-│           │ │     SEDIENTA     │          │  card de estado
-└───────────┴─┴──────────────────┴──────────┘
-```
-
-- **Panel terrario** (izquierda): planta vertical sembrada en una banda de tierra **plana**
-  al fondo. La tierra **es** el sensor de Suelo (seca/sana/encharcada). Coordenadas exactas
-  en la sección "Layout V1 — coordenadas de implementación".
-- **Cuatro filas de rango** (derecha): cada fila es una card con icono (color de identidad
-  del sensor) + barra de zonas (baja/óptima/alta) con marcador en el valor actual + valor
-  numérico **blanco**. La fila del sensor que dispara el diagnóstico lleva borde de acento
-  (color de estado). La barra da el doble valor: número exacto + posición en el rango sano.
-- **Card de estado** (ancha, debajo de las filas): el diagnóstico en texto, con borde y
-  texto en color de estado. Enmarcado como las demás — sin texto flotante.
-- **Jerarquía tipográfica:** el título usa la fuente de header (grande); el estado, fuente
-  menor. Así el estado cabe en el ancho de la columna derecha incluso en catalán.
-- Temperatura se muestra **sin decimal** (`22°`, no `22.4°`) — el DHT11 no justifica el
-  decimal y ahorra ancho.
-
-### Estados de diagnóstico
-
-Cuatro estados en V1:
-
-| Estado | Condición dominante | Color | Forma (postura) |
+| Canal | Rango normal inclusivo | Escala de la fila | Fuera de rango |
 |---|---|---|---|
-| `BIEN` | Todos los sensores en rango óptimo | Verde | erguida, hojas arriba, yema visible |
-| `SEDIENTA` | Suelo válido < 30 % | Amarillo | hojas caídas y tierra seca/agrietada |
-| `AHOGADA` | Suelo válido > 70 % | Azul | hojas pesadas, gotas y banda encharcada |
-| `ESTRÉS` | Temperatura, luz o humedad de aire fuera de rango | Naranja | hojas muy caídas, una hoja caída al suelo |
+| Suelo | 30..70 % | 0..100 % | Sed / exceso de agua |
+| Temperatura | 15..30 °C | 0..40 °C | Frío / calor con intensidad gradual |
+| Humedad del aire | 40..70 % | 0..100 % | Aire seco / aire húmedo |
+| Luz | 200..8000 lux | Logarítmica 0..8000 lux | Poca luz |
 
-La **forma** comunica el estado aunque no se distinga el color (regla de accesibilidad
-`color-only-meaning`: ~8% de daltonismo + squint test). El color refuerza, no es el
-único portador del significado.
+Estos límites pertenecen al modelo de Planta Lab. La banda de Suelo estabilizada se comparte entre diagnóstico, resaltado y aparición de grietas/agua. El color café y la intensidad de los efectos se ajustan continuamente a la lectura actual dentro de la banda confirmada; no simulan secado por tiempo. Barras y valores también muestran la lectura actual. La postura y el cambio de banda esperan confirmación temporal.
 
-El estado `ESTRÉS` agrupa los tres sensores ambientales porque en V1 no se diferencia visualmente entre calor, frío, poca luz o aire seco. El texto puede variar si se quiere más detalle (ver extensión posible abajo), pero el color del icono es único para el estado.
+30 y 70 % pertenecen a la zona normal de Suelo; 15/30 °C, 40/70 % y 200/8000 lux son inclusivos en el perfil inicial y las barras. Tras el arranque, Temperatura aplica histéresis de ±0.5 °C: desde Normal entra en frío <14.5 o calor >30.5; desde Low regresa a Normal ≥15.5; desde High, ≤29.5. Mantiene confirmación temporal de bandas. Una barra puede indicar lectura fuera/dentro del rango antes de que cambie la clasificación; no implica incoherencia ni un nuevo límite biológico. No hay exceso de luz observable por encima de 8000; una lectura fuera de 0..8000 es desconocida.
 
-### Prioridad de diagnóstico
+### Origen y significado de los umbrales
 
-Cuando más de un sensor está fuera de rango, se muestra el de mayor prioridad:
+Suelo, Aire y Luz conservan intervalos heredados de la UI base `3744f04`. Temperatura cambia de 18..26 a 15..30 °C para una expresión más flexible, tras el reporte del usuario de cambios por un grado. Es una decisión provisional de producto apoyada en referencias de tolerancia amplia de plantas de interior, no un óptimo universal ni un umbral de daño. Fuentes y alcance en [PLANTA_LAB_RESEARCH](PLANTA_LAB_RESEARCH.md).
 
-```text
-suelo > temperatura > humedad aire > luz
-```
+El porcentaje de Suelo es relativo a los dos puntos de calibración del sensor (referencia seca y húmeda). No equivale al porcentaje volumétrico de agua del sustrato; el método de calibración, sensor y material condicionan su interpretación. `AHOGADA` representa el tramo alto de esa lectura relativa, no una medición de oxígeno ni un diagnóstico real de encharcamiento.
 
-Razón: suelo y temperatura afectan la planta en minutos; la luz y la humedad del aire tienen un impacto más lento.
+En Luz, 8000 lux es el techo de lectura configurado tras la calibración empírica del LDR, no un nivel óptimo para todas las plantas. El firmware recorta ahí la estimación y no permite conocer cuánta luz hay por encima. El disparador bajo de 200 lux tampoco tiene una justificación por especie documentada. Ver `docs/TECHNICAL.md`, calibración LDR v1 y lectura de Suelo.
 
-### Rangos V1 implementados (perfil "interior genérico" fijo)
+La [investigación preliminar del 2026-10-11](PLANTA_LAB_RESEARCH.md) propone revisar esa interpretación: oscuridad momentánea no demuestra falta de luz, y calor/luz/agua requieren contexto, duración y especie. La lógica actual todavía penaliza Luz por debajo de 200 lux; reposo neutral, historial y combinaciones no están implementados. Los tiempos de confirmación/recuperación siguientes son de interfaz, no evidencia fisiológica.
 
-| Sensor | Rango usado por el diagnóstico | Resultado fuera del rango, si es el primer sensor por prioridad |
+## Comportamiento temporal
+
+El modelo puro está separado del renderer: `include/plant_pet.h` y `src/plant_pet.cpp`. Recibe lecturas y tiempo mediante `PlantPetModel::update()`; `snapshot()` consulta la pose interpolada sin añadir evidencia. El punto de alimentación es la copia del snapshot de UI, incluso mientras otra pantalla esté visible.
+
+- Al arrancar, adopta la clasificación disponible de las lecturas actuales.
+- Un cambio posterior de banda requiere al menos dos lecturas nuevas y 1200 ms de evidencia continua. Si entre lecturas hay más de 3000 ms, reinicia la evidencia pendiente.
+- Una lectura inválida pasa inmediatamente a `Unknown`. No castiga a la mascota ni mantiene una necesidad inventada.
+- Se conservan todas las necesidades conocidas en `affected_mask`; las filas afectadas tienen borde de alerta y la causa dominante un doble borde.
+- La causa dominante se elige por desviación relativa respecto a la zona normal, acotada a 0..1. Luz usa `log1p`, acorde con su escala. No se elige siempre Suelo por una prioridad fija.
+- Una causa que sigue activa se retiene durante 3 s. Después, otra la reemplaza si supera su gravedad en más de 0.12. Si la causa deja de ser adversa, termina esa retención. Los empates conservan la causa vigente; el orden de canales solo desempata al iniciar.
+- La transición entre poses dura 1.5 s; la recuperación de una necesidad a bienestar dura 3 s. La interpolación es visual y no representa crecimiento.
+
+Las instancias de datos reales y de Demo son independientes. Los valores sintéticos no alteran la recuperación de la mascota real, NVS ni las lecturas físicas. Planta Lab sigue fuera del recorrido automático `kDemoScenes`; separar instancias no significa añadir una escena nueva.
+
+### Intensidad térmica independiente del efecto ambiental
+
+- Temperatura Normal permite Content si los demás canales son normales y conocidos. Calor suave puede mostrar ondas manteniendo sonrisa. Suelo/Aire/Luz conservan sus reglas; no garantiza BIEN si otro canal necesita atención.
+- `thermal_intensity` escala la pose de Content a Hot de 30 a 36 °C, o a Cold de 15 a 8 °C; saturación 0..255 y rampa de 1500 ms al cambiar objetivo. Repetir una lectura no reinicia la rampa, y `snapshot()` no cuenta como evidencia nueva. Inválidas anulan la intensidad actual.
+- `previous_thermal_intensity` conserva el nivel al cambiar de mood para interpolar la recuperación/pose anterior, sin volver bruscamente a una reacción completa. Sonrisa bajo 85/255, cara tranquila neutral hasta 170/255 y gesto térmico completo desde ahí; pasos faciales ilustrativos, no estadios de estrés biológico.
+- Ondas magenta 1/2/3/4 desde 27/30/33/36 °C, independientes del mood; la intensidad de postura y la cantidad de ondas expresan cosas distintas. El color de hojas/barras aprobado se conserva. Las ondas se reparten entre ocho posiciones laterales del terrario, suben hasta 3 px, se pausan y reaparecen de forma escalonada; variación pseudoaleatoria determinista por ciclo de 12 ticks (2.64 s), sin saltos aleatorios en cada frame ni estado RNG. Lecturas y rostro quedan despejados.
+- `millis()` permite duración dentro de la sesión sin hora del día. El modelo solo usa esos tiempos para estabilizar y animar; historial de luz, persistencia de humedad, combinaciones de calor/luz/agua y compensación por calor propio no están implementados.
+
+## Sensor → gesto
+
+| Condición | Expresión y movimiento | Canal de entorno |
 |---|---|---|
-| Suelo (%) | 30 – 70, inclusivo | `SEDIENTA` por debajo; `AHOGADA` por encima |
-| Temperatura (°C) | 18 – 26, inclusivo | `ESTRÉS` |
-| Humedad aire (%) | 40 – 70, inclusivo | `ESTRÉS` |
-| Luz (lux) | 200 – 8000, inclusivo | `ESTRÉS` |
+| Condiciones conocidas normales | Rostro tranquilo, hojas abiertas, balanceo leve y parpadeo | Tierra central e iluminación normal |
+| Suelo seco | Hojas y tallo decaídos, expresión de sed | Tierra seca/agrietada |
+| Suelo húmedo en exceso | Hojas pesadas y gesto agobiado | Tierra oscura, charco/gotas |
+| Frío | Hojas recogidas y ráfagas de temblor | Copos cyan 1..3 alternados, con descenso corto y deriva lateral |
+| Calor | Postura agobiada, boca pequeña abierta y hoja que abanica | Ondas magenta, más intensas con calor |
+| Aire seco | Hojas estrechas y ojos cansados | Trazos violetas quebrados en 1..2 grupos alternados y con deriva suave |
+| Aire húmedo | Hojas a media altura y expresión propia | Niebla cyan suspendida en 1..2 grupos alternados y con deriva suave, sin alcanzar la tierra |
+| Poca luz | Tallo estirado, mirada hacia arriba y movimiento mínimo | Luna circular <20 lux; desde 20 lux sol de tamaño/brillo creciente, sin confirmar noche |
+| Datos incompletos sin necesidades conocidas | Expresión neutral | Fila desconocida atenuada y valor `--` |
 
-Fuente: `build_next_cache()` en `src/ui_lab_plant.cpp`. Los rangos son fijos e independientes de los límites editables de los menús de sensores. Un valor inválido también incumple el rango; el diagnóstico prioriza el primer sensor que lo incumple. La ausencia de Suelo impide seleccionar esta parada en el carrusel.
+La silueta usa una corona en forma de hoja con ojos y boca, dos hojas grandes y dos pequeñas conectadas a un tallo curvo. La causa dominante elige el gesto principal; las demás necesidades se mantienen visibles en sus filas y aportan efectos ambientales secundarios. La paleta de hojas es verde persistente en todas las poses, incluso Unknown. Suelo café y sol amarillo mantienen su identidad natural; calor, frío y aire usan magenta, azul/cyan y violeta.
 
-La banda de tierra comparte el rango de Suelo de `range_spec()`: seco `<30 %`, central `30..70 %` inclusivo, encharcado `>70 %`. `build_next_cache()` usa esa misma banda para el diagnóstico de Suelo, evitando duplicar límites. Exactamente 30 y 70 % pertenecen a la banda central; puede aparecer `ESTRÉS` si otra variable ambiental incumple su rango.
-
-La barra de Luz usa escala logarítmica `0..LIGHT_LUX_MAX` y zona óptima `200..LIGHT_LUX_MAX`, actualmente `8000 lux`. El diagnóstico consulta ese mismo rango. En el techo del sensor el marcador llega al extremo derecho; no hay zona alta adicional por encima de la capacidad de lectura. No se introduce un nuevo umbral biológico de exceso de luz.
-
-Antecedente corregido: la revisión anterior detectó barra de Luz `0..30000`, rango óptimo hasta `10000` y tierra `<25` / `>80 %`. El diseño inicial también proponía extremos Temp `<12/>30`, Aire `<30/>85` y Luz `<100/>30000`; no son los disparadores actuales. Ver CHANGELOG para el historial.
-
-### Animación V1
-
-Animación **continua en todos los estados** pero acotada (Nivel A + B + partículas). Las
-5 hojas se balancean con fase propia (sway desordenado), y cada estado añade un gesto:
-`BIEN` rápido + pulso de yema, `SEDIENTA` lento, `AHOGADA` lento + gotas que caen,
-`ESTRÉS` tiembla. Detalle de implementación en "Layout V1 → Animación".
-
-**No hay animación de transición entre estados.** El cambio de estado es instantáneo
-(puede cambiar rápido; una transición se vería nerviosa). La caída/crecimiento animado
-queda diferido a V3.
-
-Solo se redibuja la zona del icono (tallo + hojas + yema); la tierra es chrome estático.
-El icono es < 20 formas, así que en principio **no necesita sprite** (Nivel 4 de
-`docs/TFT_RENDER_RULES.md`): clear localizado + redibujo. Si el icono animado parpadea en
-HW, envolver solo su rect en un `TFT_eSprite` pequeño.
-
-### Visibilidad en el carrusel
-
-`PLANTA LAB` solo aparece en el carrusel si el sensor de suelo está conectado y da lecturas válidas. Si no está disponible, la pantalla se omite del ciclo de navegación.
-
-### Posición en el carrusel
-
-```text
-Inicio
-Clima Lab
-Planta Lab     ← aquí
-Termo Lab
-Temperatura
-Humedad
-Luz
-Sonido
-Suelo
-Termómetro
-Temporizador
-Sistema
-```
-
-Agrupa con los otros Labs globales por coherencia de producto.
-
-## Nombre visible y traducciones
-
-| Idioma | Nombre visible |
-|---|---|
-| Español | `PLANTA LAB` |
-| Català | `PLANTA LAB` |
-| English | `PLANT LAB` |
-
-El nombre en catalán y español es idéntico. Se usa singular porque la pantalla observa una planta concreta, no plantas en general.
-
-Textos de diagnóstico:
+## Textos visibles e i18n
 
 | Estado | Español | Català | English |
 |---|---|---|---|
-| Bien | `BIEN` | `BÉ` | `OK` |
-| Sedienta | `SEDIENTA` | `ASSEDEGADA` | `THIRSTY` |
-| Ahogada | `AHOGADA` | `OFEGADA` | `SOGGY` |
-| Estrés | `ESTRÉS` | `ESTRÈS` | `STRESSED` |
+| Bienestar | `BIEN` | `BÉ` | `OK` |
+| Sed | `SEDIENTA` | `ASSEDEGADA` | `THIRSTY` |
+| Exceso de agua | `AHOGADA` | `OFEGADA` | `SOGGY` |
+| Frío | `FRÍO` | `FRED` | `COLD` |
+| Calor | `CALOR` | `CALOR` | `HOT` |
+| Aire seco | `AIRE SECO` | `AIRE SEC` | `DRY AIR` |
+| Aire húmedo | `AIRE HÚMEDO` | `AIRE HUMIT` | `HUMID AIR` |
+| Poca luz | `POCA LUZ` | `POCA LLUM` | `LOW LIGHT` |
+| Lecturas incompletas | `FALTAN DATOS` | `FALTEN DADES` | `CHECK DATA` |
+| Recuperación | `MEJORANDO` | `MILLORANT` | `RECOVERING` |
 
-Longitud estimada en la fase de layout: con fuente 1 (~6 px/char) `ASSEDEGADA` (10
-chars ≈ 60 px) cabe en el panel derecho de diagnóstico (~92 px). No se prevé fallback
-corto. Reverificar en hardware real por si la fuente final difiere.
+Sin necesidades conocidas, algún canal desconocido impide mostrar `BIEN`: se muestra `FALTAN DATOS`. Si hay una necesidad conocida y otra lectura desconocida, se muestra la necesidad; la otra fila permanece atenuada. Los textos usan `L(KEY)` y no cambian los nombres del carrusel: ES/CAT `PLANTA LAB`, EN `PLANT LAB`.
 
-## Icono de planta
+## Ficha de implementación TFT
 
-Se crea un **icono nuevo** para el héroe, distinto del icono del sensor de Suelo (que es
-una planta en maceta). El héroe es una planta **sembrada en tierra**: banda de suelo al
-fondo + tallo vertical recto + 5 hojas asimétricas + yema. Lenguaje de relleno
-(`fillEllipse` + `fillRect`), sin contornos, coherente con el resto de iconos del firmware.
+### Layout elegido: terrario + cuatro filas
 
-Razón del icono nuevo: el sensor de Suelo ya usa una planta en maceta. Maceta vs tierra
-son dos siluetas que no se confunden ni a tamaño pequeño. No se reutiliza
-`impl_plant_detail`.
+Pantalla ST7735 160×128, landscape. El header y el carrusel existente se conservan.
 
-Reglas de forma:
-
-- **Postura por estado:** hojas **arriba** de su inserción = sana; hojas **caídas** (cada
-  vez más abajo) = enferma. Como `fillEllipse` no rota, la postura se codifica por el
-  desplazamiento vertical `dy` del centro de la hoja, no por ángulo. Ver tabla de estados.
-- **Hojas asimétricas:** 5 hojas en posiciones y tamaños desordenados (no pares espejo),
-  para que se vea natural.
-- **Tallo recto** en todos los estados. La postura la cargan solo las hojas (dy + tamaño).
-- **Parámetros del dibujo**, derivables de variables de estado: dy de hoja, escala de
-  hoja, altura y grosor del tallo, grosor de la yema, color de la tierra.
-
-## Mapeo sensor → canal visual (roadmap, NO V1)
-
-Norte de diseño para cuando se profesionalice el card: cada sensor controla una variable
-visual distinta y la planta es la **suma** de todas (Ley del Mínimo hecha imagen). En V1
-NO se implementa el mapeo fino — se simplifica a los 4 estados de diagnóstico. La
-introducción será escalonada (un canal a la vez) para no saturar la lectura.
-
-| Sensor | Canal visual | Bajo | Óptimo | Alto |
-|---|---|---|---|---|
-| Suelo | la **tierra** del terrario | clara/gris/grietas | café oscuro sano | muy oscura + charco/gotas |
-| Temperatura | **postura/vigor** de hojas | hojas encogidas (frío) | hojas abiertas arriba | hojas muy caídas (calor) |
-| Humedad aire | **partículas** en el aire | aire vacío | alguna gotita | muchas gotitas / vaho |
-| Luz | un **sol** en la esquina | sol pequeño y gris | sol amarillo medio | sol blanco intenso |
-| Tiempo / cuidado | **altura** y nº de hojas | brote | crece | alta, frondosa |
-| Salud global | **tamaño** de hoja | hojas chicas | medianas | grandes |
-
-Riesgo a vigilar: si todos los canales se mueven a la vez, el niño no sabe qué leer. Por
-eso V1 = 4 estados (un color + postura), y la combinación fina llega después.
-
-## Layout V1 — coordenadas de implementación (para Codex)
-
-Referencia: 160×128 (rotation=1). Constantes en `include/layout.h`. Archivo nuevo:
-`src/ui_lab_plant.cpp` (+ `include/ui_lab_plant.h`). Colores nuevos vía
-`tft.color565(r,g,b)`; los de sensor usan los tokens de `include/palette.h`.
-
-### Zonas y cards (px exactos)
-
-| Elemento | X | Y | W | H | Notas |
+| Zona | X | Y | W | H | Capa |
 |---|---|---|---|---|---|
-| Título header | — | base 18 (`L_HEADER_Y`) | — | — | `drawHeader("PLANTA LAB")` |
-| Divisor header | 4 | 23 (`L_HEADER_LINE`) | 152 | — | línea |
-| Terrario (card) | 2 | 27 | 56 | 99 | `drawRoundRect` r=4, fondo `0x0841`, borde idle `0x2945` |
-| Tierra (banda plana) | 4 | 110 | 52 | 14 | dentro del terrario; **SIN elipses** |
-| Fila Suelo | 62 | 27 | 96 | 17 | icono+barra+valor; borde acento si culpable |
-| Fila Temp | 62 | 46 | 96 | 17 | |
-| Fila Aire | 62 | 65 | 96 | 17 | |
-| Fila Luz | 62 | 84 | 96 | 17 | |
-| Card Estado | 62 | 104 | 96 | 22 | borde + texto = color de estado |
+| Header/divisor | — | Base 18 / línea 23 | — | — | Shell |
+| Terrario exterior | 2 | 27 | 56 | 99 | Shell |
+| Buffer interior de mascota y entorno | 3 | 28 | 54 | 95 | Dinámica |
+| Fila Suelo | 62 | 27 | 96 | 17 | Shell + campos |
+| Fila Temperatura | 62 | 46 | 96 | 17 | Shell + campos |
+| Fila Aire | 62 | 65 | 96 | 17 | Shell + campos |
+| Fila Luz | 62 | 84 | 96 | 17 | Shell + campos |
+| Card de diagnóstico | 62 | 104 | 96 | 22 | Shell + texto/borde |
 
-Verificación: terrario 2+56=58, gap `LC_GAP`=4, columna derecha 62, 62+96=158 = 2+`LC_SCREEN_W`(156) ✓.
-Vertical derecha: filas en 27/46/65/84 (h17, gap ~2) → 101; estado 104..126 = `LC_SCREEN_BOTTOM` ✓.
+Las filas usan iconos locales de aproximadamente 9×10 px centrados en x68 dentro de un carril de 11 px, barra x77 de 48×7 px y dato blanco alineado en x156 dentro de un carril de 30 px. Cada sensor conserva su color: Suelo verde, temperatura magenta, aire cyan y Luz violeta; el tramo normal es luminoso y los extremos son versiones oscurecidas del mismo color, con marcador blanco. Una lectura ausente usa estado neutro. Temperatura se presenta sin decimal y con unidad °C/°F explícita; el grado se dibuja como glifo propio 3×3 dentro de una celda de Font 1 para evitar CP437; el diagnóstico y la posición de la barra usan °C aunque el dato visible esté en °F. La barra de Luz es logarítmica y su extremo representa 8000 lux. Las zonas comparten la cuantización de píxel del marcador; los extremos normales están incluidos en el relleno de la zona central.
 
-### Interior de cada fila de sensor (96×17)
+Luz menor de 1000 lux se muestra completa (`999lx`); desde 1000 se compacta como `1K`, `1.2K` o `8K`, redondeado a una décima. `K` significa mil lux. El formato visible no modifica la lectura, el modelo ni la escala de la barra.
 
-Tres zonas horizontales. `Y` = top de la fila.
+### Paleta e iconos
 
-- **Icono:** centro `(70, Y+8)`, ~12 px, color de identidad del sensor.
-- **Barra de rango:** `x=80, y=Y+5, w=42, h=7`, r=2. Pista `color565(22,36,46)`. Tres
-  zonas contiguas: baja `color565(122,64,48)`, óptima `color565(46,125,74)`, alta
-  `color565(42,90,122)`; anchos ∝ thresholds del sensor. Marcador: línea blanca de 1 px
-  de ancho × 11 px de alto en `x = 80 + 42 * frac`, con `frac` = posición del valor en el
-  rango total (clamp 0..1).
-- **Valor:** fuente 1, alineado a la derecha en `x=156`, baseline `Y+12`, **BLANCO**.
+La [comparativa de color del 2026-10-11](PLANTA_LAB_COLOR_REVIEW.md) conserva las propuestas históricas A/B/C. El usuario eligió una adaptación: barras B con identidad por sensor y extremos oscurecidos, planta verde A, tierra café progresiva y sol amarillo. Esta combinación ya está implementada; la validación física sigue pendiente.
 
-| Fila | icono | color icono (token) | rango total → zona óptima de la barra |
-|---|---|---|---|
-| Suelo | planta (icono de Suelo) | `PB_SOIL_P1` (0x47E8) | 0–100% → 30–70% |
-| Temp | termómetro | `PB_TEMP_P1` (0xF817) | 0–40 °C → 18–26 °C |
-| Aire | nube | `PB_HUM_P1` (0x075F) | 0–100% → 40–70% |
-| Luz | sol | `PB_LUZ_P1` (0xFFE0) | log 0–8000 lux → 200–8000 lux |
+La mascota tiene una paleta de ilustración propia en `src/plant_pet_art.cpp`, distinta de los tokens de identidad de sensores. Verde compartido `PLANT_PET_GREEN=0x374B` en `include/plant_pet_art.h`; sombra verde oscura, luz menta y brillo verde pálido iguales en todos los estados. El gesto y el entorno comunican las condiciones, sin cambiar hojas a amarillo/naranja. Suelo café claro → café medio → café oscuro con la lectura relativa 0..100 %; grietas progresivas por debajo de 30 % y pequeñas manchas de agua que se amplían por encima de 70 %, dentro de las bandas confirmadas. Ausencia/no finito produce tierra café neutra sin grietas/charcos. Esta ilustración no mide volumen de agua ni diagnostica drenaje/oxígeno. Tokens completos en `docs/DESIGN_SYSTEM.md`.
 
-El icono mantiene su color de identidad; el "culpable" se marca solo con el **borde** de
-su fila en color de estado. Temp **sin decimal**. Si el valor de Luz tiene ≥5 dígitos y se
-aprieta, reducir la barra a `w=38` en esa fila.
+Los cuatro iconos de fila son dibujos locales compactos de Suelo/Temperatura/Humedad/Luz en `src/ui_lab_plant.cpp`, con sus identidades de sensor. La API global de `src/ui_icons.cpp` y los iconos de otras vistas no cambian. La mascota sigue siendo un personaje distinto del icono técnico de Suelo.
 
-### Card de estado (62, 104, 96, 22)
+El diagnóstico usa `FONT_BODY` (Roboto Regular 7), con fallback a `FONT_SMALL` cuando `textWidth()` supera 88 px (ambas Roboto con tildes), alineación `C_BASELINE` y baseline y120. Los acentos de `FRÍO`/`AIRE HÚMEDO` y los textos CAT no pasan por CP437. Solo se limpia el interior de la card cuando cambia el estado visible.
 
-Texto centrado `cx=110`, baseline ~119, fuente 1, color = color de estado. Borde = color
-de estado (2 px). Fondo `0x0841`. Catalán `ASSEDEGADA` (10 ch × 6 px = 60 px) cabe en 96 px ✓.
+### Shell y campos dinámicos
 
-### Icono héroe — parámetros (cx=30, tierra_y=110)
+- **Shell, al entrar:** header, divisor, borde del terrario, fondos/bordes de filas e iconos. Si cambia la validez de una lectura, su icono se refresca localmente con la identidad normal o atenuada.
+- **Dinámica:** interior completo del terrario compuesto en RAM, barras/valores, bordes de necesidades y texto/borde de diagnóstico.
+- El interior se dibuja en un buffer fijo RGB565 de 54×95: 10 260 bytes de RAM estática, reutilizados. No se reserva heap por frame.
+- Cada frame se compone completo en RAM y llega a la TFT mediante un único `pushImage()`, sin borrado previo del panel. Se guarda/restaura el estado de intercambio de bytes.
+- El buffer queda dentro del terrario, sin pisar header ni filas. Tras rasterizar y antes del envío, se reponen los seis píxeles de máscara de las esquinas superiores para conservar el borde redondeado r4.
+- El renderer mantiene caché de lecturas visibles, clasificación, causa, clave de animación y valores de entorno (`soil_x10/temp_x10/hum_x10/lux`). Cambiar una lectura dentro de la misma banda, del mismo dígito visible o del mismo tick permite actualizar el terrario; los campos derechos solo se actualizan si cambia lo visible. No se borra la pantalla por tick.
+- `include/plant_pet_art.h` / `src/plant_pet_art.cpp` componen mediante `plant_pet_render(..., readings)`, con lecturas opcionales para detalle continuo (sin ellas usa valores representativos por banda), sin dependencia de TFT ni heap. Reloj de animación de 220 ms, con pausas por gesto; el parpadeo ocupa 2 de 29 pasos (~440 ms cada 6.38 s). Geometría interpolada y expresión cambiada a media transición.
+- El tiempo de la animación y el refresco son compatibles: el paso observado no depende de una fase más rápida que la llamada del router.
 
-`fillRect`/`fillEllipse`, **ejes alineados** (TFT_eSPI `fillEllipse` NO rota: la postura
-se codifica por la **Y del centro** de cada hoja respecto a su punto de inserción, no por
-rotación). Todo en color de estado.
+Reglas canónicas de render y prueba: `docs/TFT_RENDER_RULES.md`. La composición en RAM reduce comandos y elimina el borrado visible previo; la ausencia de parpadeo necesita comprobación en TFT real.
 
-- **Tallo** (recto siempre): `fillRect(cx-1, tallo_top, 3, tierra_y - tallo_top)`.
-- **Bulbo:** `fillEllipse(cx, tallo_top-1, 4, 6)`. En `BIEN`, punto claro:
-  `fillCircle(cx, tallo_top-4, 2, color_claro)`.
-- **Hojas:** **5 hojas asimétricas** (no pares espejo), `fillEllipse(cx+dx, cy, rx, ry)`.
-  Posición y tamaño base fijos y desordenados; el estado aplica un desplazamiento vertical
-  `dy` y una escala global `esc`.
+## Navegación e integración
 
-Set base (asimétrico) — por hoja `(dx, cy_base, rx, ry)`:
+`Planta Lab` se mantiene entre `Clima Lab` y `Termo Lab`. Solo aparece en el carrusel si Suelo entrega lectura válida; sin Suelo se omite. Es una pantalla de solo lectura, sin menú ni submodos.
 
-| # | dx | cy_base | rx | ry |
-|---|---|---|---|---|
-| 1 | -12 | 88 | 8 | 3 |
-| 2 | +11 | 80 | 7 | 3 |
-| 3 | -9 | 72 | 6 | 2 |
-| 4 | +10 | 64 | 6 | 2 |
-| 5 | -6 | 58 | 5 | 2 |
+`LAB_PLANT_SCREEN` se enruta en `src/tft_display.cpp` a `draw_lab_plant_screen()`. La actualización del modelo ocurre fuera del draw; volver a esta vista no reinicia la recuperación. El renderer no dibuja el badge global `L_ALERT_JEWEL`, que invadiría el terrario.
 
-Por estado: `cy = cy_base + dy`, `rx,ry ×= esc`:
+## Verificación y pruebas pendientes
 
-| Estado | tallo_top | dy hojas | esc | Extra |
-|---|---|---|---|---|
-| `BIEN` | 44 | -4 (arriba) | 1.0 | yema con punto claro |
-| `SEDIENTA` | 46 | +4 (caídas) | 0.85 | — |
-| `AHOGADA` | 46 | +6 | 0.9 | 2 gotas que caen (animadas) |
-| `ESTRÉS` | 46 | +7 | 0.7 | solo hojas 1–3; + hoja caída `fillEllipse(44,118,7,3)` naranja apagado |
+2026-10-12: el usuario comunica que la versión cargada funciona muy bien y pide conservar el diseño actual. Se da por cerrado provisionalmente el ajuste visual de producto; esta observación general no verifica individualmente todas las poses, idiomas, recuperación, flicker ni Demo, ni cierra la validación completa por unidad/24 h.
 
-### Tierra por banda de Suelo (independiente del estado)
+Próximo paso recomendado, aún no ejecutado ni aprobado como implementación: revisión acotada de comportamiento y contrato de perfiles antes de diseñar el setup. Alcance: `plant_pet.cpp`, interfaz `plant_pet.h`, integración de snapshot/modelo en Planta Lab y ADR-003/investigación; revisar el renderer solo si aparece un defecto funcional concreto. Definir reposo con poca luz, observaciones frente a diagnóstico, respuesta de Suelo/aire, datos inválidos/techo LDR, duración válida de sesión y prioridades. Salida esperada: hallazgos priorizados y contrato de configuración mínimo; no auditoría global, rediseño ni implementación de historial/presets por inferencia.
 
-Relleno de la banda + línea superior (2 px) + grietas; color por banda de humedad de suelo:
+El usuario aprobó en P-Bit colores actuales de planta/medidores y valoró favorablemente el suelo. Esta aceptación puntual no cierra poses, idiomas, recuperación, flicker ni Demo. Sol/luna, ondas y flexibilidad térmica ya están implementados y comprobados por software; validar el último ajuste en TFT antes del setup. Humedad ambiental flexible, reposo neutral, historial y combinaciones siguen propuestos.
 
-| Banda suelo | Relleno | Línea superior | Grietas |
-|---|---|---|---|
-| Seco (<30%) | `color565(110,74,36)` | `color565(134,96,46)` | 2× `drawLine` `color565(74,48,22)` |
-| Banda central (30–70%, inclusivo) | `color565(74,48,22)` | `color565(110,74,36)` | — |
-| Encharcado (>70%) | `color565(46,36,24)` | brillo = color AHOGADA | — |
+El 2026-10-11 el usuario comunicó que probó la mascota en el P-Bit y le gustó la primera idea. Es una primera impresión física favorable, no el cierre de todas las poses, idiomas, transiciones ni flicker. Primero se cierran los ajustes visuales; después se discutirá configuración/presets.
 
-La tierra es una **banda plana**: rect + línea fina superior + grietas (`drawLine`).
-**NUNCA dibujar elipses sobre la tierra** — causaban un bulto marrón con mala lectura.
+La aprobación del alcance y la implementación software se distinguen de la aprobación física completa. La evidencia de pruebas nativas, preview y build final se registra en CHANGELOG; no equivale a flasheo ni validación de unidades.
 
-### Colores de estado (planta + texto/borde card estado + borde culpable)
+- [x] Alcance aprobado: mascota verde con rostro, reacciones por sensor y recuperación sin persistencia.
+- [x] Rangos compartidos y conservación de carrusel/visibilidad condicional.
+- [x] Contrato de modelo independiente de render, con desconocidos y estabilización temporal.
+- [x] Pruebas nativas: Modelo nativo, incluidos casos térmicos nuevos, 1215 combinaciones de pose/fase/transición, 101 niveles de Suelo y 4 casos ausentes/no finitos, PASS; host `-Wall -Wextra -Werror` limpio. Fuentes reproducibles: `test/plant_pet_native.cpp` y `test/plant_pet_art_native.cpp`.
+- [x] Preview software actual: nueve estados, once niveles de suelo, quince temperaturas, diez niveles/límites de símbolos de Luz y GIF de 64 frames desde código real; 138 comparaciones incremental/completo PASS. Artefactos en `.pio/plant_pet_review/effects/`, sin versionar. Incluye 48 frames adicionales de calor, galería solar con pantalla completa y GIF/galería de posiciones; usuario acepta el preview general de sol/luna y calor distribuido y pide extender los efectos a frío/aire, ahora integrados según el preview autorizado. Galerías térmica/solar revisadas por el agente; no equivale a observación TFT.
+- [x] Compilación final `esp32dev` SUCCESS: RAM 59 580 bytes (18.2 %), Flash 971 189 bytes (74.1 %). Árbol base `3744f04` + mascota/diseño local, sin commit; evidencia en CHANGELOG/PRODUCTION_RELEASE.
+- [ ] **Proof 9:** observar Demo en dispositivo durante al menos 30 s; Planta Lab no se incluye automáticamente.
+- [ ] **Proof 10:** observar la mascota en TFT real: poses, ritmo, transiciones, bordes/valores, ausencia de parpadeo y textos ES/CAT/EN.
+- [ ] Validar Luz 8000 en extremo de barra y coherencia de tierra/diagnóstico a ambos lados de 30 y 70 %, incluyendo el retardo de confirmación.
+- [ ] Validar necesidades simultáneas, lectura desconocida y recuperación al cambiar a otra vista y regresar.
 
-| Estado | `tft.color565()` |
-|---|---|
-| `BIEN` | `(46, 204, 90)` |
-| `SEDIENTA` | `(232, 162, 42)` |
-| `AHOGADA` | `(63, 163, 224)` |
-| `ESTRÉS` | `(232, 84, 42)` |
+Prueba final de 24 h y validación física completa por unidad: abiertas y aplazadas por decisión del usuario.
 
-Fondo navy: `color565(8,12,18)`. Card interior `0x0841`. Borde idle `0x2945`.
+## Efectos ambientales distribuidos — integrados 2026-10-11
 
-### Chrome vs data (anti-flicker, ver `docs/TFT_RENDER_RULES.md`)
+Estado: implementación autorizada por el usuario después del preview. El usuario acepta el preview general de sol/luna y calor distribuido, y solicita extender distribución/movimiento a frío y posiblemente humedad/sequedad del aire. Esa aceptación de preview no cierra la prueba TFT.
 
-- **Chrome** (1 vez en `screen_changed`): header + divisor, borde del terrario, bordes
-  idle de las 4 filas, iconos de sensor, pista vacía de cada barra de rango, fondo de la
-  card de estado.
-- **Data** (al cambiar la cache): banda de tierra (si cambia la banda), planta
-  (tallo+hojas+bulbo; animación continua, ver abajo), zonas+marcador de cada barra,
-  4 valores, borde de la fila culpable, texto + borde de la card de estado.
+- Frío: 1..3 copos pequeños cyan/azul claro según la intensidad térmica ya suavizada (1 + intensidad/86, máximo 3) y la banda fría confirmada, independientemente de la necesidad dominante. Alternar posiciones laterales y alturas, descenso corto y deriva lateral de 1 px; ciclo de 18 ticks (3.96 s), pausa de 4 ticks; aumentar cantidad con intensidad, sin tormenta. Copos como pictograma de frío, no afirmación de nieve/helada.
+- Aire húmedo: 1..2 grupos de trazos/motas cyan suspendidos, con deriva lateral lenta y apariciones alternadas a ambos lados. Mantenerlos separados del suelo; no gotas de lluvia ni charcos ambientales. Detalle crece dentro de la banda alta confirmada.
+- Aire seco: conservar trazos cortos/discontinuos violetas, añadir desplazamiento leve y pausas largas en posiciones alternadas. 1..2 grupos, menos densos que los copos. Evitar polvo/hojas cayendo y grietas fuera del suelo. El movimiento no representa una medición de viento.
+- Composición: máximo cuatro grupos ambientales visibles a la vez entre temperatura y aire; reservar uno para aire cuando ambos requieren señal. Posiciones seguras dentro del terrario, sin rostro, sol/luna, suelo, marcador de desconocidos ni lecturas. Variación determinista entre apariciones, sin random por frame, manteniendo la cadencia de 220 ms y el buffer fijo. Ritmos distintos: calor asciende, frío desciende, aire deriva lateralmente.
+- Mantener paleta, terreno, expresiones y rangos actuales. Son decisiones visuales de producto, no nuevos umbrales agronómicos. Preview de tres intensidades de frío y aire, más combinaciones frío+aire húmedo y calor+aire seco autorizado e integrado. Usuario comunica funcionamiento general favorable en TFT el 2026-10-12; comprobaciones exhaustivas siguen abiertas.
 
-### Cache struct
+Preview preparado desde una copia aislada de `plant_pet_art.cpp` en `.pio/plant_pet_review/ambient_proposal/`: nueve escenas de intensidad y dos combinaciones, con 48 frames por escena. Galerías PNG y tres GIF desde el layout/fuentes reales 160×128. Host C++11 `-Wall -Wextra -Werror` limpio; 528 comparaciones incremental/completo PASS. Ese preview precedió la autorización e integración en `src/plant_pet_art.cpp`. Ahora: 528 comparaciones host PASS y 528 frames idénticos al preview; raster 1215 casos +101 niveles de Suelo y 4 ausentes/no finitos PASS. Build ESP32 SUCCESS (20.103 s), RAM 59580, Flash 971189. Carga posterior autorizada en COM8 SUCCESS (29.848 s), hashes verificados y reinicio RTS enviado; observación general favorable del usuario el 2026-10-12; comprobaciones visuales específicas pendientes.
 
-```cpp
-struct PlantLabCache {
-    uint8_t  state;        // 0xFF init → fuerza primer dibujo
-    uint8_t  soil_band;    // 0=seco 1=óptimo 2=encharcado (color de tierra)
-    uint8_t  culprit;      // card resaltada: 0=Suelo 1=Temp 2=Aire 3=Luz, 0xFF=ninguna
-    int16_t  soil_x10;     // últimos valores mostrados (×10 para detectar cambio)
-    int16_t  temp_x10;
-    int16_t  hum_x10;
-    uint32_t lux;
-    uint8_t  anim_phase;   // fase de animación (avanza cada frame, todos los estados)
-    bool     chrome_done;
-};
-static PlantLabCache g_plant_cache = { 0xFF, 0xFF, 0xFF, 0, 0, 0, 0, 0, false };
-```
+## Futuro, fuera de esta revisión
 
-### Animación (Nivel A + B + partículas)
+### Configuración de Planta Lab — propuesta posterior al cierre visual
 
-Animación **continua en todos los estados** (responde a "la planta necesita más vida"),
-pero acotada para no exceder coste de render.
+Esta propuesta no está implementada ni añade configuración en esta revisión. La [investigación para perfiles de aula](PLANTA_LAB_RESEARCH.md) recomienda comenzar a validar judía enana, rábano y albahaca en sustrato. Antes del setup se deben acordar observaciones, reposo y avisos, además de las reglas de duración/cobertura. Un preset no se reduce necesariamente a cuatro intervalos independientes.
 
-- **Nivel A — idle sway (siempre):** cada una de las 5 hojas se balancea con fase propia.
-  Como `fillEllipse` no rota, el sway se aproxima moviendo `cx` de la hoja ±1–2 px (y/o
-  alternando `rx` ±1) según `anim_phase` + un offset por hoja, de modo que NO se muevan
-  todas igual (desordenado = natural). Precalcular 3–4 pasos por hoja.
-- **Nivel B — gesto por estado:** `BIEN` sway rápido + pulso de yema; `SEDIENTA` sway
-  lento; `AHOGADA` sway lento + gotas; `ESTRÉS` tiembla (offset X ±1 px de todo el grupo
-  hoja+tallo).
-- **Partículas:** `AHOGADA` 1–2 gotas (`fillEllipse` 2×3) que caen (avanzan en Y por
-  `anim_phase`, reaparecen arriba). En `BIEN`, destello opcional en la yema.
+- Menú raíz con grid 2×3: `Preset` y `Personalizar` como opciones primarias; `Reset` abajo izquierda y `Salir` abajo derecha. Mantener hasta cuatro primarias y el contrato encoder-grid.
+- `Personalizar` ofrecería los cuatro sensores; el flujo de mínimo/máximo es un borrador que deberá revisarse con la semántica de luz, historial y combinaciones. Los ajustes pertenecerían al perfil de Planta Lab, distinguiéndolos de los límites de alertas de los sensores y de la calibración RAW de Suelo.
+- Los presets deberán declarar alcance, fuentes y método de calibración compatible. No traducir un porcentaje agronómico de humedad directamente a la escala relativa del P-Bit ni proponer rangos de Luz que el techo de 8000 impida observar.
+- Persistencia del perfil en NVS, significado de `Reset`, fuentes por especie y validaciones de límites se diseñarán después. Guardar un perfil es independiente del crecimiento persistente, que continúa fuera de alcance.
+- Personajes por especie y fichas/presets versionados en la web son ideas futuras; no hay catálogo ni importación implementados.
 
-Render: cada frame se redibuja **solo** la zona del icono (clear localizado del interior
-del terrario por encima de la tierra; la tierra es chrome y no se toca). Respetar el
-refresh de Demo Mode (~220 ms) y los clears localizados. **Sin transición** entre estados
-(cambio instantáneo, puede ser rápido). Total < 20 formas → **sin sprite** (Nivel 4); si
-en HW el parpadeo del icono animado fuese visible, envolver SOLO el rect del icono en un
-`TFT_eSprite` pequeño (no toda la pantalla).
 
-### Lógica de diagnóstico
 
-Prioridad `suelo > temperatura > humedad aire > luz`. El estado es el del primer sensor
-fuera de rango por prioridad; si todos están en óptimo → `BIEN`. `culprit` = índice de
-ese sensor (Suelo=0, Temp=1, Aire=2, Luz=3); en `BIEN`, `culprit = 0xFF`. Rangos actuales en
-la sección "Rangos V1 implementados".
+- Crecimiento acumulado, brotes y etapas guardadas entre reinicios.
+- Perfiles de planta y límites de Planta Lab configurables.
+- Misiones de cuidado, historial de condiciones y comparación entre experimentos.
+- Inclusión de Planta Lab en una coreografía Demo temática.
+- Integración con aplicaciones.
 
-### Integración aplicada en el firmware
-
-- **Enum:** `LAB_PLANT_SCREEN` está en `include/tft_display.h` junto a los identificadores internos `LAB_*_SCREEN`.
-- **Render dispatch:** `src/tft_display.cpp` enruta a `draw_lab_plant_screen()` y refresca la animación a `220 ms`.
-- **Carrusel** (`src/rotary.cpp`, `kCarousel[]`): `{ LAB_PLANT_SCREEN, -1 }` está entre
-  `{ LAB_DUAL_TH_SCREEN, -1 }` (CLIMA LAB) y `{ LAB_WIDGET_MIX_SCREEN, -1 }` (TERMO LAB).
-- **Visibilidad condicional:** se omite del ciclo si el sensor de suelo no da lectura válida
-  (`isnan(soil_humidity)`); ver `include/external_sensor_state.h`.
-- **i18n:** título y strings de estado (ES/CAT/EN) integrados en el sistema de strings.
-- **Alert jewel:** `L_ALERT_JEWEL` (14,118) cae dentro del terrario. El renderer actual no lo dibuja; la planta comunica el estado. Si se recupera una capa global de badge, preservar esa exclusión.
-
-## Alcance de V1
-
-### Sí entra en V1
-- Pantalla única `PLANTA LAB` con layout terrario (planta sembrada izq) + cuatro filas
-  de rango (Suelo, Temp, Aire, Luz) + card de diagnóstico.
-- Icono héroe nuevo (planta en tierra), distinto del icono de Suelo.
-- Cuatro estados por postura + color con lógica de prioridad.
-- Tallo recto en todos los estados.
-- La tierra del terrario refleja el estado de suelo (seca / sana / encharcada).
-- Animación continua acotada en todos los estados (sway + gesto de estado + partículas en
-  `AHOGADA`); sin transición entre estados.
-- Thresholds hardcodeados (perfil interior genérico).
-- Visibilidad condicional según sensor de suelo disponible.
-- Strings i18n en ES / CAT / EN.
-- Posición en el carrusel.
-
-### No entra en V1
-- Mapeo fino sensor→canal visual (cada sensor controla una variable distinta del dibujo).
-- Selector de perfiles de planta (tropical, cactus, interior, personalizado).
-- Persistencia NVS de perfil seleccionado.
-- Segunda pantalla del Lab (vista de rangos por sensor).
-- Variación de forma del icono por crecimiento (tallo que crece, hojas que aparecen).
-- Animación de transición entre estados (hojas cayendo).
-- Submodos de navegación dentro de `PLANTA LAB`.
-- Actividades o misiones guiadas.
-- Notificaciones BLE de cambio de estado.
-
-## Roadmap de versiones
-
-### V2 — Perfiles de planta
-- Selector de perfil al entrar a `PLANTA LAB` (o desde el menú).
-- Perfiles: interior, tropical, cactus, mucha agua, poca agua, mucha luz, poca luz, personalizado.
-- Guardado en NVS con namespace propio.
-- El nombre del perfil activo aparece como subtítulo: `PLANTA LAB · Tropical`.
-- Segunda pantalla del Lab: lista de los cuatro sensores con barra de rango que muestra zona baja / óptima / alta y posición del valor actual. Usa la misma paleta de zonas que `Sensor Zone Rango` para coherencia visual.
-
-### V3 — Planta viva
-- Mapeo fino sensor→canal visual completo (ver sección "Mapeo sensor → canal visual"):
-  tierra por suelo, postura por temperatura, partículas por humedad de aire, sol por luz.
-- Animación de transición entre estados (hojas que caen al enfermar).
-- La planta tiene historia: empieza pequeña (tallo corto, una hoja) y crece según condiciones acumuladas.
-- Con buenas condiciones: el tallo se alarga, aparecen más hojas.
-- Con estrés prolongado: las hojas caen, el tallo se dobla.
-- Sistema de frames de pixel art para los estados de crecimiento.
-- Actividades guiadas: misiones con objetivo y seguimiento de condiciones.
-- Comparación entre experimentos.
-- Posible integración con app companion vía BLE.
-
-## Consecuencias
-
-`PLANTA LAB` convierte el sensor de suelo en algo significativo para niños que de otro modo no sabrían qué hacer con un porcentaje de humedad de tierra. La pantalla enseña que el bienestar de una planta depende de un sistema de variables, no de una sola lectura.
-
-La decisión de crear un icono héroe nuevo separa la metáfora de cuidado de planta del icono técnico de Suelo. La decisión de hardcodear los thresholds permite validar los rangos en el aula antes de exponerlos como configurables.
-
-El mecanismo de visibilidad condicional (solo aparece si hay sonda de suelo) mantiene la coherencia del carrusel para usuarios sin ese sensor.
-
-## Seguimiento de aplicación
-
-- [x] Layout de 160×128 px e implementación `src/ui_lab_plant.cpp`.
-- [x] Strings i18n, posición en carrusel y visibilidad condicional por lectura de Suelo.
-- [x] Build `esp32dev` comprobada; seguimiento documental en CHANGELOG/ROADMAP.
-- [ ] Revisar visualmente los cuatro estados, textos ES/CAT/EN, animación, barras/valores y aparición condicional.
-- [x] Alinear escala/rango de Luz con `LIGHT_LUX_MAX` y banda de tierra con el diagnóstico de Suelo (primer ajuste 2026-10-10); validación visual física pendiente.
-- [ ] Concretar con el usuario la siguiente mejora de Planta Lab; perfiles/crecimiento siguen como propuestas futuras.
+Cualquier progreso persistente deberá tener reglas propias de tiempo, reinicio y recuperación; no se infiere de las animaciones de esta versión.

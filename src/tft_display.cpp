@@ -295,16 +295,9 @@ static void copy_readings_for_ui(bool force, bool raw_mic) {
     portEXIT_CRITICAL(&readings_mux);
 
     static bool initialized = false;
-    if (force || !initialized || raw_mic) {
-        demo_mode_apply_simulated_readings(next);
-        g_ui_readings_snapshot = next;
-        initialized = true;
-        return;
-    }
-
-    if (valid_number(next.mic) && valid_number(g_ui_readings_snapshot.mic)) {
-        const float delta = fabsf(next.mic - g_ui_readings_snapshot.mic);
-        if (delta < kVisualSoundDeadband) {
+    if (!force && initialized && !raw_mic
+        && valid_number(next.mic) && valid_number(g_ui_readings_snapshot.mic)) {
+        if (fabsf(next.mic - g_ui_readings_snapshot.mic) < kVisualSoundDeadband) {
             next.mic = g_ui_readings_snapshot.mic;
         }
     }
@@ -312,6 +305,10 @@ static void copy_readings_for_ui(bool force, bool raw_mic) {
     demo_mode_apply_simulated_readings(next);
     g_ui_readings_snapshot = next;
     initialized = true;
+#if PBIT_ENABLE_GRAPH_LAB
+    // Update even when another screen is visible; demo has its own RAM model.
+    update_lab_plant_readings(next, millis(), demo_mode_is_active());
+#endif
 }
 
 static void apply_global_alert_rgb(const GlobalAlertSummary& summary) {

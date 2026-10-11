@@ -2,10 +2,12 @@
 
 Guía breve para agentes que trabajen en este repo P-Bit.
 
-## Estado y prioridad de trabajo — 2026-10-10
+## Estado y prioridad de trabajo — 2026-10-12
 
-- Última build comprobada: `esp32dev`, commit `27e5207`, `SUCCESS`; RAM estática `49140/327680` (15.0 %), Flash `961709/1310720` (73.4 %). Evidencia y advertencias en `docs/PRODUCTION_RELEASE.md`.
-- Documentación de estado actualizada en esta revisión; siguiente prioridad acordada: revisión visual/UX de `Planta Lab`. Demo y anti-flicker se revisan como comprobaciones visuales existentes, no como funciones nuevas por implementar.
+- Última build comprobada (2026-10-11): `esp32dev`, base `3744f04` + cambios locales de mascota y ajuste visual de Planta Lab, `SUCCESS`; RAM estática `59580/327680` (18.2 %), Flash `971189/1310720` (74.1 %). Evidencia y advertencias en `docs/PRODUCTION_RELEASE.md`; no atribuir esta build solo al commit base.
+- Mascota de `Planta Lab` implementada: verde A persistente, barras B por sensor, tierra café progresiva; colores y suelo aprobados puntualmente por el usuario en P-Bit. Último ajuste software: temperatura flexible 15..30 °C, histéresis ±0.5 °C y postura/rostro térmicos graduales; ondas magenta distribuidas a distintas alturas y lados del terrario desde 27 °C, sol amarillo de cuatro tamaños y luna circular solo <20 lux (no confirma noche). Usuario acepta el preview general de sol/luna y calor distribuido; copos alternados y efectos de aire suaves/repartidos autorizados e integrados (ADR-003), con máximo cuatro grupos ambientales conjuntos. Candidato cargado en COM8 con hashes verificados y reinicio RTS enviado; usuario comunica el 2026-10-12 que funciona muy bien y pide conservarlo: cierre visual provisional de producto. No cierra todas las pruebas de poses, idiomas, recuperación, flicker ni Demo. Siguiente paso recomendado: revisión acotada de comportamiento/contrato de perfiles antes del setup; configuración/presets e historial siguen sin implementar.
+- Los umbrales de Suelo/Aire/Luz son un perfil educativo heredado sin especie; temperatura 15..30 °C y rampas son decisiones provisionales de mascota, no óptimos ni daño biológico. Suelo es relativo a calibración; 8000 lux es techo instrumental. `millis()` permite medir duraciones durante la sesión, pero no hay historial diario/persistente ni detección de sol directo o corrección por calor propio del P-Bit.
+- Investigación preliminar para perfiles de aula: `docs/PLANTA_LAB_RESEARCH.md`. Propone reposo sin penalizar oscuridad momentánea, historial/combinaciones y candidatas por especie; aún no implementado. El modelo actual todavía marca `POCA LUZ` por debajo de 200 lux. Diseño conservado por decisión del usuario; revisar semántica/perfiles antes del setup; no confundir propuestas con presets validados.
 - La prueba final de 24 h y la validación física completa por unidad siguen pendientes, aplazadas por decisión del usuario. No iniciarlas ni activar debug por inferencia de un checklist histórico.
 - `docs/HARDWARE_VALIDATION_2026-06-04.md` es evidencia histórica. Antes de tratar una anomalía como bug vigente, consultar su tabla de seguimiento, `CHANGELOG.md` y el código actual.
 - El cierre visual vigente y sus preguntas están en `docs/ROADMAP.md`; diseño/implementación de Planta Lab en `docs/ADR-003-planta-lab.md`. No marcar validaciones HW como completadas basándose solo en lectura de código o build.
@@ -14,6 +16,7 @@ Guía breve para agentes que trabajen en este repo P-Bit.
 
 - Firmware PlatformIO/Arduino para ESP32 con TFT ST7735 160x128, encoder, LED RGB, buzzer y sensores ambientales.
 - `src/io.cpp` lee sensores y publica `Reading`; `src/tft_display.cpp` enruta pantallas; `src/rotary.cpp` centraliza encoder; `src/settings_store.cpp` encapsula NVS.
+- `src/plant_pet.cpp` interpreta las necesidades de Planta Lab al copiar el snapshot UI (también fuera de esa vista); `src/plant_pet_art.cpp` dibuja la mascota en buffer fijo RGB565. Instancias reales/Demo separadas; rangos compartidos en `plant_pet_range()`, desconocidos sin penalización.
 - Carrusel de producción: `Inicio -> Clima Lab -> Planta Lab -> Termo Lab -> Temperatura -> Humedad -> Luz -> Sonido -> Suelo -> Termómetro -> Timer -> Sistema`; `Planta Lab` se omite si Suelo no entrega lectura válida.
 - `SENSOR_ZONE_SCREEN` es la capa común para Temperatura, Humedad, Luz, Sonido, Suelo y Termómetro (`DS18B20` técnico). Su ciclo visible común es `Principal -> Rango -> Ficha -> Dato -> Curva`; `Sonido` añade `Sonido VU` y `Sonido Onda` justo después de `Principal`. Los enums internos históricos (`Focus`, `Valor`, `Graph`, `Gauge`, `Card`) pueden seguir existiendo.
 - `Sistema` separa dos controles audibles:
