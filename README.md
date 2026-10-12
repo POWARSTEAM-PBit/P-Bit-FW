@@ -25,7 +25,7 @@ En Windows, si `platformio` no está en PATH:
 
 ## Estado actual
 
-- Build verificada el `2026-10-12`, base `23fdb57` + cambios locales V1 de Planta Lab: `esp32dev` SUCCESS (22.711 s), RAM estática `60372/327680` (18.4 %), Flash `979701/1310720` (74.7 %), flags de producción sin cambios.
+- Build verificada el `2026-10-12`, base `23fdb57` + cambios locales V1 de Planta Lab: `esp32dev` SUCCESS (72.82 s, con fix de acceso al setup y resumen compacto), RAM estática `60372/327680` (18.4 %), Flash `979797/1310720` (74.8 %), flags de producción sin cambios.
 - Candidato V1 cargado en COM8: SUCCESS (34.229 s), hashes verificados y reinicio RTS enviado. La carga no cierra la comprobación física del candidato.
 - Planta Lab conserva el diseño visual aceptado provisionalmente por el usuario el 2026-10-12: verde persistente, barras por sensor, tierra café progresiva, sol/luna y efectos ambientales distribuidos. La nueva V1 añade REPOSO contextual por luz baja, mediciones identificadas/frescura y gesto gradual de Suelo/Temperatura/Aire con continuidad en recuperación. No diagnostica salud ni daño biológico.
 - Configuración propia: pulsación larga ~1.2 s, menú `Perfil/Ajustar/Reset/Salir`, General/Personalizado y seis referencias en borrador. Guardar confirma/persiste; Cancelar es inicial y una larga cancela todo. Temperatura se edita en C/F global y guarda °C. General conserva personalizado; Reset afecta únicamente Planta Lab, sin modificar alarmas ni calibración. Una calibración distinta solicita revisar las referencias personalizadas de Suelo.

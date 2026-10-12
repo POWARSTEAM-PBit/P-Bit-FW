@@ -2,6 +2,12 @@
 
 ## 2026-10-12
 
+### Firmware — Corrección de acceso al setup de Planta Lab
+
+- La pulsación larga en Planta Lab no abría el setup: `poll_rotary_aux()` no asignaba umbral a `LAB_PLANT_SCREEN`, por lo que `handle_button_long_press()` nunca se llamaba. Añadida al grupo de pantallas con `MENU_LONG_PRESS_MS` (1200 ms), igual que los demás menús; también habilita la pulsación larga de cancelar dentro del setup. Detectado en prueba física del candidato V1 cargado en COM8.
+- Resumen previo a Guardar rediseñado como tabla compacta tras observación física (pantalla apretada): perfil en FONT_SMALL, tres filas a 14 px con marca de color, etiqueta a la izquierda y rango entero a la derecha (temperatura sin decimal, en la unidad visible), separador propio y botones 18 px; se elimina el pie "Gira y pulsa" y el trozo de separador que asomaba entre botones. Stub TFT nativo ampliado (`ML/MR_DATUM`, `drawFastHLine`, `color565`); suite nativa no ejecutada en esta sesión por falta de compilador host.
+- Build `esp32dev` SUCCESS (72.82 s): RAM 60372/327680 (18.4 %), Flash 979797/1310720 (74.8 %). El usuario informa que el acceso al setup y el nuevo resumen funcionan en P-Bit. AGENTS, README, ROADMAP y PRODUCTION_RELEASE/CHECKLIST sincronizados; la prueba V1 caso a caso sigue abierta.
+
 ### Firmware/UI — Correcciones de comportamiento y setup V1 de Planta Lab
 
 - Implementado el contrato autorizado tras la revisión sobre `23fdb57`: General/Personalizado con referencias de Suelo 30..70 %, T 15..30 °C y Aire 40..70 % como punto de partida educativo. Luz contextual permite `REPOSO` y no domina necesidades. Suelo/Aire también tienen gesto gradual; `SUELO SECO` / `SUELO HÚMEDO` sustituyen diagnósticos anteriores en ES/CAT/EN. Mezcla de poses conserva continuidad al interrumpir recuperación. Paleta/layout aprobados conservados; sin presets, historial, crecimiento ni consejos biológicos nuevos.

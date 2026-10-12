@@ -1075,6 +1075,7 @@ void poll_rotary_aux() {
             || (active_screen == SOIL_SCREEN && soilCalibrationIsActive())
             || (active_screen == DS18B20_SCREEN && !ds18_menu_is_active())
             || (active_screen == SYSTEM_SCREEN && !system_menu_is_active())
+            || active_screen == LAB_PLANT_SCREEN
 #if PBIT_ENABLE_GRAPH_LAB
             || active_screen == SENSOR_ZONE_SCREEN
             || active_screen == LAB_HOME_CARDS_SCREEN

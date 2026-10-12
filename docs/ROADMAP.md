@@ -48,7 +48,9 @@ Seguimiento del software (evidencia en [producción](PRODUCTION_RELEASE.md) y [A
 - [x] Pantalla principal: 143 comparaciones incremental/completo PASS. Setup: 30 comparaciones PASS en ES/CAT/EN, con fuentes y primitivas TFT reales emuladas.
 - [x] Build final `esp32dev` SUCCESS (22.711 s): RAM 60372 / Flash 979701; +792 RAM y +8512 Flash frente al candidato visual anterior. Flags/dependencias sin cambios.
 - [x] Carga COM8 SUCCESS (34.229 s), hashes verificados y reinicio RTS; log ignorado `.pio/plant_pet_review/profile_v1/upload.log`.
-- [ ] Prueba funcional/visual del nuevo setup y comportamiento en el P-Bit por el usuario.
+- [x] Primera prueba de uso (2026-10-12): corregidos el acceso por pulsación larga al setup y el resumen apretado; build SUCCESS (RAM 60372 / Flash 979797). El usuario informa que acceso y resumen funcionan.
+- [ ] Recorrido explícito del setup en P-Bit: persistencia tras reinicio, Reset aislado, C/F, cancelación larga, recalibrar Suelo → `REVISAR SUELO` → reconfirmar.
+- [ ] Prueba funcional del comportamiento en P-Bit: reposo con poca luz, datos ausentes/antiguos, gestos graduales y recuperación interrumpida.
 - [ ] Comprobar poses, idiomas, recuperación, símbolos ambientales y flicker en TFT real; comprobar Demo como regresión.
 
 ### Después de la prueba — presets e historial

@@ -174,7 +174,7 @@ La animación usa reloj de 220 ms, pausas propias por gesto, hojas con fases dis
 
 El perfil General/Personalizado cambia las referencias de tres barras sin cambiar sus colores. Suelo/Aire/Luz conservan sus escalas; temperatura mantiene 0..40 °C en General y extiende sus extremos gráficos para incluir referencias personalizadas fuera de ese tramo. La revisión de perfil/calibración forma parte de la caché: redibujar zonas afectadas aunque lectura/mood coincidan. Suelo personalizado pendiente de revisión mantiene cifra blanca, barra/referencia neutral y aviso REVISAR SUELO; las referencias no determinan gesto hasta reconfirmar.
 
-El menú propio conserva el grid 2×3: Perfil/Ajustar arriba, fila central vacía, Reset/Salir abajo. Seis referencias en card central, resumen con Cancelar/Guardar (Cancelar inicial), Reset NO/SÍ (NO inicial). Redraw incremental de tiles/valor/botones; no fillScreen por giro.
+El menú propio conserva el grid 2×3: Perfil/Ajustar arriba, fila central vacía, Reset/Salir abajo. Seis referencias en card central, resumen en tabla compacta (perfil y=36; filas Suelo/Temp./Aire y=52/66/80 con marca de color, etiqueta a la izquierda y rango entero alineado a la derecha; separador y=89; botones Cancelar/Guardar y=96..113 sin pie de ayuda; Cancelar inicial), Reset NO/SÍ (NO inicial). Redraw incremental de tiles/valor/botones; no fillScreen por giro.
 
 
 ### SENSOR CARD (patrón moderno canónico)

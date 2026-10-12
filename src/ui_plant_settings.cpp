@@ -18,9 +18,16 @@ namespace {
 constexpr uint8_t PLANT_MENU_PRIMARY_COUNT = 2;
 constexpr uint8_t PLANT_MENU_RESET_INDEX = PLANT_MENU_PRIMARY_COUNT;
 constexpr uint8_t PLANT_MENU_EXIT_INDEX = PLANT_MENU_PRIMARY_COUNT + 1;
-constexpr int CHOICE_Y = 94;
+constexpr int CHOICE_Y = 96;
 constexpr int CHOICE_W = 70;
-constexpr int CHOICE_H = 19;
+constexpr int CHOICE_H = 18;
+// Save summary: profile title, three aligned rows, divider, then choices.
+constexpr int SUMMARY_TITLE_Y = 36;
+constexpr int SUMMARY_ROW_Y0 = 52;
+constexpr int SUMMARY_ROW_GAP = 14;
+constexpr int SUMMARY_DIVIDER_Y = 89;
+constexpr int SUMMARY_LABEL_X = 18;
+constexpr int SUMMARY_VALUE_X = 146;
 constexpr uint16_t kPanelBg = 0x0841;
 
 // Encoder writes, display reads. Never hold this lock across NVS or TFT I/O.
@@ -118,25 +125,35 @@ void draw_choices(uint8_t choice) {
 void draw_save_summary() {
     const PlantPetProfile& profile = g_draft.mode == PlantProfileMode::General
         ? plant_pet_general_profile() : g_draft.custom_profile;
-    char lines[3][40];
-    const char* pointers[3];
-    uint16_t colors[3];
+    // The screen was cleared by the caller; choices replace the footer hint.
+    tft.setFreeFont(FONT_SMALL);
+    tft.setTextDatum(MC_DATUM);
+    tft.setTextColor(PB_LUZ_P1, TFT_BLACK);
+    tft.drawString(profile_label(g_draft.mode), tft.width() / 2, SUMMARY_TITLE_Y);
+
     for (uint8_t i = 0; i < 3; ++i) {
         const PlantPetReference& reference = profile.references[i];
+        const int y = SUMMARY_ROW_Y0 + SUMMARY_ROW_GAP * i;
+        char value[24];
+        // References are edited in whole steps of the visible unit.
         if (i == 1) {
-            const float low = display_temperature(reference.low);
-            const float high = display_temperature(reference.high);
-            snprintf(lines[i], sizeof(lines[i]), "%s %.1f - %.1f %s", L(channel_key(i)),
-                     low, high, g_edit_fahrenheit ? L(ST_UNIT_F_SHORT) : L(ST_UNIT_C_SHORT));
+            snprintf(value, sizeof(value), "%.0f - %.0f %s",
+                     display_temperature(reference.low), display_temperature(reference.high),
+                     g_edit_fahrenheit ? L(ST_UNIT_F_SHORT) : L(ST_UNIT_C_SHORT));
         } else {
-            snprintf(lines[i], sizeof(lines[i]), "%s %.0f - %.0f%%", L(channel_key(i)),
-                     reference.low, reference.high);
+            snprintf(value, sizeof(value), "%.0f - %.0f %%", reference.low, reference.high);
         }
-        pointers[i] = lines[i];
-        colors[i] = channel_color(i);
+        tft.fillRect(SUMMARY_LABEL_X - 6, y - 4, 3, 9, channel_color(i));
+        tft.setTextColor(channel_color(i), TFT_BLACK);
+        tft.setTextDatum(ML_DATUM);
+        tft.drawString(L(channel_key(i)), SUMMARY_LABEL_X, y);
+        tft.setTextColor(TFT_WHITE, TFT_BLACK);
+        tft.setTextDatum(MR_DATUM);
+        tft.drawString(value, SUMMARY_VALUE_X, y);
     }
-    drawCenteredMenuFrame(profile_label(g_draft.mode), PB_LUZ_P1, L(ST_TURN_PUSH));
-    drawCenteredMenuBodyLines(pointers, colors, 3, MENU_TEXT_FONT_SMALL, 57, 12);
+    tft.drawFastHLine(20, SUMMARY_DIVIDER_Y, 120, tft.color565(18, 36, 58));
+    tft.setTextDatum(MC_DATUM);
+    tft.setTextFont(0);
 }
 
 bool commit_draft() {

@@ -3,13 +3,15 @@
 #include <cstring>
 struct GFXfont {};
 constexpr uint16_t TFT_BLACK=0, TFT_WHITE=0xffff, TFT_DARKGREY=0x7bef, TFT_CYAN=0x07ff, TFT_YELLOW=0xffe0;
-constexpr int MC_DATUM=4;
+constexpr int ML_DATUM=3, MC_DATUM=4, MR_DATUM=5;
 extern unsigned native_full_clears;
 class TFT_eSPI {
 public:
     int width() const { return 160; }
     void fillScreen(uint16_t) { ++native_full_clears; }
     void fillRect(int,int,int,int,uint16_t) {}
+    void drawFastHLine(int,int,int,uint16_t) {}
+    uint16_t color565(uint8_t,uint8_t,uint8_t) const { return 0; }
     void fillRoundRect(int,int,int,int,int,uint16_t) {}
     void drawRoundRect(int,int,int,int,int,uint16_t) {}
     void setTextDatum(int) {}

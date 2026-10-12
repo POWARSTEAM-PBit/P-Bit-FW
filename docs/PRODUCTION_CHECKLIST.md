@@ -13,7 +13,7 @@ Prioridad: probar comportamiento y configuración V1 sin reabrir el diseño. Pre
 ## 1. Configuración de build
 
 - [x] `py -m platformio run -e esp32dev` compila sin errores.
-- [x] Resultado de build V1 registrado: RAM `18.4%` (`60372`/`327680`) y Flash `74.7%` (`979701`/`1310720`).
+- [x] Resultado de build V1 registrado: RAM `18.4%` (`60372`/`327680`) y Flash `74.8%` (`979797`/`1310720`), tras fix de acceso al setup y resumen compacto.
 - [x] Carga V1 COM8 SUCCESS: hashes verificados, reinicio RTS enviado; sin marcar prueba física de arranque o NVS por ese resultado.
 - [x] `include/config.h`: `PBIT_ENABLE_GRAPH_LAB=1` para el carrusel actual con `Inicio/Clima Lab/Planta Lab/Termo Lab` y `SENSOR_ZONE_SCREEN`.
 - [x] `PBIT_ENABLE_SERIAL_PLOTTER=0` para producción.
