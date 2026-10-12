@@ -362,9 +362,19 @@ uint8_t amount(float value, float low, float high) {
     return static_cast<uint8_t>((value - low) * 255.0f / (high - low) + 0.5f);
 }
 
-float visual_value(const PlantPetInputs* readings, PlantChannel channel, PlantBand band, bool& known) {
+PlantPetRange visual_range(PlantChannel channel, const PlantPetProfile* profile) {
+    PlantPetRange range = plant_pet_range(channel);
+    const uint8_t index = static_cast<uint8_t>(channel);
+    if (profile && index < 3) {
+        range.opt_low = profile->references[index].low;
+        range.opt_high = profile->references[index].high;
+    }
+    return range;
+}
+float visual_value(const PlantPetInputs* readings, PlantChannel channel, PlantBand band, bool& known,
+                   const PlantPetProfile* profile = nullptr) {
     const unsigned index = static_cast<unsigned>(channel);
-    const PlantPetRange& range = plant_pet_range(channel);
+    const PlantPetRange range = visual_range(channel, profile);
     known = band != PlantBand::Unknown;
     if (readings) {
         const float value = readings->values[index];
@@ -381,10 +391,11 @@ void growing_line(Canvas& canvas, Point start, Point end, uint8_t extent, uint16
     canvas.line(start, blend_point(start, end, extent), color);
 }
 
-void soil(Canvas& canvas, PlantBand band, uint32_t tick, const PlantPetInputs* readings) {
+void soil(Canvas& canvas, PlantBand band, uint32_t tick, const PlantPetInputs* readings,
+          const PlantPetProfile* profile) {
     bool known;
-    const float value = visual_value(readings, PlantChannel::Soil, band, known);
-    const PlantPetRange& range = plant_pet_range(PlantChannel::Soil);
+    const float value = visual_value(readings, PlantChannel::Soil, band, known, profile);
+    const PlantPetRange range = visual_range(PlantChannel::Soil, profile);
     const uint8_t moisture = amount(value, range.min_value, range.max_value);
     // Relative sensor level controls brown shading, not actual water volume.
     const uint16_t fill = !known ? kUnknownSoil : moisture < 128
@@ -451,13 +462,13 @@ void surroundings(Canvas& canvas, const PlantPetSnapshot& pet, uint32_t tick,
     }
     // Bounded environmental particles with stable paths and no shared RNG.
     // Reserve room for air cues when temperature and air need attention.
-    const bool cold = temp_known && pet.bands[1] == PlantBand::Low;
+    const bool cold = temp_known && temp < 15.0f;
     const bool hot = temp_known && !cold && temp >= 27.0f;
-    const bool humid = air_known && pet.bands[2] == PlantBand::High;
-    const bool dry = air_known && pet.bands[2] == PlantBand::Low;
+    const bool humid = air_known && air > air_range.opt_high;
+    const bool dry = air_known && air < air_range.opt_low;
     const uint8_t air_strength = humid ? amount(air, air_range.opt_high, air_range.max_value)
         : dry ? amount(air_range.opt_low-air, 0.0f, air_range.opt_low-air_range.min_value) : 0;
-    int thermal_count = cold ? lesser(3, 1 + pet.thermal_intensity / 86)
+    int thermal_count = cold ? lesser(3, 1 + amount(15.0f-temp,0.0f,7.0f) / 86)
         : hot ? (temp < 30.0f ? 1 : temp < 33.0f ? 2 : temp < 36.0f ? 3 : 4) : 0;
     if ((humid || dry) && thermal_count > 3) thermal_count = 3;
     const int air_count = (humid || dry) ? lesser(4 - thermal_count, air_strength < 128 ? 1 : 2) : 0;
@@ -516,12 +527,44 @@ void surroundings(Canvas& canvas, const PlantPetSnapshot& pet, uint32_t tick,
 } // namespace
 
 void plant_pet_render(uint16_t* pixels, const PlantPetSnapshot& pet, uint32_t now_ms,
-                      const PlantPetInputs* readings) {
+                      const PlantPetInputs* readings, const PlantPetProfile* profile) {
     if (!pixels) return;
     Canvas canvas(pixels);
     canvas.rect(0, 0, PLANT_PET_ART_W, PLANT_PET_ART_H, kBackground);
     // Quantization matches the 220 ms UI cadence; all held frames are >=220 ms.
     const uint32_t tick = now_ms / 220u;
+    Pose pose;
+    PlantPalette palette = mood_palette(PlantMood::Content);
+    PlantMood expression = pet.mood;
+    uint32_t total = 0;
+    for (uint8_t i=0;i<PLANT_PET_POSE_COUNT;++i) total += pet.pose_weights[i];
+    if (total != 0) {
+        int32_t sums[14] = {};
+        uint32_t adverse_weight = 0, largest_weight = 0;
+        PlantMood strongest = PlantMood::Unknown;
+        for (uint8_t i=0;i<PLANT_PET_POSE_COUNT;++i) {
+            const int weight = pet.pose_weights[i];
+            if (!weight) continue;
+            const PlantMood mood = static_cast<PlantMood>(i);
+            const Pose p = animated_pose(mood, tick);
+            const int values[] = {p.head.x,p.head.y,p.tilt,p.left.x,p.left.y,p.right.x,p.right.y,
+                p.small_left.x,p.small_left.y,p.small_right.x,p.small_right.y,p.leaf_width,p.small_width,p.head_width};
+            for (int field=0;field<14;++field) sums[field] += values[field] * weight;
+            if (mood != PlantMood::Content && mood != PlantMood::Dim && mood != PlantMood::Unknown) {
+                adverse_weight += weight;
+                if (static_cast<uint32_t>(weight) > largest_weight) {largest_weight=weight;strongest=mood;}
+            }
+        }
+        int values[14];
+        for (int field=0;field<14;++field)
+            values[field] = (sums[field] + (sums[field] < 0 ? -static_cast<int>(total/2) : static_cast<int>(total/2))) / static_cast<int>(total);
+        pose = {{values[0],values[1]},values[2],{values[3],values[4]},{values[5],values[6]},
+                {values[7],values[8]},{values[9],values[10]},values[11],values[12],values[13]};
+        if (adverse_weight != 0) {
+            expression = adverse_weight * 3u < total ? PlantMood::Content
+                : adverse_weight * 3u < total * 2u ? PlantMood::Unknown : strongest;
+        }
+    } else {
     const Pose content = animated_pose(PlantMood::Content, tick);
     const bool previous_thermal = pet.previous_mood == PlantMood::Hot || pet.previous_mood == PlantMood::Cold;
     const bool current_thermal = pet.mood == PlantMood::Hot || pet.mood == PlantMood::Cold;
@@ -531,17 +574,18 @@ void plant_pet_render(uint16_t* pixels, const PlantPetSnapshot& pet, uint32_t no
     const Pose current = current_thermal
         ? blend_pose(content, animated_pose(pet.mood, tick), pet.thermal_intensity)
         : animated_pose(pet.mood, tick);
-    const Pose pose = blend_pose(previous, current, pet.transition);
-    const PlantPalette palette = blend_palette(mood_palette(pet.previous_mood),
+    pose = blend_pose(previous, current, pet.transition);
+    palette = blend_palette(mood_palette(pet.previous_mood),
                                                mood_palette(pet.mood), pet.transition);
-    PlantMood expression = pet.transition < 128u ? pet.previous_mood : pet.mood;
+    expression = pet.transition < 128u ? pet.previous_mood : pet.mood;
     const uint8_t strength = pet.transition < 128u ? pet.previous_thermal_intensity : pet.thermal_intensity;
     if (expression == PlantMood::Hot || expression == PlantMood::Cold) {
         if (strength < 85u) expression = PlantMood::Content;
         else if (strength < 170u) expression = PlantMood::Unknown; // Calm, neutral face.
     }
+    }
     surroundings(canvas, pet, tick, readings);
-    soil(canvas, pet.bands[0], tick, readings);
+    soil(canvas, pet.bands[0], tick, readings, profile);
     stem(canvas, pose, palette);
     leaf(canvas, stem_point(pose, 5), pose.small_left, pose.small_width, palette);
     leaf(canvas, stem_point(pose, 6), pose.small_right, pose.small_width, palette);

@@ -48,7 +48,7 @@ void sensor_reading_task(void *param) {
     // pbit_dht no requiere init explícita: el driver RMT se instala y desinstala
     // dentro de cada lectura.
 
-   Reading local_r;
+   Reading local_r = {};
     // Start with sentinel values so the UI can show "---" or "No sensor"
     // until the first slow pass completes.
    local_r.temp_ds18b20 = -999.0f;
@@ -180,6 +180,7 @@ static void read_fast_sensors(Reading &r) {
         float ldr_new = ldr_raw_to_lux(ldr_raw);
         r.ldr_raw = ldr_raw;
         r.ldr = ldr_new;
+        reading_note_sample(r.light_sample, millis(), isfinite(r.ldr));
     }
     // else: r.ldr and r.ldr_raw retain their previous values — no display update needed.
 
@@ -193,6 +194,7 @@ static void read_fast_sensors(Reading &r) {
     if (++soil_cycle >= 6) {
         soil_cycle = 0;
         r.soil_humidity = read_soil_moisture();
+        reading_note_sample(r.soil_sample, millis(), isfinite(r.soil_humidity));
         sensor_connection_notice_note_sample(SZ_SOIL, !isnan(r.soil_humidity));
     }
     // else: r.soil_humidity retains its previous value.
@@ -207,26 +209,33 @@ static void read_slow_sensors(Reading &r) {
     float dht_t = NAN;
     float dht_h = NAN;
     const uint8_t dht_status = pbit_dht11_read(dht_t, dht_h);
+    const uint32_t dht_sample_ms = millis();
 
     if (dht_status == PBIT_DHT_OK) {
         // Humedad
         if (!isnan(dht_h) && dht_h >= 0 && dht_h <= 100) {
             r.humidity = dht_h;
+            reading_note_sample(r.humidity_sample, dht_sample_ms);
             dht_hum_fail_count = 0;
         } else {
             if (dht_hum_fail_count < 2) dht_hum_fail_count++;
             if (dht_hum_fail_count >= 2) r.humidity = NAN;
+            reading_note_retained(r.humidity_sample, isfinite(r.humidity));
         }
         // Temperatura
         if (!isnan(dht_t) && dht_t >= -20 && dht_t <= 80) {
             r.temperature = dht_t;
+            reading_note_sample(r.temperature_sample, dht_sample_ms);
             dht_temp_fail_count = 0;
         } else {
             if (dht_temp_fail_count < 2) dht_temp_fail_count++;
             if (dht_temp_fail_count >= 2) r.temperature = NAN;
+            reading_note_retained(r.temperature_sample, isfinite(r.temperature));
         }
     } else if (dht_status == PBIT_DHT_TOO_SOON) {
         // Rate limit interno: mantener valores anteriores. No cuenta como fallo.
+        reading_note_retained(r.humidity_sample, isfinite(r.humidity));
+        reading_note_retained(r.temperature_sample, isfinite(r.temperature));
     } else {
         // Error transitorio (TIMEOUT, NACK, BAD_DATA, CHECKSUM, etc.). El DHT11
         // está soldado al PCB, así que no esperamos "sin sensor"; estos errores
@@ -235,6 +244,8 @@ static void read_slow_sensors(Reading &r) {
         if (dht_hum_fail_count >= 2) r.humidity = NAN;
         if (dht_temp_fail_count < 2) dht_temp_fail_count++;
         if (dht_temp_fail_count >= 2) r.temperature = NAN;
+        reading_note_retained(r.humidity_sample, isfinite(r.humidity));
+        reading_note_retained(r.temperature_sample, isfinite(r.temperature));
     }
 
     // Instrumentación bajo FIRMWARE_DEBUG: contadores DHT cada 60 s.

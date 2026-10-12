@@ -1,6 +1,7 @@
 #include "settings_store.h"
 
 #include <Preferences.h>
+#include <cstring>
 
 namespace {
 
@@ -296,4 +297,95 @@ uint32_t load_fw_build_stamp_store() {
 void save_fw_build_stamp_store(uint32_t stamp) {
     ScopedPrefs prefs(false);
     prefs.prefs.putUInt("fw_stamp", stamp);
+}
+
+namespace {
+
+constexpr char PLANT_SETTINGS_KEY[] = "plant_cfg";
+// Fixed schema: 4-byte header, six IEEE754 references, RAW calibration pair,
+// checksum. One NVS blob prevents a partially saved selection/reference set.
+struct PlantSettingsWire {
+    uint8_t schema;
+    uint8_t profile_version;
+    uint8_t mode;
+    uint8_t reserved;
+    float references[6];
+    uint16_t soil_dry;
+    uint16_t soil_wet;
+    uint32_t checksum;
+};
+static_assert(sizeof(PlantSettingsWire) == 36, "Planta Lab NVS schema must be 36 bytes");
+
+uint32_t plant_settings_checksum(const PlantSettingsWire& wire) {
+    const uint8_t* bytes = reinterpret_cast<const uint8_t*>(&wire);
+    uint32_t hash = 2166136261u;
+    for (size_t i = 0; i < sizeof(wire) - sizeof(wire.checksum); ++i) {
+        hash ^= bytes[i];
+        hash *= 16777619u;
+    }
+    return hash;
+}
+
+PlantSettingsData plant_settings_defaults() {
+    return {PLANT_SETTINGS_SCHEMA_VERSION, PlantProfileMode::General,
+            plant_pet_general_profile(), 0, 0};
+}
+
+bool plant_settings_data_valid(const PlantSettingsData& settings) {
+    const bool calibration_valid = settings.soil_dry_raw >= 0
+        && settings.soil_dry_raw <= 4095 && settings.soil_wet_raw >= 0
+        && settings.soil_wet_raw <= 4095
+        && ((settings.soil_dry_raw == 0 && settings.soil_wet_raw == 0)
+            || settings.soil_dry_raw - settings.soil_wet_raw >= 300);
+    return settings.schema_version == PLANT_SETTINGS_SCHEMA_VERSION
+        && (settings.mode == PlantProfileMode::General || settings.mode == PlantProfileMode::Custom)
+        && plant_pet_profile_valid(settings.custom_profile) && calibration_valid
+        && (settings.mode == PlantProfileMode::General || settings.soil_dry_raw != 0);
+}
+
+} // namespace
+
+PlantSettingsData load_plant_settings_store() {
+    ScopedPrefs prefs(true);
+    if (prefs.prefs.getBytesLength(PLANT_SETTINGS_KEY) != sizeof(PlantSettingsWire)) {
+        return plant_settings_defaults();
+    }
+    PlantSettingsWire wire{};
+    if (prefs.prefs.getBytes(PLANT_SETTINGS_KEY, &wire, sizeof(wire)) != sizeof(wire)
+        || wire.schema != PLANT_SETTINGS_SCHEMA_VERSION || wire.reserved != 0
+        || wire.checksum != plant_settings_checksum(wire)) {
+        return plant_settings_defaults();
+    }
+    PlantSettingsData settings = plant_settings_defaults();
+    settings.schema_version = wire.schema;
+    settings.mode = static_cast<PlantProfileMode>(wire.mode);
+    settings.custom_profile.version = wire.profile_version;
+    for (uint8_t i = 0; i < 3; ++i) {
+        settings.custom_profile.references[i] = {wire.references[i * 2], wire.references[i * 2 + 1]};
+    }
+    settings.soil_dry_raw = wire.soil_dry;
+    settings.soil_wet_raw = wire.soil_wet;
+    return plant_settings_data_valid(settings) ? settings : plant_settings_defaults();
+}
+
+bool save_plant_settings_store(const PlantSettingsData& settings) {
+    if (!plant_settings_data_valid(settings)) return false;
+    PlantSettingsWire wire{};
+    wire.schema = settings.schema_version;
+    wire.profile_version = settings.custom_profile.version;
+    wire.mode = static_cast<uint8_t>(settings.mode);
+    for (uint8_t i = 0; i < 3; ++i) {
+        wire.references[i * 2] = settings.custom_profile.references[i].low;
+        wire.references[i * 2 + 1] = settings.custom_profile.references[i].high;
+    }
+    wire.soil_dry = static_cast<uint16_t>(settings.soil_dry_raw);
+    wire.soil_wet = static_cast<uint16_t>(settings.soil_wet_raw);
+    wire.checksum = plant_settings_checksum(wire);
+    ScopedPrefs prefs(false);
+    return prefs.prefs.putBytes(PLANT_SETTINGS_KEY, &wire, sizeof(wire)) == sizeof(wire);
+}
+
+bool reset_plant_settings_store() {
+    ScopedPrefs prefs(false);
+    return !prefs.prefs.isKey(PLANT_SETTINGS_KEY) || prefs.prefs.remove(PLANT_SETTINGS_KEY);
 }

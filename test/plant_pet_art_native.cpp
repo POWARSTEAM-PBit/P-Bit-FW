@@ -37,7 +37,9 @@ int main() {
     // A raw reading can change inside one band: soil color must darken without
     // needing a new mood. Compare an unobstructed patch below roots and water.
     PlantPetSnapshot p = pose(PlantMood::Content);
-    PlantPetInputs readings = {{0,22,58,1200},{true,true,true,true}};
+    PlantPetInputs readings = {};
+    readings.values[0]=0; readings.values[1]=22; readings.values[2]=58; readings.values[3]=1200;
+    for(int channel=0;channel<4;++channel) readings.valid[channel]=true;
     uint16_t previous = 0xFFFF;
     for(int level=0;level<=100;++level) {
         readings.values[0]=static_cast<float>(level);
@@ -63,5 +65,19 @@ int main() {
         if(guarded[16+92*PLANT_PET_ART_W+2]!=neutral)return 5;
     }
     puts("Plant soil: 101 progressive levels and 4 missing/nonfinite cases passed");
+    // Restarting a recovery preserves geometry and expression at the same tick.
+    PlantPetModel model;
+    PlantPetInputs live = {}; live.values[1]=22; live.values[2]=58; live.values[3]=1200;
+    for(int channel=0;channel<4;++channel) live.valid[channel]=true;
+    live.values[0]=10; model.update(live,0);
+    live.values[0]=50; model.update(live,100); model.update(live,1300);
+    live.values[0]=90; model.update(live,1400);
+    const PlantPetSnapshot before=model.snapshot(2600);
+    model.update(live,2600); const PlantPetSnapshot after=model.snapshot(2600);
+    uint16_t frame_before[size], frame_after[size];
+    plant_pet_render(frame_before,before,2600,&live);
+    plant_pet_render(frame_after,after,2600,&live);
+    for(int i=0;i<82*PLANT_PET_ART_W;++i) if(frame_before[i]!=frame_after[i])return 6;
+    puts("Plant raster: interrupted recovery preserves every upper-terrarium pixel");
     return 0;
 }

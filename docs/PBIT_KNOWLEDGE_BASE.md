@@ -264,7 +264,7 @@ El P-Bit usa un carrusel circular de pantallas. Girar el encoder cambia de panta
 
 ### Lógica de uso
 
-- Las pantallas Lab son de lectura y comparación; no tienen menú propio.
+- Inicio, Clima Lab y Termo Lab son vistas de lectura/comparación; Planta Lab añade su propio perfil General/Personalizado.
 - Las pantallas de sensor usan Sensor Zone y tienen varios modos visuales.
 - El Timer tiene interacción propia de cronómetro/cuenta regresiva.
 - Sistema muestra estado general y permite configuración global.
@@ -292,26 +292,28 @@ Incluye temperatura, humedad y una lectura conjunta del ambiente. Es útil para 
 
 ### Planta Lab
 
-Pantalla multisensor de salud de planta. Aparece solo si Suelo entrega lectura válida.
+Combina Suelo, temperatura ambiente, humedad del aire y Luz en una mascota animada. Solo aparece en el carrusel cuando Suelo entrega lectura válida.
 
-Combina:
+En `Planta Lab`, la mascota conserva hojas verdes, rostro expresivo, pequeños movimientos y parpadeos. La tierra café se aclara y desarrolla grietas al bajar Suelo; se oscurece y amplía pequeñas manchas de agua al subir. Los efectos siguen las referencias activas de Suelo y representan el porcentaje relativo del sensor, no agua acumulada ni un diagnóstico de encharcamiento.
 
-- humedad de suelo;
-- temperatura ambiente;
-- humedad del aire;
-- luz.
+Frío añade temblor y copos alternados; calor, una hoja que abanica y ondas magenta distribuidas. Aire seco usa trazos violetas y aire húmedo niebla cyan suspendida. Los efectos combinados se limitan a cuatro grupos. El sol amarillo crece y gana brillo con Luz; una luna circular aparece <20 lux, sin confirmar noche. Los símbolos ambientales mantienen sus referencias ilustrativas: frío bajo 15 °C, ondas desde 27 °C y aire seco/húmedo bajo 40/sobre 70 %. La expresión se adapta al perfil elegido, por lo que un efecto puede acompañar una sonrisa.
 
-Su objetivo es explicar que una planta depende de varias condiciones al mismo tiempo.
+El perfil `General` usa Suelo 30..70 %, temperatura 15..30 °C y Aire 40..70 %, incluidos los extremos. `Personalizado` permite cambiar esas seis referencias. Son referencias educativas, independientes de alarmas y calibración; no describen un óptimo universal ni certifican la salud de la planta. Suelo es relativo a la calibración, y 8000 lux es el techo instrumental del P-Bit.
 
-En `Planta Lab`, la mascota mantiene hojas verdes, rostro expresivo, pequeños movimientos y parpadeos. La tierra café se aclara y desarrolla grietas al bajar la lectura de Suelo; se oscurece y muestra pequeñas manchas de agua que se amplían al subir. Grietas/agua acompañan las bandas confirmadas de `SEDIENTA`/`AHOGADA`: son una ilustración del porcentaje relativo, no una medición de agua acumulada. Frío añade temblor y hasta tres copos que aparecen en distintos lugares, descienden suavemente y se alternan; calor, una hoja que abanica y ondas magenta que aparecen a distintas alturas y lados de la planta, suben un poco y se alternan. Aire seco usa pequeños trazos violetas y aire húmedo niebla cyan suspendida; ambos se alternan a los lados de la planta con desplazamiento lateral suave. Los efectos combinados de temperatura y aire se limitan a cuatro grupos para mantener legible la mascota. El sol amarillo crece y gana brillo con la lectura; una luna circular aparece solo por debajo de 20 lux, sin confirmar noche. Las ondas de calor aumentan desde 27 °C y pueden acompañar una sonrisa: la postura térmica se modifica gradualmente, sin interpretar un grado de cambio como daño real. Todas las necesidades conocidas se señalan en sus filas; el doble borde identifica la dominante.
+Poca luz confirmada permite `REPOSO` cuando las demás lecturas son conocidas y no necesitan atención; conserva la expresión correspondiente si Suelo, temperatura o Aire están fuera de referencia. No cuenta horas de luz ni determina si es de noche. Las desviaciones de esos tres canales se señalan en sus filas; el doble borde identifica la atención principal. Gesto y postura cambian gradualmente, también para Suelo y Aire. Temperatura añade un margen de 0.5 °C para evitar cambios repetidos cerca de las referencias.
 
-El perfil fijo usa Suelo `30..70 %`, temperatura `15..30 °C`, humedad del aire `40..70 %` y Luz `200..8000 lux`, incluyendo los extremos. La barra de Luz llega hasta 8000 lux. Cada fila tiene su color (Suelo verde, temperatura magenta, aire cyan, Luz violeta); el tramo normal es luminoso y los extremos son más oscuros, con marcador blanco. Estos rangos son independientes de los límites editables de cada sensor. Las cifras se actualizan con las lecturas; los cambios de postura esperan confirmación breve. Temperatura añade un margen de 0.5 °C para evitar cambios repetidos cerca de los límites y una intensidad gradual de la pose; una condición cálida puede indicarse sin quitarle de inmediato la sonrisa. Los otros sensores todavía pueden determinar el gesto.
+Cada fila conserva su color: verde Suelo, magenta temperatura, cyan Aire y violeta Luz. El tramo de referencia es luminoso y los extremos oscurecidos, con marcador blanco. Lux <1000 aparece completo; desde 1000 se compacta como `1K/1.2K/8K` (mil lux, redondeado a una décima). La oscuridad no marca la fila como una necesidad negativa.
 
-Suelo, Aire y Luz conservan rangos educativos heredados; temperatura 15..30 °C es una franja provisional para flexibilizar la expresión del personaje, no un óptimo para todas las plantas. El porcentaje de Suelo es relativo a la calibración del sensor, no una medida del porcentaje de agua del sustrato. Los 8000 lux son el techo de lectura del P-Bit y no un nivel ideal para todas las plantas.
+Los cambios de banda se confirman con mediciones nuevas; repetir el último dato o navegar no basta. Un dato ausente o antiguo queda neutral con `--`, sin penalizar la mascota; si no hay otra necesidad conocida aparece `FALTAN DATOS`. Al mejorar las condiciones, la postura se recupera gradualmente y puede mostrar `MEJORANDO`; una nueva condición durante esa recuperación mantiene una transición continua. No acumula crecimiento ni historial diario.
 
-En esta pantalla, Luz se expresa en lux: hasta `999lx` aparece el valor completo; a partir de 1000 se compacta como `1K`, `1.2K` o `8K` (`K` significa mil lux), redondeado a una décima. La lectura interna y el diagnóstico conservan sus valores en lux.
+Si cambias la calibración de Suelo con un perfil Personalizado, se solicita `REVISAR SUELO` en su menú y, cuando no hay otra atención conocida, en la card de estado. El porcentaje actual permanece visible en blanco, pero su referencia queda neutral y no modifica el gesto hasta revisarla: entra a `Ajustar`, comprueba los seis valores y confirma `Guardar`. Volver a General conserva el personalizado; seleccionarlo de nuevo no elimina una revisión pendiente.
 
-Cuando las condiciones mejoran, la mascota recupera su postura gradualmente y puede mostrar `MEJORANDO`. Una lectura desconocida se muestra como `--`, sin interpretarla como una necesidad negativa; si faltan datos y no hay otra necesidad conocida, aparece `FALTAN DATOS`. La mascota sigue reaccionando al cambiar a otra pantalla, pero no acumula crecimiento ni conserva una etapa entre reinicios. Es una interpretación educativa de las condiciones, no una medida de la salud o crecimiento real de la planta.
+### Configuración propia de Planta Lab
+
+Pulsación larga (~1.2 s) abre el grid 2×3: Perfil / Ajustar arriba, fila central vacía, Reset / Salir abajo. Perfil selecciona General/Personalizado; Ajustar recorre seis referencias: Suelo baja/alta, temperatura baja/alta y Aire baja/alta. Los valores se editan en borrador, con separación mínima 5 puntos porcentuales o 2 °C. Temperatura usa °C/°F global y se guarda en °C.
+
+El resumen ofrece Cancelar / Guardar, con Cancelar inicialmente. Solo Guardar aplica/persiste; Cancelar descarta y vuelve al menú. Una pulsación larga cancela todo y vuelve a la mascota. General conserva el personalizado; Reset, con NO inicialmente, restaura solo Planta Lab y elimina su personalización. No cambia calibración ni alarmas de sensores. No hay presets por especie.
+
 
 ### Termo Lab
 
@@ -435,8 +437,10 @@ Tipos de opciones:
 - `Modo`: cambia forma de presentar Luz.
 - `Calibrar sensor`: solo Suelo usa calibración real.
 - `Reset`: restaura los valores de esa pantalla.
+- Planta Lab usa `Perfil` y `Ajustar`: su borrador solo se aplica con `Guardar`; `Cancelar` es la opción inicial y una pulsación larga cancela todo.
 
 ---
+
 
 ## 12. Umbrales, límites, marcas y alarmas
 
@@ -918,6 +922,7 @@ El P-Bit guarda configuración en NVS, namespace `pbit`.
 | Sonido | `snd_quiet`, `snd_norm`, `snd_loud`, `snd_aen`, `snd_marks` | 20/60/85 %, alertas OFF, marcas OFF |
 | Suelo | `soil_dry`, `soil_wet`, `soil_thr_dry`, `soil_thr_opt`, `soil_thr_moi`, `soil_aen`, `soil_marks` | 3550/1855 raw, 20/55/80 %, alertas ON, marcas ON |
 | Termómetro | `d18_alow`, `d18_ahigh`, `d18_aen`, `d18_marks` | 0/40 °C, alertas OFF, marcas ON |
+| Planta Lab | `plant_cfg` (blob versionado validado) | General: Suelo 30..70 %, temperatura 15..30 °C, Aire 40..70 % |
 | Firmware stamp | `fw_stamp` | fuerza reset de NVS en firmware nuevo |
 
 ---
@@ -939,9 +944,12 @@ Comportamiento:
 - bloquea reposo automático;
 - sale con cualquier giro o pulsación posterior.
 
+El modelo Demo de Planta Lab está separado del real y usa siempre General; no modifica perfiles guardados.
+
 En la versión actual, Demo recorre Inicio, Clima Lab, Termo Lab, Sensor Zone con varios sensores/modos, Sonido VU/Onda y Timer. `Planta Lab` pertenece al carrusel de producción, pero no está incluida actualmente en las escenas demo.
 
 ---
+
 
 ## 23. Solución de problemas
 

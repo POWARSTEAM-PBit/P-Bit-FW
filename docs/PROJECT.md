@@ -1,6 +1,6 @@
 # P-Bit — Descripción del Proyecto
 
-Actualizado: 2026-08-25
+Actualizado: 2026-10-12
 
 ---
 
@@ -38,8 +38,7 @@ El P-Bit existe para que niños, docentes y educadores puedan:
 | Framework | Arduino via PlatformIO |
 | Alimentación recomendada | 3 baterías AAA |
 | USB-C | Programación y alimentación auxiliar 5 V por PC/powerbank |
-| RAM usada | ~14.9 % (48940 bytes de 327680) |
-| Flash usada | 72.1 % (945429 bytes de 1310720) |
+| RAM / Flash de la build comprobada | Ver [PRODUCTION_RELEASE](PRODUCTION_RELEASE.md); dependen del candidato compilado |
 
 ### Pantalla
 
@@ -60,6 +59,9 @@ El P-Bit existe para que niños, docentes y educadores puedan:
 | Micrófono (GM19767P + LM358) | Nivel de sonido (0..100 %) | GPIO36 |
 | Sensor capacitivo de suelo | Humedad del suelo (calibrado %) | IO35 / GPIO35 |
 | Sonda DS18B20 (externa) | Temperatura puntual | IO33 / GPIO33 |
+
+La adquisición publica identidad, fecha y calidad de la última muestra válida de Suelo, temperatura, humedad del aire y Luz. Planta Lab distingue nuevas mediciones de valores retenidos y aplica caducidad local; esos metadatos no cambian los sensores, su calibración ni el protocolo BLE.
+
 
 ### Interfaz y salidas
 
@@ -130,7 +132,7 @@ Con `PBIT_ENABLE_GRAPH_LAB=1` (configuración de producción), el carrusel tiene
 |---|---|---|
 | 1 | Inicio | Visión global de sensores en fichas |
 | 2 | Clima Lab | Lab — temperatura + humedad combinados |
-| 3 | Planta Lab | Lab — salud de planta con Suelo + ambiente; aparece solo con Suelo conectado |
+| 3 | Planta Lab | Lab — mascota y condiciones medidas de Suelo/ambiente; perfil General/Personalizado, aparece con Suelo válido |
 | 4 | Termo Lab | Lab — DHT11 + DS18B20 + diferencia térmica |
 | 5 | Temperatura | Sensor — zona con modos visuales y menú |
 | 6 | Humedad | Sensor — zona con modos visuales y menú |
@@ -144,6 +146,9 @@ Con `PBIT_ENABLE_GRAPH_LAB=1` (configuración de producción), el carrusel tiene
 `Planta Lab` se omite automáticamente si `soil_humidity` no es válido, manteniendo el carrusel en 11 posiciones para unidades sin sensor de Suelo conectado.
 
 Cada pantalla de sensor soporta cinco modos visuales: Principal, Rango, Ficha, Dato y Curva. `Sonido` añade dos modos exclusivos justo después de Principal: Sonido VU y Sonido Onda. Internamente el firmware conserva nombres históricos (`Focus`, `Valor`, `Graph`, `Gauge`, `Card`) para evitar un refactor sin valor de producto.
+
+Planta Lab conserva el diseño verde y sus efectos ambientales, con gesto gradual de Suelo/Temperatura/Aire y luz baja como reposo contextual. Su menú propio ofrece General/Personalizado, seis referencias editables en borrador, confirmación Guardar/Cancelar y Reset exclusivo. Sus referencias son educativas e independientes de alertas. Un personalizado de Suelo queda pendiente de revisión si cambia la calibración. No hay presets por especie, historial diario ni diagnóstico automático de salud.
+
 
 ### Alertas y feedback
 
@@ -164,6 +169,7 @@ El dispositivo guarda en memoria no volátil (NVS):
 - Calibración del sensor de suelo
 - Modo de visualización activo por sensor
 - Tiempo de reposo
+- Perfil General/Personalizado y referencias propias de Planta Lab, guardados al confirmar
 - Estado de Bip y Alarmas
 
 La configuración se mantiene entre reinicios. Un flash nuevo resetea todos los ajustes a valores por defecto.

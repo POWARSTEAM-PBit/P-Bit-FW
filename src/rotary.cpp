@@ -19,6 +19,7 @@
 #include "ui_light.h"
 #include "ui_system.h"
 #include "ui_graph.h"
+#include "ui_plant_settings.h"
 #if PBIT_ENABLE_GRAPH_LAB
 #include "external_sensor_state.h"
 #include "sensor_zone.h"
@@ -288,6 +289,13 @@ static void configure_system_ui_rotary_bounds() {
     rotaryEncoder.setEncoderValue(get_system_encoder_value());
 }
 
+static void configure_plant_ui_rotary_bounds() {
+    rotaryEncoder.setBoundaries(get_plant_settings_encoder_min(), get_plant_settings_encoder_max(),
+                                plant_settings_encoder_is_circular());
+    rotaryEncoder.setStepValue(1);
+    rotaryEncoder.setEncoderValue(get_plant_settings_encoder_value());
+}
+
 static void configure_timer_ui_rotary_bounds() {
     rotaryEncoder.setBoundaries(getTimerMenuEncoderMin(), getTimerMenuEncoderMax(), !timer_menu_is_editing());
     rotaryEncoder.setStepValue(1);
@@ -371,6 +379,13 @@ void knobCallback(long value) {
     if (demo_mode_is_active()) {
         demo_mode_stop();
         configure_app_rotary_bounds();
+        return;
+    }
+
+    if (active_screen == LAB_PLANT_SCREEN && plant_settings_menu_is_active()) {
+        const int previous = get_plant_settings_encoder_value();
+        set_plant_settings_encoder_value((int)value);
+        if (get_plant_settings_encoder_value() != previous) play_soil_nav_beep();
         return;
     }
 
@@ -491,6 +506,21 @@ void knobCallback(long value) {
 }
 
 static bool handle_button_long_press() {
+    if (active_screen == LAB_PLANT_SCREEN) {
+        if (plant_settings_menu_is_active()) {
+            if (cancel_plant_settings_menu()) {
+                if (plant_settings_menu_is_active()) configure_plant_ui_rotary_bounds();
+                else configure_app_rotary_bounds();
+                if (g_sound_enabled) beep(900, 22);
+            }
+        } else {
+            start_plant_settings_menu();
+            configure_plant_ui_rotary_bounds();
+            play_double_beep(1200, 1600);
+        }
+        return true;
+    }
+
     if (active_screen == SOIL_SCREEN && soilCalibrationIsActive()) {
         if (cancelSoilCalibration()) {
             if (soilCalibrationIsActive()) {
@@ -616,6 +646,14 @@ void buttonCallback(unsigned long duration) {
     if (demo_mode_is_active()) {
         demo_mode_stop();
         configure_app_rotary_bounds();
+        return;
+    }
+
+    if (active_screen == LAB_PLANT_SCREEN && plant_settings_menu_is_active()) {
+        handle_plant_settings_button();
+        if (plant_settings_menu_is_active()) configure_plant_ui_rotary_bounds();
+        else configure_app_rotary_bounds();
+        if (g_sound_enabled) play_soil_confirm_beep();
         return;
     }
 

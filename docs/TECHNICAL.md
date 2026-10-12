@@ -239,6 +239,14 @@ La estructura central de medición es `Reading`:
 - `soil_humidity`
 - `temp_ds18b20`
 
+Identidad de adquisición para Planta Lab:
+
+- `soil_sample`, `temperature_sample`, `humidity_sample` y `light_sample` son `ReadingSampleStamp`: `sequence`, `sampled_at_ms` y calidad `Uninitialized/Valid/Retained/Invalid`. Se copian bajo el mismo lock que sus valores.
+- La secuencia avanza solo con una adquisición válida, aunque el número sea idéntico. Una copia UI no modifica identidad ni tiempo. Secuencia 0 significa que no hubo adquisición válida; timestamp 0 puede ser válido.
+- DHT conservado por fallo transitorio o `TOO_SOON` conserva fecha/secuencia y se marca `Retained`; al alcanzar `NAN` pasa a `Invalid` sin crear evidencia nueva.
+- `Reading` ocupa 76 bytes: siete floats más cuatro stamps de 12 bytes. El paquete BLE se construye campo a campo y no incorpora estos metadatos.
+- Planta Lab aplica caducidad local: Suelo/Luz >1000 ms y Temperatura/Aire >3000 ms desde la última adquisición válida pasan a desconocidos. La resta unsigned admite rollover de `millis()`; no cambia la política de lecturas/alertas de otras pantallas.
+
 Sincronización:
 
 - `global_readings` se protege con `portMUX_TYPE readings_mux`
@@ -269,6 +277,8 @@ Marcas de diales:
 - En Luz, el dial usa una progresión visual logarítmica para que los primeros `1000 lux` tengan cambios más visibles.
 
 ## 7. Flujo de adquisición de sensores
+
+Planta Lab distingue nuevas adquisiciones de snapshots repetidos mediante los stamps de `Reading`. La cadencia de adquisición no cambia: Suelo/Luz aproximadamente cada seis ciclos rápidos (~180 ms), y DHT se intenta cada 1000 ms. Solo el intento válido actualiza identidad/fecha. El primer fallo DHT conserva el dato y el segundo lo invalida; `TOO_SOON` no acumula fallo. Los errores y la caducidad no añaden muestras válidas al modelo.
 
 ### Sensores rápidos
 
@@ -457,6 +467,7 @@ Ghosting/flicker queda cerrado por ahora tras la revisión y validación prácti
   - confirma pasos dentro de menú
   - en pantallas de sensor individual: alterna el modo de visualización del sensor
 - pulsación larga:
+  - en `Planta Lab`: abre configuración (1200 ms); si su menú está activo, cancela el borrador y vuelve a la vista
   - en pantallas de sensor individual: abre el menú de configuración del sensor
   - en `Timer`: abre el editor de duración `HH:MM:SS` si está idle o resetea si ya estaba corriendo/pausado
   - en `Sistema`: abre el menú global con una pulsación normal de menú; mantener 30 s sin girar activa la pantalla oculta de BLE de fábrica/debug
@@ -465,6 +476,7 @@ Tiempos actuales:
 
 - apertura de menú: aprox. `1.2 s`
 - reset de timer: aprox. `1.0 s`
+
 
 ### Pantallas y menús disponibles
 
@@ -478,20 +490,20 @@ Temperatura ambiente y humedad del aire en card combinado. Solo lectura; no tien
 
 #### Planta Lab
 
-Pantalla multisensor con una mascota verde, rostro discreto y poses diferenciadas. Combina Suelo, temperatura ambiente, humedad del aire y luz; solo aparece en el carrusel si Suelo entrega lectura válida. No añade menú, submodos ni gestos del encoder.
+Pantalla multisensor con mascota verde, rostro discreto y poses diferenciadas; combina Suelo, temperatura ambiente, humedad del aire y luz. Solo aparece en el carrusel si Suelo entrega lectura válida. El diseño probado se conserva y se añade configuración propia con pulsación larga de 1200 ms.
 
-- **Layout:** terrario `(2,27,56,99)`, cuatro filas de rango y card de diagnóstico. Interior compuesto en RGB565 `54×95` en `(3,28)`: buffer fijo de 10 260 bytes de RAM estática, un `pushImage()` por frame, sin borrado previo ni reserva de heap. El renderer guarda/restaura el intercambio de bytes y repone la máscara de seis píxeles de las esquinas superiores antes del envío. Iconos locales ≈9×10 px centrados en x68 dentro de un carril de 11 px; barras x77 de 48×7 px; dato blanco x156 en carril de 30 px. Cada sensor conserva su color: Suelo verde, temperatura magenta, aire cyan y Luz violeta; el tramo normal es luminoso y los extremos son versiones oscurecidas del mismo color, con marcador blanco. Grado propio 3×3 en celda Font 1 evita CP437; dato térmico C/F, modelo/barra en °C. Luz <1000 completa en lx y ≥1000 compacta `1K/1.2K/8K` (mil lux), redondeada a décima.
-- **Modelo:** `plant_pet.h/.cpp` separa comportamiento de dibujo. `PlantPetModel::update(inputs, now)` se alimenta al copiar el snapshot UI, incluso en otras vistas; `snapshot(now)` interpola sin acumular evidencia. Instancias reales y Demo separadas; no modifica NVS ni lecturas físicas.
-- **Perfil fijo:** Suelo `30..70 %`, temperatura `15..30 °C`, aire `40..70 %`, Luz `200..8000 lux`, todos inclusivos e independientes de los límites de menús. La barra de Luz usa escala logarítmica `0..LIGHT_LUX_MAX` (`8000`), sin zona alta inalcanzable.
-- **Origen del perfil:** Suelo/Aire/Luz heredados de la UI base `3744f04`, sin especie. Temperatura 15..30 °C y rampas son decisiones provisionales de mascota para evitar malestar por un grado, no óptimos ni límites de daño. Suelo es porcentaje relativo, no humedad volumétrica; 8000 lux es techo LDR, no máximo biológico. Investigación y fuentes en `docs/PLANTA_LAB_RESEARCH.md`.
-- **Clasificación:** `Unknown/Normal/Low/High` por canal; la banda de Suelo estabilizada se comparte con diagnóstico, resaltado y habilitación de grietas/agua. Barras/valores representan la lectura actual; el color del suelo y la intensidad de efectos varían continuamente con la lectura dentro de la banda confirmada. Arranque adopta bandas actuales; después un cambio requiere 1200 ms y al menos dos lecturas nuevas. Gap mayor de 3000 ms reinicia evidencia pendiente. Inválidas pasan inmediatamente a desconocidas.
-- **Necesidades simultáneas:** `affected_mask` conserva todas las desviaciones conocidas; borde de alerta para cada fila y doble borde para la causa dominante. Dominante por gravedad relativa acotada 0..1, con Luz logarítmica. Retención de causa 3 s mientras siga adversa; luego cambia si otra supera su gravedad en más de 0.12. Los empates conservan causa; no hay prioridad fija de Suelo.
-- **Respuesta térmica:** histéresis ±0.5 °C después del arranque: desde Normal entra a Low <14.5 o High >30.5; sale de Low ≥15.5 y de High ≤29.5, más la confirmación de banda. `thermal_intensity` objetivo 0..255 de 30..36 °C / 15..8 °C, interpolado 1500 ms sin contar frames como evidencia. `previous_thermal_intensity` conserva la intensidad previa al cambiar mood para recuperación gradual. La cara pasa de sonrisa a neutral y gesto térmico, y la postura interpola desde Content. Datos inválidos anulan intensidad actual. Ondas magenta 1/2/3/4 desde 27/30/33/36 °C independientemente del mood; no significan daño. Ondas en ocho posiciones laterales del terrario, con pausas/escalonamiento y elección determinista por ciclo; sin RNG ni heap adicional.
-- **Animación:** transición de pose 1.5 s; recuperación a bienestar 3 s. Tallo/hojas, expresión y entorno cambian por sensor; verde A persistente, movimientos y parpadeos conservados. Tierra café progresiva: se aclara y agrieta hacia el extremo seco, se oscurece y amplía manchas de agua hacia el húmedo; desconocidos sin esas señales. Sol amarillo con radios 1/2/3/4 desde 20/200/800/3000 lux y brillo creciente; luna circular <20 lux, sin confirmar noche. Copos 1..3 alternados con descenso/deriva; aire húmedo cyan o seco violeta en 1..2 grupos con deriva/pausas. Máximo cuatro grupos ambientales conjuntos, reservando espacio para aire al coexistir con temperatura. `plant_pet_render(..., readings)` acepta valores opcionales; la UI invalida el terrario por `soil_x10/temp_x10/hum_x10/lux`, aunque no cambie el texto, banda o tick. No acumula crecimiento ni progreso persistente.
-- **Fuente de diagnóstico:** `FONT_BODY` (Roboto Regular 7), con fallback a `FONT_SMALL` cuando `textWidth()` supera 88 px (ambas Roboto con tildes), `C_BASELINE`, baseline y120; acentos ES/CAT fuera de CP437. Limpieza del interior de la card solo al cambiar estado.
-- **Diagnóstico localizado:** `BIEN`, `SEDIENTA`, `AHOGADA`, `FRÍO`, `CALOR`, `AIRE SECO`, `AIRE HÚMEDO`, `POCA LUZ`, `FALTAN DATOS` y `MEJORANDO`. Una fila desconocida queda atenuada con `--`; desconocidos sin necesidades conocidas impiden mostrar `BIEN`. Una necesidad conocida sigue visible aunque otro canal sea desconocido.
-- **Validación:** usuario aprueba en P-Bit colores actuales de planta/medidores y valora favorablemente suelo progresivo. Último ajuste de sol/luna, ondas y respuesta térmica ya implementado; modelo/raster/138 comparaciones host PASS y build SUCCESS. Usuario acepta el preview general de sol/luna y calor distribuido; copos/aire alternados autorizados e integrados (ADR-003), con 528 comparaciones host PASS y 528 frames idénticos al preview. Validar esta revisión en TFT; la aceptación puntual anterior no cierra poses, idiomas, transiciones, flicker ni Demo ≥30 s (proofs 9/10). Planta Lab sigue fuera de `kDemoScenes`. Historial/combinaciones y compensación de posible calor propio no implementados.
-- **Contrato de diseño y detalle:** `docs/ADR-003-planta-lab.md`; render canónico en `docs/TFT_RENDER_RULES.md`.
+- **Layout:** terrario `(2,27,56,99)`, cuatro filas y card de estado. Buffer RGB565 fijo `54×95` en `(3,28)`, 10 260 bytes reutilizados y un `pushImage()` por frame; sin borrado previo ni heap. Iconos locales ≈9×10 px en x68, barras x77 de 48×7 px y cifra blanca alineada a x156. Colores aprobados: verde Suelo, magenta temperatura, cyan Aire y violeta Luz. Grado propio 3×3; presentación C/F, cálculos en °C. Lux completos <1000 y abreviados `1K/1.2K/8K` desde 1000.
+- **Perfil V1:** `General` usa Suelo 30..70 %, temperatura 15..30 °C y Aire 40..70 %, inclusivos. `Personalizado` guarda seis referencias para esos tres canales. Referencias, escala gráfica y validez instrumental están separadas; las barras consultan el mismo perfil activo que el modelo. Temperatura conserva escala General 0..40 °C y amplía automáticamente sus extremos gráficos para incluir referencias personalizadas inferiores a 0 o superiores a 40; la validez de medición y las amplitudes de pose siguen independientes. Luz conserva escala logarítmica 0..8000 y referencia contextual de 200 lux, sin mínimo diario editable ni supuesto máximo saludable.
+- **Modelo/frescura:** `PlantPetModel` recibe identidad/fecha de muestra por canal y comprueba validez/edad incluso en copias repetidas. Un cambio de banda exige ≥2 adquisiciones distintas que abarquen 1200 ms; gap >3000 ms reinicia evidencia. Caducidad local: >1000 ms para Suelo/Luz, >3000 ms para DHT. Datos inválidos/antiguos pasan a Unknown inmediatamente; navegar o dibujar no cuenta como evidencia. Instancias real/Demo independientes; Demo usa General.
+- **Luz contextual:** poca luz confirmada no entra en `attention_mask/affected_mask` ni puede ser causa dominante. `reference_mask` conserva que está bajo referencia. Sin otras necesidades ni datos desconocidos permite `REPOSO`; con Suelo/Temperatura/Aire fuera de referencia mantiene su gesto. No detecta noche ni certifica iluminación diaria suficiente.
+- **Atención:** todas las desviaciones confirmadas de Suelo/Temperatura/Aire permanecen visibles. Dominante por intensidad de representación 0..1; retención de 3 s mientras siga activa, con ventaja >0.12 para cambiar después. Estos valores no comparan gravedad fisiológica. Datos desconocidos sin atención conocida muestran `FALTAN DATOS`.
+- **Gesto gradual:** Suelo y Aire, además de temperatura, interpolan de Content hacia su pose según desvío relativo, suavizado 1500 ms. Amplitudes positivas V1 desde la referencia baja/alta: Suelo 30/30 puntos, temperatura 7/6 °C y Aire 40/30 puntos. Temperatura conserva histéresis ±0.5 °C alrededor de la referencia activa. Cambio de pose 1.5 s; recuperación 3 s. Los nueve pesos de pose suman 65535 y congelan la mezcla efectiva al interrumpir una transición, evitando saltos de recuperación. No son tiempos de daño o recuperación biológica.
+- **Entorno conservado:** planta verde persistente; tierra café con grietas/agua progresivas bajo las referencias activas de Suelo. Los anclajes de efectos ambientales son absolutos: frío bajo 15 °C con progresión hacia 8; calor desde 27/30/33/36 °C; Aire bajo 40 o sobre 70 %. Son ilustraciones del ambiente, independientes de la pose del perfil. Copos/ondas/aire distribuidos, máximo cuatro grupos conjuntos. Sol amarillo con radios 1/2/3/4 desde 20/200/800/3000 lux; luna circular <20 lux, sin inferir noche.
+- **Calibración personalizada:** el perfil guarda las referencias RAW seca/húmeda asociadas a Suelo. Si cambian, Suelo deja de contribuir al gesto hasta revisar el perfil: porcentaje actual blanco, referencia neutral y `REVISAR SUELO`. `Ajustar` → confirmar los seis valores → `Guardar` vincula de nuevo la referencia. Cambiar a General conserva el personalizado y elegirlo otra vez no elimina una revisión pendiente. No se cambian calibración ni alarmas desde este menú.
+- **Cambio de perfil/caché:** invalida candidatos, causa pendiente y barras por revisión; recalcula con datos frescos sin inventar `MEJORANDO`. La caché incluye revisión de perfil/calibración, estado, pose y valores de entorno; header/shell solo se dibujan al entrar.
+- **Textos:** `BIEN`, `SUELO SECO`, `SUELO HÚMEDO`, `FRÍO`, `CALOR`, `AIRE SECO`, `AIRE HÚMEDO`, `REPOSO`, `FALTAN DATOS`, `MEJORANDO` y `REVISAR SUELO`, localizados ES/CAT/EN. Estado en Roboto `FONT_BODY`, fallback `FONT_SMALL` si supera 88 px; baseline y120.
+- **Alcance/validación:** interpretación educativa sin especie ni diagnóstico de salud, historial diario, RTC, compensación térmica o crecimiento persistente. Diseño anterior aceptado provisionalmente por el usuario en P-Bit; comportamiento/setup V1 requieren comprobación física propia. Prueba final de 24 h y validación por unidad siguen aplazadas. Evidencia de build vigente en [PRODUCTION_RELEASE](PRODUCTION_RELEASE.md); contrato en [ADR-003](ADR-003-planta-lab.md).
+
 
 #### Termo Lab
 
@@ -644,6 +656,14 @@ Namespace utilizado:
 - `sys_sound` (bool, default `false`) — `Bip`: beeps de interfaz, navegación y confirmaciones
 - `sys_alarm` (bool, default `false`) — `Alarmas`: audio de alertas de sensores y final del `Timer`
 - `sys_unit_f` (bool, default `false`) — unidad global de temperatura: `false=Celsius`, `true=Fahrenheit`
+
+#### Planta Lab
+
+- `plant_cfg`: blob de 36 bytes, schema 1 y versión de perfil 1. Encabezado de cuatro bytes (schema/perfil/modo/reservado), seis floats de referencias (24 bytes, temperatura °C), dos RAW de calibración Suelo `uint16_t` y checksum FNV-1a de 32 bits.
+- Lectura valida tamaño, versiones, modo, checksum, finitos, límites y separación (≥5 puntos % en Suelo/Aire y ≥2 °C). Blob ausente, corrupto o incompatible vuelve a General de forma controlada.
+- NVS se escribe solo al confirmar `Guardar`; cancelar o girar el encoder modifica únicamente borrador. Fallo de escritura conserva el perfil activo anterior. General conserva el personalizado para reutilizarlo.
+- Reset de Planta Lab elimina únicamente `plant_cfg`, vuelve a General y descarta personalización; no toca alarmas, calibración, otras pantallas ni unidad global. El reset global de Sistema mantiene su alcance general.
+- Fingerprint Suelo: las dos referencias RAW asociadas al personalizado permiten detectar calibración cambiada. La revisión se solicita sin borrar las referencias ni escribir NVS por frame.
 
 #### Sensor zone
 
@@ -841,6 +861,8 @@ Estado actual tras auditoría estática:
 - las cadenas directas restantes localizadas por búsqueda son símbolos/no lingüísticas (`>`, `---`, separadores, ticks numéricos o `ZZZ`)
 - `LANG_COUNT`, `LIn(...)` y `normalizeLanguage(...)` están presentes y se usan en selector, menú de sistema y renderizado del idioma activo
 
+Planta Lab V1 añade claves propias de perfil, personalización, referencias, Cancelar y revisión de Suelo, todas mediante `L(KEY)`. Textos observacionales vigentes: ES `SUELO SECO/SUELO HÚMEDO/REPOSO/REVISAR SUELO`; CAT `SÒL SEC/SÒL HUMIT/REPÒS/REVISAR SÒL`; EN `DRY SOIL/WET SOIL/RESTING/CHECK SOIL`. La existencia de traducciones no cierra su validación física de ancho/acentos.
+
 ## 13. Alertas y feedback
 
 Canales de feedback actualmente presentes:
@@ -930,7 +952,8 @@ En cold boot: selector visible en `Español` / `Catalán` / `English` cuando `la
 | Pantalla | Pulsación corta | Pulsación larga |
 |---|---|---|
 | Inicio | Sin acción de producto | Activa Modo demo (~1.2 s) |
-| Clima Lab / Planta Lab / Termo Lab | Sin acción de producto | Sin menú |
+| Clima Lab / Termo Lab | Sin acción de producto | Sin menú |
+| Planta Lab | Sin acción fuera de menú; confirma dentro | Abre configuración (1200 ms); dentro cancela y sale |
 | Temperatura / Humedad / Luz / Sonido / Suelo / Termómetro | Cambia modo visual del sensor (`sz_next_viz()`) | Abre menú del sensor activo (~1.2 s) |
 | SISTEMA | Alterna `Bip ON/OFF` | Abre menú (~1.2 s) |
 | TIMER | Inicia o pausa | Abre editor HH:MM:SS si idle; resetea si corriendo/pausado (~1.0 s) |
@@ -938,6 +961,21 @@ En cold boot: selector visible en `Español` / `Catalán` / `English` cuando `la
 Con el carrusel de producción (`PBIT_ENABLE_GRAPH_LAB=1`), `TEMP_SCREEN`, `HUMIDITY_SCREEN`, `LIGHT_SCREEN`, `SOUND_SCREEN`, `SOIL_SCREEN` y `DS18B20_SCREEN` ya no son paradas navegables directas. Se usan como pantallas de menú/configuración abiertas desde el slot correspondiente de `SENSOR_ZONE_SCREEN`. Por eso la pulsación corta en sensores no alterna `C/F`; la unidad se cambia desde `Unidad` en los menús de Temperatura o Termómetro.
 
 En Modo demo, cualquier giro o pulsación corta/larga posterior al release inicial sale del demo antes de ejecutar la acción normal. Desde `Inicio`, una pulsación larga activa el Modo demo.
+
+### Menú propio de Planta Lab
+
+Pulsación larga de 1200 ms abre un grid 2×3: `Perfil` y `Ajustar` arriba, fila central vacía, `Reset` abajo izquierda y `Salir` abajo derecha. `PRIMARY_COUNT=2`, `RESET_INDEX=2`, `EXIT_INDEX=3`; encoder raíz 0..3, sin seleccionar espacios vacíos.
+
+| Opción | Flujo | Resultado |
+|---|---|---|
+| Perfil | General / Personalizado → resumen → Cancelar / Guardar | Aplica únicamente al confirmar Guardar; conserva referencias personalizadas al elegir General |
+| Ajustar | Suelo baja/alta → temperatura baja/alta → Aire baja/alta → resumen | Seis valores en borrador; Guardar activa Personalizado y vincula Suelo a calibración actual |
+| Reset | NO / SÍ, NO inicialmente | SÍ borra únicamente perfil/personalización Planta Lab |
+| Salir | Cierra menú | Vuelve a Planta Lab |
+
+Giro modifica opción/valor; corta avanza/confirma. `Cancelar` es la opción inicial al guardar y descarta el borrador volviendo al menú. Pulsación larga en cualquier estado cancela todo y vuelve a Planta Lab. Temperatura se edita en la unidad global capturada al entrar (paso de 1 °C o 1 °F); se convierte y guarda en °C. Porcentajes paso 1; separación mínima 5 puntos. Temperatura admite -20..80 °C y separación mínima 2 °C; los límites se acotan dinámicamente para impedir inversión. Suelo/Aire/Luz conservan sus escalas gráficas. La barra de temperatura amplía sus extremos para mostrar referencias personalizadas fuera de 0..40 °C sin modificar validez instrumental ni amplitud de gesto. Demo no escribe esta configuración.
+
+Tras cambiar calibración de Suelo, `REVISAR SUELO` pide revisar los seis valores en Ajustar y guardar; el número sigue visible pero su referencia no determina gesto hasta esa confirmación. Este menú es independiente de los límites/alertas de los sensores.
 
 ### Menús por sensor
 

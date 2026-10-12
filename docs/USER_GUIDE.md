@@ -238,7 +238,7 @@ El encoder es el único control físico del dispositivo.
 |---|---|
 | **Girar** | Cambiar de pantalla / moverse por menú / cambiar valor |
 | **Pulsación corta** | Confirmar / avanzar en menú / cambiar modo visual en pantallas de sensor |
-| **Pulsación larga (~1.2 s)** | Abrir menú de configuración en sensores/Sistema; abrir editor del Timer; activar Modo demo desde `Inicio` |
+| **Pulsación larga (~1.2 s)** | Abrir menú en sensores, Planta Lab o Sistema; cancelar el borrador dentro del menú de Planta Lab; abrir editor del Timer; activar Modo demo desde `Inicio` |
 
 Reglas generales dentro de los menús:
 
@@ -270,7 +270,7 @@ Si el sensor de Suelo no entrega lectura válida, `Planta Lab` se salta automát
 |---|---|---|
 | 1 | **Inicio** | Visión global de temperatura, humedad, luz y sonido en fichas |
 | 2 | **Clima Lab** | Temperatura y humedad del aire en vista combinada |
-| 3 | **Planta Lab** | Condiciones de suelo y ambiente combinando Suelo, temperatura, humedad del aire y luz; aparece solo si Suelo está conectado |
+| 3 | **Planta Lab** | Mascota y condiciones de suelo/ambiente, con perfil General/Personalizado; aparece solo con Suelo válido |
 | 4 | **Termo Lab** | Temperatura ambiente, sonda externa y diferencia térmica |
 | 5 | **Temperatura** | Temperatura ambiente con menú de configuración |
 | 6 | **Humedad** | Humedad del aire con menú de configuración |
@@ -281,17 +281,21 @@ Si el sensor de Suelo no entrega lectura válida, `Planta Lab` se salta automát
 | 11 | **Timer** | Cronómetro y cuenta regresiva |
 | 12 | **Sistema** | Ajustes globales del dispositivo |
 
-`Planta Lab` se omite automáticamente si el sensor de Suelo no entrega una lectura válida. Las pantallas Lab (`Inicio`, `Clima Lab`, `Planta Lab`, `Termo Lab`) son de solo lectura. No tienen menú de configuración. `Lab` se reserva para pantallas multisensor o experimentales; las vistas de un sensor individual usan los modos de abajo.
+`Planta Lab` se omite automáticamente si el sensor de Suelo no entrega una lectura válida. `Inicio`, `Clima Lab` y `Termo Lab` son vistas de lectura. `Planta Lab` dispone de configuración propia. `Lab` se reserva para pantallas multisensor o experimentales; las vistas de un sensor individual usan los modos de abajo.
 
-En `Planta Lab`, la mascota mantiene hojas verdes, rostro expresivo, pequeños movimientos y parpadeos. La tierra café se aclara y desarrolla grietas al bajar la lectura de Suelo; se oscurece y muestra pequeñas manchas de agua que se amplían al subir. Grietas/agua acompañan las bandas confirmadas de `SEDIENTA`/`AHOGADA`: son una ilustración del porcentaje relativo, no una medición de agua acumulada. Frío añade temblor y hasta tres copos que aparecen en distintos lugares, descienden suavemente y se alternan; calor, una hoja que abanica y ondas magenta que aparecen a distintas alturas y lados de la planta, suben un poco y se alternan. Aire seco usa pequeños trazos violetas y aire húmedo niebla cyan suspendida; ambos se alternan a los lados de la planta con desplazamiento lateral suave. Los efectos combinados de temperatura y aire se limitan a cuatro grupos para mantener legible la mascota. El sol amarillo crece y gana brillo con la lectura; una luna circular aparece solo por debajo de 20 lux, sin confirmar noche. Las ondas de calor aumentan desde 27 °C y pueden acompañar una sonrisa: la postura térmica se modifica gradualmente, sin interpretar un grado de cambio como daño real. Todas las necesidades conocidas se señalan en sus filas; el doble borde identifica la dominante.
+En `Planta Lab`, la mascota conserva hojas verdes, rostro expresivo, pequeños movimientos y parpadeos. La tierra café se aclara y desarrolla grietas al bajar Suelo; se oscurece y amplía pequeñas manchas de agua al subir. Los efectos siguen las referencias activas de Suelo y representan el porcentaje relativo del sensor, no agua acumulada ni un diagnóstico de encharcamiento.
 
-El perfil fijo usa Suelo `30..70 %`, temperatura `15..30 °C`, humedad del aire `40..70 %` y Luz `200..8000 lux`, incluyendo los extremos. La barra de Luz llega hasta 8000 lux. Cada fila tiene su color (Suelo verde, temperatura magenta, aire cyan, Luz violeta); el tramo normal es luminoso y los extremos son más oscuros, con marcador blanco. Estos rangos son independientes de los límites editables de cada sensor. Las cifras se actualizan con las lecturas; los cambios de postura esperan confirmación breve. Temperatura añade un margen de 0.5 °C para evitar cambios repetidos cerca de los límites y una intensidad gradual de la pose; una condición cálida puede indicarse sin quitarle de inmediato la sonrisa. Los otros sensores todavía pueden determinar el gesto.
+Frío añade temblor y copos alternados; calor, una hoja que abanica y ondas magenta distribuidas. Aire seco usa trazos violetas y aire húmedo niebla cyan suspendida. Los efectos combinados se limitan a cuatro grupos. El sol amarillo crece y gana brillo con Luz; una luna circular aparece <20 lux, sin confirmar noche. Los símbolos ambientales mantienen sus referencias ilustrativas: frío bajo 15 °C, ondas desde 27 °C y aire seco/húmedo bajo 40/sobre 70 %. La expresión se adapta al perfil elegido, por lo que un efecto puede acompañar una sonrisa.
 
-Suelo, Aire y Luz conservan rangos educativos heredados; temperatura 15..30 °C es una franja provisional para flexibilizar la expresión del personaje, no un óptimo para todas las plantas. El porcentaje de Suelo es relativo a la calibración del sensor, no una medida del porcentaje de agua del sustrato. Los 8000 lux son el techo de lectura del P-Bit y no un nivel ideal para todas las plantas.
+El perfil `General` usa Suelo 30..70 %, temperatura 15..30 °C y Aire 40..70 %, incluidos los extremos. `Personalizado` permite cambiar esas seis referencias. Son referencias educativas, independientes de alarmas y calibración; no describen un óptimo universal ni certifican la salud de la planta. Suelo es relativo a la calibración, y 8000 lux es el techo instrumental del P-Bit.
 
-En esta pantalla, Luz se expresa en lux: hasta `999lx` aparece el valor completo; a partir de 1000 se compacta como `1K`, `1.2K` o `8K` (`K` significa mil lux), redondeado a una décima. La lectura interna y el diagnóstico conservan sus valores en lux.
+Poca luz confirmada permite `REPOSO` cuando las demás lecturas son conocidas y no necesitan atención; conserva la expresión correspondiente si Suelo, temperatura o Aire están fuera de referencia. No cuenta horas de luz ni determina si es de noche. Las desviaciones de esos tres canales se señalan en sus filas; el doble borde identifica la atención principal. Gesto y postura cambian gradualmente, también para Suelo y Aire. Temperatura añade un margen de 0.5 °C para evitar cambios repetidos cerca de las referencias.
 
-Cuando las condiciones mejoran, la mascota recupera su postura gradualmente y puede mostrar `MEJORANDO`. Una lectura desconocida se muestra como `--`, sin interpretarla como una necesidad negativa; si faltan datos y no hay otra necesidad conocida, aparece `FALTAN DATOS`. La mascota sigue reaccionando al cambiar a otra pantalla, pero no acumula crecimiento ni conserva una etapa entre reinicios. Es una interpretación educativa de las condiciones, no una medida de la salud o crecimiento real de la planta.
+Cada fila conserva su color: verde Suelo, magenta temperatura, cyan Aire y violeta Luz. El tramo de referencia es luminoso y los extremos oscurecidos, con marcador blanco. Lux <1000 aparece completo; desde 1000 se compacta como `1K/1.2K/8K` (mil lux, redondeado a una décima). La oscuridad no marca la fila como una necesidad negativa.
+
+Los cambios de banda se confirman con mediciones nuevas; repetir el último dato o navegar no basta. Un dato ausente o antiguo queda neutral con `--`, sin penalizar la mascota; si no hay otra necesidad conocida aparece `FALTAN DATOS`. Al mejorar las condiciones, la postura se recupera gradualmente y puede mostrar `MEJORANDO`; una nueva condición durante esa recuperación mantiene una transición continua. No acumula crecimiento ni historial diario.
+
+Si cambias la calibración de Suelo con un perfil Personalizado, se solicita `REVISAR SUELO` en su menú y, cuando no hay otra atención conocida, en la card de estado. El porcentaje actual permanece visible en blanco, pero su referencia queda neutral y no modifica el gesto hasta revisarla: entra a `Ajustar`, comprueba los seis valores y confirma `Guardar`. Volver a General conserva el personalizado; seleccionarlo de nuevo no elimina una revisión pendiente.
 
 Las pantallas de sensor son **zonas de sensor**. Dentro de cada una, la pulsación corta cambia el modo de visualización del sensor activo:
 
@@ -307,6 +311,16 @@ Las pantallas de sensor son **zonas de sensor**. Dentro de cada una, la pulsaci�
 
 La pulsación larga en cualquier pantalla de sensor abre su menú de configuración. Cada sensor recuerda su último modo visual guardado.
 
+### Configurar Planta Lab
+
+1. En Planta Lab, mantén pulsado el encoder ~1.2 s. Aparecen `Perfil` y `Ajustar` arriba, `Reset` abajo izquierda y `Salir` abajo derecha; la fila central está vacía.
+2. En `Perfil`, elige General o Personalizado y pulsa para ver el resumen. `Cancelar` es la opción inicial; gira a `Guardar` y pulsa para aplicar.
+3. En `Ajustar`, ajusta y confirma en orden: Suelo baja/alta, temperatura baja/alta y Aire baja/alta. Los porcentajes avanzan de uno en uno; temperatura usa la unidad global °C/°F y se guarda internamente en °C. Los valores se acotan para que la referencia baja quede separada de la alta.
+4. Revisa el resumen de los tres canales. Solo `Guardar` activa y conserva el personalizado. `Cancelar` descarta el borrador; una pulsación larga en cualquier paso cancela y vuelve a la mascota.
+5. `Reset` pide NO/SÍ, con NO inicialmente. SÍ restaura únicamente Planta Lab a General y elimina su personalización. Las alarmas, calibración de Suelo y otros ajustes conservan sus valores.
+
+Estos perfiles ajustan la representación de Planta Lab. Todavía no hay presets por especie ni recomendaciones automáticas basadas en exposición diaria.
+
 Cómo leer las vistas:
 
 - `Principal` sirve para consultar rápido el valor actual y su estado.
@@ -317,6 +331,7 @@ Cómo leer las vistas:
 - `Sonido VU` y `Sonido Onda` ayudan a ver cambios rápidos de intensidad sonora sin interpretar el valor como decibelios certificados.
 
 ---
+
 
 ## 7. Reposo automático
 
@@ -556,6 +571,9 @@ Pulsación corta: cambia el modo visual del sensor (Principal / Rango / Ficha / 
 Si el sensor de suelo no está conectado, el P-Bit muestra `Sin sensor`, `Conecta sensor` y `Revisa IO35` en lugar de iniciar la captura.
 
 Durante la calibración, una pulsación larga cancela el paso actual sin guardar cambios y vuelve al menú de Suelo. Desde el menú raíz, la pulsación larga cierra la configuración.
+
+Si usas un perfil Personalizado en Planta Lab, una calibración distinta deja sus referencias de Suelo pendientes de revisión. El porcentaje sigue visible; revisa y guarda los seis valores en Planta Lab → Ajustar para volver a usarlos en el gesto.
+
 
 ### Cómo ajustar límites sin recalibrar
 

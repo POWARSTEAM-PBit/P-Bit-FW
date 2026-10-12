@@ -35,6 +35,21 @@ constexpr bool SOIL_RANGE_MARKS_DEFAULT_VISIBLE = true;
 
 static int g_soil_cal_dry = SOIL_DEFAULT_DRY;
 static int g_soil_cal_wet = SOIL_DEFAULT_WET;
+static portMUX_TYPE g_soil_cal_mux = portMUX_INITIALIZER_UNLOCKED;
+
+static void set_current_soil_calibration(int dry, int wet) {
+    portENTER_CRITICAL(&g_soil_cal_mux);
+    g_soil_cal_dry = dry;
+    g_soil_cal_wet = wet;
+    portEXIT_CRITICAL(&g_soil_cal_mux);
+}
+
+SoilCalibrationData get_current_soil_calibration() {
+    portENTER_CRITICAL(&g_soil_cal_mux);
+    const SoilCalibrationData result = {g_soil_cal_dry, g_soil_cal_wet};
+    portEXIT_CRITICAL(&g_soil_cal_mux);
+    return result;
+}
 static int g_soil_thresh_dry = SOIL_THRESH_DEFAULT_DRY;
 static int g_soil_thresh_optimal = SOIL_THRESH_DEFAULT_OPTIMAL;
 static int g_soil_thresh_moist = SOIL_THRESH_DEFAULT_MOIST;
@@ -160,11 +175,9 @@ void load_soil_calibration() {
     int wet = stored.wet_raw;
 
     if (dry > wet && (dry - wet) >= SOIL_MIN_VALID_DELTA) {
-        g_soil_cal_dry = dry;
-        g_soil_cal_wet = wet;
+        set_current_soil_calibration(dry, wet);
     } else {
-        g_soil_cal_dry = SOIL_DEFAULT_DRY;
-        g_soil_cal_wet = SOIL_DEFAULT_WET;
+        set_current_soil_calibration(SOIL_DEFAULT_DRY, SOIL_DEFAULT_WET);
     }
 }
 
@@ -175,8 +188,7 @@ bool save_soil_calibration(int dry_raw, int wet_raw) {
 
     save_soil_calibration_store(dry_raw, wet_raw);
 
-    g_soil_cal_dry = dry_raw;
-    g_soil_cal_wet = wet_raw;
+    set_current_soil_calibration(dry_raw, wet_raw);
     return true;
 }
 
@@ -225,8 +237,7 @@ void reset_soil_settings() {
     save_soil_alerts_enabled_store(SOIL_ALERTS_DEFAULT_ENABLED);
     save_soil_range_marks_visible_store(SOIL_RANGE_MARKS_DEFAULT_VISIBLE);
 
-    g_soil_cal_dry = SOIL_DEFAULT_DRY;
-    g_soil_cal_wet = SOIL_DEFAULT_WET;
+    set_current_soil_calibration(SOIL_DEFAULT_DRY, SOIL_DEFAULT_WET);
     g_soil_thresh_dry = SOIL_THRESH_DEFAULT_DRY;
     g_soil_thresh_optimal = SOIL_THRESH_DEFAULT_OPTIMAL;
     g_soil_thresh_moist = SOIL_THRESH_DEFAULT_MOIST;
@@ -669,8 +680,7 @@ bool get_temperature_unit_fahrenheit() {
 void reset_all_settings() {
     clear_all_settings_store();
 
-    g_soil_cal_dry = SOIL_DEFAULT_DRY;
-    g_soil_cal_wet = SOIL_DEFAULT_WET;
+    set_current_soil_calibration(SOIL_DEFAULT_DRY, SOIL_DEFAULT_WET);
     g_soil_thresh_dry = SOIL_THRESH_DEFAULT_DRY;
     g_soil_thresh_optimal = SOIL_THRESH_DEFAULT_OPTIMAL;
     g_soil_thresh_moist = SOIL_THRESH_DEFAULT_MOIST;
@@ -753,6 +763,7 @@ int read_sound_level() {
 }
 
 float read_soil_moisture() {
+    const SoilCalibrationData calibration = get_current_soil_calibration();
     // Capacitive Soil Moisture Sensor V2.
     // Inverted logic: wetter soil -> lower voltage -> lower ADC.
     //
@@ -776,12 +787,12 @@ float read_soil_moisture() {
     static int last_cal_dry = -1;
     static int last_cal_wet = -1;
 
-    if (last_cal_dry != g_soil_cal_dry || last_cal_wet != g_soil_cal_wet) {
+    if (last_cal_dry != calibration.dry_raw || last_cal_wet != calibration.wet_raw) {
         percent_window_index = 0;
         percent_window_count = 0;
         percent_window_sum = 0.0f;
-        last_cal_dry = g_soil_cal_dry;
-        last_cal_wet = g_soil_cal_wet;
+        last_cal_dry = calibration.dry_raw;
+        last_cal_wet = calibration.wet_raw;
     }
 
     int raw_min = 4095;
@@ -812,7 +823,7 @@ float read_soil_moisture() {
         return NAN;
     }
 
-    int percent = map(raw_avg, g_soil_cal_dry, g_soil_cal_wet, 0, 100);
+    int percent = map(raw_avg, calibration.dry_raw, calibration.wet_raw, 0, 100);
 
     int clamped = constrain(percent, 0, 100);
     if (percent_window_count < PERCENT_AVG_WINDOW) {

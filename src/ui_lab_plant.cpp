@@ -10,6 +10,7 @@
 #include "plant_pet_art.h"
 #include "tft_display.h"
 #include "ui_widgets.h"
+#include "ui_plant_settings.h"
 #include <Arduino.h>
 #include <TFT_eSPI.h>
 #include <limits.h>
@@ -37,13 +38,16 @@ static_assert(PLANT_PET_ART_W <= kTerrariumW - 2 && PLANT_PET_ART_H <= kTerrariu
 PlantPetModel g_real_pet;
 PlantPetModel g_demo_pet;
 bool g_using_demo = false;
+Reading g_real_plant_reading = {}, g_demo_plant_reading = {};
+uint32_t g_applied_settings_revision = UINT32_MAX;
+bool g_applied_soil_review = false;
 // Fixed buffer: no frame-time allocation and one opaque burst per changed pose.
 uint16_t g_plant_pixels[PLANT_PET_ART_W * PLANT_PET_ART_H];
 struct PlantLabCache {
     PlantPetSnapshot pet;
     int16_t soil_x10 = INT16_MIN, temp_x10 = INT16_MIN, hum_x10 = INT16_MIN;
     uint32_t lux = kInvalidLux, animation_tick = 0;
-    bool fahrenheit = false, chrome_done = false;
+    bool fahrenheit = false, chrome_done = false, soil_review = false;
 };
 PlantLabCache g_plant_cache;
 
@@ -77,8 +81,13 @@ LangKey state_key(const PlantPetSnapshot& pet) {
         default: return pet.unknown_mask ? PLANT_STATE_UNKNOWN_KEY : PLANT_STATE_OK_KEY;
     }
 }
-const PlantPetRange& range_spec(uint8_t card) {
-    return plant_pet_range(static_cast<PlantChannel>(card));
+PlantPetRange range_spec(uint8_t card) {
+    PlantPetRange range = (g_using_demo ? g_demo_pet : g_real_pet).range(static_cast<PlantChannel>(card));
+    if (card == 1) {
+        if (range.opt_low < range.min_value) range.min_value=range.opt_low;
+        if (range.opt_high > range.max_value) range.max_value=range.opt_high;
+    }
+    return range;
 }
 float range_fraction(uint8_t card, float value) {
     const PlantPetRange& spec = range_spec(card);
@@ -89,7 +98,7 @@ float range_fraction(uint8_t card, float value) {
 int row_y(uint8_t card) { return kRowY[card]; }
 uint16_t row_accent(uint8_t card, PlantBand band) {
     if (band == PlantBand::Unknown) return unknown_color();
-    if (band == PlantBand::Normal) return kIdleBorder;
+    if (band == PlantBand::Normal || card == 3) return kIdleBorder;
     if (card == 1) return mood_color(band == PlantBand::Low ? PlantMood::Cold : PlantMood::Hot);
     return mood_color(band == PlantBand::Low ? PlantMood::Thirsty : PlantMood::Soggy);
 }
@@ -202,10 +211,10 @@ bool row_data_dirty(uint8_t card, const PlantLabCache& next) {
 }
 void draw_row_data(uint8_t card, const PlantLabCache& next) {
     const int y = row_y(card);
-    const bool known = !(next.pet.unknown_mask & (1U << card));
+    const bool known = row_value_valid(card, next);
     // Marker is taller than the track: clear its entire lane to avoid ghosting.
     tft.fillRect(kBarX, y + 4, kBarW, 9, kCardBg);
-    if (known) draw_bar_zones(card);
+    if (known && next.pet.bands[card] != PlantBand::Unknown && !(card == 0 && next.soil_review)) draw_bar_zones(card);
     else tft.fillRect(kBarX, y + 5, kBarW, kBarH, rgb(22, 36, 46));
     const int marker = marker_offset(card, next);
     if (known && marker >= 0) tft.drawFastVLine(kBarX + marker, y + 4, 9, TFT_WHITE);
@@ -235,7 +244,8 @@ void draw_state_card(const PlantLabCache& next) {
     tft.setTextDatum(C_BASELINE);
     // The existing body font includes accented ES/CAT glyphs, unlike GLCD font 1.
     tft.setFreeFont(FONT_BODY);
-    const char* label = L(state_key(next.pet));
+    const char* label = L(next.soil_review && next.pet.attention_mask == 0
+                          ? PLANT_SOIL_REVIEW_KEY : state_key(next.pet));
     if (tft.textWidth(label) > kStateW - 8) tft.setFreeFont(FONT_SMALL);
     tft.setTextColor(color, kCardBg);
     tft.drawString(label, kStateX + kStateW / 2, kStateY + kStateH / 2 + 5);
@@ -244,26 +254,36 @@ void draw_state_card(const PlantLabCache& next) {
 int16_t number_key(float value, bool valid) {
     return valid ? static_cast<int16_t>(lroundf(constrain(value, -3000.0f, 3000.0f) * 10.0f)) : INT16_MIN;
 }
+bool sample_usable(const ReadingSampleStamp& sample, uint32_t now, uint8_t card) {
+    return sample.sequence != 0
+        && (sample.quality == ReadingSampleQuality::Valid || sample.quality == ReadingSampleQuality::Retained)
+        && static_cast<uint32_t>(now - sample.sampled_at_ms) <= plant_pet_sample_max_age_ms(static_cast<PlantChannel>(card));
+}
 PlantLabCache build_next_cache(uint32_t now) {
-    const Reading& r = g_ui_readings_snapshot;
+    g_using_demo = demo_mode_is_active();
+    const Reading& r = g_using_demo ? g_demo_plant_reading : g_real_plant_reading;
     PlantLabCache next;
     next.pet = (g_using_demo ? g_demo_pet : g_real_pet).snapshot(now);
-    next.soil_x10 = number_key(r.soil_humidity, !pbit_external_sensor_missing(SZ_SOIL, r));
-    next.temp_x10 = number_key(r.temperature, valid_number(r.temperature));
-    next.hum_x10 = number_key(r.humidity, valid_number(r.humidity));
-    next.lux = light_lux_valid(r.ldr) ? static_cast<uint32_t>(lroundf(r.ldr)) : kInvalidLux;
+    next.soil_review = !g_using_demo && g_applied_soil_review;
+    next.soil_x10 = number_key(r.soil_humidity, valid_number(r.soil_humidity) && sample_usable(r.soil_sample,now,0));
+    next.temp_x10 = number_key(r.temperature, valid_number(r.temperature) && sample_usable(r.temperature_sample,now,1));
+    next.hum_x10 = number_key(r.humidity, valid_number(r.humidity) && sample_usable(r.humidity_sample,now,2));
+    next.lux = light_lux_valid(r.ldr) && sample_usable(r.light_sample,now,3)
+        ? static_cast<uint32_t>(lroundf(r.ldr)) : kInvalidLux;
     next.animation_tick = now / kAnimationStepMs;
     next.fahrenheit = g_is_fahrenheit;
     next.chrome_done = true;
     return next;
 }
+
 void draw_plant_area(const PlantLabCache& next, uint32_t now) {
     PlantPetInputs visual = {};
     for (uint8_t card = 0; card < 4; ++card) {
         visual.values[card] = row_value_float(card, next);
         visual.valid[card] = row_value_valid(card, next);
     }
-    plant_pet_render(g_plant_pixels, next.pet, now, &visual);
+    plant_pet_render(g_plant_pixels, next.pet, now, &visual,
+                     &(g_using_demo ? g_demo_pet : g_real_pet).profile());
     // Preserve the six top-corner pixels of the static radius-4 border.
     g_plant_pixels[0] = g_plant_pixels[1] = g_plant_pixels[PLANT_PET_ART_W] = kIdleBorder;
     g_plant_pixels[PLANT_PET_ART_W - 1] = g_plant_pixels[PLANT_PET_ART_W - 2]
@@ -287,10 +307,30 @@ void draw_chrome() {
 } // namespace
 
 void update_lab_plant_readings(const Reading& r, uint32_t now_ms, bool demo) {
-    PlantPetInputs input = {{r.soil_humidity, r.temperature, r.humidity, r.ldr},
-        {!pbit_external_sensor_missing(SZ_SOIL, r), valid_number(r.temperature),
-         valid_number(r.humidity), light_lux_valid(r.ldr)}};
-    g_using_demo = demo;
+    if (demo) g_demo_plant_reading = r;
+    else {
+        g_real_plant_reading = r;
+        const PlantSettingsSnapshot settings = get_plant_settings_snapshot();
+        if (settings.revision != g_applied_settings_revision || settings.soil_needs_review != g_applied_soil_review) {
+            const PlantPetProfile& profile = settings.settings.mode == PlantProfileMode::Custom
+                ? settings.settings.custom_profile : plant_pet_general_profile();
+            g_real_pet.setProfile(profile, now_ms, true);
+            g_applied_settings_revision = settings.revision;
+            g_applied_soil_review = settings.soil_needs_review;
+            g_plant_cache.chrome_done = false;
+        }
+    }
+    PlantPetInputs input = {};
+    input.values[0]=r.soil_humidity; input.values[1]=r.temperature;
+    input.values[2]=r.humidity; input.values[3]=r.ldr;
+    const ReadingSampleStamp stamps[] = {r.soil_sample,r.temperature_sample,r.humidity_sample,r.light_sample};
+    for (uint8_t card=0;card<4;++card) {
+        input.valid[card] = card == 3 ? light_lux_valid(input.values[card]) : valid_number(input.values[card]);
+        input.samples[card] = {stamps[card].sequence,stamps[card].sampled_at_ms,
+            stamps[card].quality == ReadingSampleQuality::Valid || stamps[card].quality == ReadingSampleQuality::Retained};
+    }
+    if (!demo && g_applied_soil_review) input.valid[0]=false;
+    input.has_sample_metadata=true;
     (demo ? g_demo_pet : g_real_pet).update(input, now_ms);
 }
 
@@ -302,7 +342,9 @@ void draw_lab_plant_screen(bool screen_changed, bool sensor_data_changed) {
         || next.pet.culprit != g_plant_cache.pet.culprit
         || next.pet.affected_mask != g_plant_cache.pet.affected_mask
         || next.pet.unknown_mask != g_plant_cache.pet.unknown_mask
-        || next.pet.recovering != g_plant_cache.pet.recovering;
+        || next.pet.recovering != g_plant_cache.pet.recovering
+        || next.soil_review != g_plant_cache.soil_review
+        || next.pet.profile_revision != g_plant_cache.pet.profile_revision;
     bool bands_dirty = first;
     bool rows_dirty[4];
     bool any_row_dirty = false;

@@ -13,4 +13,5 @@ constexpr uint16_t PLANT_PET_GREEN = 0x374B; // rgb(48, 232, 88), shared with th
 // Optional readings drive continuous visual detail; bands still gate needs.
 // Null uses representative band values for standalone pose previews.
 void plant_pet_render(uint16_t* pixels, const PlantPetSnapshot& pet, uint32_t now_ms,
-                      const PlantPetInputs* readings = nullptr);
+                      const PlantPetInputs* readings = nullptr,
+                      const PlantPetProfile* profile = nullptr);

@@ -10,32 +10,33 @@ Usar el entorno reproducible fijado en `platformio.ini`:
 py -m platformio run -e esp32dev
 ```
 
-Última verificación local registrada para esta release:
+Última verificación local registrada para este candidato:
 
-- Fecha: 2026-10-11
-- Base Git del código compilado: `3744f04` + cambios locales de mascota y refinamiento visual de Planta Lab, todavía sin commit; el hash base por sí solo no reproduce este candidato.
-- Comando: `py -m platformio run -e esp32dev`
-- Resultado: `SUCCESS`
-- RAM estática: `18.2%` (`59580` bytes de `327680`); no equivale al consumo total en ejecución de stacks, sprites o BLE
-- Flash: `74.1%` (`971189` bytes de `1310720`)
-- Entorno comprobado: PlatformIO Core `6.1.19`, `espressif32@6.12.0`, Arduino ESP32 `2.0.17`, librerías fijadas en `platformio.ini`
-- Advertencias: dos directivas `#undef` con tokens sobrantes en OneWire `2.3.8` (líneas 599–600); aviso de PlatformIO sobre varias instalaciones Core (`6.1.19` frente a `6.2.0`). No impidieron el build; no se cambiaron dependencias ni flags.
+- Fecha: 2026-10-12.
+- Base Git: `23fdb57` + cambios locales de comportamiento y setup V1 de Planta Lab; sin commit al compilar. El hash base por sí solo no reproduce este candidato.
+- Comando: `py -m platformio run -e esp32dev`.
+- Resultado: `SUCCESS`; build completa inicial 81.990 s y final incremental 22.711 s tras ajustar el editor, etiqueta del tile y reinicio explícito del modelo por revisión de perfil.
+- RAM estática: `18.4%` (`60372/327680` bytes); no equivale al consumo total de ejecución de stacks, sprites o BLE.
+- Flash: `74.7%` (`979701/1310720` bytes).
+- Incremento frente al candidato visual anterior (59580 / 971189): +792 bytes RAM y +8512 bytes Flash.
+- Entorno: PlatformIO Core `6.1.19`, `espressif32@6.12.0`, Arduino ESP32 `2.0.17`, librerías fijadas en `platformio.ini`. Se usó `PLATFORMIO_CORE_DIR=C:\.platformio` y `PYTHONPATH` del usuario; flags/dependencias del proyecto sin cambios.
+- Advertencias conocidas: dos `#undef` con tokens sobrantes en OneWire `2.3.8` (líneas 599–600) en la build completa; aviso de varias instalaciones Core (`6.1.19` frente a `6.2.0`). No impidieron build/carga.
+- Logs ignorados: `.pio/plant_pet_review/profile_v1/build.log` y `build-final.log`.
 
-Build incremental inicial SUCCESS (20.103 s) tras integrar copos/aire del preview autorizado; regeneración completa final SUCCESS (78.772 s) con los mismos tamaños, tras encontrar vacío el directorio de salida. RAM sin aumento y +184 bytes Flash frente al calor distribuido previo (59580 / 971005). Buffer de mascota 10 260 bytes, sin heap adicional. Se usó PlatformIO del usuario mediante `PYTHONPATH` y caché `C:\.platformio` mediante `PLATFORMIO_CORE_DIR`; flags y dependencias del proyecto sin cambios.
-
-Las builds del `2026-06-03` (RAM `48940`, Flash `945429`) y de base `27e5207` (RAM `49140`, Flash `961709`) quedan como evidencia histórica; no representan este candidato.
+La build/carga del 2026-10-11 sobre base `3744f04` + mascota/efectos locales (RAM 59580, Flash 971189) queda como antecedente visual; ese código ya estaba versionado al auditar `23fdb57`. Las builds de junio (48940 / 945429) y de base `27e5207` (49140 / 961709) tampoco representan el candidato V1 actual.
 
 ## Estado de validación y prioridad actual
 
-- **Observación posterior del usuario:** 2026-10-12: el usuario comunica que la versión cargada funciona muy bien y pide conservar el diseño actual. Se da por cerrado provisionalmente el ajuste visual de producto; esta observación general no verifica individualmente todas las poses, idiomas, recuperación, flicker ni Demo, ni cierra la validación completa por unidad/24 h.
-- **Siguiente fase recomendada:** revisión acotada de comportamiento/contrato de perfiles antes de setup; sin ejecución ni implementación nueva.
-
-- **Verificado en esta revisión:** modelo nativo PASS, incluidos perfil térmico/histéresis, intensidad/rampas, desconocidos, recuperación y rollover; raster 1215 combinaciones de pose/fase/transición +101 niveles de Suelo y 4 ausentes/no finitos PASS. Host `-Wall -Wextra -Werror` limpio; 138 comparaciones incremental/completo PASS, con quince temperaturas y diez niveles/límites de símbolos de Luz además de regresiones de K, C/F, suelo, nueve estados y cambios en el mismo tick/dígito. Se incluyen 48 frames adicionales de ondas distribuidas/escalonadas. PNG/GIF desde C++ real en `.pio/plant_pet_review/effects/`; galerías completas térmica/solar y posiciones de calor revisadas por el agente, usuario acepta el preview general de sol/luna y calor distribuido; frío/aire alternados autorizados e integrados. Última integración: 528 comparaciones host PASS y 528 frames idénticos al preview de nueve intensidades y dos combinaciones; raster 1215 casos +101 niveles de Suelo/4 ausentes-no finitos PASS. Artefactos actuales en `.pio/plant_pet_review/ambient_integrated/`. Etiquetas ES/CAT/EN medidas previamente, fuentes/textos sin cambios. Carga de este ajuste completada en COM8; ver registro inferior. Prueba visual/funcional física pendiente.
-- **Observación del usuario (2026-10-11):** tras probar la adaptación actual, aprueba colores de planta/medidores y valora favorablemente el efecto del suelo. Pide mejorar sol/luna, intensidad de ondas y facilidad de expresión feliz. Es aceptación puntual del diseño; no cierra poses/idiomas, recuperación, flicker ni Demo. Sol/luna y respuesta térmica gradual ya implementados en la build registrada arriba; Ondas ahora repartidas a distintas alturas/lados con apariciones escalonadas; preview general aceptado por el usuario; comprobación física pendiente. Autoriza integrar los copos y aire distribuidos del preview (ADR-003), ya implementados; falta su prueba TFT. Historial, combinaciones y flexibilidad ambiental siguen propuestas.
-- **Evidencia histórica:** entrada/salida de Demo y fixes anti-flicker aprobados puntualmente; `CHANGELOG.md` registra un soak provisional de `16 h 09 min` con BLE activo tras el fix DHT RMT, sin Guru/IWDT/reinicios. Stack mínimo observado en esa prueba: DisplayTask `2108` bytes libres, SensorTask `1944` bytes libres. No valida el candidato actual ni reemplaza el soak final.
-- **Comprobaciones específicas aún abiertas (diseño conservado tras observación favorable del usuario):** comprobar en TFT real las barras por sensor, verde persistente, tierra café progresiva, sol/luna y gestos de temperatura/aire; también iconos, K, grado, recuperación, rangos, textos y flicker. La luna representa baja iluminación, no noche confirmada; el modelo todavía marca `POCA LUZ` por debajo de 200 lux. Configuración/presets después. Demo ≥30 s sigue pendiente como regresión. Ver `docs/ROADMAP.md` y `docs/ADR-003-planta-lab.md`.
-- **Pendientes aplazados por el usuario:** prueba final de 24 h y validación física completa por unidad. Se conservan los checks abiertos; no se ha aprobado la entrega de producción.
-- **Incidencias de junio:** calibración cancelable, Reset con reinicio, selector hasta confirmar idioma y restauración de vistas al salir de Demo están corregidos en código. Ver seguimiento en `docs/HARDWARE_VALIDATION_2026-06-04.md`; las notas originales no son una lista de bugs activos.
+- **Diseño conservado:** el usuario aprobó planta verde, barras por sensor y suelo café; el 2026-10-12 comunicó que la versión anterior funcionaba muy bien y pidió conservarla. Es cierre visual provisional, sin comprobar individualmente poses, idiomas, recuperación, flicker ni Demo.
+- **Auditoría e implementación:** la revisión acotada sobre `23fdb57` reprodujo cuatro trazas y definió el contrato. Después el usuario autorizó todas las correcciones y setup V1. [Informe con resolución F1–F5](PLANTA_LAB_BEHAVIOR_REVIEW.md). No es una auditoría global ni validación de rangos biológicos.
+- **V1 implementado:** poca luz contextual/`REPOSO`; adquisición identificada y frescura por canal; Suelo/T/Aire graduales; mezcla de poses continua. General/Personalizado con seis referencias educativas, borrador/Guardar/Cancelar, C/F, NVS versionada/validada y Reset propio. Recalibración de Suelo personalizado pide revisión; barras usan perfil activo y T amplía escala cuando hace falta. Real/Demo separados, Demo General. Sin presets, historial diario/persistente, RTC, consejos sostenidos ni detección de sol directo/calor propio.
+- **Adquisición nativa:** 28 checks PASS contra `src/io.cpp`: valores iguales con secuencia nueva, retención DHT/TOO_SOON, invalidez, reconexión, canales parciales, rollover y tiempo cero. Host C++11 `-Wall -Wextra -Werror`; se suprime solo el parámetro histórico no usado de la tarea en este harness, sin cambiar flags firmware.
+- **Modelo/setup nativos:** suites PASS con C++11 `-Wall -Wextra -Werror`: copias sin evidencia, nuevas muestras idénticas, caducidad por canal, desconocidos, referencias válidas/corruptas, intensidad, recuperación interrumpida, rollover y revisión forzada del perfil. Persistencia: borrador sin NVS, Cancelar predeterminado, guardado único, General/Personalizado, calibración, C/F, separación, intervalos elevados en una pasada, fallo de escritura, blob corrupto/incompatible y Reset aislado.
+- **Render/pantallas:** raster 1215 combinaciones +101 niveles de Suelo +4 ausentes/no finitos PASS; continuidad exacta de los píxeles de la planta al interrumpir recuperación PASS. Pantalla principal: 143 comparaciones incremental/completo PASS. Setup: 30 comparaciones PASS en ES/CAT/EN; etiqueta `Ajustar`/`Edit profile` cabe en tile. Previews desde código/fuentes y semántica TFT_eSPI 2.5.43 emulada; no reemplazan ST7735 real. Artefactos ignorados en `.pio/plant_pet_review/profile_v1/`; SHA256 de fuentes del preview en `setup_preview/test-results.json`.
+- **Carga actual:** COM8 SUCCESS el 2026-10-12, hashes de escritura verificados y reinicio RTS enviado; registro inferior. No confirma observación del arranque, uso del menú ni persistencia física.
+- **Pruebas específicas abiertas:** usar Perfil/Ajustar, Guardar/Cancelar, cancelación larga, Reset y C/F; reiniciar, recalibrar/reconfirmar Suelo y alternar perfiles con valores iguales. Verificar reposo con otra necesidad, datos ausentes/antiguos, recuperación/interrupción, textos/efectos y flicker en TFT. Demo ≥30 s sigue pendiente como regresión. [Roadmap](ROADMAP.md), [ADR-003](ADR-003-planta-lab.md) y [checklist](PRODUCTION_CHECKLIST.md).
+- **Evidencia histórica:** entrada/salida Demo y fixes anti-flicker aprobados puntualmente; soak de `16 h 09 min` con BLE activo tras fix DHT RMT, sin Guru/IWDT/reinicios. Stack mínimo libre: DisplayTask 2108 bytes, SensorTask 1944 bytes. No valida este candidato.
+- **Pendientes aplazados:** prueba final de 24 h y validación física completa por unidad; no se iniciaron ni se aprobó entrega de producción. Incidencias de junio deben contrastarse con el seguimiento de [HARDWARE_VALIDATION_2026-06-04](HARDWARE_VALIDATION_2026-06-04.md), no tratarse automáticamente como bugs vigentes.
 
 Nota de producto: la alimentación recomendada de entrega/aula es `3 baterías AAA`. USB-C queda para programación, monitor serie y alimentación auxiliar 5 V por PC/powerbank; no presentarlo como alimentación principal.
 
@@ -53,9 +54,13 @@ Artefactos generados en `.pio/build/esp32dev/`:
 %USERPROFILE%\.platformio\packages\framework-arduinoespressif32\tools\partitions\boot_app0.bin
 ```
 
-## Carga del candidato actual — 2026-10-11
+## Carga del candidato V1 actual — 2026-10-12
 
-Carga autorizada por el usuario el 2026-10-11: `py -m platformio run -e esp32dev -t upload --upload-port COM8` SUCCESS (29.848 s), USB-SERIAL CH340, ESP32-D0WD-V3 revisión 3.1. Esptool verificó los hashes de los datos escritos y envió reinicio por RTS. Candidato base `3744f04` + cambios locales de mascota/efectos, RAM 59580 y Flash 971189. Log ignorado: `.pio/plant_pet_review/ambient_integrated/upload.log`. Confirma carga y reinicio solicitado, no observación de pantalla ni cierre de pruebas visuales/funcionales. No se activó debug ni se cambiaron flags/dependencias. La causa del fallo de carga en Visual Studio Code no se reprodujo en esta operación.
+Usuario confirma conexión para cargar la versión implementada. `py -m platformio run -e esp32dev -t upload --upload-port COM8` SUCCESS (34.229 s), USB-SERIAL CH340, ESP32-D0WD-V3 revisión 3.1. Tamaños previos a carga: RAM 60372 y Flash 979701, base `23fdb57` + cambios locales V1. Esptool verificó hashes de los datos escritos y envió reinicio RTS. Log ignorado: `.pio/plant_pet_review/profile_v1/upload.log`. Confirma programación y reinicio solicitado, sin prueba visual/funcional física por el agente; no se activó debug ni se cambiaron flags/dependencias.
+
+### Carga histórica del diseño — 2026-10-11
+
+Mismo comando/puerto, SUCCESS (29.848 s); hashes verificados y reinicio RTS. Base `3744f04` + mascota/efectos locales, RAM 59580 y Flash 971189. Log ignorado: `.pio/plant_pet_review/ambient_integrated/upload.log`. El usuario valoró favorablemente ese diseño después. La causa del fallo previo de carga desde Visual Studio Code no se reprodujo en la operación.
 
 ## Checks Mínimos
 
@@ -69,7 +74,7 @@ py -m platformio run -e esp32dev
 
 Registrar tamaño de firmware, hash de commit, fecha, operador, placa y resultado de flasheo.
 
-Esta revisión comprueba build y código. Las validaciones puntuales de hardware de Demo Mode y anti-flicker/ghosting proceden de sesiones anteriores. El registro completo de flasheo y pruebas debe repetirse aparte por unidad cuando se retome esa validación.
+Esta revisión comprueba build, pruebas nativas/host y carga. Las validaciones puntuales de hardware de Demo Mode y anti-flicker/ghosting proceden de sesiones anteriores. El registro completo de flasheo y pruebas debe repetirse aparte por unidad cuando se retome esa validación.
 
 ## Auditoría Estática De Producción
 
@@ -118,7 +123,8 @@ Después de flashear una unidad, cuando se retome la validación física complet
 - [ ] Confirmar selector de idioma en primer arranque si la build limpió NVS.
 - [ ] Confirmar BLE apagado por defecto y sin publicidad `PBIT-XXXX`.
 - [ ] Recorrer carrusel completo y probar una pulsación corta/larga en un sensor.
-- [ ] Revisar Planta Lab según `docs/ADR-003-planta-lab.md`: nueve poses con rostro, recuperación gradual, necesidades simultáneas y datos desconocidos; aparición condicional y textos ES/CAT/EN. Luz llega al extremo a 8000 lux; tierra/diagnóstico comparten las bandas de Suelo 30/70 %, con confirmación temporal. Comprobar que el buffer no pisa bordes ni produce parpadeo.
+- [ ] Revisar Planta Lab según `docs/ADR-003-planta-lab.md`: nueve poses con rostro, recuperación gradual, necesidades simultáneas y datos desconocidos; aparición condicional y textos ES/CAT/EN. Luz llega al extremo a 8000 lux y no genera necesidad adversa; tierra/gesto usan referencias del perfil activo (General 30/70 %), con confirmación por muestras nuevas. Comprobar que el buffer no pisa bordes ni produce parpadeo.
+- [ ] Planta Lab: abrir con pulsación larga ~1.2 s; recorrer Perfil/Ajustar/Reset/Salir, editar seis referencias y comprobar Cancelar predeterminado, Guardar y cancelación larga. Confirmar persistencia tras reinicio, C/F sin alterar °C guardados, Reset aislado y REVISAR SUELO tras recalibrar Personalizado; reconfirmar en Ajustar.
 - [ ] Verificar lecturas plausibles de DHT11, LDR, micrófono, suelo y Termómetro (`DS18B20`).
 - [ ] Verificar sensores externos desconectados: Suelo muestra `Revisa IO35`, Termómetro muestra `Revisa IO33`, con pantalla atenuada y retorno a paleta normal al reconectar sin reiniciar.
 - [ ] Verificar splash de conexión/desconexión: `CONECTADO/DESCONECTADO / Sensor Suelo / IO35` y `CONECTADO/DESCONECTADO / Sensor DS18B20 / IO33`, fondo verde/rojo correcto y sin aviso inicial al arrancar con sensores ya conectados o ya desconectados.

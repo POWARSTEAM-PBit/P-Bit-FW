@@ -29,6 +29,7 @@
 #include "lang_select.h" // Cold-boot language selector
 #include "config.h"
 #include "settings_store.h"
+#include "ui_plant_settings.h"
 #include "layout.h"
 #include "runtime_events.h"
 #include "alert_engine.h"
@@ -209,6 +210,7 @@ void setup() {
     init_leds_and_buzzer();
     alert_engine_reset();
     init_hw();
+    load_plant_settings();
     pinMode((uint8_t)DI_ENCODER_SW, INPUT_PULLUP);
     bool demo_boot_requested = (digitalRead((uint8_t)DI_ENCODER_SW) == LOW);
 

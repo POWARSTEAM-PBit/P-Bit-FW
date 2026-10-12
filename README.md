@@ -11,7 +11,7 @@ Alimentación recomendada del producto: `3 baterías AAA`. El puerto USB-C se us
 platformio run -e esp32dev
 
 # Compilar y flashear
-platformio run -t upload
+platformio run -e esp32dev -t upload
 
 # Monitor serie
 platformio device monitor
@@ -25,15 +25,18 @@ En Windows, si `platformio` no está en PATH:
 
 ## Estado actual
 
-- Build verificada el `2026-10-11` sobre base `3744f04` + cambios locales de mascota y ajuste visual de Planta Lab: `esp32dev` SUCCESS, RAM estática `59580` (18.2 %), Flash `971189` (74.1 %), con flags de producción sin cambios.
-- Planta Lab: mascota verde persistente, barras por sensor y tierra café progresiva, aprobados puntualmente por el usuario. Último ajuste: expresión térmica flexible 15..30 °C con histéresis y postura gradual; ondas magenta repartidas y escalonadas desde 27 °C, sol creciente y luna circular <20 lux. Copos 1..3 con descenso y efectos de aire 1..2 con deriva/pausas ya integrados, limitados a cuatro grupos ambientales conjuntos. Pruebas nativas/preview comprobados; esta revisión todavía requiere TFT real. Historial, combinaciones y presets siguen pendientes.
+- Build verificada el `2026-10-12`, base `23fdb57` + cambios locales V1 de Planta Lab: `esp32dev` SUCCESS (22.711 s), RAM estática `60372/327680` (18.4 %), Flash `979701/1310720` (74.7 %), flags de producción sin cambios.
+- Candidato V1 cargado en COM8: SUCCESS (34.229 s), hashes verificados y reinicio RTS enviado. La carga no cierra la comprobación física del candidato.
+- Planta Lab conserva el diseño visual aceptado provisionalmente por el usuario el 2026-10-12: verde persistente, barras por sensor, tierra café progresiva, sol/luna y efectos ambientales distribuidos. La nueva V1 añade REPOSO contextual por luz baja, mediciones identificadas/frescura y gesto gradual de Suelo/Temperatura/Aire con continuidad en recuperación. No diagnostica salud ni daño biológico.
+- Configuración propia: pulsación larga ~1.2 s, menú `Perfil/Ajustar/Reset/Salir`, General/Personalizado y seis referencias en borrador. Guardar confirma/persiste; Cancelar es inicial y una larga cancela todo. Temperatura se edita en C/F global y guarda °C. General conserva personalizado; Reset afecta únicamente Planta Lab, sin modificar alarmas ni calibración. Una calibración distinta solicita revisar las referencias personalizadas de Suelo.
+- Modelos real/Demo separados; Demo usa General y no escribe perfiles. Planta Lab todavía no pertenece a las escenas Demo. Presets por especie, historial diario y consejos sostenidos/combinaciones no implementados.
 - Carrusel de producción: `Inicio`, `Clima Lab`, `Planta Lab` si Suelo está conectado, `Termo Lab`, 6 sensores en Sensor Zone, `Timer`, `Sistema`.
 - Sensor Zone: `Temperatura`, `Humedad`, `Luz`, `Sonido`, `Suelo` y `Termómetro`; pulsación corta cambia `Principal -> Rango -> Ficha -> Dato -> Curva`. `Sonido` añade `Sonido VU` y `Sonido Onda` tras `Principal`.
 - Alimentación de producto: `3 baterías AAA`; USB-C para programación/alimentación auxiliar.
 - Idiomas: Español, Catalán, English.
 - WiFi y Bluetooth forman parte del ESP32, pero el firmware inicial no ofrece configuración WiFi ni flujo público de Bluetooth. BLE queda desactivado de fábrica.
 
-La validación final de producción sigue abierta. La prioridad actual es cerrar el refinamiento visual de `Planta Lab` en TFT real; configuración/presets después; Demo ya está implementado y anti-flicker requiere regresión visual tras este cambio. La prueba final de 24 h y la validación física completa por unidad se mantienen pendientes y aplazadas. Ver `docs/ROADMAP.md` y `docs/PRODUCTION_RELEASE.md` para distinguir estado actual de evidencia histórica.
+La validación final de producción sigue abierta. El diseño previo se conserva; el siguiente paso es probar en P-Bit el comportamiento y la configuración V1, incluidas persistencia, cancelación, calibración, idiomas y regresión de flicker/Demo. La valoración física de la versión visual anterior no verifica estos cambios nuevos. La prueba final de 24 h y la validación física completa por unidad se mantienen pendientes y aplazadas. Ver `docs/ROADMAP.md` y `docs/PRODUCTION_RELEASE.md` para distinguir candidato actual de evidencia histórica.
 
 ## Documentación
 

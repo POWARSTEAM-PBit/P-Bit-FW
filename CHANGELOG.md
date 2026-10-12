@@ -2,6 +2,24 @@
 
 ## 2026-10-12
 
+### Firmware/UI — Correcciones de comportamiento y setup V1 de Planta Lab
+
+- Implementado el contrato autorizado tras la revisión sobre `23fdb57`: General/Personalizado con referencias de Suelo 30..70 %, T 15..30 °C y Aire 40..70 % como punto de partida educativo. Luz contextual permite `REPOSO` y no domina necesidades. Suelo/Aire también tienen gesto gradual; `SUELO SECO` / `SUELO HÚMEDO` sustituyen diagnósticos anteriores en ES/CAT/EN. Mezcla de poses conserva continuidad al interrumpir recuperación. Paleta/layout aprobados conservados; sin presets, historial, crecimiento ni consejos biológicos nuevos.
+- `Reading` incorpora identidad/fecha/calidad por canal; la retención DHT no crea muestras. El modelo se sirve fuera del dibujo, confirma sólo adquisiciones nuevas y caduca Suelo/Luz a 1000 ms y T/Aire a 3000 ms. Valores desconocidos no penalizan. Demo conserva instancia/lecturas propias y General, sin escribir personalización.
+- Nuevo setup con pulsación larga ~1.2 s: grid `Perfil / Ajustar / Reset / Salir`, seis referencias en borrador, resumen y Guardar/Cancelar (Cancelar predeterminado); pulsación larga descarta y sale. Editor permite elevar intervalos en una pasada ajustando ALTA sólo en borrador. C/F global con temperatura persistida en °C. NVS `plant_cfg` versionada, checksum, validación y publicación sólo tras guardado correcto; Reset sólo Planta Lab. Personalizado registra calibración RAW y exige reconfirmación tras cambiarla. Perfil, barras/tierra y cachés comparten revisión; anclajes ambientales fijos y escala T adaptable.
+- Verificación: 28 checks nativos de adquisición PASS; suites modelo/setup/NVS PASS; raster 1215 combinaciones +101 niveles de Suelo +4 ausentes/no finitos y continuidad de píxeles PASS. 143 comparaciones de pantalla principal y 30 de setup ES/CAT/EN PASS, desde código/fuentes/primitivas TFT emuladas. Documentación canónica, AGENTS, informe, roadmap, checklist/release y README sincronizados. Artefactos/logs ignorados en `.pio/plant_pet_review/profile_v1/`.
+- Build `esp32dev` completa inicial SUCCESS81.990 s y final SUCCESS22.711 s: base `23fdb57` + cambios locales V1, RAM60372/327680 (18.4 %), Flash979701/1310720 (74.7 %); +792 RAM y +8512 Flash frente al candidato visual anterior. Flags/dependencias sin cambios; advertencias conocidas Core/OneWire.
+- Carga solicitada en COM8 SUCCESS34.229 s, CH340/ESP32-D0WD-V3 rev3.1, hashes verificados y reinicio RTS enviado. Prueba funcional/visual V1 pendiente en P-Bit; no se cierra validación por unidad/24 h ni se activa debug. Sin commit/push de estos cambios por el agente.
+
+### Revisión/documentación — Comportamiento y contrato V1 de Planta Lab
+
+- Auditoría acotada completada sobre `23fdb57` (árbol limpio al iniciar), con dos revisiones paralelas: modelo/pruebas y contrato/investigación. Diseño aprobado conservado; nuevo informe `docs/PLANTA_LAB_BEHAVIOR_REVIEW.md`.
+- Cuatro trazas nativas contra el modelo base auditado reproducen oscuridad dominante, copias UI frente a muestras nuevas, recuperación interrumpida y Hot con intensidad cero en histéresis. Compilador C++11 `-Wall -Wextra -Werror`; harness/binario ignorados en `.pio/plant_pet_review/behavior_audit/`.
+- Identificados cambios de semántica, frescura y continuidad, junto al acoplamiento futuro de referencias con escalas/rampas térmicas. Contrato propuesto: General/Personalizado para Suelo/Temperatura/Aire, Luz contextual, NVS validada, Reset propio e invalidación de evidencia/cachés/calibración. Sin nuevos umbrales agronómicos ni presets validados.
+- Corregida secuencia documental: el setup educativo no requiere primero historial diario; cobertura/duración siguen necesarias para futuros consejos sostenidos. ADR-003, investigación, roadmap, AGENTS y producción sincronizados.
+- Solo Markdown versionable; sin cambios de firmware, build ESP32 ni flasheo. No se cierran pruebas físicas exhaustivas; 24 h/unidad siguen aplazadas.
+
+
 ### Documentación — Diseño conservado y siguiente fase propuesta
 
 - 2026-10-12: el usuario comunica que la versión cargada funciona muy bien y pide conservar el diseño actual. Se da por cerrado provisionalmente el ajuste visual de producto; esta observación general no verifica individualmente todas las poses, idiomas, recuperación, flicker ni Demo, ni cierra la validación completa por unidad/24 h.

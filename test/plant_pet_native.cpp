@@ -15,8 +15,12 @@ int failures = 0;
 } } while (false)
 
 PlantPetInputs healthy() {
-    const PlantPetInputs inputs = { { 50.0f, 22.0f, 55.0f, 1000.0f },
-                                    { true, true, true, true } };
+    PlantPetInputs inputs = {};
+    const float values[4] = {50.0f, 22.0f, 55.0f, 1000.0f};
+    for (uint8_t channel = 0; channel < 4; ++channel) {
+        inputs.values[channel] = values[channel];
+        inputs.valid[channel] = true;
+    }
     return inputs;
 }
 
@@ -44,8 +48,9 @@ void inclusive_thresholds_and_startup() {
         below.update(inputs, 0);
         CHECK(below.snapshot(0).bands[channel] == PlantBand::Low);
         CHECK(below.snapshot(0).mood == low_moods[channel]);
-        CHECK(below.snapshot(0).affected_mask == (1u << channel));
-        CHECK(below.snapshot(0).culprit == static_cast<PlantChannel>(channel));
+        CHECK(below.snapshot(0).affected_mask == (channel == 3 ? 0 : (1u << channel)));
+        CHECK(below.snapshot(0).reference_mask == (1u << channel));
+        CHECK(below.snapshot(0).culprit == (channel == 3 ? PlantChannel::None : static_cast<PlantChannel>(channel)));
         CHECK(below.snapshot(0).transition == 255); // Startup has no false wait.
         inputs.values[channel] = range.opt_high + 0.01f;
         PlantPetModel above;
@@ -110,7 +115,7 @@ void severity_and_culprit_hold_show_concurrent_needs() {
     PlantPetModel model;
     PlantPetInputs inputs = healthy();
     inputs.values[0] = 15.0f; // 0.50 severity.
-    inputs.values[1] = 7.5f;  // 0.50 severity: deterministic startup tie.
+    inputs.values[1] = 11.5f; // 0.50 authored cold strength: deterministic startup tie.
     model.update(inputs, 0);
     CHECK(model.snapshot(0).culprit == PlantChannel::Soil);
     CHECK(model.snapshot(0).affected_mask == 0x03);
@@ -149,7 +154,8 @@ void severity_and_culprit_hold_show_concurrent_needs() {
     inputs.values[3] = 100.0f; // log1p gap ~0.13, not a linear 0.50.
     logarithmic_light.update(inputs, 0);
     CHECK(logarithmic_light.snapshot(0).culprit == PlantChannel::Soil);
-    CHECK(logarithmic_light.snapshot(0).affected_mask == 0x09);
+    CHECK(logarithmic_light.snapshot(0).affected_mask == 0x01);
+    CHECK(logarithmic_light.snapshot(0).reference_mask == 0x09);
 }
 
 void unknown_is_immediate_and_not_an_adverse_state() {
@@ -202,7 +208,8 @@ void update_works_without_a_visible_screen() {
     model.update(inputs, 3400);
     // First rendered snapshot happens later; behavior was already updated.
     CHECK(model.snapshot(5000).mood == PlantMood::Dim);
-    CHECK(model.snapshot(5000).affected_mask == 0x08);
+    CHECK(model.snapshot(5000).affected_mask == 0);
+    CHECK(model.snapshot(5000).low_light);
     CHECK(model.snapshot(5000).transition == 255);
 }
 
@@ -342,6 +349,285 @@ void thermal_strength_progresses_without_counting_frames_as_evidence() {
     CHECK(rollover.snapshot(start + 750u).thermal_intensity == 149);
     CHECK(rollover.snapshot(start + 1500u).thermal_intensity == 255);
 }
+
+void stamp_all(PlantPetInputs& inputs, uint32_t sequence, uint32_t sampled_ms) {
+    inputs.has_sample_metadata = true;
+    for (uint8_t channel = 0; channel < 4; ++channel)
+        inputs.samples[channel] = { sequence, sampled_ms, true };
+}
+
+void duplicate_copies_cannot_confirm_a_band() {
+    PlantPetInputs inputs = healthy();
+    stamp_all(inputs, 1, 0);
+    PlantPetModel model;
+    model.update(inputs, 0);
+    inputs.values[1] = 31.0f;
+    stamp_all(inputs, 2, 1000);
+    model.update(inputs, 1000);
+    for (uint32_t now = 1100; now <= 2200; now += 100) model.update(inputs, now);
+    CHECK(model.snapshot(2200).bands[1] == PlantBand::Normal);
+    CHECK(model.snapshot(2200).thermal_intensity == 0);
+    // The identical numerical value is a new physical acquisition and counts.
+    stamp_all(inputs, 3, 3000);
+    model.update(inputs, 3000);
+    CHECK(model.snapshot(3000).bands[1] == PlantBand::High);
+    CHECK(model.snapshot(3000).mood == PlantMood::Hot);
+
+    PlantPetModel delayed_copies;
+    inputs = healthy();
+    stamp_all(inputs, 1, 0);
+    delayed_copies.update(inputs, 0);
+    inputs.values[1] = 31.0f;
+    stamp_all(inputs, 2, 1000);
+    delayed_copies.update(inputs, 1000);
+    stamp_all(inputs, 3, 1100);
+    delayed_copies.update(inputs, 2500); // Delivery lag is not sustained exposure.
+    CHECK(delayed_copies.snapshot(2500).bands[1] == PlantBand::Normal);
+    stamp_all(inputs, 4, 2200);
+    delayed_copies.update(inputs, 2600);
+    CHECK(delayed_copies.snapshot(2600).bands[1] == PlantBand::High);
+}
+
+void acquisition_quality_and_expiry_are_independent_of_identity() {
+    PlantPetInputs inputs = healthy();
+    stamp_all(inputs, 1, 0);
+    PlantPetModel model;
+    model.update(inputs, 0);
+    model.update(inputs, 1000);
+    CHECK(model.snapshot(1000).unknown_mask == 0);
+    model.update(inputs, 1001);
+    CHECK(model.snapshot(1001).unknown_mask == 0x09); // Soil and LDR expire first.
+    model.update(inputs, 3000);
+    CHECK(model.snapshot(3000).bands[1] == PlantBand::Normal);
+    model.update(inputs, 3001);
+    CHECK(model.snapshot(3001).unknown_mask == 0x0f);
+    CHECK(model.snapshot(3001).affected_mask == 0);
+
+    PlantPetModel quality;
+    inputs = healthy();
+    inputs.values[1] = 36.0f;
+    stamp_all(inputs, 1, 100);
+    quality.update(inputs, 100);
+    CHECK(quality.snapshot(100).mood == PlantMood::Hot);
+    inputs.valid[1] = false; // Invalid quality; stamp intentionally unchanged.
+    quality.update(inputs, 101);
+    CHECK(quality.snapshot(101).bands[1] == PlantBand::Unknown);
+    CHECK(quality.snapshot(101).thermal_intensity == 0);
+    CHECK(quality.snapshot(101).affected_mask == 0);
+    CHECK(!quality.snapshot(101).recovering);
+
+    const uint32_t start = UINT32_MAX - 500u;
+    PlantPetModel rollover;
+    inputs = healthy();
+    stamp_all(inputs, UINT32_MAX, start);
+    rollover.update(inputs, start);
+    rollover.update(inputs, start + 1000u);
+    CHECK(rollover.snapshot(start + 1000u).unknown_mask == 0);
+    rollover.update(inputs, start + 1001u);
+    CHECK(rollover.snapshot(start + 1001u).unknown_mask == 0x09);
+    stamp_all(inputs, 1, start + 1200u); // Acquisition sequence and millis wrap.
+    rollover.update(inputs, start + 1200u);
+    CHECK(rollover.snapshot(start + 1200u).bands[1] == PlantBand::Normal);
+    CHECK(plant_pet_sample_max_age_ms(PlantChannel::None) == 0);
+}
+
+void darkness_is_calm_context_and_never_competes_for_attention() {
+    PlantPetInputs inputs = healthy();
+    inputs.values[3] = 0.0f;
+    PlantPetModel resting;
+    resting.update(inputs, 0);
+    const PlantPetSnapshot rest = resting.snapshot(0);
+    CHECK(rest.mood == PlantMood::Dim);
+    CHECK(rest.culprit == PlantChannel::None);
+    CHECK(rest.affected_mask == 0 && rest.attention_mask == 0);
+    CHECK(rest.reference_mask == 0x08 && rest.low_light);
+    CHECK(rest.intensity[3] == 0);
+    CHECK(rest.pose_weights[static_cast<uint8_t>(PlantMood::Dim)] == PLANT_PET_POSE_WEIGHT_MAX);
+
+    inputs.values[0] = 15.0f;
+    inputs.values[1] = 35.0f;
+    inputs.values[2] = 20.0f;
+    PlantPetModel needs;
+    needs.update(inputs, 0);
+    const PlantPetSnapshot need = needs.snapshot(0);
+    CHECK(need.mood == PlantMood::Hot);
+    CHECK(need.culprit == PlantChannel::Temperature);
+    CHECK(need.affected_mask == 0x07 && need.reference_mask == 0x0f);
+    CHECK(need.low_light);
+
+    inputs = healthy();
+    inputs.values[0] = 0.0f;
+    inputs.values[3] = 0.0f;
+    PlantPetModel recovery;
+    recovery.update(inputs, 0);
+    inputs.values[0] = 50.0f;
+    recovery.update(inputs, 100);
+    recovery.update(inputs, 1300);
+    CHECK(recovery.snapshot(1300).mood == PlantMood::Dim);
+    CHECK(recovery.snapshot(1300).recovering);
+    CHECK(recovery.snapshot(2800).transition == 127);
+    CHECK(!recovery.snapshot(4300).recovering);
+}
+
+void soil_and_air_gestures_are_gentle_and_progressive() {
+    for (uint8_t channel : {uint8_t(0), uint8_t(2)}) {
+        PlantPetInputs inputs = healthy();
+        const float low = plant_pet_range(static_cast<PlantChannel>(channel)).opt_low;
+        inputs.values[channel] = low - 0.01f;
+        PlantPetModel gentle;
+        gentle.update(inputs, 0);
+        const PlantPetSnapshot initial = gentle.snapshot(0);
+        CHECK(initial.bands[channel] == PlantBand::Low);
+        CHECK(initial.intensity[channel] == 0);
+        CHECK(initial.pose_weights[static_cast<uint8_t>(PlantMood::Content)] == PLANT_PET_POSE_WEIGHT_MAX);
+        inputs.values[channel] = 0.0f;
+        gentle.update(inputs, 1000);
+        CHECK(gentle.snapshot(1000).intensity[channel] == 0);
+        CHECK(gentle.snapshot(1750).intensity[channel] == 127);
+        CHECK(gentle.snapshot(2500).intensity[channel] == 255);
+        const uint8_t pose = static_cast<uint8_t>(channel == 0 ? PlantMood::Thirsty : PlantMood::AirDry);
+        CHECK(gentle.snapshot(2500).pose_weights[pose] == PLANT_PET_POSE_WEIGHT_MAX);
+        gentle.update(inputs, 2501);
+        CHECK(gentle.snapshot(3000).intensity[channel] == 255); // Identical target holds.
+    }
+}
+
+uint32_t weight_sum(const PlantPetSnapshot& snapshot) {
+    uint32_t sum = 0;
+    for (uint8_t pose = 0; pose < PLANT_PET_POSE_COUNT; ++pose) sum += snapshot.pose_weights[pose];
+    return sum;
+}
+
+void recovery_interruption_preserves_the_effective_pose() {
+    PlantPetInputs inputs = healthy();
+    inputs.values[0] = 0.0f;
+    PlantPetModel model;
+    model.update(inputs, 0);
+    inputs.values[0] = 50.0f;
+    model.update(inputs, 100);
+    model.update(inputs, 1300);
+    inputs.values[0] = 100.0f;
+    model.update(inputs, 1400);
+    const PlantPetSnapshot before = model.snapshot(2600);
+    CHECK(before.mood == PlantMood::Content && before.recovering);
+    CHECK(before.pose_weights[static_cast<uint8_t>(PlantMood::Thirsty)] > 0);
+    model.update(inputs, 2600);
+    const PlantPetSnapshot after = model.snapshot(2600);
+    CHECK(after.mood == PlantMood::Soggy && after.transition == 0);
+    CHECK(!after.recovering);
+    for (uint8_t pose = 0; pose < PLANT_PET_POSE_COUNT; ++pose)
+        CHECK(after.pose_weights[pose] == before.pose_weights[pose]);
+    CHECK(weight_sum(after) == PLANT_PET_POSE_WEIGHT_MAX);
+    CHECK(model.snapshot(3350).pose_weights[static_cast<uint8_t>(PlantMood::Soggy)] > 0);
+    CHECK(model.snapshot(5600).pose_weights[static_cast<uint8_t>(PlantMood::Soggy)] == PLANT_PET_POSE_WEIGHT_MAX);
+
+    // Rapid reversals never lose normalization or restart from a logical pose.
+    for (uint32_t now = 6000; now < 24000; now += 1300) {
+        inputs.values[0] = inputs.values[0] == 0.0f ? 100.0f : 0.0f;
+        model.update(inputs, now);
+        const PlantPetSnapshot old = model.snapshot(now + 1200);
+        model.update(inputs, now + 1200);
+        const PlantPetSnapshot changed = model.snapshot(now + 1200);
+        CHECK(weight_sum(changed) == PLANT_PET_POSE_WEIGHT_MAX);
+        if (changed.transition == 0)
+            for (uint8_t pose = 0; pose < PLANT_PET_POSE_COUNT; ++pose)
+                CHECK(changed.pose_weights[pose] == old.pose_weights[pose]);
+    }
+}
+
+void profile_validation_activation_and_scale_are_independent() {
+    CHECK(plant_pet_profile_valid(plant_pet_general_profile()));
+    PlantPetProfile custom = plant_pet_general_profile();
+    custom.references[0] = {10.0f, 60.0f};
+    custom.references[1] = {8.0f, 36.0f}; // Both used to be zero ramp denominators.
+    custom.references[2] = {25.0f, 85.0f};
+    PlantPetModel model;
+    CHECK(model.setProfile(custom, 0));
+    CHECK(model.range(PlantChannel::Temperature).min_value == 0.0f);
+    CHECK(model.range(PlantChannel::Temperature).max_value == 40.0f);
+    CHECK(model.range(PlantChannel::Temperature).opt_low == 8.0f);
+    CHECK(model.range(PlantChannel::Temperature).opt_high == 36.0f);
+    CHECK(model.snapshot(0).profile_revision == 1);
+    PlantPetInputs inputs = healthy();
+    inputs.values[1] = 40.0f;
+    model.update(inputs, 0);
+    CHECK(model.snapshot(0).mood == PlantMood::Hot);
+    CHECK(model.snapshot(0).thermal_intensity == 170);
+    inputs.values[1] = 1.0f;
+    model.update(inputs, 100);
+    model.update(inputs, 1300);
+    CHECK(model.snapshot(1300).mood == PlantMood::Cold);
+    CHECK(model.snapshot(2800).thermal_intensity == 255);
+    CHECK(model.setProfile(plant_pet_general_profile(), 3000));
+    CHECK(model.snapshot(3000).profile_revision == 2);
+    model.update(healthy(), 3000);
+    CHECK(model.snapshot(3000).mood == PlantMood::Content);
+    CHECK(!model.snapshot(3000).recovering);
+    CHECK(model.setProfile(plant_pet_general_profile(), 3100));
+    CHECK(model.snapshot(3100).profile_revision == 2);
+
+    custom.references[1] = {50.0f, 60.0f}; // References outside the graphic scale.
+    CHECK(model.setProfile(custom, 4000));
+    inputs = healthy();
+    inputs.values[1] = 55.0f;
+    model.update(inputs, 4000);
+    CHECK(model.snapshot(4000).bands[1] == PlantBand::Normal);
+    CHECK(model.snapshot(4000).mood == PlantMood::Content);
+    CHECK(model.range(PlantChannel::Temperature).max_value == 40.0f);
+
+    for (uint8_t channel = 0; channel < 3; ++channel) {
+        custom = plant_pet_general_profile();
+        custom.references[channel].low = std::numeric_limits<float>::quiet_NaN();
+        CHECK(!plant_pet_profile_valid(custom));
+        CHECK(!model.setProfile(custom, 5000));
+        custom = plant_pet_general_profile();
+        custom.references[channel].high = std::numeric_limits<float>::infinity();
+        CHECK(!plant_pet_profile_valid(custom));
+        custom = plant_pet_general_profile();
+        custom.references[channel].high = custom.references[channel].low + 1.0f;
+        CHECK(!plant_pet_profile_valid(custom));
+        custom = plant_pet_general_profile();
+        custom.references[channel].low = -21.0f;
+        CHECK(!plant_pet_profile_valid(custom));
+        custom = plant_pet_general_profile();
+        custom.references[channel].high = 101.0f;
+        CHECK(!plant_pet_profile_valid(custom));
+    }
+    custom = plant_pet_general_profile();
+    custom.version = PLANT_PET_PROFILE_VERSION + 1;
+    CHECK(!plant_pet_profile_valid(custom));
+}
+
+void explicit_reconfirmation_resets_evidence_without_false_recovery() {
+    PlantPetModel model;
+    PlantPetInputs inputs = healthy();
+    stamp_all(inputs, 1, 100);
+    model.update(inputs, 100);
+    inputs.valid[0] = false; // Custom soil reference requires calibration review.
+    model.update(inputs, 200);
+    CHECK(model.snapshot(200).mood == PlantMood::Unknown);
+    inputs.valid[0] = true;
+    inputs.values[0] = 10.0f;
+    stamp_all(inputs, 2, 300);
+    model.update(inputs, 300);
+    CHECK(model.snapshot(300).bands[0] == PlantBand::Unknown);
+    const uint32_t old_revision = model.snapshot(300).profile_revision;
+    CHECK(model.setProfile(plant_pet_general_profile(), 400, true));
+    CHECK(model.snapshot(400).profile_revision == old_revision + 1);
+    model.update(inputs, 400); // Same fresh acquisition, re-evaluated once.
+    CHECK(model.snapshot(400).bands[0] == PlantBand::Low);
+    CHECK(model.snapshot(400).mood == PlantMood::Thirsty);
+    CHECK(!model.snapshot(400).recovering);
+    CHECK(model.snapshot(400).transition == 255);
+    CHECK(model.setProfile(plant_pet_general_profile(), 500));
+    CHECK(model.snapshot(500).profile_revision == old_revision + 1);
+    CHECK(model.setProfile(plant_pet_general_profile(), 600, true));
+    inputs.values[0] = 50.0f;
+    stamp_all(inputs, 3, 600);
+    model.update(inputs, 600);
+    CHECK(model.snapshot(600).mood == PlantMood::Content);
+    CHECK(!model.snapshot(600).recovering);
+}
 } // namespace
 
 int main() {
@@ -355,6 +641,13 @@ int main() {
     rollover_preserves_evidence_and_transitions();
     temperature_is_flexible_and_hysteretic();
     thermal_strength_progresses_without_counting_frames_as_evidence();
+    duplicate_copies_cannot_confirm_a_band();
+    acquisition_quality_and_expiry_are_independent_of_identity();
+    darkness_is_calm_context_and_never_competes_for_attention();
+    soil_and_air_gestures_are_gentle_and_progressive();
+    recovery_interruption_preserves_the_effective_pose();
+    profile_validation_activation_and_scale_are_independent();
+    explicit_reconfirmation_resets_evidence_without_false_recovery();
     if (failures != 0) {
         std::fprintf(stderr, "%d Planta Lab model checks failed\n", failures);
         return 1;

@@ -1,14 +1,19 @@
 # Planta Lab — investigación para comportamiento y perfiles de aula
 
-Fecha: 2026-10-11. Estado: investigación preliminar; respuesta térmica flexible y símbolos sol/luna implementados como reglas de mascota. Historial, combinaciones y presets sin implementar/validar.
+Fecha de investigación: 2026-10-11. Revisión de alcance: 2026-10-12. Estado: investigación preliminar; comportamiento contextual y General/Personalizado V1 implementados como reglas educativas. Historial, combinaciones sostenidas y presets por especie sin implementar/validar.
 
 Este documento fundamenta la revisión de comportamiento. El contrato implementado está en [ADR-003](ADR-003-planta-lab.md) y los pendientes en [ROADMAP](ROADMAP.md). Distinguir las decisiones provisionales de UI ya implementadas de las recomendaciones biológicas y perfiles aún pendientes.
 
-## Qué sigue implementado
+## Qué está implementado en V1
 
-El perfil actual usa Suelo 30..70 %, temperatura 15..30 °C (decisión provisional de mascota, con histéresis ±0.5 °C después del arranque), aire 40..70 % y Luz 200..8000 lux. Suelo/Aire/Luz conservan intervalos heredados. Ondas magenta desde 27 °C pueden coexistir con sonrisa; postura térmica gradual 30..36 °C / 15..8 °C, con suavizado de 1500 ms. Sol de cuatro tamaños y luna circular solo <20 lux. Luz baja confirmada sigue produciendo `Dim` / `POCA LUZ`; reposo neutral e historial diario todavía no existen.
+General conserva Suelo 30..70 %, temperatura 15..30 °C y Aire 40..70 %. Personalizado permite seis referencias educativas, guardadas solo al confirmar. Temperatura mantiene histéresis ±0.5 °C; Suelo/Temperatura/Aire tienen gesto gradual relativo al perfil, sin ampliar por arrastre Aire a 30..75 %.
 
-La confirmación de 1200 ms y las transiciones de 1.5/3 s estabilizan la interfaz; no demuestran estrés o recuperación biológicos. Las revisiones visuales/térmicas se registran en ADR-003; esta investigación no convierte esos tiempos en evidencia fisiológica. Lecturas y menús no cambian.
+Luz bajo referencia de 200 lux permite REPOSO sin competir como atención adversa; Suelo, temperatura o Aire conservan sus gestos si requieren atención. No confirma noche ni suficiencia diaria. Sol de cuatro tamaños y luna <20 lux se conservan. Efectos ambientales mantienen anclajes absolutos ilustrativos (frío <15 °C hacia 8, calor desde 27/30/33/36, Aire <40 o >70 %), separados del gesto relativo al perfil.
+
+Cada canal distingue adquisición nueva, dato retenido y edad: solo nuevas muestras confirman cambios; caducidad local Suelo/Luz >1000 ms y DHT >3000 ms. Intensidades/transiciones de 1.5/3 s son de interfaz. La mezcla efectiva de poses mantiene continuidad al interrumpir recuperaciones. Estos tiempos no demuestran estrés ni recuperación biológicos.
+
+Personalizado de Suelo guarda su vínculo con calibración RAW; una calibración distinta neutraliza esa referencia hasta revisar/confirmar. Lectura real sigue visible. Perfil y Reset propios no cambian alarmas ni calibración. No hay historial diario, crecimiento persistente, RTC ni presets validados. Contrato y evidencia actual en [ADR-003](ADR-003-planta-lab.md) y [PRODUCTION_RELEASE](PRODUCTION_RELEASE.md).
+
 
 ## Hallazgos y límites de interpretación
 
@@ -27,21 +32,21 @@ Consecuencias para el P-Bit — inferencias de ingeniería, no afirmaciones de l
 - Suelo muestra un porcentaje relativo entre referencias de calibración. No es contenido volumétrico ni agua utilizable por raíces. No copiar porcentajes agronómicos al firmware. Una lectura alta no mide oxígeno, drenaje, pudrición o «ahogamiento».
 - Nutrición, plagas, enfermedades, estado de raíces y crecimiento no se observan con estas cuatro lecturas. Estar dentro del perfil solo describe las condiciones medidas.
 
-## Comportamiento recomendado — pendiente de diseñar e implementar
+## Comportamiento: observación V1 y consejos sostenidos futuros
 
-Separar observación inmediata, contexto de luz y necesidades sostenidas. El personaje puede responder enseguida de manera expresiva; una advertencia requiere evidencia compatible con el perfil. No usar la gravedad normalizada de cuatro intervalos como si fuera gravedad fisiológica.
+V1 separa observación inmediata, contexto de luz y atención del perfil. Reposo, textos observacionales y recuperación visual están implementados. Los consejos sostenidos de esta tabla siguen siendo propuestas y necesitan evidencia compatible con especie, duración y cobertura. La intensidad normalizada de representación no es gravedad fisiológica.
 
-| Evidencia | Respuesta propuesta | Condición necesaria |
+| Evidencia | Respuesta / estado | Condición necesaria |
 |---|---|---|
-| Poca luz ahora | Gesto tranquilo/reposo; sin penalización por luz | No afirmar que es de noche; conservar avisos térmicos o de agua si los hay |
+| Poca luz ahora | REPOSO contextual implementado; sin penalización por luz | No afirmar que es de noche; conservar avisos térmicos o de agua si los hay |
 | Exposición insuficiente repetida | Sugerir revisar la ubicación/luz | Perfil y registro con cobertura suficiente; no completar huecos con oscuridad inventada |
 | Calor, aire seco y secado del sustrato | Gesto de calor y posible aviso para revisar agua | Considerar duración, tendencia y necesidades de la especie; no afirmar quemadura |
-| Suelo húmedo tras riego | Mostrar la observación sin deterioro automático | No inferir «ahogada» por una lectura alta aislada |
+| Suelo húmedo tras riego | SUELO HÚMEDO y gesto gradual implementados; sin diagnóstico automático | No inferir «ahogada» por una lectura alta aislada |
 | Humedad persistente incompatible con el perfil | Sugerir revisar sustrato/drenaje | El drenaje se comprueba por observación; el P-Bit no lo mide |
 | Falta de datos o de historial | Mantener incertidumbre | Separar dato inválido, falta de cobertura y techo de medición |
-| Mejoran las condiciones | Recuperar expresión de la mascota | La animación no demuestra recuperación de la planta real |
+| Mejoran las condiciones | Recuperación visual continua implementada | La animación no demuestra recuperación de la planta real |
 
-Los límites y tiempos quedan abiertos. Deben existir bandas de confort y, cuando haya fundamento, avisos por extremos; el calor extremo también puede ser relevante sin suelo seco. Germinación, plántula y planta establecida requieren contextos distintos. La etapa se seleccionaría explícitamente; estos sensores no permiten deducirla con fiabilidad.
+Las referencias educativas General/Personalizado ya tienen contrato V1. Los límites y tiempos de futuros consejos agronómicos siguen abiertos; cuando haya fundamento podrán añadirse avisos por extremos; el calor extremo también puede ser relevante sin suelo seco. Germinación, plántula y planta establecida requieren contextos distintos. La etapa se seleccionaría explícitamente; estos sensores no permiten deducirla con fiabilidad.
 
 El historial debe registrar tiempo observado, huecos y reinicios. Un periodo con el equipo apagado no cuenta como luz cero. Antes de hablar de un día completo hay que definir ventana temporal, cobertura mínima y comportamiento tras reinicio; disponer de temporizadores de animación no resuelve esa cuestión.
 
@@ -81,19 +86,19 @@ Antes del ajuste térmico, Content exigía Suelo 30..70 %, temperatura 18..26 °
 | Luz | Intensidad y duración compatibles con la especie | No hay un intervalo universal en lux; 8000 es techo instrumental y una muestra baja no demuestra carencia diaria |
 | Suelo | Riego/secado según especie y sustrato | El porcentaje del P-Bit es relativo, no humedad volumétrica; 30/70 son cortes ilustrativos heredados, no umbrales agronómicos generales |
 
-### Propuesta de producto — implementación parcial
+### Decisiones V1 y propuestas de producto posteriores
 
 Separar cuatro salidas: lectura, efecto ambiental, expresión principal y aviso sostenido. Una planta puede sonreír mientras una onda indica ambiente cálido; las barras conservan su información y no se oculta una condición. Content pasa a expresar ausencia de necesidad importante detectada, sin certificar salud real. La propuesta no resuelve nutrición, enfermedades ni crecimiento.
 
 - Temperatura: núcleo orientativo 18..27 °C; 15..30 °C ya implementado como intervalo flexible para el personaje, con histéresis y reacción progresiva. Este último es una decisión provisional de UI, apoyada en la amplitud de tolerancias publicada, no un óptimo universal ni un límite de seguridad biológico.
-- Aire: explorar 30..75 % como intervalo flexible de expresión contenta; mantener 40..60 % como referencia central. Los cortes flexibles son propuesta de producto pendiente de validar, no cifras prescritas por las fuentes. Desvíos moderados pueden mostrar trazos/niebla sin cara triste.
-- Luz: oscuridad momentánea permite reposo tranquilo sin penalización; no anunciar suficiencia diaria sin historial/cobertura. La temperatura o el agua siguen teniendo prioridad si hay una necesidad independiente.
-- Suelo: conservar por ahora el efecto progresivo aprobado. Separar la ilustración seca/mojada del diagnóstico emocional; no ampliar números como si fuesen un óptimo de cultivo. Definir cuándo exigir gesto preocupado con calibración, especie y duración.
+- Aire: V1 conserva 40..70 % y añade intensidad gradual, de modo que un desvío suave no fuerza la pose completa. La propuesta anterior de 30..75 % sigue sin adoptar/validar; no es una cifra prescrita por las fuentes.
+- Luz: reposo tranquilo sin penalización está implementado; no anunciar suficiencia diaria sin historial/cobertura. La temperatura o el agua siguen teniendo prioridad si hay una necesidad independiente.
+- Suelo: efecto progresivo aprobado conservado, referencias General/Personalizado ligadas a calibración y gesto gradual implementados. SUELO SECO/HÚMEDO describe la lectura. Futuros avisos por estrés requieren calibración, especie y duración; no ampliar números como si fueran un óptimo de cultivo.
 - Extremos y combinaciones: considerar calor con aire seco y secado del suelo, pero no exigir esa combinación para reconocer un extremo térmico. La duración para un aviso no se copia de los 1200 ms de estabilización UI: queda por diseñar/validar. Datos faltantes mantienen incertidumbre.
 
-Detalles visuales ya implementados: sol amarillo con radios 1/2/3/4 desde 20/200/800/3000 lux, variación de brillo hasta 8000; luna circular pálida <20 lux como corte ilustrativo, sin detectar noche. Ondas magenta 1/2/3/4 desde 27/30/33/36 °C, no de daño. Se conserva la paleta aprobada, sin introducir rojo/coral. Temperatura 15..30 °C, histéresis ±0.5 °C y `thermal_intensity` suavizada; sonrisa/neutral/reacción completa según intensidad visual. Preview y build comprobados, validación física de este ajuste pendiente.
+Detalles visuales ya implementados: sol amarillo con radios 1/2/3/4 desde 20/200/800/3000 lux, variación de brillo hasta 8000; luna circular pálida <20 lux como corte ilustrativo, sin detectar noche. Ondas magenta 1/2/3/4 desde 27/30/33/36 °C, no de daño. Se conserva la paleta aprobada, sin introducir rojo/coral. Temperatura 15..30 °C, histéresis ±0.5 °C y `thermal_intensity` suavizada; sonrisa/neutral/reacción completa según intensidad visual. Preview y build comprobados, observación general favorable del usuario en P-Bit el 2026-10-12; comprobaciones físicas específicas pendientes.
 
-Prioridad: comprobar el ajuste térmico y los símbolos en TFT. Reposo neutral, flexibilidad del aire y avisos sostenidos/combinados siguen pendientes; la configuración todavía no se incorpora. El cambio implementado mejora expresión sin diagnosticar salud real.
+El usuario conserva el diseño el 2026-10-12. La [revisión de comportamiento](PLANTA_LAB_BEHAVIOR_REVIEW.md) propone corregir semántica/frescura/continuidad y separar referencias/animación antes de General/Personalizado. El alcance completo fue autorizado: reposo contextual, intensidad gradual de Suelo/Aire, identidad/frescura, continuidad y General/Personalizado están implementados en V1. Los avisos sostenidos/combinados y la propuesta numérica de Aire 30..75 % siguen sin adoptar. No se diagnostica salud real.
 
 ### Tiempo de sesión y combinaciones — siguiente revisión
 
@@ -104,7 +109,7 @@ El usuario plantea que humedad del suelo muy baja/alta puede causar estrés, que
 - No existe hoy historial que registre exposición diaria o persistencia de suelo, ni persistencia de ese historial. Un apagado no es evidencia de oscuridad ni humedad; RTC/hora y continuidad de observación son problemas distintos. No prometer diagnóstico diario por tener un temporizador.
 - Calor propio del P-Bit es una posible fuente de sesgo planteada por el usuario, no cuantificada en esta unidad. No aplicar una resta térmica arbitraria. Antes de una corrección se necesitaría comparar montaje/lectura con referencia ambiental y comprobar la dependencia del uso/alimentación.
 - Luz alta + aire cálido justifica observar la ubicación como hipótesis de zona luminosa/cálida, sin confirmar sol directo fuerte ni quemadura. El LDR se satura a 8000, y el DHT11 mide aire: la fuente de luz y temperatura de hoja siguen desconocidas.
-- Luz/calor con aire seco y suelo que se seca puede dar contexto de mayor demanda de agua; duración y especie condicionan la interpretación. Una lectura alta de suelo tras riego tampoco demuestra daño. Los avisos por combinaciones no se implementan en este ajuste térmico.
+- Luz/calor con aire seco y suelo que se seca puede dar contexto de mayor demanda de agua; duración y especie condicionan la interpretación. Una lectura alta de suelo tras riego tampoco demuestra daño. Los avisos por combinaciones sostenidas no se implementan en V1.
 
 ## Presets, personajes y catálogo web — futuro
 
@@ -114,12 +119,12 @@ El personaje puede depender de la especie mediante una familia de dibujo — bro
 
 La web podría publicar fichas y perfiles con versión, fuentes y compatibilidad de firmware. Comenzar con fichas para consulta o ajuste manual; diseñar una importación después de definir formato y validación. No existe hoy descarga/importación de presets. Separar datos del perfil, reglas de interpretación y arte del personaje permite ampliar el catálogo sin rehacer todo el renderer.
 
-## Secuencia recomendada y preguntas abiertas
+## Secuencia vigente — revisada 2026-10-12
 
-1. Cerrar en TFT los ajustes visuales ya implementados.
-2. Acordar la semántica de reposo, observaciones y avisos; revisar la penalización actual por poca luz y el lenguaje `BIEN`/`AHOGADA`.
-3. Definir fichas para las tres candidatas iniciales, separando etapa de cultivo y calibración de mediciones biológicas.
-4. Diseñar historial, cobertura, combinaciones y prioridades antes de fijar números o el menú de personalización. Validar con lecturas y observación de plantas reales.
-5. Incorporar configuración/persistencia; ampliar personajes y catálogo web posteriormente.
+1. Diseño probado conservado por decisión del usuario; validaciones exhaustivas continúan abiertas.
+2. Revisión acotada completada y alcance autorizado: comportamiento contextual, nueva evidencia/frescura, continuidad e intensidad gradual implementados.
+3. General/Personalizado V1 implementado con referencias de Suelo/Temperatura/Aire, Luz contextual y persistencia/Reset propios. Probar el nuevo candidato en P-Bit sin atribuirle la aprobación de la versión visual anterior.
+4. Validar fichas/presets por especie, etapa y calibración; judía, rábano y albahaca son candidatas, no presets listos.
+5. Diseñar historial/cobertura y combinaciones para futuros consejos por duración. Personajes por especie y catálogo web posteriores.
 
-Esta investigación no valida perfiles ni completa pruebas físicas. No inicia prueba final de 24 h ni validación por unidad, aplazadas. Implementación térmica/visual y evidencia de build en [PRODUCTION_RELEASE](PRODUCTION_RELEASE.md); historial/combinaciones y presets siguen pendientes.
+El requisito de historial diario aplica a interpretaciones sostenidas; no bloquea referencias educativas personalizables. Esta implementación no añade ni valida nuevos umbrales agronómicos. No inicia prueba final de 24 h ni validación por unidad, aplazadas. Evidencia del candidato en [PRODUCTION_RELEASE](PRODUCTION_RELEASE.md); investigación no equivale a prueba física.

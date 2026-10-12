@@ -38,6 +38,7 @@
 #include "ui_lab_focus.h"
 #include "ui_lab_dual.h"
 #include "ui_lab_plant.h"
+#include "ui_plant_settings.h"
 #include "ui_lab_icon_gallery.h"
 #include "ui_lab_sensor_cards.h"
 #include "ui_lab_sound_vu.h"
@@ -306,8 +307,19 @@ static void copy_readings_for_ui(bool force, bool raw_mic) {
     g_ui_readings_snapshot = next;
     initialized = true;
 #if PBIT_ENABLE_GRAPH_LAB
-    // Update even when another screen is visible; demo has its own RAM model.
-    update_lab_plant_readings(next, millis(), demo_mode_is_active());
+    if (demo_mode_is_active()) {
+        static uint32_t demo_sequence = 0, last_demo_tick = UINT32_MAX;
+        static uint32_t last_demo_sample_ms = 0;
+        const uint32_t now = millis(), tick = now / demo_mode_value_refresh_ms();
+        if (tick != last_demo_tick) {
+            if (++demo_sequence == 0) ++demo_sequence;
+            last_demo_tick = tick;
+            last_demo_sample_ms = now;
+        }
+        next.soil_sample = next.temperature_sample = next.humidity_sample = next.light_sample
+            = {demo_sequence,last_demo_sample_ms,ReadingSampleQuality::Valid};
+        update_lab_plant_readings(next, now, true);
+    }
 #endif
 }
 
@@ -638,6 +650,13 @@ void switch_screen(void *param) {
         bool system_needs_update = false;
         bool soil_cal_needs_update = false;
         bool plant_lab_anim_needs_update = false;
+#if PBIT_ENABLE_GRAPH_LAB
+        Reading plant_reading;
+        portENTER_CRITICAL(&readings_mux);
+        plant_reading = global_readings;
+        portEXIT_CRITICAL(&readings_mux);
+        update_lab_plant_readings(plant_reading, millis(), false);
+#endif
         UiOverlayState overlay_state = runtime_get_ui_overlay();
 
         if (overlay_state != UI_OVERLAY_NONE) {
@@ -767,7 +786,7 @@ void switch_screen(void *param) {
             || (active_screen == TIMER_SCREEN && (timer_needs_update || g_timer_just_reset))
             || (active_screen == SYSTEM_SCREEN && system_needs_update)
 #if PBIT_ENABLE_GRAPH_LAB
-            || (active_screen == LAB_PLANT_SCREEN && plant_lab_anim_needs_update)
+            || (active_screen == LAB_PLANT_SCREEN && (plant_lab_anim_needs_update || plant_settings_menu_is_active()))
 #endif
             ) {
             if (demo_splash_active) {
@@ -859,7 +878,8 @@ void switch_screen(void *param) {
                     break;
 
                 case LAB_PLANT_SCREEN:
-                    draw_lab_plant_screen(screen_changed, sensor_data_changed);
+                    if (plant_settings_menu_is_active()) draw_plant_settings_menu(screen_changed);
+                    else draw_lab_plant_screen(screen_changed, sensor_data_changed);
                     break;
 
                 case LAB_ICON_SET_A_SCREEN:

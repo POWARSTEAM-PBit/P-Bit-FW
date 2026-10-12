@@ -38,6 +38,8 @@ void init_hw();
  * Load soil calibration from NVS, or fall back to defaults.
  */
 void load_soil_calibration();
+struct SoilCalibrationData;
+SoilCalibrationData get_current_soil_calibration();
 
 /**
  * Save a new soil calibration into NVS.

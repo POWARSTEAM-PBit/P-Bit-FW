@@ -211,6 +211,11 @@ El diagnóstico de Planta Lab usa `FONT_BODY` (Roboto Regular 7), con fallback a
 
 El dirty-key de la fila considera el texto visible y la posición entera del marcador. Limpiar solo sus zonas, incluido todo el alto del marcador, para evitar residuos; refrescar el icono local si cambia la validez. El ajuste no autoriza redibujar la fila completa por cada tick.
 
+V1 añade revisión activa de perfil/calibración al dirty-key. Las referencias activas compartidas pintan Suelo/Temperatura/Aire; cambiarlas obliga a regenerar zonas aunque número o marcador coincidan. Temperatura extiende mínimo/máximo gráfico para incluir referencias personalizadas fuera de 0..40 °C, preservando General y manteniendo la validez instrumental separada. Luz bajo referencia no dibuja borde de atención adversa. El estado de Suelo pendiente de revisar es distinto de sensor ausente: mantener porcentaje actual blanco y referencia neutral, sin aportar gesto ni grietas/agua hasta reconfirmar. Datos realmente inválidos/antiguos usan --.
+
+El modelo consume identidad/fecha fuera de draw; una copia o tick no añade evidencia. Caducidad local también puede cambiar validez/bordes sin número nuevo. La animación por tick actualiza pesos/intensidad y la revisión forma parte de la caché junto al estado y entorno; no dejar poses congeladas ni arrastrar un borde anterior al cambiar perfil.
+
+
 ### Estado externo desconectado
 
 Para `SZ_DS18` y `SZ_SOIL`, la ausencia del sensor es un cambio de validez y por tanto ensucia chrome y datos. Usar `external_sensor_state.*` como fuente común:
@@ -368,9 +373,10 @@ void draw_gauge_ring_sprite(...) {
 
 Una zona puede componerse en un buffer RGB565 de tamaño fijo y enviarse con `pushImage()`, sin crear un `TFT_eSprite`. El storage se declara fuera del loop, se reutiliza y no reserva heap por frame. Se rellena y compone completo en RAM, con un solo envío por frame y sin `fillRect` previo en el panel. El estado `swapBytes` se guarda y restaura.
 
-Planta Lab aplica este contrato al interior `54×95` del terrario, enviado a `(3,28)`: 10 260 bytes de RAM estática. Header, borde exterior y filas derechas quedan fuera. Mascota, tierra y efectos forman una composición única; la tierra ajusta su tono café a la lectura actual, con grietas/agua habilitadas por la banda estabilizada e intensidad progresiva. Lecturas ausentes/no finitas producen tierra neutra sin esas señales. Todo se compone sin borrado separado. El renderer de UI repone los seis píxeles de máscara de las esquinas superiores antes del push, conservando el borde r4. El buffer no invade chrome vecino. Las ondas térmicas se componen en ocho posiciones laterales del mismo buffer: ascenso de hasta 3 px, pausa escalonada y selección determinista entre apariciones (12 ticks, 2.64 s). No se usa RNG por frame ni se dibuja sobre las filas de datos; el mismo snapshot/tiempo reproduce el mismo raster. Copos: hasta tres, ciclo de 18 ticks con 14 activos, descenso de hasta 3 px y deriva lateral de 1 px. Aire: hasta dos grupos, ciclos de 19..22 ticks según intensidad, pausa de cinco ticks y deriva de hasta 2 px. Máximo cuatro grupos de temperatura/aire conjuntos; prioridad de espacio para al menos un grupo de aire cuando ambos están activos. Todo en el buffer fijo, sin estado RNG ni heap adicional.
+Planta Lab aplica este contrato al interior `54×95` del terrario, enviado a `(3,28)`: 10 260 bytes de RAM estática. Header, borde exterior y filas derechas quedan fuera. Mascota, tierra y efectos forman una composición única; la tierra ajusta su tono café a la lectura actual, con grietas/agua habilitadas por la banda estabilizada y referencia activa de Suelo. Lecturas ausentes/no finitas producen tierra neutra sin esas señales. Todo se compone sin borrado separado. El renderer de UI repone los seis píxeles de máscara de las esquinas superiores antes del push, conservando el borde r4. El buffer no invade chrome vecino. Las ondas térmicas se componen en ocho posiciones laterales del mismo buffer: ascenso de hasta 3 px, pausa escalonada y selección determinista entre apariciones (12 ticks, 2.64 s). No se usa RNG por frame ni se dibuja sobre las filas de datos; el mismo snapshot/tiempo reproduce el mismo raster. Copos: hasta tres, ciclo de 18 ticks con 14 activos, descenso de hasta 3 px y deriva lateral de 1 px. Aire: hasta dos grupos, ciclos de 19..22 ticks según intensidad, pausa de cinco ticks y deriva de hasta 2 px. Máximo cuatro grupos de temperatura/aire conjuntos; prioridad de espacio para al menos un grupo de aire cuando ambos están activos. Todo en el buffer fijo, sin estado RNG ni heap adicional.
 
-El modelo temporal se actualiza fuera del renderer. La caché de dibujo incluye clave de animación, estado visible y valores de entorno (`soil_x10/temp_x10/hum_x10/lux`): el early-return permite tanto una fase pendiente sin lectura nueva como detalle continuo aunque una lectura cambie dentro del mismo tick, banda o dígito visible. El modelo no debe contar ticks de animación como evidencia nueva de sensores. Temperatura añade `thermal_intensity` suavizada y `previous_thermal_intensity` congelada al cambiar mood; la geometría interpola Content↔Hot/Cold sin forzar reacción completa en un límite. El tick de 220 ms sigue habilitando frames de esa rampa aunque cifras/bandas no cambien.
+El modelo temporal se actualiza fuera del renderer. La caché de dibujo incluye clave de animación, estado visible y valores de entorno (`soil_x10/temp_x10/hum_x10/lux`): el early-return permite tanto una fase pendiente sin lectura nueva como detalle continuo aunque una lectura cambie dentro del mismo tick, banda o dígito visible. El modelo no debe contar ticks de animación como evidencia nueva de sensores. V1 interpola intensidad de Suelo/Temperatura/Aire y nueve pesos normalizados de pose; al cambiar mood se congela la mezcla efectiva anterior. La geometría no salta a Content completo al interrumpir una recuperación ni fuerza una pose completa por un desvío mínimo. El tick de 220 ms sigue habilitando frames de esa rampa aunque cifras/bandas no cambien.
+
 
 ### Trampa: sprite que pisa chrome adyacente
 
@@ -390,6 +396,8 @@ tft.drawString(unit_str, 148, 34);
 
 Demo Mode usa un refresco propio de `220 ms` (ver `demo_mode_value_refresh_ms()` en `src/demo_mode.cpp`). Toda pantalla que reciba `sensor_data_changed=true` durante demo debe responder en ≤ ese tick sin redibujar chrome.
 
+Planta Lab usa un modelo Demo separado con General fijo y stamps sintéticos por nueva simulación, sin guardar perfiles. Sigue fuera de kDemoScenes; la separación no añade una escena.
+
 ### Reglas obligatorias durante Demo Mode
 
 1. **No cambiar la cadencia base** sin recalibrar todas las cards: `220 ms` está elegido para que las curvas suaves se vean fluidas sin disparar flicker — duplicarlo o reducirlo rompe ese equilibrio.
@@ -401,6 +409,7 @@ Demo Mode usa un refresco propio de `220 ms` (ver `demo_mode_value_refresh_ms()`
 > **Regla de regresión**: tras cualquier cambio en render dinámico, entrar a Demo Mode (encoder presionado en boot, o pulsación larga en `Inicio`/`LAB_HOME_CARDS_SCREEN`) y observar 30 segundos. Si el flicker aparece solo en demo, casi siempre es un clear acotado a 1 cifra que no soporta dos cifras, o un sprite que se inicializa cada frame.
 
 ---
+
 
 ## Tabla de estado — patrones aplicados (revisión 2026-10-10)
 

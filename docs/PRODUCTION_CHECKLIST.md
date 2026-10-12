@@ -1,17 +1,20 @@
 # Checklist de Producción P-Bit
 
-Actualizado: 2026-10-11
+Actualizado: 2026-10-12
 
 Usar esta lista antes de entregar una build o una unidad flasheada.
 
-Estado de esta revisión: build `esp32dev` comprobada el `2026-10-11` sobre base `3744f04` + cambios locales de mascota y refinamiento visual de Planta Lab, con RAM estática `59580` y Flash `971189`. El usuario comunicó una impresión favorable de la primera mascota en P-Bit; después aprobó en P-Bit colores actuales de planta/medidores y valoró favorablemente suelo progresivo, sin completar toda la validación física. Los checks HW marcados conservan evidencia histórica puntual y no certifican el candidato actual; ver `docs/PRODUCTION_RELEASE.md`.
+Estado de esta revisión: build V1 `esp32dev` comprobada el `2026-10-12` sobre base `23fdb57` + cambios locales, SUCCESS (22.711 s), RAM `60372/327680` (18.4 %) y Flash `979701/1310720` (74.7 %). Candidato cargado en COM8 SUCCESS (34.229 s), hashes verificados y reinicio RTS enviado. No se atribuye la build solo al commit base ni se confunde carga con funcionamiento físico.
 
-Prioridad acordada: cerrar el refinamiento visual de Planta Lab en TFT real, dejando configuración/presets para después e incluyendo recuperación y regresión de flicker/Demo. La prueba final de 24 h y la validación física completa por unidad quedan pendientes y aplazadas por el usuario. Este checklist sigue abierto y no constituye aprobación de producción.
+El usuario aprobó colores/suelo y comunicó el 2026-10-12 que la versión visual anterior funciona muy bien: diseño conservado y cierre visual provisional. V1 añade reposo contextual, adquisición/frescura, gesto gradual/continuidad y General/Personalizado; esos cambios requieren sus propias pruebas físicas. Los checks HW históricos no certifican el candidato actual; ver `docs/PRODUCTION_RELEASE.md`.
+
+Prioridad: probar comportamiento y configuración V1 sin reabrir el diseño. Presets por especie, historial y consejos sostenidos siguen posteriores. La prueba final de 24 h y la validación física completa por unidad quedan pendientes y aplazadas por el usuario. Este checklist sigue abierto y no constituye aprobación de producción.
 
 ## 1. Configuración de build
 
 - [x] `py -m platformio run -e esp32dev` compila sin errores.
-- [x] Resultado de build registrado: RAM `18.2%` (`59580`/`327680`) y Flash `74.1%` (`971189`/`1310720`).
+- [x] Resultado de build V1 registrado: RAM `18.4%` (`60372`/`327680`) y Flash `74.7%` (`979701`/`1310720`).
+- [x] Carga V1 COM8 SUCCESS: hashes verificados, reinicio RTS enviado; sin marcar prueba física de arranque o NVS por ese resultado.
 - [x] `include/config.h`: `PBIT_ENABLE_GRAPH_LAB=1` para el carrusel actual con `Inicio/Clima Lab/Planta Lab/Termo Lab` y `SENSOR_ZONE_SCREEN`.
 - [x] `PBIT_ENABLE_SERIAL_PLOTTER=0` para producción.
 - [x] `FIRMWARE_DEBUG` sigue comentado.
@@ -41,9 +44,14 @@ Prioridad acordada: cerrar el refinamiento visual de Planta Lab en TFT real, dej
 - [ ] En hardware: arranque frío muestra selector de idioma si la NVS fue limpiada.
 - [ ] En hardware: recorrer carrusel completo y verificar legibilidad de todos los modos.
 - [ ] En hardware: con Suelo conectado, `Planta Lab` aparece entre `Clima Lab` y `Termo Lab`; sin Suelo, se salta sin dejar posición fantasma.
-- [x] Planta Lab software: Modelo nativo, incluidos casos térmicos nuevos, 1215 combinaciones del raster, 101 niveles progresivos de Suelo y 4 lecturas ausentes/no finitas; 138 comparaciones frame parcial/completo PASS. Nueve estados, once niveles de suelo, luz/temperatura y GIF de movimiento revisados por software; 48 frames adicionales verifican ondas repartidas y escalonadas. Usuario acepta el preview general de sol/luna y calor distribuido; frío/aire distribuidos autorizados e integrados: 528 comparaciones host PASS y 528 frames idénticos al preview; etiquetas ES/CAT/EN medidas en el refinamiento previo sin cambiar fuentes/textos. No equivale a validación física.
+- [x] Evidencia histórica de Planta Lab visual (2026-10-11, anterior a V1): modelo nativo, incluidos casos térmicos nuevos, 1215 combinaciones del raster, 101 niveles progresivos de Suelo y 4 lecturas ausentes/no finitas; 138 comparaciones frame parcial/completo PASS. Nueve estados, once niveles de suelo, luz/temperatura y GIF de movimiento revisados por software; 48 frames adicionales verifican ondas repartidas y escalonadas. Usuario acepta el preview general de sol/luna y calor distribuido; frío/aire distribuidos autorizados e integrados: 528 comparaciones host PASS y 528 frames idénticos al preview; etiquetas ES/CAT/EN medidas en el refinamiento previo sin cambiar fuentes/textos. No equivale a validación física.
 - [x] Usuario aprueba en P-Bit colores de planta/medidores y valora favorablemente suelo progresivo; aceptación puntual, sin completar el checklist visual.
-- [ ] En hardware: `Planta Lab` — nueve poses, verde persistente, movimiento/parpadeo, recuperación y desconocidos; necesidades resaltadas y dominante con doble borde. Barras por sensor y extremos oscurecidos; tierra café que se aclara/agrieta al secarse y se oscurece antes de ampliar manchas de agua. Sol amarillo de cuatro tamaños, luna circular solo <20 lux y ondas térmicas 1..4 repartidas a distintas alturas/lados del terrario, sin invadir lecturas. Comprobar sonrisa a 26/27/30 °C con otros sensores normales, respuesta progresiva 31..36 y margen anti-oscilación; frío simétricamente gradual. Copos 1..3 alternados con descenso y grupos de aire 1..2 con deriva/pausas; máximo cuatro grupos conjuntos. Comprobar frío+aire húmedo y calor+aire seco. Iconos compactos, barras de 48 px, K desde 1000 lux, grado y ES/CAT/EN legibles; C/F coherente, Luz llega a 8000 y tierra/diagnóstico comparten bandas 30/70 % con confirmación temporal, sin parpadeo ni recortes.
+- [x] V1 software: reposo Luz sin atención adversa, evidencia por adquisición/frescura, intensidad gradual y continuidad de poses, General/Personalizado, referencias compartidas y menú Perfil/Ajustar/Reset/Salir implementados; pruebas/build registradas en PRODUCTION_RELEASE. Preview de configuración ES/CAT/EN comprobado por software, sin cerrar legibilidad física.
+- [ ] En hardware V1: `Planta Lab` conserva planta verde, suelo café, parpadeo y distribución de sol/luna/copos/ondas/aire; máximo cuatro grupos conjuntos, lecturas despejadas. Verificar recuperación, transición interrumpida, datos ausentes/antiguos, idiomas y flicker. Con poca luz y otros datos normales aparece REPOSO; si Suelo/Temperatura/Aire requiere atención, conserva su gesto.
+- [ ] En hardware V1: larga 1200 ms abre Perfil/Ajustar/Reset/Salir; índices raíz 0..3, Reset abajo izquierda y Salir abajo derecha. Perfil General/Personalizado y Ajustar recorren seis referencias; Cancelar inicial y larga dentro descartan borrador, sin modificar activo/NVS. Guardar aplica explícitamente.
+- [ ] En hardware V1: editar temperatura en °C/°F global, confirmar y reiniciar; valor almacenado equivalente en °C. Verificar porcentajes, separación útil y referencias personalizadas fuera de 0..40 °C visibles en barra ampliada. General conserva el personalizado; Reset vuelve a General/elimina personalizado sin cambiar calibración ni alertas de sensores.
+- [ ] En hardware V1: calibración de Suelo distinta con Personalizado muestra REVISAR SUELO (en card si no hay otra atención), mantiene porcentaje blanco y referencia neutral sin gesto/grietas/agua. Revisar los seis valores en Ajustar y Guardar vincula nuevamente; seleccionar Personalizado sin revisión no elimina el aviso.
+- [ ] En hardware V1: referencias activas coinciden en barras/modelo/efectos de Suelo, también después de guardar/cambiar perfil. Gesto progresivo Suelo/Temperatura/Aire; anclajes ambientales absolutos conservados y separados de referencia editable. Instancias real/Demo aisladas, Demo General y sin escritura NVS; Planta Lab no añade escena automática.
 - [ ] En hardware: en cada sensor, pulsación corta cambia modo y pulsación larga abre el menú del sensor activo.
 - [ ] En hardware: `Timer` responde a corto/largo según diseño.
 - [ ] En hardware: cambiar C/F, reiniciar y confirmar persistencia de unidad.
@@ -92,4 +100,4 @@ Prioridad acordada: cerrar el refinamiento visual de Planta Lab en TFT real, dej
 
 ### Observación de uso — 2026-10-12
 
-2026-10-12: el usuario comunica que la versión cargada funciona muy bien y pide conservar el diseño actual. Se da por cerrado provisionalmente el ajuste visual de producto; esta observación general no verifica individualmente todas las poses, idiomas, recuperación, flicker ni Demo, ni cierra la validación completa por unidad/24 h. No se marcan checks adicionales de hardware por esta observación general.
+2026-10-12, antes de V1: el usuario comunica que la versión visual cargada funciona muy bien y pide conservar el diseño actual. Se da por cerrado provisionalmente el ajuste visual de producto; esta observación general no verifica individualmente todas las poses, idiomas, recuperación, flicker ni Demo, ni cierra la validación completa por unidad/24 h. No se marcan checks adicionales de hardware por esta observación general.

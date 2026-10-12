@@ -1,6 +1,7 @@
 #pragma once
 
 #include <Arduino.h>
+#include "plant_pet.h"
 
 // Typed snapshots loaded from / persisted to NVS.
 // The hardware layer stays responsible for validation and in-memory caches,
@@ -126,3 +127,18 @@ void    save_language_store(uint8_t lang);
 // Stores/loads a compact hash derived from the running ELF SHA256.
 uint32_t load_fw_build_stamp_store();
 void     save_fw_build_stamp_store(uint32_t stamp);
+
+// Planta Lab references are isolated from sensor alarms and soil RAW calibration.
+enum class PlantProfileMode : uint8_t { General = 0, Custom = 1 };
+constexpr uint8_t PLANT_SETTINGS_SCHEMA_VERSION = 1;
+struct PlantSettingsData {
+    uint8_t schema_version;
+    PlantProfileMode mode;
+    PlantPetProfile custom_profile;
+    int soil_dry_raw;
+    int soil_wet_raw;
+};
+// Single validated/versioned blob. Corrupt or incompatible data falls back to General.
+PlantSettingsData load_plant_settings_store();
+bool save_plant_settings_store(const PlantSettingsData& settings);
+bool reset_plant_settings_store();
